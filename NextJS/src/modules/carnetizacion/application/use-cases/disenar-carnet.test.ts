@@ -39,6 +39,7 @@ class RepoCarnetizacionMock implements RepoCarnetizacion {
   async obtenerPlantillaMotor(): Promise<PlantillaMotor> { throw new Error("not implemented"); }
   async crearPlantillaBorrador(): Promise<PlantillaMotor> { throw new Error("not implemented"); }
   async actualizarPlantillaBorrador(): Promise<PlantillaMotor> { throw new Error("not implemented"); }
+  async eliminarPlantillaMotor(): Promise<void> { return; }
   async publicarPlantilla(): Promise<PlantillaMotor> { throw new Error("not implemented"); }
   async activarPlantillaMotor(): Promise<PlantillaMotor> { throw new Error("not implemented"); }
   async listarVersionesPlantilla(): Promise<PlantillaMotor[]> { return []; }

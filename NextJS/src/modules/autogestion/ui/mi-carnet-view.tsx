@@ -41,6 +41,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ContadorCaracteres } from "@/components/contador-caracteres";
 import { LIMITES_TEXTO } from "@/shared/validation/limites-texto";
 import { CarnetVistaPrevia } from "@/shared/ui/components/carnet-vista-previa";
+import { PrivacidadCarnetDialog } from "@/modules/carnetizacion/ui/components/privacidad-carnet-dialog";
 
 import {
   getMiExpedienteAction,
@@ -53,6 +54,7 @@ export function MiCarnetView() {
   );
 
   const [modalAbierto, setModalAbierto] = useState(false);
+  const [privacidadAbierta, setPrivacidadAbierta] = useState(false);
   const [motivoSeleccionado, setMotivoSeleccionado] = useState<number>(1);
   const [observaciones, setObservaciones] = useState("");
   const [solicitando, setSolicitando] = useState(false);
@@ -136,6 +138,17 @@ export function MiCarnetView() {
     "CONATEL";
   const listaCarnets = carnets ?? [];
   const listaMotivos = motivos_carnet ?? [];
+  const yaTieneCredencial = listaCarnets.length > 0 || Boolean(carnet_activo);
+  const motivosDisponibles = listaMotivos.filter((m: { id: number; nombre: string; descripcion?: string }) => {
+    if (!yaTieneCredencial) return true;
+    const texto = `${m.nombre} ${m.descripcion ?? ""}`.toUpperCase();
+    return !texto.includes("PRIMERA EMISIÓN") && !texto.includes("PRIMERA EMISION");
+  });
+  const motivoEfectivo = motivosDisponibles.some(
+    (m: { id: number }) => m.id === motivoSeleccionado,
+  )
+    ? motivoSeleccionado
+    : (motivosDisponibles[0]?.id ?? 0);
 
   const handleDescargarPdf = async () => {
     try {
@@ -172,10 +185,14 @@ export function MiCarnetView() {
   };
 
   const handleEnviarSolicitud = async () => {
+    if (!motivoEfectivo) {
+      toast.error("No hay un motivo de solicitud disponible para su caso.");
+      return;
+    }
     try {
       setSolicitando(true);
       const res = await solicitarCarnetAction({
-        motivo_id: motivoSeleccionado,
+        motivo_id: motivoEfectivo,
         observaciones: observaciones.trim() || undefined,
       });
 
@@ -256,7 +273,7 @@ export function MiCarnetView() {
               </Card>
 
               {/* Botones de acción */}
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex flex-col sm:flex-row flex-wrap gap-3">
                 <Button
                   onClick={handleDescargarPdf}
                   disabled={descargandoPdf}
@@ -276,6 +293,14 @@ export function MiCarnetView() {
                 >
                   <PlusCircle className="size-4" />
                   Solicitar reposición
+                </Button>
+                <Button
+                  onClick={() => setPrivacidadAbierta(true)}
+                  variant="outline"
+                  className="h-11 text-sm font-medium gap-2"
+                >
+                  <ShieldCheck className="size-4" />
+                  Privacidad del QR
                 </Button>
               </div>
             </div>
@@ -467,12 +492,12 @@ export function MiCarnetView() {
               </label>
               <select
                 id="modal_motivo_id"
-                value={motivoSeleccionado}
+                value={motivoEfectivo}
                 onChange={(e) => setMotivoSeleccionado(Number(e.target.value))}
                 className="w-full h-10 px-3 bg-background border border-input rounded-md text-foreground text-sm focus:ring-2 focus:ring-primary focus:outline-none"
               >
-                {listaMotivos.length > 0 ? (
-                  listaMotivos.map((m: { id: number; nombre: string; descripcion?: string }) => {
+                {motivosDisponibles.length > 0 ? (
+                  motivosDisponibles.map((m: { id: number; nombre: string; descripcion?: string }) => {
                     const esRepetido =
                       !m.descripcion ||
                       m.nombre.trim().toUpperCase() === m.descripcion.trim().toUpperCase();
@@ -483,6 +508,13 @@ export function MiCarnetView() {
                       </option>
                     );
                   })
+                ) : yaTieneCredencial ? (
+                  <>
+                    <option value={2}>RENOVACIÓN — Vencimiento de credencial</option>
+                    <option value={3}>PÉRDIDA — Extravío de credencial previa</option>
+                    <option value={4}>DAÑO — Deterioro del material físico</option>
+                    <option value={5}>ACTUALIZACIÓN — Cambio de cargo o adscripción</option>
+                  </>
                 ) : (
                   <>
                     <option value={1}>PRIMERA EMISIÓN — Nuevo ingreso a CONATEL</option>
@@ -493,6 +525,12 @@ export function MiCarnetView() {
                   </>
                 )}
               </select>
+              {yaTieneCredencial && (
+                <p className="text-[11px] text-muted-foreground">
+                  Usted ya posee una credencial; seleccione el motivo de la reposición,
+                  renovación o actualización.
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -542,6 +580,11 @@ export function MiCarnetView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <PrivacidadCarnetDialog
+        open={privacidadAbierta}
+        onOpenChange={setPrivacidadAbierta}
+      />
     </PageLayout>
   );
 }

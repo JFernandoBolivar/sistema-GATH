@@ -16,15 +16,68 @@ from io import BytesIO
 from xml.sax.saxutils import escape
 
 from reportlab.lib.units import mm
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+from reportlab.platypus import CondPageBreak, Paragraph, SimpleDocTemplate, Spacer
 
-from core.infrastructure.pdf.pdf_components import create_data_table, create_header, draw_footer
+from core.infrastructure.pdf.pdf_components import (
+    create_data_table,
+    create_group_band,
+    create_header,
+    draw_footer,
+)
 from core.infrastructure.pdf.pdf_styles import PAGE_CONFIG, get_paragraph_styles
+
+# Orden y estilo de las bandas del reporte jerárquico (P1). La etiqueta es la
+# misma que escribe el repositorio en `grupos[].etiquetas`.
+_ORDEN_BANDAS = (
+    ('NIVEL', 0),
+    ('> DG / GEREN / OFIC', 1),
+    ('- DIV / COORD', 2),
+    ('- COORD', 3),
+)
+
+
+def _elementos_de_lista(
+    columnas: list[str], filas: list[dict], col_widths, grupos: list[dict] | None, ancho,
+) -> list:
+    """Tabla plana o lista agrupada con banda por nivel y encabezado repetido."""
+    if not grupos:
+        return [create_data_table(columnas, filas, col_widths=col_widths)]
+
+    elementos = []
+    previas: dict[str, str] = {}
+    for grupo in grupos:
+        desde = int(grupo.get('desde', 0))
+        hasta = int(grupo.get('hasta', len(filas)))
+        valores = dict(grupo.get('etiquetas') or [])
+
+        # Evita que la banda quede al pie de una página y su tabla en la
+        # siguiente (el encabezado huérfano que se veía en el primer intento).
+        elementos.append(CondPageBreak(45 * mm))
+
+        for etiqueta, nivel in _ORDEN_BANDAS:
+            if etiqueta not in valores:
+                for posterior, _ in _ORDEN_BANDAS[nivel:]:
+                    previas.pop(posterior, None)
+                continue
+            valor = str(valores[etiqueta])
+            if previas.get(etiqueta) == valor:
+                continue
+            elementos.append(create_group_band(f'{etiqueta}: {valor}', ancho, nivel))
+            previas[etiqueta] = valor
+            for posterior, _ in _ORDEN_BANDAS[nivel + 1:]:
+                previas.pop(posterior, None)
+
+        elementos.append(Spacer(1, 1.5 * mm))
+        elementos.append(
+            create_data_table(columnas, filas[desde:hasta], col_widths=col_widths)
+        )
+        elementos.append(Spacer(1, 4 * mm))
+    return elementos
 
 
 def generar_reporte_pdf(
     titulo: str, columnas: list[str], filas: list[dict], orientation: str = 'landscape', config: dict | None = None,
-    filtros: list[tuple[str, str]] | None = None,
+    filtros: list[tuple[str, str]] | None = None, grupos: list[dict] | None = None,
 ) -> bytes:
     """
     `config` (opcional, HU 0009): dict plano con el cintillo configurado
@@ -33,6 +86,10 @@ def generar_reporte_pdf(
 
     `filtros` (opcional, D10): pares (etiqueta, valor) que se imprimen al inicio,
     con las etiquetas legibles que aplicó el reporte; nunca IDs sueltos.
+
+    `grupos` (opcional, P1): bloques jerárquicos de una lista, con `etiquetas`
+    y los índices `desde`/`hasta` sobre `filas`. Cada bloque repite el
+    encabezado de la tabla y `#` ya viene reiniciado por el repositorio.
     """
     generado_en = datetime.now()
     page_config = PAGE_CONFIG.get(orientation, PAGE_CONFIG['landscape'])
@@ -107,19 +164,31 @@ def generar_reporte_pdf(
     story.extend([
         create_stats_box(stats, width=ancho_disponible),
         Spacer(1, 4 * mm),
-        create_data_table(columnas, filas, col_widths=col_widths),
     ])
+    story.extend(_elementos_de_lista(columnas, filas, col_widths, grupos, ancho_disponible))
+
+    total_texto = (
+        f"Total de empleados: {len(filas)}"
+        if {'codigo', 'cedula', 'tipo_nomina'}.issubset(set(columnas))
+        else f"Total de registros: {len(filas)}"
+    )
 
     def _en_pagina(canvas, doc_):
         canvas.saveState()
-        for el in create_header(titulo, width=doc_.width, config=config):
+        for el in create_header(
+            titulo, width=doc_.width, config=config, mostrar_institucion=True,
+        ):
             w, h = el.wrap(doc_.width, doc_.topMargin)
             el.drawOn(canvas, doc_.leftMargin, doc_.pagesize[1] - page_config['topMargin'] + 10 * mm)
         canvas.restoreState()
         # `total_pages` no se conoce hasta terminar el build (reportlab necesita
         # dos pasadas para eso, igual que el legado `base_generator.py`, que
         # tampoco lo resolvía) — se muestra solo el número de página actual.
-        draw_footer(canvas, doc_, doc_.page, 0, f"Generado: {generado_en.strftime('%d/%m/%Y %H:%M')}", config=config)
+        draw_footer(
+            canvas, doc_, doc_.page, 0,
+            f"{total_texto} | Generado: {generado_en.strftime('%d/%m/%Y %H:%M')}",
+            config=config,
+        )
 
     doc.build(story, onFirstPage=_en_pagina, onLaterPages=_en_pagina)
 

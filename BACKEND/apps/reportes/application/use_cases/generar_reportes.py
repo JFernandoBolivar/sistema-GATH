@@ -25,6 +25,7 @@ def _resultado_a_dto(r: ResultadoReporte) -> ResultadoReporteDTO:
         filas=r.filas,
         total_registros=r.total_registros,
         metadatos=r.metadatos,
+        grupos=r.grupos,
     )
 
 

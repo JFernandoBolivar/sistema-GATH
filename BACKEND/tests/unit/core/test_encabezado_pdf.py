@@ -17,7 +17,7 @@ def test_por_defecto_ningun_pdf_muestra_el_membrete():
 
 
 def test_se_puede_recuperar_el_membrete():
-    assert 'Comisión Nacional de Telecomunicaciones' in _texto_central(
+    assert 'COMISIÓN NACIONAL DE TELECOMUNICACIONES' in _texto_central(
         create_header('Reporte', 180 * mm, mostrar_institucion=True))
 
 

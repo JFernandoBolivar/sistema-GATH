@@ -60,7 +60,7 @@ export function PlantillasVersionesDialog({
               <div
                 key={v.id}
                 className={`p-3 rounded-lg border flex items-center justify-between gap-3 text-sm ${
-                  v.activa ? "bg-emerald-500/10 border-emerald-400" : "bg-card"
+                  v.activa ? "border-primary/40 bg-secondary" : "bg-card"
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -68,7 +68,7 @@ export function PlantillasVersionesDialog({
                     <div className="flex items-center gap-2">
                       <span className="font-semibold font-mono text-sm">v{v.version}</span>
                       {v.activa ? (
-                        <Badge className="bg-emerald-600 text-white text-xs">Activa Oficial</Badge>
+                        <Badge className="bg-primary text-primary-foreground text-xs">Activa Oficial</Badge>
                       ) : (
                         <Badge variant="outline" className="text-xs capitalize">
                           {v.estado}

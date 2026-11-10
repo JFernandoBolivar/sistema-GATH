@@ -322,6 +322,39 @@ def test_conteo_agrupado_por_direccion_general(escenario):
     assert reporte.metadatos['agrupar_por'] == 'direccion_general'
 
 
+def test_lista_agrupada_por_nivel_y_direccion_general(escenario):
+    """P1: la lista se ordena por estructura y `#` se reinicia en cada grupo."""
+    otra_direccion = DireccionGeneralModel.objects.create(
+        Codigo='DG2',
+        direccion_general='DIRECCION GENERAL',
+        dependenciaId=escenario['dependencia'],
+    )
+    AsigTrabajoModel.objects.filter(employee=escenario['mayor']).update(
+        DireccionGeneral=otra_direccion,
+    )
+
+    reporte = _generar({'tipo_reporte': 'lista', 'agrupar_por': 'direccion_general'})
+
+    assert reporte.grupos is not None
+    assert len(reporte.grupos) == 2
+    assert reporte.grupos[0]['etiquetas'] == [
+        ('NIVEL', 'CONATEL'),
+        ('> DG / GEREN / OFIC', 'OFICINA DE GESTION HUMANA'),
+    ]
+    assert reporte.grupos[1]['etiquetas'] == [
+        ('NIVEL', 'CONATEL'),
+        ('> DG / GEREN / OFIC', 'DIRECCION GENERAL'),
+    ]
+    # Dos grupos de una fila cada uno: la numeración se reinicia.
+    assert [fila['#'] for fila in reporte.filas] == ['1', '1']
+    assert reporte.filas[0]['cedula'] == 'V100'
+    assert reporte.filas[1]['cedula'] == 'V200'
+
+
+def test_lista_sin_agrupar_no_trae_grupos(escenario):
+    assert _generar().grupos is None
+
+
 def test_conteo_por_cargo_devuelve_el_nombre_del_catalogo(escenario):
     """M3: agrupar por cargo/grado debe mostrar el texto, no el id de la FK."""
     reporte = _generar({'tipo_reporte': 'conteo', 'agrupar_por': 'cargo'})

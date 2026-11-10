@@ -9,12 +9,8 @@ import { ArrowLeft, Loader2, Palette, Save } from "lucide-react";
 
 import PageLayout from "@/components/layout/page-layout";
 import { Button } from "@/components/ui/button";
-import type {
-  CampoCredencial,
-  ElementoBiblioteca,
-  PlantillaMotor,
-} from "../../domain/entities/carnet";
-import type { DefinicionPlantillaKonva } from "../../domain/entities/disenador";
+import type { CampoCredencial, ElementoBiblioteca, PlantillaMotor } from "../../domain/entities/carnet";
+import { adaptarEditorADefinicion } from "../../application/use-cases/adaptar-definicion-plantilla";
 import {
   actualizarPlantillaBorradorAction,
   getBibliotecaAction,
@@ -95,16 +91,17 @@ export function DisenadorView({ plantillaId }: Props) {
   const guardarBorrador = () => {
     if (!plantilla) return;
     startTransition(async () => {
-      const definicion: DefinicionPlantillaKonva = {
-        ancho_mm: anchoMm,
-        alto_mm: altoMm,
-        orientacion: plantilla.orientacion,
-        elementos: editor.elementos,
-        reglas_color: editor.reglasColor,
-      };
+      const definicion = adaptarEditorADefinicion(
+        plantilla.definicion,
+        editor.elementos,
+        editor.reglasColor,
+        anchoMm,
+        altoMm,
+        plantilla.orientacion,
+      );
 
       const res = await actualizarPlantillaBorradorAction(plantilla.id, {
-        definicion: definicion as unknown as Record<string, unknown>,
+        definicion,
       });
 
       if (res.success) {

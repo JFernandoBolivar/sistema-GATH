@@ -77,7 +77,7 @@ def test_generar_carnet_pdf_fiel_contiene_textos_canonicos(datos_trabajador):
     assert b"Telecomunicaciones" in contenido
 
     # Textos corregidos en el reverso (E7 / E8)
-    assert b"Adscrito" in contenido
+    assert b"ADSCRITO" in contenido
     assert b"lugar" in contenido
     assert b"Director General" in contenido
 

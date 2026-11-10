@@ -1,25 +1,30 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Camera,
   CameraOff,
   CheckCircle2,
   ChevronDown,
-  ChevronUp,
   Clock,
+  FolderOpen,
   Keyboard,
   Maximize2,
   Minimize2,
   QrCode,
   Scan,
+  ShieldCheck,
+  Usb,
   Volume2,
   VolumeX,
   XCircle,
 } from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
+import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@/shared/ui/components/card";
 import { Button } from "@/shared/ui/components/button";
 import { Badge } from "@/shared/ui/components/badge";
 import { Input } from "@/shared/ui/components/input";
@@ -36,11 +41,13 @@ import {
   getEventosAction,
   getZonasEventoAction,
 } from "@/modules/carnetizacion/infrastructure/actions/eventos-actions";
+import { consultarFichaQrAction } from "@/modules/carnetizacion/infrastructure/actions/carnetizacion-actions";
 import type {
   CheckInResponse,
   Evento,
   EventoZona,
 } from "@/modules/carnetizacion/domain/entities/evento";
+import type { FichaQr } from "@/modules/carnetizacion/domain/entities/carnet";
 
 interface ControlEntradaQrViewProps {
   initialEventoId?: string;
@@ -90,6 +97,16 @@ function reproducirTono(tipo: "permitido" | "ya_ingreso" | "denegado") {
   }
 }
 
+/** Extrae el hash de un QR de carnet (URL nueva, texto GATH-ID o hash suelto). */
+function hashDeCarnet(codigo: string): string | null {
+  const texto = codigo.trim();
+  const enUrl = texto.match(/\/carnet\/([a-f0-9]{64})/i);
+  if (enUrl) return enUrl[1];
+  const enTexto = texto.match(/GATH-ID:\s*([a-f0-9]{64})/i);
+  if (enTexto) return enTexto[1];
+  return /^[a-f0-9]{64}$/i.test(texto) ? texto : null;
+}
+
 function dispararVibracion(tipo: "permitido" | "ya_ingreso" | "denegado") {
   if (typeof window === "undefined" || !navigator.vibrate) return;
   try {
@@ -105,7 +122,29 @@ function dispararVibracion(tipo: "permitido" | "ya_ingreso" | "denegado") {
   }
 }
 
+const TONO_DICTAMEN = {
+  ACCESO_PERMITIDO: {
+    panel: "border-success/30 bg-success-soft",
+    icono: "text-success",
+    etiqueta: "Verificación de identidad",
+    testigo: "ACCESO PERMITIDO",
+  },
+  YA_INGRESO: {
+    panel: "border-warning/30 bg-warning-soft",
+    icono: "text-warning",
+    etiqueta: "Alerta de duplicidad",
+    testigo: "YA HABÍA INGRESADO",
+  },
+  NO_VALIDA: {
+    panel: "border-danger/30 bg-danger-soft",
+    icono: "text-danger",
+    etiqueta: "Acceso denegado",
+    testigo: "CREDENCIAL NO VÁLIDA",
+  },
+} as const;
+
 export function ControlEntradaQrView({ initialEventoId, embeddedInHub = false }: ControlEntradaQrViewProps) {
+  const router = useRouter();
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [eventoId, setEventoId] = useState<string>(initialEventoId || "");
   const [zonas, setZonas] = useState<EventoZona[]>([]);
@@ -113,6 +152,7 @@ export function ControlEntradaQrView({ initialEventoId, embeddedInHub = false }:
 
   // Estado del escáner y cámara
   const [camaraActiva, setCamaraActiva] = useState(false);
+  const [iniciandoCamara, setIniciandoCamara] = useState(false);
   const [errorCamara, setErrorCamara] = useState<string | null>(null);
   const [pantallaCompleta, setPantallaCompleta] = useState(false);
   const [audioHabilitado, setAudioHabilitado] = useState(true);
@@ -121,6 +161,8 @@ export function ControlEntradaQrView({ initialEventoId, embeddedInHub = false }:
   const [mostrarEntradaManual, setMostrarEntradaManual] = useState(false);
   const [codigoInput, setCodigoInput] = useState("");
   const [resultado, setResultado] = useState<CheckInResponse | null>(null);
+  const [fichaTrabajador, setFichaTrabajador] = useState<FichaQr | null>(null);
+  const [errorFicha, setErrorFicha] = useState<string | null>(null);
   const [historialReciente, setHistorialReciente] = useState<CheckInResponse[]>([]);
   const [isPending, startTransition] = useTransition();
   const [errorAcceso, setErrorAcceso] = useState<string | null>(null);
@@ -182,7 +224,7 @@ export function ControlEntradaQrView({ initialEventoId, embeddedInHub = false }:
           procesarCheckInRef.current(codigo);
         }
       } else if (e.key.length === 1) {
-        // Si el intervalo entre pulsaciones es mayor a 80ms, reiniciar buffer (tipeo humano lento)
+        // Si el intervalo entre pulsaciones es mayor a 120ms, reiniciar buffer (tipeo humano lento)
         if (diferencia > 120 && bufferTecladoRef.current.length > 0) {
           bufferTecladoRef.current = "";
         }
@@ -198,6 +240,7 @@ export function ControlEntradaQrView({ initialEventoId, embeddedInHub = false }:
   const iniciarCamara = async () => {
     try {
       setErrorCamara(null);
+      setIniciandoCamara(true);
       const { Html5Qrcode } = await import("html5-qrcode");
 
       if (html5QrCodeRef.current) {
@@ -241,9 +284,11 @@ export function ControlEntradaQrView({ initialEventoId, embeddedInHub = false }:
     } catch (err) {
       console.warn("No fue posible inicializar la cámara:", err);
       setErrorCamara(
-        "No se pudo acceder a la cámara trasera. Asegúrese de otorgar permisos o use lector USB / entrada manual.",
+        "No se pudo acceder a la cámara. Otorgue el permiso del navegador o use el lector USB o la entrada manual.",
       );
       setCamaraActiva(false);
+    } finally {
+      setIniciandoCamara(false);
     }
   };
 
@@ -286,9 +331,42 @@ export function ControlEntradaQrView({ initialEventoId, embeddedInHub = false }:
     const code = codigoParaValidar.trim();
     if (!code) return;
 
+    // Un carnet de trabajador (URL /carnet/<hash>, GATH-ID o hash suelto) se
+    // valida contra la ficha pública y permite abrir su expediente. No registra
+    // ingreso a ningún evento.
+    const hash = hashDeCarnet(code);
+    if (hash) {
+      startTransition(async () => {
+        try {
+          setErrorAcceso(null);
+          setErrorFicha(null);
+          setResultado(null);
+          const ficha = await consultarFichaQrAction(hash);
+          setCodigoInput("");
+          if (ficha.esValido) {
+            if (audioHabilitado) reproducirTono("permitido");
+            dispararVibracion("permitido");
+            // El detalle vive siempre en la ficha pública del carnet.
+            router.push(`/carnet/${hash}`);
+            return;
+          }
+          setFichaTrabajador(ficha);
+          if (audioHabilitado) reproducirTono("denegado");
+          dispararVibracion("denegado");
+        } catch {
+          setErrorFicha("No se pudo validar la credencial del trabajador.");
+          if (audioHabilitado) reproducirTono("denegado");
+          dispararVibracion("denegado");
+        }
+      });
+      return;
+    }
+
     startTransition(async () => {
       try {
         setErrorAcceso(null);
+        setFichaTrabajador(null);
+        setErrorFicha(null);
         const resp = await checkInAccesoAction({
           codigo_o_hash: code,
           evento_id: eventoId || undefined,
@@ -380,26 +458,30 @@ export function ControlEntradaQrView({ initialEventoId, embeddedInHub = false }:
 
     setResultado(mockResp);
     setHistorialReciente((prev) => [mockResp, ...prev.slice(0, 9)]);
+    setFichaTrabajador(null);
+    setErrorFicha(null);
   };
 
+  const tono = resultado ? TONO_DICTAMEN[resultado.resultado] ?? TONO_DICTAMEN.NO_VALIDA : null;
+
   return (
-    <div className={`space-y-6 ${embeddedInHub ? "" : "max-w-5xl mx-auto pb-12"}`}>
-      {/* 1. Selector de Evento y Punto de Control */}
-      <Card className="border-border/60 shadow-xs bg-card">
-        <CardContent className="p-4 space-y-4">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1">
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1">
-                  Evento Seleccionado
+    <div className={cn("space-y-6", !embeddedInHub && "mx-auto max-w-6xl pb-10")}>
+      {/* Configuración del punto de control */}
+      <Card className="border-border bg-card shadow-none">
+        <CardContent className="p-4 sm:p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="grid flex-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label htmlFor="control-evento" className="block text-sm font-medium text-foreground">
+                  Evento
                 </label>
                 <Select value={eventoId} onValueChange={setEventoId}>
-                  <SelectTrigger className="h-10 text-xs">
+                  <SelectTrigger id="control-evento" className="h-11 w-full text-sm">
                     <SelectValue placeholder="Seleccione un evento" />
                   </SelectTrigger>
                   <SelectContent>
                     {eventos.map((ev) => (
-                      <SelectItem key={ev.id} value={ev.id} className="text-xs">
+                      <SelectItem key={ev.id} value={ev.id}>
                         {ev.nombre}
                       </SelectItem>
                     ))}
@@ -407,20 +489,18 @@ export function ControlEntradaQrView({ initialEventoId, embeddedInHub = false }:
                 </Select>
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1">
+              <div className="space-y-1.5">
+                <label htmlFor="control-zona" className="block text-sm font-medium text-foreground">
                   Punto de Control / Puerta
                 </label>
                 <Select value={zonaId} onValueChange={setZonaId}>
-                  <SelectTrigger className="h-10 text-xs">
+                  <SelectTrigger id="control-zona" className="h-11 w-full text-sm">
                     <SelectValue placeholder="Cualquier puerta" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="todas" className="text-xs">
-                      Todas las puertas / zonas
-                    </SelectItem>
+                    <SelectItem value="todas">Todas las puertas / zonas</SelectItem>
                     {zonas.map((z) => (
-                      <SelectItem key={z.id} value={z.id} className="text-xs">
+                      <SelectItem key={z.id} value={z.id}>
                         {z.nombre}
                       </SelectItem>
                     ))}
@@ -429,133 +509,213 @@ export function ControlEntradaQrView({ initialEventoId, embeddedInHub = false }:
               </div>
             </div>
 
-            {/* Controles de Utilidad (Pantalla completa, audio) */}
-            <div className="flex items-center gap-2 self-end sm:self-auto pt-2 sm:pt-0">
+            <div className="flex items-center gap-2">
               <Button
                 type="button"
-                variant="outline"
-                size="sm"
+                variant={audioHabilitado ? "secondary" : "outline"}
                 onClick={() => setAudioHabilitado((prev) => !prev)}
-                className="h-10 text-xs px-3"
-                title={audioHabilitado ? "Silenciar tonos de confirmación" : "Activar tonos sonoros"}
+                className="min-h-11 px-3"
+                aria-pressed={audioHabilitado}
+                title={audioHabilitado ? "Silenciar tonos de confirmación" : "Activar tonos de confirmación"}
               >
                 {audioHabilitado ? (
-                  <Volume2 className="size-4 text-primary" />
+                  <Volume2 className="size-4" aria-hidden />
                 ) : (
-                  <VolumeX className="size-4 text-muted-foreground" />
+                  <VolumeX className="size-4" aria-hidden />
                 )}
+                <span className="hidden sm:inline">Sonido</span>
               </Button>
 
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
                 onClick={togglePantallaCompleta}
-                className="h-10 text-xs px-3"
-                title="Modo Pantalla Completa para Garitas"
+                className="min-h-11 px-3"
+                aria-pressed={pantallaCompleta}
+                title="Modo pantalla completa para garitas"
               >
                 {pantallaCompleta ? (
-                  <Minimize2 className="size-4" />
+                  <Minimize2 className="size-4" aria-hidden />
                 ) : (
-                  <Maximize2 className="size-4" />
+                  <Maximize2 className="size-4" aria-hidden />
                 )}
+                <span className="hidden sm:inline">Pantalla completa</span>
               </Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* 2. Cuadrícula de Operación: Visor de Cámara y Panel de Dictamen Inequívoco */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Columna Izquierda (7 cols): Visor de Cámara + Lector USB */}
-        <div className="lg:col-span-7 space-y-4">
-          <div className="relative bg-slate-950 rounded-2xl overflow-hidden aspect-[4/3] flex flex-col items-center justify-center border-2 border-slate-800 shadow-2xl">
-            {/* Contenedor del scanner Html5Qrcode */}
-            <div
-              id={scannerContainerId}
-              className={`size-full flex items-center justify-center ${camaraActiva ? "block" : "hidden"}`}
-            />
-
-            {/* Overlay visual cuando no está activa la cámara o mientras se activa */}
-            {!camaraActiva && (
-              <div className="flex flex-col items-center justify-center p-6 text-center text-slate-300 space-y-4">
-                <div className="relative size-48 border-2 border-dashed border-emerald-500/80 rounded-2xl flex items-center justify-center overflow-hidden">
-                  <div className="absolute w-full h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_15px_#10b981]" />
-                  <QrCode className="size-20 text-slate-700/60" />
-                </div>
-
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-slate-200">
-                    Cámara en espera
-                  </p>
-                  <p className="text-xs text-slate-400 max-w-xs">
-                    Inicie la cámara trasera continua o use el lector USB/Bluetooth directamente.
-                  </p>
-                </div>
-
-                <Button
-                  type="button"
-                  onClick={iniciarCamara}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs min-h-11 px-5 shadow-sm"
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
+        {/* Lector */}
+        <div className="space-y-4 lg:col-span-7">
+          <Card className="border-border bg-card shadow-none">
+            <CardContent className="space-y-4 p-4 sm:p-5">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-base font-semibold text-foreground">Lector de credenciales</h2>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "gap-1.5 font-medium",
+                    camaraActiva
+                      ? "border-success/40 bg-success-soft text-success"
+                      : "border-border bg-muted text-muted-foreground",
+                  )}
                 >
-                  <Camera className="size-4 mr-2" />
-                  Activar Cámara Trasera
-                </Button>
+                  <span
+                    className={cn(
+                      "size-2 rounded-full",
+                      camaraActiva ? "animate-pulse bg-success" : "bg-muted-foreground",
+                    )}
+                    aria-hidden
+                  />
+                  {camaraActiva ? "En vivo" : "En espera"}
+                </Badge>
               </div>
-            )}
 
-            {/* Barra Inferior del Visor */}
-            <div className="absolute bottom-3 inset-x-3 bg-slate-900/85 backdrop-blur border border-white/10 p-2.5 rounded-xl flex items-center justify-between text-xs text-slate-200">
-              <div className="flex items-center gap-2">
-                <span
-                  className={`size-2.5 rounded-full ${camaraActiva ? "bg-emerald-500 animate-ping" : "bg-amber-500"}`}
+              <div className="relative overflow-hidden rounded-lg border border-border bg-muted">
+                {/* El contenedor siempre está visible y con tamaño estable: Html5Qrcode
+                    mide el ancho al iniciar y, si estuviera oculto, el video saldría 0×0. */}
+                <div
+                  id={scannerContainerId}
+                  className="aspect-[4/3] w-full [&_canvas]:hidden [&_video]:size-full [&_video]:object-cover"
                 />
-                <span className="text-[11px] font-medium">
-                  {camaraActiva ? "Cámara Activa (Autoenfoque continuo)" : "Cámara Inactiva"}
-                </span>
+
+                {!camaraActiva && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-muted p-6 text-center">
+                    <span className="flex size-20 items-center justify-center rounded-full border border-border bg-card text-muted-foreground">
+                      {iniciandoCamara ? (
+                        <Camera className="size-9 animate-pulse" aria-hidden />
+                      ) : (
+                        <QrCode className="size-9" aria-hidden />
+                      )}
+                    </span>
+                    <div className="space-y-1">
+                      <p className="text-base font-semibold text-foreground">
+                        {iniciandoCamara ? "Activando cámara…" : "Cámara en espera"}
+                      </p>
+                      <p className="mx-auto max-w-sm text-sm text-muted-foreground">
+                        Active la cámara trasera o use el lector USB / Bluetooth. También puede
+                        validar un código de forma manual.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={iniciarCamara}
+                      disabled={iniciandoCamara}
+                      className="min-h-11"
+                    >
+                      <Camera className="size-4" aria-hidden />
+                      {iniciandoCamara ? "Activando…" : "Activar cámara"}
+                    </Button>
+                  </div>
+                )}
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-slate-400 font-mono hidden sm:inline">
-                  Lector USB: Escuchando
-                </span>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+                  <Usb className="size-4 text-primary" aria-hidden />
+                  Lector USB: escuchando{" "}
+                  <span className="hidden sm:inline">· también acepta Bluetooth</span>
+                </p>
                 {camaraActiva && (
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     onClick={detenerCamara}
-                    className="h-7 text-[10px] text-slate-300 hover:text-white px-2"
+                    className="min-h-9"
                   >
-                    Detener
+                    <CameraOff className="size-4" aria-hidden />
+                    Detener cámara
                   </Button>
                 )}
               </div>
-            </div>
-          </div>
 
-          {errorCamara && (
-            <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 rounded-lg text-xs flex items-center gap-2">
-              <CameraOff className="size-4 shrink-0" />
-              <span>{errorCamara}</span>
-            </div>
-          )}
+              {errorCamara && (
+                <p
+                  role="alert"
+                  className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning-soft p-3 text-sm text-warning"
+                >
+                  <CameraOff className="mt-0.5 size-4 shrink-0" aria-hidden />
+                  <span>{errorCamara}</span>
+                </p>
+              )}
+            </CardContent>
+          </Card>
 
-          {/* Simulador de Pruebas Rápidas para Operador y Verificación */}
-          <Card className="border-border/60 shadow-xs bg-card">
-            <CardContent className="p-3.5 space-y-2">
-              <span className="text-xs font-semibold text-muted-foreground block">
-                Simular respuestas del punto de control:
+          {/* Entrada manual plegable */}
+          <Card className="border-border bg-card shadow-none">
+            <button
+              type="button"
+              onClick={() => setMostrarEntradaManual((prev) => !prev)}
+              aria-expanded={mostrarEntradaManual}
+              className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+            >
+              <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <Keyboard className="size-4 text-primary" aria-hidden />
+                Entrada manual de código o lector USB
               </span>
-              <div className="flex flex-wrap gap-2 text-xs">
+              <ChevronDown
+                className={cn(
+                  "size-4 shrink-0 text-muted-foreground transition-transform",
+                  mostrarEntradaManual && "rotate-180",
+                )}
+                aria-hidden
+              />
+            </button>
+
+            {mostrarEntradaManual && (
+              <CardContent className="border-t border-border px-4 pb-4 pt-3">
+                <form onSubmit={handleManualSubmit} className="space-y-2">
+                  <label htmlFor="control-codigo" className="sr-only">
+                    Código de credencial
+                  </label>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Input
+                      id="control-codigo"
+                      placeholder="Ingrese código de credencial o hash (ej: GAF-0042)..."
+                      value={codigoInput}
+                      onChange={(e) => setCodigoInput(e.target.value)}
+                      className="h-11 flex-1 font-mono text-sm"
+                    />
+                    <Button
+                      type="submit"
+                      disabled={isPending || !codigoInput.trim()}
+                      className="min-h-11 sm:w-auto"
+                    >
+                      {isPending ? "Validando…" : "Validar"}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    El lector USB escribe el código y envía Enter; no necesita abrir esta sección
+                    para usarlo.
+                  </p>
+                  {errorAcceso && (
+                    <p role="alert" className="text-sm font-medium text-danger">
+                      {errorAcceso}
+                    </p>
+                  )}
+                </form>
+              </CardContent>
+            )}
+          </Card>
+
+          {/* Simulador de pruebas */}
+          <Card className="border-border bg-muted/40 shadow-none">
+            <CardContent className="space-y-2 p-3.5">
+              <p className="text-xs font-medium text-muted-foreground">
+                Modo de prueba · simular respuestas del punto de control
+              </p>
+              <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={() => simularRespuesta("permitido")}
-                  className="text-xs text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10 font-semibold"
+                  className="min-h-9 border-success/30 text-success hover:bg-success-soft hover:text-success"
                 >
-                  <CheckCircle2 className="size-3.5 mr-1" />
+                  <CheckCircle2 className="size-4" aria-hidden />
                   Simular Acceso Permitido
                 </Button>
                 <Button
@@ -563,9 +723,9 @@ export function ControlEntradaQrView({ initialEventoId, embeddedInHub = false }:
                   variant="outline"
                   size="sm"
                   onClick={() => simularRespuesta("ya_ingreso")}
-                  className="text-xs text-amber-600 border-amber-500/30 hover:bg-amber-500/10 font-semibold"
+                  className="min-h-9 border-warning/30 text-warning hover:bg-warning-soft hover:text-warning"
                 >
-                  <AlertTriangle className="size-3.5 mr-1" />
+                  <AlertTriangle className="size-4" aria-hidden />
                   Simular «Ya Ingresó»
                 </Button>
                 <Button
@@ -573,211 +733,255 @@ export function ControlEntradaQrView({ initialEventoId, embeddedInHub = false }:
                   variant="outline"
                   size="sm"
                   onClick={() => simularRespuesta("denegado")}
-                  className="text-xs text-destructive border-destructive/30 hover:bg-destructive/10 font-semibold"
+                  className="min-h-9 border-danger/30 text-danger hover:bg-danger-soft hover:text-danger"
                 >
-                  <XCircle className="size-3.5 mr-1" />
+                  <XCircle className="size-4" aria-hidden />
                   Simular No Válida
                 </Button>
               </div>
             </CardContent>
           </Card>
-
-          {/* Entrada Manual Plegable (Contingencia) */}
-          <Card className="border-border/60 shadow-xs bg-card">
-            <div
-              className="p-3.5 flex items-center justify-between cursor-pointer select-none"
-              onClick={() => setMostrarEntradaManual((prev) => !prev)}
-            >
-              <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-                <Keyboard className="size-4 text-primary" />
-                <span>Entrada manual de código o lector USB</span>
-              </div>
-              <Button variant="ghost" size="sm" className="size-7 p-0">
-                {mostrarEntradaManual ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
-              </Button>
-            </div>
-
-            {mostrarEntradaManual && (
-              <CardContent className="pt-0 pb-4 px-3.5 border-t border-border/40">
-                <form onSubmit={handleManualSubmit} className="space-y-3 pt-3">
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Ingrese código de credencial o hash (ej: GAF-0042)..."
-                      value={codigoInput}
-                      onChange={(e) => setCodigoInput(e.target.value)}
-                      className="font-mono text-sm h-10"
-                    />
-                    <Button
-                      type="submit"
-                      disabled={isPending || !codigoInput.trim()}
-                      className="min-h-10 text-xs font-semibold px-4"
-                    >
-                      {isPending ? "Validando…" : "Validar"}
-                    </Button>
-                  </div>
-                  {errorAcceso && <p className="text-xs text-destructive font-medium">{errorAcceso}</p>}
-                </form>
-              </CardContent>
-            )}
-          </Card>
         </div>
 
-        {/* Columna Derecha (5 cols): Tarjeta de Dictamen Inequívoco Grande */}
-        <div className="lg:col-span-5 space-y-4">
-          {resultado ? (
-            <div
-              className={`p-6 rounded-2xl border-2 transition-all shadow-md space-y-4 ${
-                resultado.resultado === "ACCESO_PERMITIDO"
-                  ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-950 dark:text-emerald-100"
-                  : resultado.resultado === "YA_INGRESO"
-                  ? "bg-amber-50 dark:bg-amber-950/40 border-amber-500 text-amber-950 dark:text-amber-100"
-                  : "bg-destructive/10 border-destructive text-destructive"
-              }`}
-            >
-              {/* Encabezado del Dictamen */}
-              <div className="flex items-center gap-3">
-                <div
-                  className={`size-12 rounded-xl flex items-center justify-center font-black text-xl shadow-md text-white shrink-0 ${
-                    resultado.resultado === "ACCESO_PERMITIDO"
-                      ? "bg-emerald-600"
-                      : resultado.resultado === "YA_INGRESO"
-                      ? "bg-amber-600"
-                      : "bg-destructive"
-                  }`}
-                >
-                  {resultado.resultado === "ACCESO_PERMITIDO" ? (
-                    <CheckCircle2 className="size-7" />
-                  ) : resultado.resultado === "YA_INGRESO" ? (
-                    <AlertTriangle className="size-7" />
-                  ) : (
-                    <XCircle className="size-7" />
-                  )}
-                </div>
-
-                <div>
-                  <span className="text-xs font-bold uppercase tracking-wider block opacity-90">
-                    {resultado.resultado === "ACCESO_PERMITIDO"
-                      ? "Verificación de Identidad"
-                      : resultado.resultado === "YA_INGRESO"
-                      ? "Alerta de Duplicidad"
-                      : "Acceso Denegado"}
-                  </span>
-                  <h3 className="text-2xl font-black leading-tight">
-                    {resultado.resultado === "ACCESO_PERMITIDO"
-                      ? "ACCESO PERMITIDO"
-                      : resultado.resultado === "YA_INGRESO"
-                      ? "YA HABÍA INGRESADO"
-                      : "CREDENCIAL NO VÁLIDA"}
-                  </h3>
-                </div>
-              </div>
-
-              {/* Mensaje principal */}
-              <p className="text-sm font-semibold border-t border-current/15 pt-2">
-                {resultado.mensaje}
-              </p>
-
-              {/* Detalles del Titular */}
-              {resultado.nombre_completo && (
-                <div className="p-4 rounded-xl bg-background/80 border border-current/20 space-y-2 text-xs text-foreground">
-                  <div>
-                    <span className="text-muted-foreground block font-medium">
-                      Titular de la Credencial
-                    </span>
-                    <span className="text-base font-bold text-foreground block">
-                      {resultado.nombre_completo}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border/50">
-                    <div>
-                      <span className="text-muted-foreground block">Documento</span>
-                      <span className="font-bold text-foreground font-mono">
-                        {resultado.documento_identidad || "Sin documento"}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-muted-foreground block">Categoría</span>
-                      <span className="font-bold text-primary">
-                        {resultado.categoria_nombre || "Invitado General"}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="pt-1 border-t border-border/50 grid grid-cols-2 gap-2">
-                    <div>
-                      <span className="text-muted-foreground block">Zona Autorizada</span>
-                      <span className="font-semibold text-foreground">
-                        {resultado.zona_nombre || "General"}
-                      </span>
-                    </div>
-
-                    {resultado.mesa && (
-                      <div>
-                        <span className="text-muted-foreground block">Ubicación / Mesa</span>
-                        <span className="font-semibold text-foreground">{resultado.mesa}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
+        {/* Dictamen y actividad */}
+        <div className="space-y-4 lg:col-span-5">
+          {fichaTrabajador && (
+            <Card
+              className={cn(
+                "overflow-hidden border shadow-none",
+                fichaTrabajador.esValido
+                  ? "border-success/30 bg-success-soft"
+                  : "border-danger/30 bg-danger-soft",
               )}
+              role="status"
+              aria-live="polite"
+            >
+              <CardContent className="space-y-4 p-5">
+                <div className="flex items-start gap-3">
+                  <span
+                    className={cn(
+                      "flex size-11 shrink-0 items-center justify-center rounded-full border border-border bg-card",
+                      fichaTrabajador.esValido ? "text-success" : "text-danger",
+                    )}
+                  >
+                    {fichaTrabajador.esValido ? (
+                      <ShieldCheck className="size-6" aria-hidden />
+                    ) : (
+                      <XCircle className="size-6" aria-hidden />
+                    )}
+                  </span>
+                  <div className="min-w-0">
+                    <p
+                      className={cn(
+                        "text-sm font-medium",
+                        fichaTrabajador.esValido ? "text-success" : "text-danger",
+                      )}
+                    >
+                      {fichaTrabajador.esValido ? "Credencial válida" : "Credencial no válida"}
+                    </p>
+                    <h3 className="text-xl font-bold leading-tight text-foreground">
+                      {fichaTrabajador.datos?.nombre || "Trabajador"}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">{fichaTrabajador.mensaje}</p>
+                  </div>
+                </div>
 
-              {/* Pie de tiempo */}
-              <div className="text-[11px] font-mono flex items-center justify-between opacity-80 pt-1">
-                <span>Registro: {resultado.hora_ingreso_formateada || "En vivo"}</span>
-                <span>Bip sonoro: {audioHabilitado ? "Activo" : "Silenciado"}</span>
-              </div>
-            </div>
-          ) : (
-            <Card className="border-border/60 shadow-xs bg-card p-8 text-center space-y-3">
-              <div className="size-14 rounded-2xl bg-muted/60 text-muted-foreground flex items-center justify-center mx-auto">
-                <Scan className="size-7" />
-              </div>
-              <h4 className="text-sm font-bold text-foreground">En espera de escaneo</h4>
-              <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-                Aproxime el código QR al visor de cámara o active el lector USB de garita para verificar el ingreso.
-              </p>
+                {fichaTrabajador.datos && (
+                  <dl className="grid grid-cols-2 gap-3 border-t border-border pt-3 text-sm">
+                    <div>
+                      <dt className="text-xs font-medium text-muted-foreground">Cédula</dt>
+                      <dd className="font-medium tabular-nums text-foreground">
+                        {fichaTrabajador.datos.cedula || "No disponible"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium text-muted-foreground">Cargo</dt>
+                      <dd className="font-medium text-foreground">
+                        {fichaTrabajador.datos.cargo || "—"}
+                      </dd>
+                    </div>
+                    <div className="col-span-2">
+                      <dt className="text-xs font-medium text-muted-foreground">Ubicación</dt>
+                      <dd className="font-medium text-foreground">
+                        {fichaTrabajador.datos.ubicacion || "—"}
+                      </dd>
+                    </div>
+                  </dl>
+                )}
+
+                <div className="flex flex-wrap gap-2 border-t border-border pt-3">
+                  {fichaTrabajador.securityHash && (
+                    <Button asChild className="min-h-11">
+                      <Link href={`/carnet/${fichaTrabajador.securityHash}`}>
+                        <FolderOpen className="size-4" aria-hidden />
+                        Ver ficha pública
+                      </Link>
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setFichaTrabajador(null)}
+                    className="min-h-11"
+                  >
+                    Cerrar
+                  </Button>
+                </div>
+              </CardContent>
             </Card>
           )}
 
-          {/* Historial de Accesos Recientes en Sesión */}
-          {historialReciente.length > 0 && (
-            <Card className="border-border/60 shadow-xs bg-card">
-              <CardHeader className="pb-2 pt-3 px-4 border-b border-border/40">
-                <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <Clock className="size-3.5 text-primary" />
-                  Últimos accesos en esta sesión
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-2 space-y-1.5 max-h-56 overflow-y-auto">
-                {historialReciente.map((h, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between p-2 rounded-lg border border-border/40 text-xs bg-muted/20"
-                  >
-                    <div className="flex items-center gap-2 truncate mr-2">
-                      {h.resultado === "ACCESO_PERMITIDO" ? (
-                        <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
-                      ) : h.resultado === "YA_INGRESO" ? (
-                        <AlertTriangle className="size-4 text-amber-600 shrink-0" />
-                      ) : (
-                        <XCircle className="size-4 text-destructive shrink-0" />
-                      )}
-                      <span className="font-semibold text-foreground truncate">
-                        {h.nombre_completo || h.codigo_credencial || "Asistente"}
-                      </span>
-                      {h.categoria_nombre && (
-                        <Badge variant="outline" className="text-[10px] shrink-0 font-normal">
-                          {h.categoria_nombre}
-                        </Badge>
-                      )}
-                    </div>
-                    <span className="text-[11px] font-mono text-muted-foreground shrink-0">
-                      {h.hora_ingreso_formateada || "Reciente"}
-                    </span>
+          {errorFicha && (
+            <p
+              role="alert"
+              className="rounded-lg border border-danger/30 bg-danger-soft p-3 text-sm text-danger"
+            >
+              {errorFicha}
+            </p>
+          )}
+
+          {resultado && tono ? (
+            <div
+              className={cn("space-y-4 rounded-xl border p-5", tono.panel)}
+              role="status"
+              aria-live="polite"
+            >
+              <div className="flex items-start gap-3">
+                <span
+                  className={cn(
+                    "flex size-11 shrink-0 items-center justify-center rounded-full border border-border bg-card",
+                    tono.icono,
+                  )}
+                >
+                  {resultado.resultado === "ACCESO_PERMITIDO" ? (
+                    <CheckCircle2 className="size-6" aria-hidden />
+                  ) : resultado.resultado === "YA_INGRESO" ? (
+                    <AlertTriangle className="size-6" aria-hidden />
+                  ) : (
+                    <XCircle className="size-6" aria-hidden />
+                  )}
+                </span>
+                <div className="min-w-0">
+                  <p className={cn("text-sm font-medium", tono.icono)}>{tono.etiqueta}</p>
+                  <h3 className="text-xl font-bold leading-tight text-foreground">{tono.testigo}</h3>
+                </div>
+              </div>
+
+              <p className="text-sm text-foreground">{resultado.mensaje}</p>
+
+              {resultado.nombre_completo && (
+                <div className="space-y-3 rounded-lg border border-border bg-card p-4">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">Titular de la credencial</p>
+                    <p className="text-base font-semibold text-foreground">{resultado.nombre_completo}</p>
                   </div>
-                ))}
+
+                  <dl className="grid grid-cols-2 gap-3 border-t border-border pt-3 text-sm">
+                    <div>
+                      <dt className="text-xs font-medium text-muted-foreground">Documento</dt>
+                      <dd className="font-medium tabular-nums text-foreground">
+                        {resultado.documento_identidad || "Sin documento"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium text-muted-foreground">Categoría</dt>
+                      <dd className="font-medium text-foreground">
+                        {resultado.categoria_nombre || "Invitado general"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium text-muted-foreground">Zona autorizada</dt>
+                      <dd className="font-medium text-foreground">
+                        {resultado.zona_nombre || "General"}
+                      </dd>
+                    </div>
+                    {resultado.mesa && (
+                      <div>
+                        <dt className="text-xs font-medium text-muted-foreground">Ubicación / Mesa</dt>
+                        <dd className="font-medium text-foreground">{resultado.mesa}</dd>
+                      </div>
+                    )}
+                  </dl>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between gap-3 border-t border-border pt-3 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5">
+                  <Clock className="size-3.5" aria-hidden />
+                  Registro: {resultado.hora_ingreso_formateada || "en vivo"}
+                </span>
+                <span>{audioHabilitado ? "Sonido activo" : "Sonido silenciado"}</span>
+              </div>
+            </div>
+          ) : !fichaTrabajador ? (
+            <Card className="border-border bg-card shadow-none">
+              <CardContent className="flex flex-col items-center gap-3 px-6 py-10 text-center">
+                <span className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                  <Scan className="size-6" aria-hidden />
+                </span>
+                <h3 className="text-base font-semibold text-foreground">Esperando una credencial</h3>
+                <p className="max-w-xs text-sm text-muted-foreground">
+                  Escanee el QR con la cámara, pase la credencial por el lector USB o valide un
+                  código manual.
+                </p>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {historialReciente.length === 0 && !fichaTrabajador && (
+            <Card className="border-border bg-card shadow-none">
+              <CardContent className="space-y-3 p-4">
+                <h3 className="text-sm font-semibold text-foreground">Cómo funciona</h3>
+                <ul className="space-y-2.5 text-sm text-muted-foreground">
+                  <li className="flex gap-2">
+                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+                    Acerque el QR a la cámara o pase la credencial por el lector USB.
+                  </li>
+                  <li className="flex gap-2">
+                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+                    El dictamen aparece aquí y se acompaña con sonido y vibración.
+                  </li>
+                  <li className="flex gap-2">
+                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+                    Escanee el carnet de un trabajador para validarlo y abrir su expediente.
+                  </li>
+                  <li className="flex gap-2">
+                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+                    Si la cámara no está disponible, valide el código desde la entrada manual.
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
+          {historialReciente.length > 0 && (
+            <Card className="border-border bg-card shadow-none">
+              <CardContent className="p-4">
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <Clock className="size-4 text-primary" aria-hidden />
+                  Últimos accesos de la sesión
+                </h3>
+                <ul className="divide-y divide-border">
+                  {historialReciente.map((h, idx) => (
+                    <li key={idx} className="flex items-center justify-between gap-3 py-2.5">
+                      <div className="flex min-w-0 items-center gap-2">
+                        {h.resultado === "ACCESO_PERMITIDO" ? (
+                          <CheckCircle2 className="size-4 shrink-0 text-success" aria-hidden />
+                        ) : h.resultado === "YA_INGRESO" ? (
+                          <AlertTriangle className="size-4 shrink-0 text-warning" aria-hidden />
+                        ) : (
+                          <XCircle className="size-4 shrink-0 text-danger" aria-hidden />
+                        )}
+                        <span className="truncate text-sm font-medium text-foreground">
+                          {h.nombre_completo || h.codigo_credencial || "Asistente"}
+                        </span>
+                      </div>
+                      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                        {h.hora_ingreso_formateada || "Reciente"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </CardContent>
             </Card>
           )}

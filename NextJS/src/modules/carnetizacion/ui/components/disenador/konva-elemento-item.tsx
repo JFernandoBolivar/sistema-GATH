@@ -1,6 +1,6 @@
 "use client";
 
-import { Circle, Group, Image as KonvaImage, Rect, Text } from "react-konva";
+import { Circle, Group, Image as KonvaImage, Line, Path, Rect, Text } from "react-konva";
 import type Konva from "konva";
 
 import type { ElementoKonva, PersonaMuestra } from "../../../domain/entities/disenador";
@@ -135,7 +135,44 @@ export function KonvaElementoItem({
     );
   }
 
-  // 3. Texto o Campo Dinámico
+  // 3. Triángulo / Franja diagonal / Forma SVG personalizada
+  if (el.t === "tri" || el.t === "diag") {
+    const puntos =
+      el.t === "tri"
+        ? [w / 2, 0, w, h, 0, h]
+        : [0, h * 0.4, w, 0, w, h * 0.6, 0, h];
+    return (
+      <Line
+        key={el.id}
+        {...propiedadesComunes}
+        points={puntos}
+        closed
+        fill={colorRelleno}
+        stroke={bordeColor || undefined}
+        strokeWidth={bordeGrosor}
+      />
+    );
+  }
+
+  // 3b. Forma libre definida por un SVG path en una caja de 0..100
+  if (el.t === "path") {
+    const datos = el.path || "M 0 0 H 100 V 100 H 0 Z";
+    return (
+      <Path
+        key={el.id}
+        {...propiedadesComunes}
+        data={datos}
+        scaleX={w / 100}
+        scaleY={h / 100}
+        fill={colorRelleno}
+        stroke={bordeColor || undefined}
+        strokeWidth={bordeGrosor}
+        strokeScaleEnabled={false}
+      />
+    );
+  }
+
+  // 4. Texto o Campo Dinámico
   if (el.t === "text" || el.t === "field") {
     const textoMostrado = resolverTextoCampo(el, datosPersona);
     const fuentePt = el.size || 8;

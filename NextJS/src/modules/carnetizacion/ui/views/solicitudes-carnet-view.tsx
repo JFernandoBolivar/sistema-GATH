@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { toast } from "sonner";
@@ -129,6 +129,44 @@ function downloadPdfBase64(base64: string, filename: string) {
   document.body.removeChild(a);
 }
 
+function normalizarMotivo(texto: string): string {
+  return texto
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Z0-9]+/gi, " ")
+    .trim()
+    .toUpperCase();
+}
+
+/**
+ * La solicitud ya trae el motivo declarado por el trabajador; se traduce al
+ * motivo oficial del catálogo para no obligar al dictaminador a elegirlo.
+ */
+export function resolverMotivoDeclarado(
+  declarado: string,
+  motivos?: MotivoOption[] | null,
+): number {
+  if (!motivos?.length || !declarado?.trim()) return 0;
+  const objetivo = normalizarMotivo(declarado);
+
+  const exacto = motivos.find((m) => normalizarMotivo(m.nombre) === objetivo);
+  if (exacto) return exacto.id;
+
+  const contenido = motivos.find((m) => {
+    const nombre = normalizarMotivo(m.nombre);
+    return nombre && (objetivo.includes(nombre) || nombre.includes(objetivo));
+  });
+  if (contenido) return contenido.id;
+
+  const palabras = objetivo.split(" ").filter((p) => p.length >= 4);
+  const porPalabra = motivos.find((m) =>
+    normalizarMotivo(m.nombre)
+      .split(" ")
+      .some((p) => p.length >= 4 && palabras.includes(p)),
+  );
+  return porPalabra?.id ?? 0;
+}
+
 export function SolicitudesCarnetView() {
   const router = useRouter();
 
@@ -144,6 +182,7 @@ export function SolicitudesCarnetView() {
   // Modal de dictamen
   const [solicitudEnDictamen, setSolicitudEnDictamen] = useState<SolicitudCarnetItem | null>(null);
   const [motivoDictamenId, setMotivoDictamenId] = useState<number>(0);
+  const [editandoMotivo, setEditandoMotivo] = useState(false);
   const [observacionesDictamen, setObservacionesDictamen] = useState("");
   const [isPendingDictamen, startTransitionDictamen] = useTransition();
 
@@ -156,6 +195,23 @@ export function SolicitudesCarnetView() {
       return [];
     },
     { revalidateOnFocus: false },
+  );
+
+  // Si el catálogo llega después de abrir el dictamen, se resuelve el motivo
+  // declarado sin que el usuario tenga que elegirlo.
+  useEffect(() => {
+    if (!solicitudEnDictamen || solicitudEnDictamen.estado !== "PENDIENTE") return;
+    if (!listaMotivos?.length) return;
+    const resuelto = resolverMotivoDeclarado(
+      solicitudEnDictamen.motivoSolicitud,
+      listaMotivos,
+    );
+    setMotivoDictamenId((actual) => actual || resuelto);
+  }, [solicitudEnDictamen, listaMotivos]);
+
+  const motivoOficial = useMemo(
+    () => listaMotivos?.find((m) => m.id === motivoDictamenId) ?? null,
+    [listaMotivos, motivoDictamenId],
   );
 
   // Filtrado de solicitudes
@@ -247,19 +303,23 @@ export function SolicitudesCarnetView() {
   const handleAbrirDictamen = (item: SolicitudCarnetItem) => {
     setSolicitudEnDictamen(item);
     setObservacionesDictamen("");
-    if (listaMotivos && listaMotivos.length > 0) {
-      setMotivoDictamenId(listaMotivos[0].id);
-    }
+    setEditandoMotivo(false);
+    setMotivoDictamenId(resolverMotivoDeclarado(item.motivoSolicitud, listaMotivos));
   };
 
   const handleAprobarYEmitir = () => {
     if (!solicitudEnDictamen) return;
+    if (!motivoDictamenId) {
+      toast.error("No se pudo identificar el motivo oficial. Selecciónelo antes de aprobar.");
+      setEditandoMotivo(true);
+      return;
+    }
 
     startTransitionDictamen(async () => {
       try {
         const cedula = solicitudEnDictamen.cedula;
         const nombre = solicitudEnDictamen.nombreCompleto;
-        const motivo = motivoDictamenId || 1;
+        const motivo = motivoDictamenId;
 
         // Intentar generar el PDF directamente si la API responde
         const result = await generarCarnetPdfAction(cedula, motivo, nombre);
@@ -348,7 +408,7 @@ export function SolicitudesCarnetView() {
           onLimpiarFiltros={handleLimpiarFiltros}
           chipsActivos={chipsActivos}
         >
-          <div className="flex flex-col gap-1.5 min-w-0">
+          <div className="flex flex-col gap-1.5 min-w-0 lg:col-span-2">
             <Label className="text-sm font-medium text-foreground block">
               Estado de la Solicitud
             </Label>
@@ -371,7 +431,7 @@ export function SolicitudesCarnetView() {
             </Select>
           </div>
 
-          <div className="flex flex-col gap-1.5 min-w-0">
+          <div className="flex flex-col gap-1.5 min-w-0 lg:col-span-2">
             <Label className="text-sm font-medium text-foreground block">
               Población
             </Label>
@@ -571,10 +631,14 @@ export function SolicitudesCarnetView() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-base font-bold">
                 <FileCheck className="size-5 text-primary" />
-                Dictamen de Solicitud de Credencial
+                {solicitudEnDictamen?.estado === "PENDIENTE"
+                  ? "Dictamen de Solicitud de Credencial"
+                  : "Detalle de la Solicitud"}
               </DialogTitle>
               <DialogDescription className="text-xs">
-                Revise los antecedentes del titular y apruebe la emisión oficial o rechace la solicitud.
+                {solicitudEnDictamen?.estado === "PENDIENTE"
+                  ? "Revise los antecedentes del titular y apruebe la emisión oficial o rechace la solicitud."
+                  : "Consulte el estado y los datos de la solicitud. Solo las solicitudes pendientes admiten dictamen."}
               </DialogDescription>
             </DialogHeader>
 
@@ -592,6 +656,18 @@ export function SolicitudesCarnetView() {
                       </h4>
                       <Badge variant="outline" className="text-[10px]">
                         {solicitudEnDictamen.poblacion}
+                      </Badge>
+                      <Badge
+                        variant="outline"
+                        className={
+                          solicitudEnDictamen.estado === "APROBADA"
+                            ? "border-success/30 bg-success-soft text-success text-[10px]"
+                            : solicitudEnDictamen.estado === "RECHAZADA"
+                              ? "border-danger/30 bg-danger-soft text-danger text-[10px]"
+                              : "border-warning/30 bg-warning-soft text-warning text-[10px]"
+                        }
+                      >
+                        {solicitudEnDictamen.estado}
                       </Badge>
                     </div>
                     <p className="text-primary font-semibold">
@@ -619,97 +695,167 @@ export function SolicitudesCarnetView() {
                 </div>
 
                 {/* Parámetros del Dictamen */}
-                <div className="space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <Label htmlFor="motivo-dictamen" className="text-xs font-semibold">
-                        Motivo de Emisión Registrado
-                      </Label>
-                      <Select
-                        value={motivoDictamenId ? String(motivoDictamenId) : "1"}
-                        onValueChange={(val) => setMotivoDictamenId(Number(val))}
-                      >
-                        <SelectTrigger id="motivo-dictamen" className="h-10 mt-1 text-xs">
-                          <SelectValue placeholder="Motivo oficial" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {listaMotivos?.map((m) => (
-                            <SelectItem key={m.id} value={String(m.id)} className="text-xs">
-                              {m.nombre}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                {solicitudEnDictamen.estado === "PENDIENTE" && (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <div className="flex items-center justify-between gap-2">
+                          <Label htmlFor="motivo-dictamen" className="text-xs font-semibold">
+                            Motivo de Emisión
+                          </Label>
+                          {!editandoMotivo && motivoDictamenId ? (
+                            <button
+                              type="button"
+                              onClick={() => setEditandoMotivo(true)}
+                              className="text-[11px] font-medium text-primary underline decoration-dotted underline-offset-2"
+                            >
+                              Corregir
+                            </button>
+                          ) : null}
+                          {editandoMotivo && motivoDictamenId ? (
+                            <button
+                              type="button"
+                              onClick={() => setEditandoMotivo(false)}
+                              className="text-[11px] font-medium text-muted-foreground underline decoration-dotted underline-offset-2"
+                            >
+                              Usar el declarado
+                            </button>
+                          ) : null}
+                        </div>
+
+                        {editandoMotivo || !motivoDictamenId ? (
+                          <>
+                            <Select
+                              value={motivoDictamenId ? String(motivoDictamenId) : ""}
+                              onValueChange={(val) => setMotivoDictamenId(Number(val))}
+                            >
+                              <SelectTrigger id="motivo-dictamen" className="h-10 mt-1 text-xs">
+                                <SelectValue placeholder="Seleccione el motivo oficial" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {listaMotivos?.map((m) => (
+                                  <SelectItem key={m.id} value={String(m.id)} className="text-xs">
+                                    {m.nombre}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {!motivoDictamenId && (
+                              <p className="mt-1 text-[11px] text-warning">
+                                No se pudo identificar automáticamente el motivo declarado.
+                                Seleccione el motivo oficial para emitir.
+                              </p>
+                            )}
+                          </>
+                        ) : (
+                          <Input
+                            id="motivo-dictamen"
+                            disabled
+                            value={motivoOficial?.nombre ?? ""}
+                            className="h-10 mt-1 text-xs bg-muted/50 font-medium"
+                          />
+                        )}
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          Se tomó del motivo declarado por el trabajador en su solicitud.
+                        </p>
+                      </div>
+
+                      <div>
+                        <Label className="text-xs font-semibold">Plantilla Aplicada</Label>
+                        <Input
+                          disabled
+                          value={
+                            solicitudEnDictamen.poblacion === "ACTIVO"
+                              ? "Plantilla Oficial Activos (Azul Marino)"
+                              : "Plantilla Oficial Pasivos (Verde Institucional)"
+                          }
+                          className="h-10 mt-1 text-xs bg-muted/50"
+                        />
+                      </div>
                     </div>
 
                     <div>
-                      <Label className="text-xs font-semibold">Plantilla Aplicada</Label>
-                      <Input
-                        disabled
-                        value={
-                          solicitudEnDictamen.poblacion === "ACTIVO"
-                            ? "Plantilla Oficial Activos (Azul Marino)"
-                            : "Plantilla Oficial Pasivos (Verde Institucional)"
-                        }
-                        className="h-10 mt-1 text-xs bg-muted/50"
+                      <Label htmlFor="obs-dictamen" className="text-xs font-semibold">
+                        Observaciones del Dictamen / Motivo de Rechazo
+                      </Label>
+                      <Textarea
+                        id="obs-dictamen"
+                        value={observacionesDictamen}
+                        onChange={(e) => setObservacionesDictamen(e.target.value)}
+                        placeholder="Indique las razones del dictamen o el motivo obligatorio en caso de rechazo..."
+                        className="mt-1"
+                        maxLength={300}
                       />
                     </div>
                   </div>
+                )}
 
-                  <div>
-                    <Label htmlFor="obs-dictamen" className="text-xs font-semibold">
-                      Observaciones del Dictamen / Motivo de Rechazo
-                    </Label>
-                    <Textarea
-                      id="obs-dictamen"
-                      value={observacionesDictamen}
-                      onChange={(e) => setObservacionesDictamen(e.target.value)}
-                      placeholder="Indique las razones del dictamen o el motivo obligatorio en caso de rechazo..."
-                      className="mt-1"
-                      maxLength={300}
-                    />
+                {solicitudEnDictamen.estado === "RECHAZADA" && solicitudEnDictamen.motivoRechazo && (
+                  <div className="rounded-lg border border-danger/30 bg-danger-soft p-3 text-danger">
+                    <span className="block text-xs font-semibold">Motivo del rechazo</span>
+                    <span className="text-sm">{solicitudEnDictamen.motivoRechazo}</span>
                   </div>
-                </div>
+                )}
+
+                {solicitudEnDictamen.estado === "APROBADA" && (
+                  <p className="rounded-lg border border-success/30 bg-success-soft p-3 text-sm text-success">
+                    Esta solicitud ya fue aprobada y el carnet fue emitido. No requiere un nuevo
+                    dictamen.
+                  </p>
+                )}
               </div>
             )}
 
             <DialogFooter className="flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-border/50 pt-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSolicitudEnDictamen(null)}
-                className="text-xs"
-              >
-                Cancelar
-              </Button>
+              {solicitudEnDictamen?.estado === "PENDIENTE" ? (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSolicitudEnDictamen(null)}
+                    className="text-xs"
+                  >
+                    Cancelar
+                  </Button>
 
-              <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRechazar}
+                      disabled={isPendingDictamen}
+                      className="text-xs text-destructive hover:bg-destructive/10 border-destructive/30 min-h-11 px-3"
+                    >
+                      <XCircle className="size-3.5 mr-1.5" />
+                      Rechazar Solicitud
+                    </Button>
+
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={handleAprobarYEmitir}
+                      disabled={isPendingDictamen}
+                      className="text-xs font-semibold min-h-11 px-4"
+                    >
+                      {isPendingDictamen ? (
+                        <Loader2 className="size-4 animate-spin mr-1.5" />
+                      ) : (
+                        <CheckCircle2 className="size-4 mr-1.5" />
+                      )}
+                      Aprobar y Emitir Carnet
+                    </Button>
+                  </div>
+                </>
+              ) : (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={handleRechazar}
-                  disabled={isPendingDictamen}
-                  className="text-xs text-destructive hover:bg-destructive/10 border-destructive/30 min-h-11 px-3"
+                  onClick={() => setSolicitudEnDictamen(null)}
+                  className="ml-auto min-h-11 text-xs"
                 >
-                  <XCircle className="size-3.5 mr-1.5" />
-                  Rechazar Solicitud
+                  Cerrar
                 </Button>
-
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={handleAprobarYEmitir}
-                  disabled={isPendingDictamen}
-                  className="text-xs font-semibold min-h-11 px-4"
-                >
-                  {isPendingDictamen ? (
-                    <Loader2 className="size-4 animate-spin mr-1.5" />
-                  ) : (
-                    <CheckCircle2 className="size-4 mr-1.5" />
-                  )}
-                  Aprobar y Emitir Carnet
-                </Button>
-              </div>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>

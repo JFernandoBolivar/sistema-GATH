@@ -226,3 +226,8 @@ def listar_versiones_plantilla(
     """Historial completo de versiones de una plantilla."""
     versiones = repo.listar_versiones_plantilla(plantilla_raiz_id)
     return [_plantilla_a_detalle_dto(v) for v in versiones]
+
+
+def eliminar_plantilla_motor(repo: RepoCarnetizacion, plantilla_id: str | int) -> None:
+    """Elimina una versión no activa; la activa queda protegida por el repositorio."""
+    repo.eliminar_plantilla(plantilla_id)

@@ -5,12 +5,12 @@ import { toast } from "sonner";
 
 import type { PlantillaMotor } from "../../domain/entities/carnet";
 import type {
-  DefinicionPlantillaKonva,
   ElementoKonva,
   PersonaMuestra,
   PosicionAlineacion,
   ReglasColorConfig,
 } from "../../domain/entities/disenador";
+import { adaptarDefinicionAEditor } from "../../application/use-cases/adaptar-definicion-plantilla";
 import {
   alinearElementoKonva,
   duplicarElementoKonva,
@@ -60,17 +60,15 @@ export function useDisenadorEditor({
     return resolverColorDeRegla(reglasColor, datosPersona);
   }, [reglasColor, datosPersona]);
 
-  // Inicializar elementos desde la definición guardada
+  // Inicializar elementos desde la definición guardada (anverso/reverso del motor)
   useEffect(() => {
     if (!plantilla) return;
-    const def = plantilla.definicion as unknown as DefinicionPlantillaKonva | undefined;
-    if (def && Array.isArray(def.elementos) && def.elementos.length > 0) {
-      setElementos(def.elementos);
-      setHistorial([def.elementos]);
+    const adaptada = adaptarDefinicionAEditor(plantilla.definicion);
+    if (adaptada.elementos.length > 0) {
+      setElementos(adaptada.elementos);
+      setHistorial([adaptada.elementos]);
       setHistorialIndex(0);
-      if (def.reglas_color) {
-        setReglasColor(def.reglas_color);
-      }
+      if (adaptada.reglasColor) setReglasColor(adaptada.reglasColor);
     } else {
       const iniciales = crearElementosInicialesDefecto(anchoMm);
       setElementos(iniciales);

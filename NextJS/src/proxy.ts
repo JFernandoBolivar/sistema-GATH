@@ -18,6 +18,7 @@ function destino(req: { headers: Headers; nextUrl: URL }, ruta: string): URL {
 const publicRoutes = ["/", "/login", "/register", "/recuperar-password", "/restablecer-password", "/offline"];
 
 const PREFIJO_VERIFICACION_PUBLICA = "/fe-de-vida/verificar/";
+const PREFIJO_VERIFICACION_CARNET = "/carnet/";
 
 export default proxy((req) => {
   const { nextUrl, auth } = req;
@@ -50,8 +51,17 @@ export default proxy((req) => {
     return NextResponse.next();
   }
 
+  // Ficha pública del carnet (QR del anverso/reverso): se abre sin sesión.
+  // Con sesión, la propia ficha eleva el nivel de detalle; sin sesión muestra
+  // solo lo que el titular autorizó como público.
+  if (nextUrl.pathname.startsWith(PREFIJO_VERIFICACION_CARNET)) {
+    return NextResponse.next();
+  }
+
   if (!publicRoutes.includes(nextUrl.pathname) && !isLoggedIn) {
-    return NextResponse.redirect(destino(req, "/login"));
+    const login = new URL("/login", nextUrl);
+    login.searchParams.set("callbackUrl", `${nextUrl.pathname}${nextUrl.search}`);
+    return NextResponse.redirect(destino(req, `${login.pathname}${login.search}`));
   }
 
   // Enlaces y marcadores antiguos de /inicio (G7 corregido): el inicio es /dashboard.
@@ -78,14 +88,18 @@ export default proxy((req) => {
     return NextResponse.redirect(destino(req, RUTA_INICIO));
   }
 
-  // D1: una ruta sin permiso redirige al dashboard con aviso (nunca a una
-  // página rota). La tabla ruta → permiso vive en `evaluador-iam.ts`; ningún
-  // perfil tiene listas de rutas propias ni compara nombres de rol.
-  if (
-    isLoggedIn &&
-    !puedeVerRuta(permisos, nextUrl.pathname, auth?.user?.condicionTrabajador)
-  ) {
-    return NextResponse.redirect(destino(req, `${RUTA_INICIO}?aviso=sin-permiso`));
+  // D1: una ruta sin permiso redirige al dashboard (sin aviso). Si el único
+  // bloqueo es la CONDICIÓN del trabajador (p. ej. un enlace de fe de vida de
+  // pasivo abierto por una sesión activa), se permite la entrada: la página y
+  // el backend ya limitan los datos a la cédula de la sesión (Zero-IDOR).
+  const condicion = auth?.user?.condicionTrabajador;
+  const permitido = puedeVerRuta(permisos, nextUrl.pathname, condicion);
+  const permitidoPorPermiso = puedeVerRuta(permisos, nextUrl.pathname, condicion, true);
+  if (isLoggedIn && !permitido && permitidoPorPermiso) {
+    return NextResponse.next();
+  }
+  if (isLoggedIn && !permitido) {
+    return NextResponse.redirect(destino(req, RUTA_INICIO));
   }
 
   return NextResponse.next();

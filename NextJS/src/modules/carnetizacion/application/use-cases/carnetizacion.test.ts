@@ -189,6 +189,10 @@ class RepoCarnetizacionMemoria implements RepoCarnetizacion {
     };
   }
 
+  async eliminarPlantillaMotor(): Promise<void> {
+    return;
+  }
+
   async publicarPlantilla(id: string): Promise<PlantillaMotor> {
     return {
       id,
