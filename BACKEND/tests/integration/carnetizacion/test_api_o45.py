@@ -7,6 +7,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
+    BitacoraAccesoQrModel,
     CarnetEmitidoModel,
     MotivosEmisionModel,
     TipoCredencialModel,
@@ -336,4 +337,44 @@ def test_generar_carnet_devuelve_pdf_binario(datos_base):
     assert resp.status_code == 200, resp.content
     assert resp["Content-Type"].startswith("application/pdf")
     assert resp.content[:5] == b"%PDF-"
+
+
+def test_validar_hash_exige_autenticacion_y_permiso(datos_base):
+    """S4-01: el hash de un carnet no puede validarse de forma anónima."""
+    carnet = datos_base["carnet"]
+    ruta = f"{BASE}/validar/hash/{carnet.security_hash}/"
+
+    anonimo = APIClient()
+    assert anonimo.get(ruta).status_code in (401, 403)
+
+    sin_permiso = Usuario(cedula="V-2")
+    sin_permiso.tiene_permiso = lambda codigo: False
+    cliente_sin_permiso = APIClient()
+    cliente_sin_permiso.force_authenticate(user=sin_permiso)
+    assert cliente_sin_permiso.get(ruta).status_code == 403
+
+    assert datos_base["api"].get(ruta).status_code == 200
+
+
+def test_ficha_qr_publica_recorta_ip_y_user_agent(datos_base):
+    """S4-02: cabeceras largas no deben romper la bitácora ni devolver 500."""
+    carnet = datos_base["carnet"]
+    ip_larga = "203.0.113.9, " + "9" * 600
+    ua_largo = "A" * 2000
+
+    respuesta = APIClient().get(
+        f"{BASE}/public/qr/{carnet.security_hash}/",
+        HTTP_X_FORWARDED_FOR=ip_larga,
+        HTTP_USER_AGENT=ua_largo,
+    )
+
+    assert respuesta.status_code == 200, respuesta.content
+    bitacora = (
+        BitacoraAccesoQrModel.objects
+        .filter(security_hash=carnet.security_hash)
+        .latest("created_at")
+    )
+    assert bitacora.ip == "203.0.113.9"
+    assert len(bitacora.ip) <= 45
+    assert len(bitacora.user_agent) <= 500
 

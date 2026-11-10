@@ -123,7 +123,7 @@ class RevocarCarnetView(APIView):
 
 
 class ValidarCarnetHashView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.ver')]
 
     @extend_schema(tags=['Carnetización'], summary='Validar autenticidad de carnet por hash SHA-256', responses={200: ValidacionCarnetSerializer})
     def get(self, request, security_hash: str):
@@ -605,6 +605,18 @@ def _aplicar_cabeceras_anti_rastreo(response: HttpResponse) -> HttpResponse:
     return response
 
 
+def _datos_auditoria_request(request) -> tuple[str, str]:
+    """IP y user-agent acotados a las columnas de la bitácora.
+
+    X-Forwarded-For puede traer una cadena larga o varias IPs; se toma la
+    primera y se recorta a 45 caracteres (límite de `BitacoraAccesoQrModel.ip`).
+    El user-agent se recorta a 500 para no almacenar cabeceras abusivas.
+    """
+    reenviada = (request.META.get('HTTP_X_FORWARDED_FOR') or '').split(',')[0].strip()
+    ip = reenviada or request.META.get('REMOTE_ADDR', '')
+    return str(ip)[:45], str(request.META.get('HTTP_USER_AGENT', ''))[:500]
+
+
 class FichaQrPublicaView(APIView):
     """
     Consulta pública y segura de la ficha de carnetización a través del código QR (O44 - E9).
@@ -615,8 +627,7 @@ class FichaQrPublicaView(APIView):
 
     @extend_schema(tags=['Carnetización'], summary='Consultar ficha de verificación QR del carnet', responses={200: FichaQrSerializer})
     def get(self, request, security_hash: str):
-        ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', ''))
-        ua = request.META.get('HTTP_USER_AGENT', '')
+        ip, ua = _datos_auditoria_request(request)
         repo = RepoCarnetizacionORM()
         ficha = consultar_ficha_qr_uc(
             repo,
@@ -640,8 +651,7 @@ class FichaQrMedicaView(APIView):
 
     @extend_schema(tags=['Carnetización'], summary='Apertura auditada de datos médicos de emergencia', responses={200: FichaQrSerializer})
     def post(self, request, security_hash: str):
-        ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', ''))
-        ua = request.META.get('HTTP_USER_AGENT', '')
+        ip, ua = _datos_auditoria_request(request)
         repo = RepoCarnetizacionORM()
         ficha = consultar_ficha_qr_uc(
             repo,
