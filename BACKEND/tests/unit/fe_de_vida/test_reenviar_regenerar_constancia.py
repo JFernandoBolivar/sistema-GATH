@@ -139,16 +139,18 @@ def test_reenviar_constancia_limite_diario():
         solicitud_id=s_val.id, url_verificacion_base=URL, ahora=AHORA,
     )
 
-    # 3 reenvíos permitidos
-    for i in range(3):
+    # 5 reenvíos permitidos
+    for i in range(LIMITE_REENVIOS_DIARIOS):
         res = reenviar_constancia(
             m.solicitudes, repo_const, m.procesos, lector, notificador,
             solicitud_id=s_val.id, actor_cedula=ADMINISTRADORA.cedula, ahora=AHORA,
         )
         assert res['reenvios_hoy'] == i + 1
+        # Cada reenvío es un hecho distinto para el outbox (no se deduplica).
+        assert notificador.notificaciones[-1].clave == f'reenvio-{i + 1}'
 
-    # El 4to debe ser rechazado
-    with pytest.raises(ConflictError, match="límite de 3 reenvíos por día"):
+    # El 6.º debe ser rechazado
+    with pytest.raises(ConflictError, match="límite de 5 reenvíos por día"):
         reenviar_constancia(
             m.solicitudes, repo_const, m.procesos, lector, notificador,
             solicitud_id=s_val.id, actor_cedula=ADMINISTRADORA.cedula, ahora=AHORA,

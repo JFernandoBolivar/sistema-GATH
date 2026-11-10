@@ -301,7 +301,7 @@ export function DialogoReenviarConstancia({
             <DialogTitle>Reenviar constancia de fe de vida</DialogTitle>
             <DialogDescription>
               Se enviará la constancia validada al correo de acceso del pasivo (y copia a su correo alternativo si es distinto).
-              Recuerde que existe un límite de 3 reenvíos por día.
+              Recuerde que existe un límite de 5 reenvíos por día.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
