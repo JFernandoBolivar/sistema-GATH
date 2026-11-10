@@ -49,6 +49,11 @@ def validar_preferencias_privacidad(preferencias: dict[str, Any]) -> dict[str, s
     for clave, valor in preferencias.items():
         if clave not in PRIVACIDAD_POR_DEFECTO:
             continue
+        # La ubicación administrativa ya está impresa en el carnet y se
+        # mantiene siempre visible; no se configura por el titular.
+        if clave == 'ubicacion':
+            resultado['ubicacion'] = 'PUBLICO'
+            continue
         val_upper = str(valor).upper().strip()
         if val_upper not in NIVELES_PRIVACIDAD_PERMITIDOS:
             raise ValidationError(

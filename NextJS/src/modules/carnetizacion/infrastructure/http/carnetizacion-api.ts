@@ -148,6 +148,8 @@ export interface EmpleadoCarnetApiItem {
   departamento?: string;
   codigo?: string;
   codigo_empleado?: string;
+  correo?: string;
+  telefono?: string;
   foto_url?: string | null;
 }
 
@@ -206,6 +208,10 @@ export const carnetizacionApi = {
   actualizarPlantillaBorrador: async (id: string | number, data: Record<string, unknown>) => {
     const envelope = await apiClient.put<ApiResponse<PlantillaMotorApiItem>>(`/api/v1/carnetizacion/plantillas-motor/${id}/`, data);
     return envelope.data;
+  },
+
+  eliminarPlantillaMotor: async (id: string | number) => {
+    await apiClient.delete<ApiResponse<null>>(`/api/v1/carnetizacion/plantillas-motor/${id}/`);
   },
 
   publicarPlantillaMotor: async (id: string | number, activar: boolean = true) => {
@@ -348,22 +354,30 @@ export const carnetizacionApi = {
     };
   },
 
-  generarCarnetPdf: async (cedula: string, motivoId: number, nombre: string) => {
+  generarCarnetPdf: async (cedula: string, motivoId: number, nombre: string, plantillaId?: string) => {
     return apiClient.postBlob(`/api/v1/carnetizacion/generar/${cedula}/`, {
       motivo_id: motivoId,
       observaciones: "",
+      plantilla_id: plantillaId,
       datos_editados: { nombre, cedula },
     });
   },
 
   // --- QR y Privacidad por Dato (O44 - E9) ---
   consultarFichaQr: async (securityHash: string) => {
-    const envelope = await apiClient.get<ApiResponse<FichaQrApiItem>>(`/api/v1/carnetizacion/public/qr/${securityHash}/`);
+    const envelope = await apiClient.get<ApiResponse<FichaQrApiItem>>(
+      `/api/v1/carnetizacion/public/qr/${securityHash}/`,
+      { authOpcional: true },
+    );
     return envelope.data;
   },
 
   consultarSaludEmergencia: async (securityHash: string) => {
-    const envelope = await apiClient.post<ApiResponse<FichaQrApiItem>>(`/api/v1/carnetizacion/public/qr/${securityHash}/medica/`);
+    const envelope = await apiClient.post<ApiResponse<FichaQrApiItem>>(
+      `/api/v1/carnetizacion/public/qr/${securityHash}/medica/`,
+      undefined,
+      { authOpcional: true },
+    );
     return envelope.data;
   },
 

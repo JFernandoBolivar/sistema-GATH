@@ -310,7 +310,7 @@ class ReenviarConstanciaView(APIView):
 
     @extend_schema(
         tags=TAG, summary='Reenviar la constancia de fe de vida por correo',
-        description='Reenvía el PDF al correo de acceso del pasivo (+ copia al alternativo si es distinto). Límite de 3 reenvíos por día.',
+        description='Reenvía el PDF al correo de acceso del pasivo (+ copia al alternativo si es distinto). Límite de 5 reenvíos por día.',
         request=None,
         responses={200: ReenvioConstanciaRespuestaSerializer, **ERRORES},
     )

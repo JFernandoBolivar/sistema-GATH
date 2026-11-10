@@ -9,8 +9,6 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 
-import qrcode
-import qrcode.constants
 from io import BytesIO
 
 from core.presentation.envelope import fail, ok
@@ -233,17 +231,13 @@ class CarnetQrImagenView(APIView):
 
     @extend_schema(tags=['Carnetización'], summary='Imagen QR de una credencial')
     def get(self, request, security_hash: str):
-        qr = qrcode.QRCode(
-            version=None,
-            error_correction=qrcode.constants.ERROR_CORRECT_M,
-            box_size=8,
-            border=2,
+        from apps.carnetizacion.infrastructure.qr_institucional import generar_qr_png
+
+        contenido = f'GATH-ID: {security_hash}\n'
+        respuesta = HttpResponse(
+            generar_qr_png(contenido, box_size=8, border=2, con_logo=True),
+            content_type='image/png',
         )
-        qr.add_data(f'GATH-ID: {security_hash}\n')
-        qr.make(fit=True)
-        buffer = BytesIO()
-        qr.make_image(fill_color='black', back_color='white').save(buffer, format='PNG')
-        respuesta = HttpResponse(buffer.getvalue(), content_type='image/png')
         respuesta['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
         respuesta['X-Robots-Tag'] = 'noindex, nofollow, noarchive'
         return respuesta

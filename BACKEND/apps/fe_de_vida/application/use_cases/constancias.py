@@ -25,7 +25,7 @@ from core.domain.ports import FileStorage, Notificador
 
 MIME_PDF = 'application/pdf'
 PREFIJO_CLAVE_PDF = 'fe_de_vida/constancias'
-LIMITE_REENVIOS_DIARIOS = 3
+LIMITE_REENVIOS_DIARIOS = 5
 
 
 def certificadores_de(solicitud: SolicitudFeDeVida, lector: LectorPasivos) -> tuple[Certificador, ...]:
@@ -81,7 +81,7 @@ def reenviar_constancia(
 ) -> dict:
     """
     Reenvía el correo con el PDF al correo de acceso del pasivo (+ copia al alternativo si es distinto).
-    Límite de 3 reenvíos por día por constancia.
+    Límite de 5 reenvíos por día por constancia.
     """
     solicitud = obtener_solicitud(repo_sol, solicitud_id)
     if solicitud.estado is not EstadoSolicitud.VALIDADA:
@@ -93,7 +93,7 @@ def reenviar_constancia(
     hoy = ahora.date()
     conteo = repo_const.contar_reenvios_hoy(constancia.id, hoy)
     if conteo >= LIMITE_REENVIOS_DIARIOS:
-        raise ConflictError("Se ha alcanzado el límite de 3 reenvíos por día para esta constancia.")
+        raise ConflictError("Se ha alcanzado el límite de 5 reenvíos por día para esta constancia.")
 
     pasivo = lector.datos(solicitud.cedula)
     correo_destino = (pasivo.correo or '').strip()
@@ -119,6 +119,9 @@ def reenviar_constancia(
         clave_pdf=constancia.clave_pdf,
         nombre_pdf=f'{constancia.numero}.pdf',
         correos_copia=copia,
+        # Cada reenvío debe ser un hecho distinto: si no, el outbox lo
+        # deduplica por (tipo, ref_id, clave) y el correo nunca sale.
+        clave=f'reenvio-{conteo + 1}',
     )
     notificador.notificar(notificacion)
     repo_const.registrar_reenvio(

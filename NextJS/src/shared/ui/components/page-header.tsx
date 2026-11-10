@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 interface PageHeaderProps {
-  titulo: string;
+  titulo: ReactNode;
   descripcion?: string;
   /** Acción primaria de la pantalla (una sola, según la regla de usuarios mayores). */
   accion?: ReactNode;

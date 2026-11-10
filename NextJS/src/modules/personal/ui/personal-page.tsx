@@ -82,6 +82,15 @@ export default function PersonalPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cedulaFotoRef = useRef<string | null>(null);
 
+  // Apertura directa del expediente desde un enlace (`/personal/consultar?cedula=...`),
+  // por ejemplo al validar el carnet de un trabajador con el escáner QR.
+  useEffect(() => {
+    const cedula = new URLSearchParams(window.location.search).get("cedula")?.trim();
+    if (cedula && /^\d{5,10}$/.test(cedula)) {
+      setCedulaDetalle(cedula);
+    }
+  }, []);
+
   // El detalle se deriva de la cédula vigente: al cambiar de persona se vacía
   // al instante y se descartan las respuestas de cualquier otra cédula.
   const {

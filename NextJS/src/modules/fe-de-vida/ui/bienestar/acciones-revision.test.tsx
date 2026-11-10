@@ -228,7 +228,7 @@ describe("Acciones de constancia (solicitudes VALIDADAS)", () => {
         destinatarioEnmascarado: "j***z@gmail.com",
         copiaEnmascarada: null,
         reenviosHoy: 1,
-        limiteDiario: 3,
+        limiteDiario: 5,
       },
     });
     regenerar.mockReset().mockResolvedValue({

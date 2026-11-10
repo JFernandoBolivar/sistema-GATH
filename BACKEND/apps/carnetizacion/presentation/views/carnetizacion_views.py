@@ -34,6 +34,7 @@ from apps.carnetizacion.application.use_cases.gestionar_plantillas import (
     activar_plantilla_motor,
     actualizar_borrador_plantilla,
     crear_plantilla_borrador,
+    eliminar_plantilla_motor,
     listar_plantillas,
     listar_plantillas_motor,
     listar_tipos_credencial,
@@ -252,6 +253,12 @@ class PlantillaMotorDetalleView(APIView):
             descripcion=serializer.validated_data.get('descripcion'),
         )
         return ok(PlantillaMotorDetalleSerializer(plantilla).data, 'Borrador actualizado exitosamente.')
+
+    @extend_schema(tags=['Carnetización'], summary='Eliminar una versión de plantilla no activa', responses={204: None})
+    def delete(self, request, plantilla_id: str):
+        repo = RepoCarnetizacionORM()
+        eliminar_plantilla_motor(repo, plantilla_id=plantilla_id)
+        return ok(None, 'Plantilla eliminada.', status=200)
 
 
 class PlantillaMotorPublicarView(APIView):

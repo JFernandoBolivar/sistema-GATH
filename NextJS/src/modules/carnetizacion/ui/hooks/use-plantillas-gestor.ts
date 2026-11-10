@@ -12,6 +12,7 @@ import {
   activarPlantillaCarnetAction,
   activarPlantillaMotorAction,
   crearPlantillaBorradorAction,
+  eliminarPlantillaMotorAction,
   getPlantillasCarnetAction,
   getPlantillasMotorAction,
   getTiposCredencialAction,
@@ -146,6 +147,27 @@ export function usePlantillasGestor() {
     });
   };
 
+  const duplicarMotor = (plantilla: PlantillaMotor) => {
+    startTransition(async () => {
+      const res = await crearPlantillaBorradorAction({
+        nombre: `${plantilla.nombre} (copia)`,
+        codigo_tipo: plantilla.codigo_tipo,
+        definicion: plantilla.definicion,
+        ancho_mm: plantilla.ancho_mm,
+        alto_mm: plantilla.alto_mm,
+        orientacion: plantilla.orientacion,
+        regla_criterio: plantilla.regla_criterio,
+        regla_valor: plantilla.regla_valor,
+      });
+      if (res.success) {
+        toast.success("Plantilla duplicada como borrador");
+        mutateMotor();
+      } else {
+        toast.error(res.error || "No se pudo duplicar la plantilla.");
+      }
+    });
+  };
+
   const cargarVersiones = async (raizId: string) => {
     setCargandoVersiones(true);
     try {
@@ -181,6 +203,18 @@ export function usePlantillasGestor() {
         mutateMotor();
       } else {
         toast.error(res.error || "No se pudo publicar la versión");
+      }
+    });
+  };
+
+  const eliminarMotor = (plantilla: PlantillaMotor) => {
+    startTransition(async () => {
+      const res = await eliminarPlantillaMotorAction(plantilla.id);
+      if (res.success) {
+        toast.success(`Plantilla «${plantilla.nombre}» eliminada`);
+        mutateMotor();
+      } else {
+        toast.error(res.error || "No se pudo eliminar la plantilla");
       }
     });
   };
@@ -225,8 +259,10 @@ export function usePlantillasGestor() {
     onSubmitClasico,
     activarPlantillaClasica,
     crearNuevoBorrador,
+    duplicarMotor,
     activarMotor,
     publicarMotor,
+    eliminarMotor,
     abrirHistorialVersiones,
     listaClasicas,
     listaMotor,

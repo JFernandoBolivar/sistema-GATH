@@ -10,6 +10,9 @@ export type TipoElementoKonva =
   | "text"
   | "rect"
   | "circle"
+  | "tri"
+  | "diag"
+  | "path"
   | "photo"
   | "qr"
   | "image";
@@ -41,6 +44,8 @@ export interface ElementoKonva {
   // Propiedades de Imagen / Biblioteca
   src?: string;
   biblioteca_id?: string;
+  // Formas personalizadas (SVG path normalizado 0..100)
+  path?: string;
   // Organización
   grupo_id?: string | null;
   bloqueado?: boolean;

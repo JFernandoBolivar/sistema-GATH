@@ -6,6 +6,7 @@ import useSWR from "swr";
 import { toast } from "sonner";
 import {
   AlertCircle,
+  ArrowRight,
   Award,
   Eye,
   IdCard,
@@ -81,7 +82,7 @@ export function ConsolaEmisionView() {
   const [caraPreview, setCaraPreview] = useState<"anverso" | "reverso">("anverso");
 
   const [motivoId, setMotivoId] = useState<number>(0);
-  const [plantillaId, setPlantillaId] = useState<string>("oficial-activos");
+  const [plantillaId, setPlantillaId] = useState<string>("activa");
   const [observaciones, setObservaciones] = useState("");
   const [vistaPreviaRaster, setVistaPreviaRaster] = useState<string>("");
   const [isPendingEmision, startTransitionEmision] = useTransition();
@@ -228,7 +229,12 @@ export function ConsolaEmisionView() {
       const nombre = truncarNombre(trabajadorSeleccionado.nombre_completo);
 
       try {
-        const result = await generarCarnetPdfAction(cedula, motivoEfectivoId, nombre);
+        const result = await generarCarnetPdfAction(
+          cedula,
+          motivoEfectivoId,
+          nombre,
+          plantillaId === "activa" ? undefined : plantillaId,
+        );
         if (!result.success || !result.data) {
           toast.error(result.message || "No fue posible generar el carnet oficial.");
           return;
@@ -295,7 +301,7 @@ export function ConsolaEmisionView() {
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value.slice(0, 60))}
                 placeholder="Buscar por cédula, nombre o código de cargo (ej. 18456789 o Bolívar)..."
-                className="h-11 pl-11 pr-10 text-sm bg-background border-input"
+                className="h-11 pl-11 pr-10 text-sm bg-background border-input [&::-webkit-search-cancel-button]:hidden [&::-ms-clear]:hidden"
                 aria-label="Buscar personal para emisión de carnet"
               />
               {busqueda.length > 0 && (
@@ -353,9 +359,9 @@ export function ConsolaEmisionView() {
 
             {/* Desplegable de Resultados de Búsqueda cuando no hay selección fija */}
             {!trabajadorSeleccionado && debouncedQuery.length >= 2 && (
-              <div className="border border-border/80 rounded-lg overflow-hidden bg-background shadow-md mt-2 max-h-72 overflow-y-auto">
+              <div className="mt-2 max-h-72 overflow-y-auto rounded-lg border border-border bg-card">
                 {isLoadingBusqueda && (
-                  <div className="p-4 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+                  <div className="flex items-center justify-center gap-2 p-4 text-center text-sm text-muted-foreground">
                     <Loader2 className="size-4 animate-spin text-primary" />
                     Buscando en GATH…
                   </div>
@@ -373,34 +379,40 @@ export function ConsolaEmisionView() {
                       key={emp.cedula}
                       type="button"
                       onClick={() => handleSeleccionarTrabajador(emp)}
-                      className="w-full text-left p-3 hover:bg-muted/50 border-b border-border/40 last:border-b-0 flex items-center justify-between gap-3 transition-colors"
+                      className="group flex w-full items-center justify-between gap-4 border-b border-border px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-muted/50 focus-visible:bg-muted/50"
                     >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="size-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
-                          <User className="size-4" />
-                        </div>
-                        <div className="truncate">
-                          <p className="text-sm font-semibold text-foreground truncate">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
+                          <User className="size-5" aria-hidden />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-foreground">
                             {emp.nombre_completo}
                           </p>
-                          <p className="text-xs text-muted-foreground">
-                            C.I. V-{emp.cedula} · {emp.cargo || "Sin cargo registrado"}
+                          <p className="truncate text-sm text-muted-foreground">
+                            C.I. V-{emp.cedula}
+                            {emp.cargo ? ` · ${emp.cargo}` : " · Sin cargo registrado"}
                           </p>
                         </div>
                       </div>
 
-                      <div className="shrink-0 flex items-center gap-2">
-                        {emp.tiene_carnet ? (
-                          <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-500/30 bg-emerald-500/10">
-                            Carnet Activo
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-[10px] text-muted-foreground border-border">
-                            Sin carnet
-                          </Badge>
-                        )}
-                        <span className="text-xs text-primary font-medium hover:underline">
-                          Seleccionar →
+                      <div className="flex shrink-0 items-center gap-3">
+                        <Badge
+                          variant="outline"
+                          className={
+                            emp.tiene_carnet
+                              ? "border-success/30 bg-success-soft text-success"
+                              : "border-border text-muted-foreground"
+                          }
+                        >
+                          {emp.tiene_carnet ? "Carnet activo" : "Sin carnet"}
+                        </Badge>
+                        <span className="inline-flex items-center gap-1 text-sm font-medium text-primary">
+                          Seleccionar
+                          <ArrowRight
+                            className="size-4 transition-transform group-hover:translate-x-0.5"
+                            aria-hidden
+                          />
                         </span>
                       </div>
                     </button>
@@ -553,26 +565,26 @@ export function ConsolaEmisionView() {
 
                     <div>
                       <Label htmlFor="plantilla-emision" className="text-xs font-semibold">
-                        Plantilla Institucional *
+                        Plantilla del PDF
                       </Label>
                       <Select value={plantillaId} onValueChange={setPlantillaId}>
-                        <SelectTrigger id="plantilla-emision" className="h-10 mt-1 text-xs">
-                          <SelectValue placeholder="Seleccione plantilla" />
+                        <SelectTrigger id="plantilla-emision" className="mt-1 h-10 text-sm">
+                          <SelectValue placeholder="Plantilla activa" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="oficial-activos" className="text-xs">
-                            Plantilla Oficial Activos (Azul Marino CONATEL)
-                          </SelectItem>
-                          <SelectItem value="oficial-pasivos" className="text-xs">
-                            Plantilla Oficial Pasivos (Verde Institucional)
-                          </SelectItem>
+                          <SelectItem value="activa">Plantilla activa del sistema</SelectItem>
                           {plantillasLegacy?.map((p) => (
-                            <SelectItem key={p.id} value={String(p.id)} className="text-xs">
+                            <SelectItem key={p.id} value={String(p.id)}>
                               {p.nombre}
+                              {p.activo ? "" : " (inactiva)"}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        La vista previa usa la plantilla activa. El PDF se emite con la plantilla
+                        elegida aquí.
+                      </p>
                     </div>
                   </div>
 
@@ -675,120 +687,124 @@ export function ConsolaEmisionView() {
                 </CardHeader>
 
                 <CardContent className="pt-6 pb-6 flex flex-col items-center w-full">
-                  {/* Tarjeta de Carnet Fiel (Renderizado vector/raster con alta fidelidad) */}
-                  <div
-                    className="w-[240px] h-[380px] bg-white rounded-xl shadow-xl border border-slate-300 relative overflow-hidden flex flex-col transition-all duration-300 select-none text-slate-900"
-                    aria-label={`Vista previa del carnet: ${caraPreview}`}
-                  >
-                    {caraPreview === "anverso" ? (
-                      <>
-                        {/* Franja Superior Institucional Azul Marino CONATEL */}
-                        <div className="h-14 bg-[#001f3f] relative flex items-center px-3 justify-between overflow-hidden">
-                          <div className="z-10">
-                            <span className="text-[10px] font-black text-white tracking-widest block leading-tight">
-                              CONATEL
-                            </span>
-                            <span className="text-[6px] text-slate-200 tracking-wider block uppercase">
-                              República Bolivariana de Venezuela
-                            </span>
-                          </div>
-                          {/* Acento dorado angular */}
-                          <div className="h-full w-8 bg-[#ffd700] skew-x-[-20deg] absolute right-4 top-0 opacity-80" />
-                        </div>
-
-                        {/* Cuerpo Anverso */}
-                        <div className="flex-1 flex flex-col items-center pt-2.5 px-3 text-center">
-                          {/* Marco de Foto */}
-                          <div className="size-20 rounded-lg bg-slate-100 border-2 border-[#001f3f] overflow-hidden mb-2 shadow-inner flex items-center justify-center">
-                            {vistaPreviaRaster ? (
-                              /* eslint-disable-next-line @next/next/no-img-element */
-                              <img
-                                src={vistaPreviaRaster}
-                                alt="Foto carnet"
-                                className="size-full object-cover"
-                              />
-                            ) : (
-                              <User className="size-10 text-slate-400" />
-                            )}
-                          </div>
-
-                          {/* Nombre */}
-                          <h4 className="text-[11px] font-black text-slate-900 leading-tight line-clamp-2 px-1">
-                            {truncarNombre(trabajadorSeleccionado.nombre_completo).toUpperCase()}
-                          </h4>
-                          <p className="text-[10px] font-bold text-slate-700 mt-0.5">
-                            C.I. V-{trabajadorSeleccionado.cedula}
-                          </p>
-                          <p className="text-[9px] font-medium text-slate-600 mt-0.5 line-clamp-1">
-                            {trabajadorSeleccionado.cargo || "FUNCIONARIO"}
-                          </p>
-
-                          {/* Línea divisoria dorada */}
-                          <div className="w-3/4 h-0.5 bg-[#d4af37] my-1.5" />
-
-                          <p className="text-[8px] text-slate-500 line-clamp-1">
-                            {trabajadorSeleccionado.departamento || "Gerencia de Operaciones"}
-                          </p>
-
-                          {/* Pie de Anverso con QR y Vigencia */}
-                          <div className="mt-auto mb-2 flex items-center justify-between w-full px-1">
-                            <div className="size-8 bg-slate-50 border border-slate-300 p-0.5 rounded flex items-center justify-center">
-                              <QrCode className="size-full text-slate-800" />
-                            </div>
-                            <div className="text-right">
-                              <span className="text-[7px] text-slate-400 block font-medium">Vigencia</span>
-                              <span className="text-[8px] font-bold text-slate-800">
-                                {new Date().getFullYear() + 2}
+                  {caraPreview === "anverso" && vistaPreviaRaster ? (
+                    /* La vista previa raster del backend ya contiene la plantilla, la foto y los
+                       datos con las proporciones reales del carnet. */
+                    <div className="w-[240px] h-[380px] overflow-hidden rounded-xl border border-border bg-white shadow-sm">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={vistaPreviaRaster}
+                        alt={`Vista previa del carnet de ${trabajadorSeleccionado.nombre_completo}`}
+                        className="size-full object-contain"
+                      />
+                    </div>
+                  ) : (
+                    /* Tarjeta de Carnet Fiel (Renderizado vector/raster con alta fidelidad) */
+                    <div
+                      className="w-[240px] h-[380px] bg-white rounded-xl shadow-xl border border-slate-300 relative overflow-hidden flex flex-col transition-all duration-300 select-none text-slate-900"
+                      aria-label={`Vista previa del carnet: ${caraPreview}`}
+                    >
+                      {caraPreview === "anverso" ? (
+                        <>
+                          {/* Franja Superior Institucional Azul Marino CONATEL */}
+                          <div className="h-14 bg-[#001f3f] relative flex items-center px-3 justify-between overflow-hidden">
+                            <div className="z-10">
+                              <span className="text-[10px] font-black text-white tracking-widest block leading-tight">
+                                CONATEL
+                              </span>
+                              <span className="text-[6px] text-slate-200 tracking-wider block uppercase">
+                                República Bolivariana de Venezuela
                               </span>
                             </div>
-                          </div>
-                        </div>
-
-                        {/* Franja Inferior Azul Marino */}
-                        <div className="h-4 bg-[#001f3f]" />
-                      </>
-                    ) : (
-                      <>
-                        {/* Cara Reverso Oficial */}
-                        <div className="h-10 bg-[#001f3f] flex items-center px-3 justify-center">
-                          <span className="text-[9px] font-bold text-white tracking-wider">
-                            CONDICIONES DE USO
-                          </span>
-                        </div>
-
-                        <div className="flex-1 flex flex-col items-center p-3 text-center text-slate-800">
-                          <p className="text-[7px] text-justify leading-tight text-slate-600 mb-2">
-                            • Esta credencial es de uso estrictamente oficial, intransferible y personal.
-                            <br />
-                            • Debe portarse visible en todas las instalaciones de CONATEL.
-                            <br />
-                            • En caso de pérdida o extravío, notifique inmediatamente a Gestión Humana.
-                            <br />• Válida únicamente con sello institucional y código QR activo.
-                          </p>
-
-                          <div className="size-20 bg-slate-50 border border-slate-300 p-1 rounded-lg flex items-center justify-center mb-1.5">
-                            <QrCode className="size-full text-slate-900" />
+                            {/* Acento dorado angular */}
+                            <div className="h-full w-8 bg-[#ffd700] skew-x-[-20deg] absolute right-4 top-0 opacity-80" />
                           </div>
 
-                          <span className="text-[8px] font-bold text-slate-700">
-                            Validación Criptográfica QR
-                          </span>
-                          <span className="text-[6.5px] text-slate-400">
-                            Algoritmo SHA-256 Verificado
-                          </span>
+                          {/* Cuerpo Anverso */}
+                          <div className="flex-1 flex flex-col items-center pt-2.5 px-3 text-center">
+                            {/* Marco de Foto */}
+                            <div className="size-20 rounded-lg bg-slate-100 border-2 border-[#001f3f] overflow-hidden mb-2 shadow-inner flex items-center justify-center">
+                              <User className="size-10 text-slate-400" />
+                            </div>
 
-                          <div className="mt-auto border-t border-slate-300 w-36 pt-1 text-center">
-                            <span className="text-[7px] text-slate-600 font-bold block">
-                              Dirección General CONATEL
+                            {/* Nombre */}
+                            <h4 className="text-[11px] font-black text-slate-900 leading-tight line-clamp-2 px-1">
+                              {truncarNombre(trabajadorSeleccionado.nombre_completo).toUpperCase()}
+                            </h4>
+                            <p className="text-[10px] font-bold text-slate-700 mt-0.5">
+                              C.I. V-{trabajadorSeleccionado.cedula}
+                            </p>
+                            <p className="text-[9px] font-medium text-slate-600 mt-0.5 line-clamp-1">
+                              {trabajadorSeleccionado.cargo || "FUNCIONARIO"}
+                            </p>
+
+                            {/* Línea divisoria dorada */}
+                            <div className="w-3/4 h-0.5 bg-[#d4af37] my-1.5" />
+
+                            <p className="text-[8px] text-slate-500 line-clamp-1">
+                              {trabajadorSeleccionado.departamento || "Gerencia de Operaciones"}
+                            </p>
+
+                            {/* Pie de Anverso con QR y Vigencia */}
+                            <div className="mt-auto mb-2 flex items-center justify-between w-full px-1">
+                              <div className="size-8 bg-slate-50 border border-slate-300 p-0.5 rounded flex items-center justify-center">
+                                <QrCode className="size-full text-slate-800" />
+                              </div>
+                              <div className="text-right">
+                                <span className="text-[7px] text-slate-400 block font-medium">Vigencia</span>
+                                <span className="text-[8px] font-bold text-slate-800">
+                                  {new Date().getFullYear() + 2}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Franja Inferior Azul Marino */}
+                          <div className="h-4 bg-[#001f3f]" />
+                        </>
+                      ) : (
+                        <>
+                          {/* Cara Reverso Oficial */}
+                          <div className="h-10 bg-[#001f3f] flex items-center px-3 justify-center">
+                            <span className="text-[9px] font-bold text-white tracking-wider">
+                              CONDICIONES DE USO
                             </span>
-                            <span className="text-[6px] text-slate-400">Gestión Humana</span>
                           </div>
-                        </div>
 
-                        <div className="h-3 bg-[#001f3f]" />
-                      </>
-                    )}
-                  </div>
+                          <div className="flex-1 flex flex-col items-center p-3 text-center text-slate-800">
+                            <p className="text-[7px] text-justify leading-tight text-slate-600 mb-2">
+                              • Esta credencial es de uso estrictamente oficial, intransferible y personal.
+                              <br />
+                              • Debe portarse visible en todas las instalaciones de CONATEL.
+                              <br />
+                              • En caso de pérdida o extravío, notifique inmediatamente a Gestión Humana.
+                              <br />• Válida únicamente con sello institucional y código QR activo.
+                            </p>
+
+                            <div className="size-20 bg-slate-50 border border-slate-300 p-1 rounded-lg flex items-center justify-center mb-1.5">
+                              <QrCode className="size-full text-slate-900" />
+                            </div>
+
+                            <span className="text-[8px] font-bold text-slate-700">
+                              Validación Criptográfica QR
+                            </span>
+                            <span className="text-[6.5px] text-slate-400">
+                              Algoritmo SHA-256 Verificado
+                            </span>
+
+                            <div className="mt-auto border-t border-slate-300 w-36 pt-1 text-center">
+                              <span className="text-[7px] text-slate-600 font-bold block">
+                                Dirección General CONATEL
+                              </span>
+                              <span className="text-[6px] text-slate-400">Gestión Humana</span>
+                            </div>
+                          </div>
+
+                          <div className="h-3 bg-[#001f3f]" />
+                        </>
+                      )}
+                    </div>
+                  )}
 
                   <p className="text-[11px] text-muted-foreground mt-3 text-center">
                     Resolución: 300 DPI estándar para tarjetas de identificación PVC.

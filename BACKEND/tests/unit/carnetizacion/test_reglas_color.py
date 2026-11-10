@@ -17,28 +17,28 @@ def test_plantilla_defecto_trabajador_reglas_y_textos():
     tpl = plantilla_defecto_trabajador()
     reglas = tpl['reglas']
 
-    # Criterio y respaldo inicial; Funcionario usa el azul/rojo aprobado del prototipo.
+    # Criterio y respaldo inicial; paleta institucional vigente.
     assert reglas['criterio'] == 'nomina'
-    assert reglas['respaldo']['primario'] == '#1f3a5f'
-    assert reglas['respaldo']['acento'] == '#1273bd'
+    assert reglas['respaldo']['primario'] == '#14284b'
+    assert reglas['respaldo']['acento'] == '#c8102e'
     assert reglas['respaldo']['texto'] == '#ffffff'
     assert 'FUNCIONARIO' in reglas['valores']
-    assert reglas['valores']['FUNCIONARIO']['primario'] == '#16264a'
-    assert reglas['valores']['FUNCIONARIO']['acento'] == '#d9121f'
+    assert reglas['valores']['FUNCIONARIO']['primario'] == '#14284b'
+    assert reglas['valores']['FUNCIONARIO']['acento'] == '#c8102e'
 
     # Verificación de textos canónicos en anverso y reverso
     # Adscrito
     lbl_adsc = next(e for e in tpl['reverso'] if e['id'] == 'rev-lbl-adsc')
-    assert lbl_adsc['texto'] == 'Adscrito a la unidad de:'
+    assert lbl_adsc['texto'] == 'ADSCRITO A LA UNIDAD DE:'
 
     # Normas: debe incluir 'lugar' y 'pérdida' con tilde
     normas = next(e for e in tpl['reverso'] if e['id'] == 'rev-normas')
     assert 'lugar visible' in normas['texto']
     assert 'extravío o pérdida' in normas['texto']
 
-    # Gestión: debe tener tilde
+    # Adscripción: el campo debe describir la oficina
     oficina = next(e for e in tpl['anverso'] if e['id'] == 'oficina')
-    assert 'Gestión' in oficina['nombre']
+    assert 'adscripción' in oficina['nombre']
 
 
 def test_plantilla_defecto_pasivo_textos_y_reglas():
@@ -54,8 +54,8 @@ def test_resolver_color_funcionario_azul_marino():
     tpl = plantilla_defecto_trabajador()
     persona = {'nomina': 'Funcionario'}
     res = resolver_color_carnet(tpl, persona)
-    assert res['primario'] == '#16264a'
-    assert res['acento'] == '#d9121f'
+    assert res['primario'] == '#14284b'
+    assert res['acento'] == '#c8102e'
     assert res['texto'] == '#ffffff'
 
 
@@ -65,13 +65,13 @@ def test_resolver_color_contratado_y_jubilado():
 
     # Contratado
     res_c = resolver_color_carnet(tpl, {'nomina': 'Contratado'})
-    assert res_c['primario'] == '#c79a12'
-    assert res_c['acento'] == '#16264a'
+    assert res_c['primario'] == '#f2b705'
+    assert res_c['acento'] == '#14284b'
 
     # Jubilado
     res_j = resolver_color_carnet(tpl, {'nomina': 'Jubilado'})
-    assert res_j['primario'] == '#1f4e38'
-    assert res_j['acento'] == '#2d7a58'
+    assert res_j['primario'] == '#ffffff'
+    assert res_j['acento'] == '#14284b'
 
 
 def test_resolver_color_desconocido_cae_a_respaldo():

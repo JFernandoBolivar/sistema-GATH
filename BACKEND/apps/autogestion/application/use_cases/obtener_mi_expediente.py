@@ -15,6 +15,13 @@ MOTIVO_REPOSICION = 2
 OBSERVACION_SOLICITUD_PORTAL = 'Solicitud desde Portal de Autogestión CONATEL'
 
 
+def _es_primera_emision(motivo: dict) -> bool:
+    """«Primera emisión» solo aplica a quien nunca ha tenido carnet."""
+    texto = f"{motivo.get('nombre', '')} {motivo.get('descripcion', '')}"
+    texto = texto.upper().replace('Ó', 'O').replace('Á', 'A').replace('É', 'E').replace('Í', 'I').replace('Ú', 'U')
+    return 'PRIMERA EMISION' in texto or 'PRIMERA VEZ' in texto
+
+
 @dataclass(frozen=True)
 class MiExpedienteDTO:
     empleado: Any
@@ -43,11 +50,15 @@ def obtener_mi_expediente(repo: RepoPortalTrabajador, cedula: str) -> MiExpedien
         raise NotFoundError(f"No se encontró el expediente del trabajador con cédula {cedula}.")
 
     puede_carnet = repo.puede_ver_carnet(cedula) if hasattr(repo, 'puede_ver_carnet') else False
+    motivos = repo.listar_motivos_carnet() if puede_carnet else []
+    # Quien ya tuvo un carnet no puede volver a pedir «primera emisión».
+    if puede_carnet and hasattr(repo, 'tiene_carnet_previo') and repo.tiene_carnet_previo(cedula):
+        motivos = [m for m in motivos if not _es_primera_emision(m)]
     return MiExpedienteDTO(
         empleado=empleado,
         familiares=repo.listar_familiares(cedula),
         carnets=repo.listar_carnets(cedula) if puede_carnet else [],
-        motivos_carnet=repo.listar_motivos_carnet() if puede_carnet else [],
+        motivos_carnet=motivos,
         datos_complementarios=repo.obtener_datos_complementarios(cedula),
         puede_ver_carnet=puede_carnet,
     )
@@ -66,6 +77,10 @@ def solicitar_mi_carnet(
         motivo_id = int(motivo_id)
     except (TypeError, ValueError):
         raise ValidationError("El motivo de emisión no es válido.") from None
+    if motivo_id == MOTIVO_PRIMERA_EMISION and repo.tiene_carnet_previo(cedula):
+        raise ValidationError(
+            "Usted ya posee un carnet institucional. Seleccione renovación, reposición o actualización."
+        )
     return repo.emitir_carnet(cedula, motivo_id, observaciones or OBSERVACION_SOLICITUD_PORTAL)
 
 

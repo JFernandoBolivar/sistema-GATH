@@ -119,12 +119,13 @@ def solicitudes_de_evento(e: EventoFeDeVida, correo_a_bienestar: bool = False) -
 
 def notificacion_validada(
     e: EventoFeDeVida, *, numero: str, proceso_nombre: str, clave_pdf: str, nombre_pdf: str,
-    correos_copia: tuple[str, ...],
+    correos_copia: tuple[str, ...], clave: str = '',
 ) -> SolicitudNotificacion:
     """Aviso de fe de vida validada con la constancia adjunta (se lee del almacén en el worker) y enlace de descarga."""
     adjuntos = (AdjuntoCorreo(nombre_pdf, clave_almacen=clave_pdf),) if clave_pdf else ()
     return SolicitudNotificacion(
-        tipo=TIPO_VALIDADA, ref_tipo=REF_TIPO, ref_id=e.solicitud_id, cedula_destino=e.cedula,
+        tipo=TIPO_VALIDADA, ref_tipo=REF_TIPO, ref_id=e.solicitud_id, clave=clave,
+        cedula_destino=e.cedula,
         enlace=ENLACE_PASIVO, modulo=MODULO_PASIVO, titulo='Su fe de vida fue validada',
         mensaje=(f'Le informamos que su fe de vida del proceso "{proceso_nombre}" fue validada satisfactoriamente. '
                  f'Se emitió la Constancia de Fe de Vida N.° {numero}, que se adjunta a este correo en formato PDF '
