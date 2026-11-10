@@ -17,6 +17,10 @@ from django.db.models import Count, Max, Q
 from django.utils import timezone
 from pdf2image import convert_from_bytes
 
+from core.domain.catalogos import (
+    ESTATUS_ACTIVO,
+    TIPO_PERSONAL_PASIVO,
+)
 from core.domain.exceptions import NotFoundError, ValidationError
 from core.domain.validacion_personas import formatear_telefono
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
@@ -50,6 +54,7 @@ from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
     CarnetEmitidoModel,
     CarnetTemplateModel,
     ElementoBibliotecaModel,
+    MotivosEmisionModel,
     PlantillaCarnetModel,
     TipoCredencialModel,
     CampoPersonalizadoModel,
@@ -490,7 +495,7 @@ class RepoCarnetizacionORM:
             es_pasivo = (
                 AsigTrabajoModel.objects.filter(
                     employee=empleado,
-                    Tipo_personal__tipo_personal__iexact='PASIVO',
+                    Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO,
                 ).exists()
                 or EmployeeEgresadoModel.objects.filter(employee=empleado).exists()
             )
@@ -525,6 +530,13 @@ class RepoCarnetizacionORM:
     def empleado_existe(self, cedula: str) -> bool:
         return EmployeeModel.objects.filter(cedulaidentidad=cedula).exists()
 
+    def listar_motivos_emision(self) -> list[dict[str, Any]]:
+        """Motivos de emisión ordenados por nombre, en el formato del formulario."""
+        return [
+            {'id': motivo.id, 'nombre': motivo.nombre}
+            for motivo in MotivosEmisionModel.objects.all().order_by('nombre')
+        ]
+
     def buscar_personal(self, query: str = "") -> list[dict[str, Any]]:
         qs = list(
             EmployeeModel.objects.filter(
@@ -549,7 +561,7 @@ class RepoCarnetizacionORM:
             .order_by('-pk')
         ):
             asignaciones_recientes.setdefault(asig.employee_id, asig)
-            if asig.estatusid and (asig.estatusid.estatus or '').upper() == 'ACTIVO':
+            if asig.estatusid and (asig.estatusid.estatus or '').upper() == ESTATUS_ACTIVO:
                 asignaciones_activas.setdefault(asig.employee_id, asig)
 
         totales = dict(
@@ -741,7 +753,7 @@ class RepoCarnetizacionORM:
         es_pasivo = (
             AsigTrabajoModel.objects.filter(
                 employee=empleado,
-                Tipo_personal__tipo_personal__iexact='PASIVO',
+                Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO,
             ).exists()
             or EmployeeEgresadoModel.objects.filter(employee=empleado).exists()
         )
@@ -845,14 +857,20 @@ class RepoCarnetizacionORM:
                 ancho_px = int.from_bytes(contenido[16:20], 'big')
                 alto_px = int.from_bytes(contenido[20:24], 'big')
             except Exception:
-                pass
+                logger.warning(
+                    'No se pudieron leer las dimensiones del PNG de biblioteca %s.',
+                    nombre_archivo, exc_info=True,
+                )
         elif mime_type in ('image/jpeg', 'image/webp'):
             try:
                 from PIL import Image
                 with Image.open(BytesIO(contenido)) as img:
                     ancho_px, alto_px = img.size
             except Exception:
-                pass
+                logger.warning(
+                    'No se pudieron leer las dimensiones de la imagen de biblioteca %s.',
+                    nombre_archivo, exc_info=True,
+                )
 
         clave = f"carnet_biblioteca/{hashlib.sha256(contenido).hexdigest()[:16]}_{nombre_archivo}"
         self._almacen.subir(clave, contenido, mime_type)

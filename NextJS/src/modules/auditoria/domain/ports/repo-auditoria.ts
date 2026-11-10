@@ -6,7 +6,7 @@ import type {
   OpcionesAuditoriaDTO,
   PaginaAuditoriaDTO,
   PaginaIncidentesDTO,
-} from "../../application/dtos/auditoria-dto";
+} from "../entities/auditoria";
 
 export type FormatoAuditoria = "pdf" | "excel";
 

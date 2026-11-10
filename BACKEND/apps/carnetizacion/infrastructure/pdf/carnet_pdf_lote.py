@@ -4,6 +4,7 @@ Impresión por lote de credenciales (O45-A).
 Genera hojas A4 con varias credenciales (anverso en una hoja y reverso en la
 siguiente), marcas de corte y la misma definición JSON del motor de O44.
 """
+import logging
 from io import BytesIO
 from typing import Any
 
@@ -23,6 +24,8 @@ from apps.carnetizacion.infrastructure.pdf.carnet_pdf import (
 )
 from core.infrastructure.pdf.fuentes import FUENTE, FUENTE_NEGRITA
 from core.infrastructure.pdf.pdf_components import ruta_asset
+
+logger = logging.getLogger('gath.carnetizacion')
 
 A4_ANCHO = 210 * MM_A_PT
 A4_ALTO = 297 * MM_A_PT
@@ -160,7 +163,10 @@ def _dibujar_cara(
                     )
                     dibujado = True
                 except Exception:
-                    pass
+                    logger.warning(
+                        'No se pudo dibujar la imagen %s del carnet; se usa el marcador de posición.',
+                        ruta, exc_info=True,
+                    )
             if not dibujado:
                 c.setStrokeColor(relleno)
                 c.setLineWidth(0.6)

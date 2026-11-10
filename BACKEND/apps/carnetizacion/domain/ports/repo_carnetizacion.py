@@ -141,7 +141,11 @@ class RepoCarnetizacion(Protocol):
     def registrar_foto_perfil(self, cedula: str, clave: str) -> None:
         ...
 
-    def generar_pdf(self, carnet_id: int) -> bytes:
+    def generar_pdf(self, carnet_id: int, nombre_override: str | None = None) -> bytes:
+        ...
+
+    def listar_motivos_emision(self) -> list[dict[str, Any]]:
+        """Motivos de emisión activos, ya listos para el formulario de carnet."""
         ...
 
     def obtener_estadisticas_carnets(self) -> dict[str, Any]:

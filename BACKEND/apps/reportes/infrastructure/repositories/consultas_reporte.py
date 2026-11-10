@@ -16,6 +16,12 @@ Las tablas son legadas (`managed=False`) y `AsigTrabajo.employee` apunta a la
 """
 from django.db.models import Max, Q
 
+from core.domain.catalogos import (
+    ESTATUS_ACTIVO,
+    ESTATUS_EGRESADO,
+    TIPO_PERSONAL_ACTIVO,
+    TIPO_PERSONAL_PASIVO,
+)
 from apps.reportes.domain.value_objects.condicion_trabajador import (
     CONDICION_PASIVO,
     normalizar_condicion,
@@ -24,7 +30,7 @@ from apps.reportes.domain.value_objects.condicion_trabajador import (
 TAMANO_DE_LOTE = 500
 
 # Valor del catálogo `EstatusModel.estatus` que marca una asignación vigente.
-ESTATUS_ASIGNACION_ACTIVA = 'ACTIVO'
+ESTATUS_ASIGNACION_ACTIVA = ESTATUS_ACTIVO
 
 
 def en_lotes(valores: list) -> list[list]:
@@ -145,9 +151,9 @@ def filtro_por_condicion(condicion: str, campo_cedula: str) -> Q:
 
     condicion = normalizar_condicion(condicion)
     asignaciones = AsigTrabajoModel.objects.filter(employee__isnull=False)
-    pasivas = asignaciones.filter(Tipo_personal__tipo_personal__iexact='PASIVO')
-    pasivas_vigentes = pasivas.exclude(estatusid__estatus__iexact='EGRESADO').values('employee_id')
-    dados_de_baja = pasivas.filter(estatusid__estatus__iexact='EGRESADO').values('employee_id')
+    pasivas = asignaciones.filter(Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO)
+    pasivas_vigentes = pasivas.exclude(estatusid__estatus__iexact=ESTATUS_EGRESADO).values('employee_id')
+    dados_de_baja = pasivas.filter(estatusid__estatus__iexact=ESTATUS_EGRESADO).values('employee_id')
     egresados = EmployeeEgresadoModel.objects.exclude(
         employee_id__in=dados_de_baja,
     ).values('employee_id')
@@ -159,6 +165,6 @@ def filtro_por_condicion(condicion: str, campo_cedula: str) -> Q:
         return es_pasivo
 
     activas = asignaciones.filter(
-        Q(Tipo_personal__tipo_personal__iexact='ACTIVO') | Q(Tipo_personal__isnull=True)
+        Q(Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_ACTIVO) | Q(Tipo_personal__isnull=True)
     ).values('employee_id')
     return Q(**{f'{campo_cedula}__in': activas}) & ~es_pasivo

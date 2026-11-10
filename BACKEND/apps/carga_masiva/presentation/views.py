@@ -1,18 +1,27 @@
 """Vistas de la carga masiva: plantilla (F1), subida/análisis (F2), aplicación (F4)
-y confirmación de cambios de condición (FIX-CARGA1)."""
-from io import BytesIO
+y confirmación de cambios de condición (FIX-CARGA1).
 
+Desde S5-01 no hay ORM aquí: las consultas viven en
+`infrastructure/consultas_carga.py` y se invocan por casos de uso.
+"""
 from django.http import HttpResponse
-from django.shortcuts import get_object_or_404
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
-from openpyxl import Workbook
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
+from apps.carga_masiva.application.use_cases.consultar_cargas import (
+    crear_carga,
+    exportar_resultados,
+    filas_de_carga,
+    listar_cargas,
+    marcar_carga_con_error,
+    obtener_carga_visible,
+    resumen_de_carga,
+)
 from apps.carga_masiva.application.use_cases.gestionar_carga import (
     analizar_carga,
     aplicar_carga as aplicar_carga_uc,
@@ -31,7 +40,11 @@ from apps.carga_masiva.infrastructure.adaptadores import (
     AnalizadorCargaORM,
     AplicadorCargaORM,
 )
-from apps.carga_masiva.infrastructure.models import CargaMasivaFilaModel, CargaMasivaModel
+from apps.carga_masiva.infrastructure.consultas_carga import CreadorCargaORM, ConsultorCargasORM
+from apps.carga_masiva.infrastructure.exportacion_resultados import (
+    ExportadorResultadosCargaORM,
+)
+from apps.carga_masiva.infrastructure.models import CargaMasivaModel
 from apps.carga_masiva.infrastructure.plantilla_excel import generar_plantilla
 from apps.carga_masiva.presentation.permissions import APLICAR, APROBAR, REVERTIR
 from apps.carga_masiva.presentation.serializers import (
@@ -71,10 +84,10 @@ def _poblaciones_visibles(request) -> list[str]:
 
 def _carga_visible(request, carga_id: str) -> CargaMasivaModel:
     """Quien no puede aprobar solo ve sus propias cargas y de su población."""
-    cargas = CargaMasivaModel.objects.all()
-    if not usuario_tiene_permiso(request.user, APROBAR):
-        cargas = cargas.filter(solicitada_por_cedula=_cedula(request))
-    carga = get_object_or_404(cargas, pk=carga_id)
+    carga = obtener_carga_visible(
+        ConsultorCargasORM(), carga_id, _cedula(request),
+        usuario_tiene_permiso(request.user, APROBAR),
+    )
     if not usuario_tiene_permiso(request.user, APROBAR):
         _exigir_permiso_poblacion(request, carga.poblacion)
     return carga
@@ -150,15 +163,15 @@ class CargasMasivasView(APIView):
         if modo not in ('obligatorios', 'completo'):
             raise ValidationError('El modo debe ser «obligatorios» o «completo».', campo='modo')
         contenido = archivo.read()
-        carga = CargaMasivaModel.objects.create(
+        carga = crear_carga(
+            CreadorCargaORM(),
             archivo_nombre=archivo.name[:255], tamano_bytes=archivo.size, tipos=tipos,
             modo=modo, poblacion=poblacion, solicitada_por_cedula=_cedula(request),
         )
         try:
             analizar_carga(carga, contenido, tipos, AnalizadorCargaORM())
         except Exception as exc:  # noqa: BLE001
-            carga.estado = CargaMasivaModel.Estado.ERROR
-            carga.save(update_fields=['estado'])
+            marcar_carga_con_error(CreadorCargaORM(), carga)
             raise ValidationError(f'No se pudo analizar el archivo: {exc}', campo='archivo') from exc
         _auditar(request, 'CARGA_MASIVA_ANALIZADA', carga, {
             'filas': carga.filas_total, 'errores': carga.filas_error,
@@ -168,19 +181,19 @@ class CargasMasivasView(APIView):
 
     @extend_schema(tags=TAG, summary='Historial de cargas masivas')
     def get(self, request):
-        cargas = CargaMasivaModel.objects.all()
-        if not usuario_tiene_permiso(request.user, APROBAR):
-            cargas = cargas.filter(
-                solicitada_por_cedula=_cedula(request),
-                poblacion__in=_poblaciones_visibles(request),
-            )
+        puede_aprobar = usuario_tiene_permiso(request.user, APROBAR)
         poblacion = str(request.query_params.get('poblacion') or '').strip().upper()
-        if poblacion in POBLACIONES:
-            cargas = cargas.filter(poblacion=poblacion)
         estado = str(request.query_params.get('estado') or '').strip().upper()
-        if estado:
-            cargas = cargas.filter(estado=estado)
-        return ok([_resumen(c) for c in cargas[:50]])
+        cargas = listar_cargas(
+            ConsultorCargasORM(),
+            cedula=_cedula(request),
+            puede_aprobar=puede_aprobar,
+            poblaciones=_poblaciones_visibles(request),
+            poblacion=poblacion if poblacion in POBLACIONES else None,
+            estado=estado or None,
+        )
+        consultor = ConsultorCargasORM()
+        return ok([resumen_de_carga(consultor, c) for c in cargas])
 
 
 class CargaMasivaDetalleView(APIView):
@@ -189,25 +202,14 @@ class CargaMasivaDetalleView(APIView):
     @extend_schema(tags=TAG, summary='Detalle y filas analizadas de una carga')
     def get(self, request, carga_id):
         carga = _carga_visible(request, carga_id)
-        filas = carga.filas.all()
-        estado = request.query_params.get('estado')
-        if estado:
-            filas = filas.filter(estado=estado)
-        if request.query_params.get('solo_confirmacion') in ('1', 'true', 'True'):
-            filas = filas.filter(estado='REQUIERE_CONFIRMACION')
-        return ok({
-            **_resumen(carga),
-            'filas': [
-                {
-                    'id': str(f.id), 'tipo': f.tipo, 'numero_fila': f.numero_fila, 'estado': f.estado,
-                    'detalle': f.detalle, 'datos': f.datos, 'aplicada': f.aplicada,
-                    'confirmada': f.confirmada, 'confirmada_por_cedula': f.confirmada_por_cedula,
-                    'confirmada_en': f.confirmada_en, 'movimiento': f.movimiento or None,
-                    'error_aplicacion': f.error_aplicacion,
-                }
-                for f in filas[:500]
-            ],
-        })
+        consultor = ConsultorCargasORM()
+        filas = filas_de_carga(
+            consultor,
+            carga,
+            estado=request.query_params.get('estado'),
+            solo_confirmacion=request.query_params.get('solo_confirmacion') in ('1', 'true', 'True'),
+        )
+        return ok({**resumen_de_carga(consultor, carga), 'filas': filas})
 
 
 class ConfirmarFilasCargaMasivaView(APIView):
@@ -283,43 +285,11 @@ class ResultadosCargaMasivaView(APIView):
     @extend_schema(tags=TAG, summary='Excel de resultados del análisis')
     def get(self, request, carga_id):
         carga = _carga_visible(request, carga_id)
-        libro = Workbook()
-        hoja = libro.active
-        hoja.title = 'Resultados'
-        filas = list(carga.filas.all())
-        claves = []
-        for fila in filas:
-            for clave in fila.datos:
-                if clave not in claves:
-                    claves.append(clave)
-        columnas = ['Población', 'Archivo', 'Tipo', 'Fila', 'Estado', 'Detalle', *claves]
-        hoja.append(columnas)
-        for fila in filas:
-            hoja.append([
-                carga.poblacion, carga.archivo_nombre, fila.tipo, fila.numero_fila, fila.estado,
-                fila.detalle, *[fila.datos.get(clave, '') for clave in claves],
-            ])
-        buffer = BytesIO()
-        libro.save(buffer)
-        respuesta = HttpResponse(buffer.getvalue(), content_type=XLSX)
+        contenido = exportar_resultados(ExportadorResultadosCargaORM(), carga)
+        respuesta = HttpResponse(contenido, content_type=XLSX)
         respuesta['Content-Disposition'] = f'attachment; filename="resultados-{carga.id}.xlsx"'
         return respuesta
 
 
 def _resumen(carga: CargaMasivaModel) -> dict:
-    return {
-        'id': str(carga.id), 'archivo': carga.archivo_nombre, 'estado': carga.estado,
-        'poblacion': carga.poblacion,
-        'tipos': carga.tipos, 'filas_total': carga.filas_total, 'filas_validas': carga.filas_validas,
-        'filas_error': carga.filas_error, 'filas_confirmacion': carga.filas_confirmacion,
-        'filas_confirmadas': carga.filas_confirmadas, 'creada_en': carga.created_at,
-        # FIX-CARGA3: conteos de altas, actualizaciones y posibles duplicados
-        # que el usuario ve antes de aplicar.
-        'filas_nuevo': carga.filas.filter(estado=CargaMasivaFilaModel.Estado.NUEVO).count(),
-        'filas_actualizar': carga.filas.filter(
-            estado=CargaMasivaFilaModel.Estado.ACTUALIZAR,
-        ).count(),
-        'filas_posible_duplicado': carga.filas.filter(
-            estado=CargaMasivaFilaModel.Estado.POSIBLE_DUPLICADO,
-        ).count(),
-    }
+    return resumen_de_carga(ConsultorCargasORM(), carga)

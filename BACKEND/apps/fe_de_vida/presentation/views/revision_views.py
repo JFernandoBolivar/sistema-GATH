@@ -2,6 +2,8 @@
 Vistas de BIENESTAR SOCIAL (C5): bandeja, detalle con comparativo, foto (bytes por streaming), doble check,
 aprobación directa con justificación, rechazo y solicitud de repetición. Vistas delgadas; sin ORM.
 """
+import logging
+
 from django.conf import settings
 from django.db import transaction
 from drf_spectacular.types import OpenApiTypes
@@ -73,6 +75,8 @@ from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
 from core.presentation.archivos import respuesta_archivo
 from core.presentation.envelope import ok
 from core.presentation.permissions import usuario_tiene_permiso
+
+logger = logging.getLogger('gath.fe_de_vida')
 from core.presentation.schema import MensajeRespuestaSerializer
 
 TAG = ['Fe de vida · Bienestar']
@@ -88,7 +92,7 @@ def _parametro_booleano(clave: str) -> bool:
         if lector:
             return lector.obtener_booleano(clave)
     except Exception:
-        pass
+        logger.warning('No se pudo leer el parámetro %s; queda apagado.', clave, exc_info=True)
     return False
 
 

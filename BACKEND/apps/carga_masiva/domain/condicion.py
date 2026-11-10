@@ -11,6 +11,11 @@ vista de confirmación y las pruebas unitarias.
 from dataclasses import dataclass, field
 from enum import Enum
 
+from core.domain.catalogos import (
+    CONDICION_ACTIVO,
+    CONDICION_PASIVO,
+)
+
 
 class Poblacion(str, Enum):
     ACTIVOS = 'ACTIVOS'
@@ -50,9 +55,9 @@ def direccion_cambio(condicion_actual: str | None, poblacion: str | Poblacion) -
     destino = normalizar_poblacion(poblacion)
     if actual == destino.value:
         return None
-    if actual == 'ACTIVO' and destino is Poblacion.PASIVOS:
+    if actual == CONDICION_ACTIVO and destino is Poblacion.PASIVOS:
         return DireccionCambio.ACTIVO_A_PASIVO
-    if actual == 'PASIVO' and destino is Poblacion.ACTIVOS:
+    if actual == CONDICION_PASIVO and destino is Poblacion.ACTIVOS:
         return DireccionCambio.PASIVO_A_ACTIVO
     return None
 

@@ -15,6 +15,7 @@ import { ArrowLeft, KeyRound, Loader2, Mail, Power, Save, ShieldCheck, UserCog }
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
+import { CONDICION_PASIVO } from "@/shared/domain/catalogos";
 
 import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
@@ -140,7 +141,7 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
         setRolId(d.rolId ? String(d.rolId) : "__none");
         setAllow(d.permisos.allow);
         setDeny(d.permisos.deny);
-        if (d.condicion?.toUpperCase() === "PASIVO") {
+        if (d.condicion?.toUpperCase() === CONDICION_PASIVO) {
           setFuenteCorreo("ALTERNATIVO");
         } else {
           setFuenteCorreo("INSTITUCIONAL");

@@ -8,6 +8,7 @@ propio, exige sesión + contraseña actual) y CRIT-05 (alta de cuenta exige
 permiso administrativo, ninguna cuenta puede autoasignarse creando otra sin
 autorización).
 """
+import logging
 import uuid
 
 from django.db import transaction
@@ -104,6 +105,7 @@ from core.domain.exceptions import (
     ValidationError,
 )
 
+logger = logging.getLogger('gath.identidad')
 
 ACCION_ROL_ACTUALIZADO = 'identidad.rol_actualizado'
 ACCION_ESTADO_ACTUALIZADO = 'identidad.estado_cuenta_actualizado'
@@ -692,7 +694,11 @@ class CorreoAccesoView(views.APIView):
                 actor_cedula=str(getattr(request.user, 'cedula_id', '') or ''),
             )
         except Exception:
-            pass
+            # La excepción manual es un extra: si falla, el correo ya quedó registrado.
+            logger.warning(
+                'No se pudo registrar la excepción manual de correo de acceso para %s.',
+                cedula, exc_info=True,
+            )
         return ok(
             {
                 'correo': resultado.correo,

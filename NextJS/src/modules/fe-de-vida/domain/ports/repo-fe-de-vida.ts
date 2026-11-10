@@ -14,7 +14,7 @@ import type {
 } from "../entities/fe-de-vida";
 import type { EstadoSolicitud } from "../value-objects/estados";
 import type { EstadisticasEntity, PasivoEstadisticaEntity } from "../entities/estadisticas";
-import type { ReenvioConstanciaDTO, RegenerarConstanciaDTO } from "../../application/dtos/fe-de-vida-dto";
+import type { ReenvioConstanciaDTO, RegenerarConstanciaDTO } from "../entities/constancia";
 import type { OrigenEvidencia } from "../value-objects/estados";
 
 export interface PaginaPedida {

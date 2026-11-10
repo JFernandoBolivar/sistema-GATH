@@ -14,6 +14,10 @@ class RepoFamiliares(Protocol):
     def obtener_familiar(self, familiar_id: int) -> Familiar | None:
         ...
 
+    def obtener_instancia(self, familiar_id: int):
+        """Registro persistido del familiar para validar una edición."""
+        ...
+
     def crear_familiar(self, familiar_datos: dict) -> Familiar:
         ...
 

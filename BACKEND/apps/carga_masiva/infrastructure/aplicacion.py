@@ -10,6 +10,7 @@ from datetime import date, datetime, time
 from django.db import transaction
 from django.utils import timezone
 
+from core.domain.catalogos import TIPO_PERSONAL_PASIVO
 from apps.carga_masiva.domain.condicion import puede_aplicarse, puede_confirmarse
 from apps.carga_masiva.domain.registro_campos import POBLACION_ACTIVOS, POBLACION_PASIVOS
 from apps.carga_masiva.infrastructure.cargo_resolucion import resolver_datos_cargo
@@ -554,7 +555,7 @@ def _mover_a_pasivo(fila: CargaMasivaFilaModel, movimiento: dict, actor_id: int 
         )
     cargos_activos = list(
         AsigTrabajoModel.objects.filter(employee=empleado)
-        .exclude(Tipo_personal__tipo_personal__iexact='PASIVO')
+        .exclude(Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO)
         .values_list('pk', flat=True)
     )
     egresos_previos = set(
@@ -574,7 +575,7 @@ def _mover_a_pasivo(fila: CargaMasivaFilaModel, movimiento: dict, actor_id: int 
     )
     pasivo = (
         AsigTrabajoModel.objects.filter(
-            employee=empleado, Tipo_personal__tipo_personal__iexact='PASIVO',
+            employee=empleado, Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO,
         )
         .order_by('-fecha_actualizacion')
         .first()
@@ -606,7 +607,7 @@ def _mover_a_activo(fila: CargaMasivaFilaModel, movimiento: dict, actor_id: int 
     cedula = _cedula_de(fila)
     pasivo = (
         AsigTrabajoModel.objects.filter(
-            employee_id=cedula, Tipo_personal__tipo_personal__iexact='PASIVO',
+            employee_id=cedula, Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO,
         )
         .order_by('-fecha_actualizacion')
         .first()

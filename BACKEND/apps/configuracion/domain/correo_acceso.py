@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Sequence
 
+from core.domain.catalogos import CONDICION_PASIVO
 from core.domain.exceptions import ValidationError
 
 MODULO_AUDITORIA_CONFIGURACION = 'configuracion'
@@ -103,7 +104,7 @@ def resolver_correo_para_trabajador(
     Determina cuál debe ser el correo de acceso de un trabajador según la política vigente.
     Devuelve el correo válido resuelto o None si no tiene correo y debe quedar sin cuenta.
     """
-    es_pasivo = datos.condicion.strip().upper() == 'PASIVO'
+    es_pasivo = datos.condicion.strip().upper() == CONDICION_PASIVO
     fuente_primaria = politica.politica_pasivos if es_pasivo else politica.politica_activos
     # O39: el alternativo nunca es login de un pasivo (solo el principal o la ficha).
     if es_pasivo and fuente_primaria == PoliticaFuenteCorreo.ALTERNATIVO:

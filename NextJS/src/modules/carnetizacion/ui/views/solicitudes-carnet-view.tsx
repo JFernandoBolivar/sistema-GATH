@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import PageLayout from "@/components/layout/page-layout";
+import { POBLACION_ACTIVO } from "@/shared/domain/catalogos";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -206,6 +207,7 @@ export function SolicitudesCarnetView() {
       solicitudEnDictamen.motivoSolicitud,
       listaMotivos,
     );
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- completa el motivo declarado cuando el catálogo llega después de abrir el dictamen
     setMotivoDictamenId((actual) => actual || resuelto);
   }, [solicitudEnDictamen, listaMotivos]);
 
@@ -283,7 +285,7 @@ export function SolicitudesCarnetView() {
       chips.push({
         id: "poblacion",
         label: "Población",
-        valorLegible: filtroPoblacion === "ACTIVO" ? "Activos" : "Pasivos",
+        valorLegible: filtroPoblacion === POBLACION_ACTIVO ? "Activos" : "Pasivos",
         onRemover: () => setFiltroPoblacion("TODAS"),
       });
     }
@@ -525,7 +527,7 @@ export function SolicitudesCarnetView() {
                         <Badge
                           variant="outline"
                           className={
-                            item.poblacion === "ACTIVO"
+                            item.poblacion === POBLACION_ACTIVO
                               ? "bg-primary/10 text-primary border-primary/20 text-[10px]"
                               : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px]"
                           }
@@ -765,7 +767,7 @@ export function SolicitudesCarnetView() {
                         <Input
                           disabled
                           value={
-                            solicitudEnDictamen.poblacion === "ACTIVO"
+                            solicitudEnDictamen.poblacion === POBLACION_ACTIVO
                               ? "Plantilla Oficial Activos (Azul Marino)"
                               : "Plantilla Oficial Pasivos (Verde Institucional)"
                           }

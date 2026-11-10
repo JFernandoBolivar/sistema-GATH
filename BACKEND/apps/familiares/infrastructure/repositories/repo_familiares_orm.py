@@ -66,6 +66,10 @@ class RepoFamiliaresORM:
         )
         return familiar_a_entidad(fila) if fila else None
 
+    def obtener_instancia(self, familiar_id: int):
+        """Fila ORM para editar (la usa el serializer de entrada como `instance`)."""
+        return EmployeefamilyModel.objects.filter(pk=familiar_id).first()
+
     def crear_familiar(self, familiar_datos: dict) -> Familiar:
         parentesco_id = familiar_datos.get('parentesco_id')
         if parentesco_id is not None:

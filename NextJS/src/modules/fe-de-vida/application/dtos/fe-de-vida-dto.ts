@@ -41,25 +41,10 @@ export type PaginaDTO<T> = PaginaEntity<T>;
 export type EstadisticasDTO = EstadisticasEntity;
 export type PasivoEstadisticaDTO = PasivoEstadisticaEntity;
 
-export interface ReenvioConstanciaDTO {
-  numero: string;
-  destinatario: string;
-  destinatarioEnmascarado: string;
-  copia: string | null;
-  copiaEnmascarada: string | null;
-  reenviosHoy: number;
-  limiteDiario: number;
-}
-
-export interface RegenerarConstanciaDTO {
-  numero: string;
-  plantillaVersion: number;
-  reenviado: boolean;
-  destinatarioEnmascarado?: string | null;
-  copiaEnmascarada?: string | null;
-  reenviosHoy?: number | null;
-}
-
+export type {
+  ReenvioConstanciaDTO,
+  RegenerarConstanciaDTO,
+} from "../../domain/entities/constancia";
 
 /** Resultado serializable de una Server Action (nunca lanza al cliente). */
 export type ResultadoAccion<T = undefined> =

@@ -6,6 +6,7 @@ from datetime import date
 from django.db import transaction
 from django.db.models import Model, Q
 
+from core.domain.catalogos import TIPO_PERSONAL_ACTIVO
 from core.domain.exceptions import NotFoundError, ValidationError
 from apps.personal.domain.entities.empleado import Empleado
 from apps.personal.infrastructure.mappers.mapper_personal import (
@@ -88,7 +89,7 @@ class RepoPersonalORM:
         asig_qs = AsigTrabajoModel.objects.filter(
             employee__isnull=False,
         ).filter(
-            Q(Tipo_personal__tipo_personal__iexact='ACTIVO') | Q(Tipo_personal__isnull=True)
+            Q(Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_ACTIVO) | Q(Tipo_personal__isnull=True)
         )
         if codigo:
             asig_qs = asig_qs.filter(codigo__icontains=codigo)

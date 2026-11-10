@@ -4,6 +4,8 @@ reparación). Réplica funcional de `RAC/models/historial_personal_models.py::Pr
 """
 from dataclasses import dataclass
 
+from apps.cargos.domain.value_objects.estado_prestamo import PRESTAMO_FINALIZADA
+
 
 @dataclass(frozen=True)
 class PrestamoCargo:
@@ -25,4 +27,4 @@ class PrestamoCargo:
 
     @property
     def esta_finalizada(self) -> bool:
-        return self.estatus_nombre.upper() == 'FINALIZADA'
+        return self.estatus_nombre.upper() == PRESTAMO_FINALIZADA

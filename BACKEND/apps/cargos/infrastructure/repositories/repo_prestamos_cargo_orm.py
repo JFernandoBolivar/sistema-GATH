@@ -11,9 +11,18 @@ import datetime
 from django.db import transaction
 from django.utils import timezone
 
+from core.domain.catalogos import (
+    ESTATUS_ACTIVO,
+    ESTATUS_SUSPENDIDO,
+)
 from core.domain.exceptions import ConflictError, NotFoundError, ValidationError
 from apps.cargos.domain import events
 from apps.cargos.domain.entities.prestamo_cargo import PrestamoCargo
+from apps.cargos.domain.value_objects.estado_prestamo import (
+    PRESTAMO_ACTIVO,
+    PRESTAMO_FINALIZADA,
+    PRESTAMO_POR_VENCER,
+)
 from apps.cargos.infrastructure.mappers.mapper_cargos import prestamo_a_entidad
 from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
 from apps.cargos.infrastructure.models.prestamo_models import PrestamoCargoModel
@@ -36,30 +45,30 @@ class RepoPrestamosCargoORM:
         f_fin = self._normalizar_fecha(fecha_fin)
         f_hoy = self._normalizar_fecha(hoy)
         if f_fin <= f_hoy:
-            nombre = 'FINALIZADA'
+            nombre = PRESTAMO_FINALIZADA
         elif (f_fin - f_hoy).days <= 5:
-            nombre = 'POR VENCER'
+            nombre = PRESTAMO_POR_VENCER
         else:
-            nombre = 'ACTIVO'
+            nombre = PRESTAMO_ACTIVO
         estatus, _ = EstatusModel.objects.get_or_create(estatus__iexact=nombre, defaults={'estatus': nombre})
         return estatus
 
     def _sincronizar_estatus_cargos(self, prestamo: PrestamoCargoModel) -> None:
-        activo, _ = EstatusModel.objects.get_or_create(estatus__iexact='ACTIVO', defaults={'estatus': 'ACTIVO'})
-        suspendido, _ = EstatusModel.objects.get_or_create(estatus__iexact='SUSPENDIDO', defaults={'estatus': 'SUSPENDIDO'})
+        activo, _ = EstatusModel.objects.get_or_create(estatus__iexact=ESTATUS_ACTIVO, defaults={'estatus': ESTATUS_ACTIVO})
+        suspendido, _ = EstatusModel.objects.get_or_create(estatus__iexact=ESTATUS_SUSPENDIDO, defaults={'estatus': ESTATUS_SUSPENDIDO})
         estatus_prestamo = prestamo.estatus.estatus.upper()
 
-        if estatus_prestamo in ('ACTIVO', 'POR VENCER'):
+        if estatus_prestamo in (PRESTAMO_ACTIVO, PRESTAMO_POR_VENCER):
             AsigTrabajoModel.objects.filter(
-                employee_id=prestamo.empleado_encargado_id, estatusid__estatus__iexact='ACTIVO'
+                employee_id=prestamo.empleado_encargado_id, estatusid__estatus__iexact=ESTATUS_ACTIVO
             ).update(estatusid=suspendido)
             cargo = prestamo.cargo_encargado
             if cargo:
                 cargo.estatusid = suspendido
                 cargo.save(update_fields=['estatusid', 'fecha_actualizacion'])
-        elif estatus_prestamo == 'FINALIZADA':
+        elif estatus_prestamo == PRESTAMO_FINALIZADA:
             AsigTrabajoModel.objects.filter(
-                employee_id=prestamo.empleado_encargado_id, estatusid__estatus__iexact='SUSPENDIDO'
+                employee_id=prestamo.empleado_encargado_id, estatusid__estatus__iexact=ESTATUS_SUSPENDIDO
             ).update(estatusid=activo)
             cargo = prestamo.cargo_encargado
             if cargo:
@@ -91,7 +100,7 @@ class RepoPrestamosCargoORM:
             'estatus',
         ).all().order_by('-fecha_inicio')
         if solo_activos:
-            qs = qs.exclude(estatus__estatus__iexact='FINALIZADA')
+            qs = qs.exclude(estatus__estatus__iexact=PRESTAMO_FINALIZADA)
         if empleado:
             qs = qs.filter(empleado_encargado__cedulaidentidad__icontains=empleado)
         return [prestamo_a_entidad(p) for p in qs]
@@ -128,11 +137,11 @@ class RepoPrestamosCargoORM:
 
         if PrestamoCargoModel.objects.filter(
             cargo_encargado_id=cargo_id, fecha_fin__gte=hoy
-        ).exclude(estatus__estatus__iexact='FINALIZADA').exists():
+        ).exclude(estatus__estatus__iexact=PRESTAMO_FINALIZADA).exists():
             raise ConflictError('Ya existe una encargaduría activa para este cargo.')
         if PrestamoCargoModel.objects.filter(
             empleado_encargado_id=cedula_encargado, fecha_fin__gte=hoy
-        ).exclude(estatus__estatus__iexact='FINALIZADA').exists():
+        ).exclude(estatus__estatus__iexact=PRESTAMO_FINALIZADA).exists():
             raise ConflictError('El trabajador ya tiene una encargaduría activa.')
 
         estatus_calculado = self._calcular_estatus_prestamo(f_fin, hoy)
@@ -166,7 +175,10 @@ class RepoPrestamosCargoORM:
         if not prestamo:
             raise NotFoundError(f"Préstamo {prestamo_id} no encontrado.")
 
-        finalizada, _ = EstatusModel.objects.get_or_create(estatus__iexact='FINALIZADA', defaults={'estatus': 'FINALIZADA'})
+        finalizada, _ = EstatusModel.objects.get_or_create(
+            estatus__iexact=PRESTAMO_FINALIZADA,
+            defaults={'estatus': PRESTAMO_FINALIZADA},
+        )
         if prestamo.estatus_id == finalizada.pk:
             raise ConflictError('Este préstamo ya se encuentra finalizado.')
 

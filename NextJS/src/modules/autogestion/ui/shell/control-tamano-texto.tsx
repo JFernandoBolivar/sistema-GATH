@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CONDICION_PASIVO } from "@/shared/domain/catalogos";
 
 export type TamanoTexto = "normal" | "lg" | "xl";
 
@@ -50,7 +51,7 @@ export function ControlTamanoTexto({
   const [tamano, setTamano] = useState<TamanoTexto>("normal");
 
   useEffect(() => {
-    const inicial = leer() ?? (condicionTrabajador === "PASIVO" ? "lg" : "normal");
+    const inicial = leer() ?? (condicionTrabajador === CONDICION_PASIVO ? "lg" : "normal");
     // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza con la preferencia guardada, solo disponible en el cliente
     setTamano(inicial);
     aplicar(inicial);

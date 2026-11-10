@@ -5,6 +5,13 @@ from django.db import transaction
 from django.db.models import Min, Q
 from django.utils import timezone
 
+from core.domain.catalogos import (
+    ESTATUS_ACTIVO,
+    ESTATUS_EGRESADO,
+    ESTATUS_PASIVO,
+    ESTATUS_VACANTE,
+    TIPO_PERSONAL_PASIVO,
+)
 from core.domain.categorias_motivo import (
     MOTIVO_SISTEMA_JUBILACION,
     MOTIVO_SISTEMA_PENSION_INVALIDEZ,
@@ -74,8 +81,8 @@ class RepoPasivosORM(RepoSobrevivientesORM):
         return {
             str(cedula)
             for cedula in AsigTrabajoModel.objects.filter(
-                Tipo_personal__tipo_personal__iexact='PASIVO',
-                estatusid__estatus__iexact='EGRESADO',
+                Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO,
+                estatusid__estatus__iexact=ESTATUS_EGRESADO,
             ).values_list('employee_id', flat=True)
         }
 
@@ -105,8 +112,8 @@ class RepoPasivosORM(RepoSobrevivientesORM):
         # de arriba porque esta fuente es la vigente/operativa.
         qs_asignaciones = (
             AsigTrabajoModel.objects.select_related('employee', 'tiponominaid')
-            .filter(Tipo_personal__tipo_personal__iexact='PASIVO', employee__isnull=False)
-            .exclude(estatusid__estatus__iexact='EGRESADO')
+            .filter(Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO, employee__isnull=False)
+            .exclude(estatusid__estatus__iexact=ESTATUS_EGRESADO)
             .order_by('-fecha_actualizacion')
         )
         if busqueda:
@@ -190,8 +197,8 @@ class RepoPasivosORM(RepoSobrevivientesORM):
 
         qs_asignaciones = (
             AsigTrabajoModel.objects.select_related('employee', 'employee__sexoid', 'tiponominaid')
-            .filter(Tipo_personal__tipo_personal__iexact='PASIVO', employee__isnull=False)
-            .exclude(estatusid__estatus__iexact='EGRESADO')
+            .filter(Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO, employee__isnull=False)
+            .exclude(estatusid__estatus__iexact=ESTATUS_EGRESADO)
             .annotate(fecha_ingreso_organismo=Min('employee__antecedentes_servicio__fecha_ingreso'))
             .order_by('-fecha_actualizacion')
         )
@@ -278,7 +285,7 @@ class RepoPasivosORM(RepoSobrevivientesORM):
 
         asignacion = (
             AsigTrabajoModel.objects.select_related('employee', 'employee__sexoid', 'tiponominaid')
-            .filter(Tipo_personal__tipo_personal__iexact='PASIVO', employee_id=cedula)
+            .filter(Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO, employee_id=cedula)
             .order_by('-fecha_actualizacion')
             .first()
         )
@@ -309,7 +316,7 @@ class RepoPasivosORM(RepoSobrevivientesORM):
             raise NotFoundError(f'Empleado con cédula {cedula} no encontrado.')
         asignacion = (
             AsigTrabajoModel.objects.filter(
-                employee=empleado, Tipo_personal__tipo_personal__iexact='PASIVO',
+                employee=empleado, Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO,
             )
             .order_by('-fecha_actualizacion')
             .first()
@@ -318,7 +325,7 @@ class RepoPasivosORM(RepoSobrevivientesORM):
             raise NotFoundError(f'La cédula {cedula} no tiene una asignación pasiva vigente.')
         motivo = obtener_motivo_de_operacion(motivo_id, Operacion.EGRESO_PASIVO, campo='motivo_id')
         try:
-            estatus_egresado = EstatusModel.objects.get(estatus__iexact='EGRESADO')
+            estatus_egresado = EstatusModel.objects.get(estatus__iexact=ESTATUS_EGRESADO)
         except EstatusModel.DoesNotExist as exc:
             raise ValidationError("El estatus 'EGRESADO' no está configurado.") from exc
 
@@ -411,9 +418,9 @@ class RepoPasivosORM(RepoSobrevivientesORM):
                 'de la Oficina de Gestión Humana.'
             )
         try:
-            estatus = EstatusModel.objects.get(estatus__iexact='PASIVO')
+            estatus = EstatusModel.objects.get(estatus__iexact=ESTATUS_PASIVO)
             tipo_pasivo = TipoPersonalModel.objects.get(
-                tipo_personal__iexact='PASIVO',
+                tipo_personal__iexact=TIPO_PERSONAL_PASIVO,
             )
         except (EstatusModel.DoesNotExist, TipoPersonalModel.DoesNotExist) as exc:
             raise ValidationError(
@@ -499,15 +506,15 @@ class RepoPasivosORM(RepoSobrevivientesORM):
             raise ValidationError('El empleado no tiene cargos previos para realizar el pase a pasivo.')
 
         try:
-            estatus_activo = EstatusModel.objects.get(estatus__iexact='ACTIVO')
-            tipo_pasivo = TipoPersonalModel.objects.get(tipo_personal__iexact='PASIVO')
+            estatus_activo = EstatusModel.objects.get(estatus__iexact=ESTATUS_ACTIVO)
+            tipo_pasivo = TipoPersonalModel.objects.get(tipo_personal__iexact=TIPO_PERSONAL_PASIVO)
         except (EstatusModel.DoesNotExist, TipoPersonalModel.DoesNotExist) as exc:
             raise ValidationError(f"Error de configuración de catálogos: {exc}") from exc
 
         if liberar_activos:
             self._cerrar_expediente_activo(empleado, fecha_egreso)
             try:
-                estatus_vacante = EstatusModel.objects.get(estatus__iexact='VACANTE')
+                estatus_vacante = EstatusModel.objects.get(estatus__iexact=ESTATUS_VACANTE)
             except EstatusModel.DoesNotExist as exc:
                 raise ValidationError("El estatus 'VACANTE' no está configurado en el sistema.") from exc
             for asig in AsigTrabajoModel.objects.filter(employee=empleado):

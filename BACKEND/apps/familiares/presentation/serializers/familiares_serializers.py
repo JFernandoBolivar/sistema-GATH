@@ -8,55 +8,35 @@ from rest_framework import serializers
 
 from core.presentation.validadores_personas import validar_cedula, validar_drf, validar_nombre
 
+from apps.familiares.application.use_cases.contexto_validacion_familiar import (
+    cedulas_del_familiar,
+    empleado_del_familiar,
+    heredero_existente,
+    parentesco_y_regla,
+    sexo_del_familiar,
+)
 from apps.familiares.application.use_cases.validaciones_familiar import (
     ORDEN_HIJO_MAX,
     ORDEN_HIJO_MIN,
-    ReglaParentescoFamiliar,
-    regla_por_defecto,
     resolver_cedula_familiar,
     validar_cedula_no_duplicada,
     validar_heredero_unico,
     validar_reglas_familiar,
 )
-from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
+from apps.familiares.infrastructure.lector_validacion_familiar_orm import (
+    LectorValidacionFamiliarORM,
+)
 from apps.familiares.infrastructure.modelos_externos import (
     AlergiaModel,
     CarreraModel,
     DiscapacidadModel,
-    EmployeeModel,
     GrupoSanguineoModel,
     InstitucionModel,
     MencionModel,
     NivelAcademicoModel,
-    ParentescoModel,
     PatologiaCronicaModel,
-    ReglaParentescoModel,
-    SexoModel,
     TallaModel,
 )
-
-
-def _regla_de(parentesco) -> ReglaParentescoFamiliar:
-    """Carga la regla configurada o el respaldo para un parentesco legado."""
-    if parentesco is None:
-        return ReglaParentescoFamiliar()
-    guardada = ReglaParentescoModel.objects.filter(
-        parentesco_id=parentesco.pk,
-    ).first()
-    if guardada is None:
-        return regla_por_defecto(parentesco.descripcion_parentesco)
-    return ReglaParentescoFamiliar(
-        descripcion=parentesco.descripcion_parentesco,
-        es_hijo=guardada.es_hijo,
-        menor_a_cargo=guardada.menor_a_cargo,
-        sin_cedula_hasta_edad=guardada.sin_cedula_hasta_edad,
-        edad_minima=guardada.edad_minima,
-        diferencia_minima=guardada.diferencia_minima,
-        diferencia_tipo=guardada.diferencia_tipo,
-        sexo_permitido=guardada.sexo_permitido,
-        soporte_sugerido=guardada.soporte_sugerido,
-        activo=guardada.activo,
-    )
 
 
 # Longitudes (mismas que `schema-familiar.ts` en NextJS).
@@ -252,11 +232,12 @@ class RegistrarFamiliarInputSerializer(serializers.Serializer):
         return value
 
     def validate(self, attrs):
+        lector = LectorValidacionFamiliarORM()
         empleado_cedula = attrs.get('empleado_cedula') or self.context.get('empleado_cedula')
-        empleado = EmployeeModel.objects.filter(cedulaidentidad=empleado_cedula).first()
-        if empleado is None:
+        existe_empleado, fecha_nacimiento_titular = empleado_del_familiar(lector, empleado_cedula)
+        if not existe_empleado:
             raise serializers.ValidationError({'empleado_cedula': 'Empleado no encontrado.'})
-        cedula_empleado = str(empleado.cedulaidentidad)
+        cedula_empleado = str(empleado_cedula)
 
         excluir_id = self.instance.pk if self.instance else None
         cedula_familiar = (attrs.get('cedula_familiar') or '').strip() or None
@@ -267,15 +248,11 @@ class RegistrarFamiliarInputSerializer(serializers.Serializer):
         parentesco_id = attrs.get('parentesco_id')
         if parentesco_id is None and self.instance is not None:
             parentesco_id = self.instance.parentesco_id
-        parentesco = (
-            ParentescoModel.objects.filter(pk=parentesco_id).first()
-            if parentesco_id is not None else None
-        )
-        if parentesco and not getattr(parentesco, 'aplica_familiar', True):
+        parentesco, regla = parentesco_y_regla(lector, parentesco_id)
+        if parentesco and not parentesco.aplica_familiar:
             raise serializers.ValidationError(
                 {'parentesco_id': 'El parentesco seleccionado no está permitido para familiares.'}
             )
-        regla = _regla_de(parentesco)
         if not regla.activo:
             raise serializers.ValidationError(
                 {'parentesco_id': 'El parentesco seleccionado está desactivado en el catálogo.'}
@@ -290,14 +267,12 @@ class RegistrarFamiliarInputSerializer(serializers.Serializer):
         if toca_identidad:
             sexo_nombre = None
             if sexo_id is not None:
-                sexo_nombre = SexoModel.objects.filter(pk=sexo_id).values_list(
-                    'sexo', flat=True,
-                ).first()
+                sexo_nombre = sexo_del_familiar(lector, sexo_id)
             try:
                 validar_reglas_familiar(
                     regla=regla,
                     fecha_nacimiento=fecha_nacimiento,
-                    fecha_nacimiento_titular=empleado.fecha_nacimiento,
+                    fecha_nacimiento_titular=fecha_nacimiento_titular,
                     sexo=sexo_nombre,
                 )
             except ValueError as e:
@@ -309,10 +284,7 @@ class RegistrarFamiliarInputSerializer(serializers.Serializer):
             # el orden de nacimiento): las sintéticas ya generadas se respetan.
             attrs['cedula_familiar'] = self.instance.cedulaFamiliar
         elif cedula_familiar or toca_identidad:
-            cedulas_qs = EmployeefamilyModel.objects.filter(employeecedula=empleado).exclude(pk=excluir_id)
-            existentes = {
-                str(c) for c in cedulas_qs.values_list('cedulaFamiliar', flat=True) if c
-            }
+            existentes = cedulas_del_familiar(lector, cedula_empleado, excluir_id)
             try:
                 cedula_resuelta = resolver_cedula_familiar(
                     cedula_familiar=cedula_familiar,
@@ -329,11 +301,8 @@ class RegistrarFamiliarInputSerializer(serializers.Serializer):
             attrs['cedula_familiar'] = cedula_resuelta
 
         if attrs.get('heredero'):
-            qs = EmployeefamilyModel.objects.filter(employeecedula=empleado, heredero=True)
-            if excluir_id is not None:
-                qs = qs.exclude(pk=excluir_id)
             try:
-                validar_heredero_unico(True, qs.exists())
+                validar_heredero_unico(True, heredero_existente(lector, cedula_empleado, excluir_id))
             except ValueError as e:
                 raise serializers.ValidationError({'heredero': str(e)})
 

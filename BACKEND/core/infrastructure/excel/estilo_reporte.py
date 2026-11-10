@@ -14,7 +14,7 @@ import re
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
-from core.infrastructure.pdf.excel_seguro import forzar_texto
+from core.infrastructure.pdf.excel_seguro import forzar_texto, neutralizar_valor
 from core.infrastructure.pdf.paleta import (
     HEX_AMARILLO_SUAVE,
     HEX_AZUL_CLARO,
@@ -108,7 +108,7 @@ def escribir_encabezado_institucional(
         celda.alignment = Alignment(vertical='top', wrap_text=True)
         if columnas > 1:
             ws.merge_cells(f'B{fila}:{ultima}{fila}')
-        valor_celda = ws.cell(row=fila, column=2, value=str(valor))
+        valor_celda = ws.cell(row=fila, column=2, value=neutralizar_valor(str(valor)))
         forzar_texto(valor_celda)
         valor_celda.font = _fuente(size=TAMANO_TEXTO, color=GRIS_TEXTO)
         valor_celda.alignment = Alignment(vertical='top', wrap_text=True)
@@ -145,7 +145,7 @@ def escribir_tabla(
         alterna = desplazamiento % 2 == 0
         for indice, valor in enumerate(valores, start=1):
             celda = ws.cell(row=fila + desplazamiento, column=indice)
-            celda.value = valor
+            celda.value = neutralizar_valor(valor)
             forzar_texto(celda)
             celda.font = _fuente(size=TAMANO_TEXTO, color=GRIS_TEXTO)
             celda.border = BORDE

@@ -8,6 +8,10 @@ from apps.personal.domain.entities.reporte_error import ReporteErrorDatoLaboral
 
 
 class RepoReportesErrorLaboral(Protocol):
+    def nombre_trabajador(self, cedula: str) -> str:
+        """Nombre completo del trabajador ('' si la cédula no existe)."""
+        ...
+
     def guardar(self, reporte: ReporteErrorDatoLaboral) -> ReporteErrorDatoLaboral:
         """Persiste o actualiza un reporte de error laboral."""
         ...

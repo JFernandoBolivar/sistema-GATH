@@ -18,6 +18,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRightLeft, Loader2, UserMinus, UserPlus } from "lucide-react";
+import { ESTATUS_ACTIVO, ESTATUS_SUSPENDIDO } from "@/shared/domain/catalogos";
 
 import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
@@ -58,8 +59,8 @@ function FilaInfo({ etiqueta, valor }: { etiqueta: string; valor: string }) {
 
 function EstatusBadge({ estatusNombre, estaVacante }: { estatusNombre: string; estaVacante: boolean }) {
   if (estaVacante) return <Badge className="bg-green-700 text-white hover:bg-green-700">{estatusNombre}</Badge>;
-  if (estatusNombre === "ACTIVO") return <Badge className="bg-[#ffc523] text-black hover:bg-[#ffc523]">{estatusNombre}</Badge>;
-  if (estatusNombre === "SUSPENDIDO") return <Badge className="bg-gray-500 text-white hover:bg-gray-500">{estatusNombre}</Badge>;
+  if (estatusNombre === ESTATUS_ACTIVO) return <Badge className="bg-[#ffc523] text-black hover:bg-[#ffc523]">{estatusNombre}</Badge>;
+  if (estatusNombre === ESTATUS_SUSPENDIDO) return <Badge className="bg-gray-500 text-white hover:bg-gray-500">{estatusNombre}</Badge>;
   return <Badge variant="destructive">{estatusNombre}</Badge>;
 }
 

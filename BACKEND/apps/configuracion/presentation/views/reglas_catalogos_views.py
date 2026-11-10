@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 from apps.configuracion.application.use_cases.gestionar_reglas_catalogos import (
     actualizar_checklist_soporte,
     actualizar_motivo,
+    buscar_paises_paginado,
     cambiar_categoria_motivo,
     crear_nomina,
     crear_nuevo_motivo,
@@ -288,19 +289,10 @@ class ReglaPaisCrearView(APIView):
         except (TypeError, ValueError):
             page_size = 10
 
-        from apps.personal.infrastructure.models.catalogos_soporte_models import PaisModel
-        from django.db.models import Q
-        qs = PaisModel.objects.all()
-        if q:
-            qs = qs.filter(Q(nombre__icontains=q) | Q(codigo__icontains=q))
-        qs = qs.order_by('-es_venezuela', 'nombre')
-        total = qs.count()
-        inicio = (page - 1) * page_size
-        items = qs[inicio:inicio + page_size]
-        serializer = ReglaPaisSerializer([
-            ReglaPais(id=p.pk, nombre=p.nombre, codigo=p.codigo, es_venezuela=p.es_venezuela)
-            for p in items
-        ], many=True)
+        items, total = buscar_paises_paginado(
+            RepoReglasCatalogosORM(), texto=q, pagina=page, tamano_pagina=page_size,
+        )
+        serializer = ReglaPaisSerializer(items, many=True)
         return ok({
             'items': serializer.data,
             'total': total,

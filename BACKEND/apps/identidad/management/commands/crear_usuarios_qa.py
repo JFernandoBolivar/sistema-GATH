@@ -23,6 +23,12 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from core.domain.catalogos import (
+    CONDICION_PASIVO,
+    ESTATUS_PASIVO,
+    TIPO_PERSONAL_PASIVO,
+)
+
 from apps.cargos.infrastructure.models.cargo_models import (
     AsigTrabajoModel,
     DenominacionCargoEspecificoModel,
@@ -104,10 +110,10 @@ class Command(BaseCommand):
             self._preparar_admin()
             self._preparar_analista()
             self._preparar_pasivo(
-                PASIVO1_CEDULA, 'PASIVO', 'UNO QA', PASIVO1_CORREO
+                PASIVO1_CEDULA, CONDICION_PASIVO, 'UNO QA', PASIVO1_CORREO
             )
             self._preparar_pasivo(
-                PASIVO2_CEDULA, 'PASIVO', 'DOS QA', PASIVO2_CORREO
+                PASIVO2_CEDULA, CONDICION_PASIVO, 'DOS QA', PASIVO2_CORREO
             )
 
         self._mostrar_credenciales()
@@ -266,7 +272,7 @@ class Command(BaseCommand):
     def _asegurar_asignacion_pasivo(self, cedula: str) -> None:
         if AsigTrabajoModel.objects.filter(
             employee_id=cedula,
-            Tipo_personal__tipo_personal__iexact='PASIVO',
+            Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO,
         ).exists():
             return
         try:
@@ -278,9 +284,9 @@ class Command(BaseCommand):
             direccion = DireccionGeneralModel.objects.get(
                 direccion_general__iexact='OFICINA DE GESTION HUMANA'
             )
-            estatus = EstatusModel.objects.get(estatus__iexact='PASIVO')
+            estatus = EstatusModel.objects.get(estatus__iexact=ESTATUS_PASIVO)
             tipo_personal = TipoPersonalModel.objects.get(
-                tipo_personal__iexact='PASIVO'
+                tipo_personal__iexact=TIPO_PERSONAL_PASIVO
             )
         except (
             DenominacionCargoModel.DoesNotExist,

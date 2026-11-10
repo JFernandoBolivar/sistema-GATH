@@ -18,6 +18,7 @@ Supuestos (el legado `RAC/services/egreso_services.py` no está en el repo):
 """
 from django.db import transaction
 
+from core.domain.catalogos import ESTATUS_ACTIVO, TIPO_PERSONAL_PASIVO
 from core.domain.categorias_motivo import CATEGORIAS_FALLECIMIENTO, MOTIVO_SISTEMA_PENSION_SOBREVIVIENTE
 from apps.catalogos.infrastructure.repositories.motivos_por_categoria import obtener_motivo_de_sistema
 
@@ -114,7 +115,7 @@ class RepoSobrevivientesORM:
         existente = EmployeeModel.objects.filter(cedulaidentidad=cedula).first()
         if existente:
             asig = AsigTrabajoModel.objects.filter(
-                employee=existente, Tipo_personal__tipo_personal__iexact='PASIVO'
+                employee=existente, Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO
             ).first()
             if asig:
                 return ResultadoAltaSobreviviente(cedula, nombre, False, asig.codigo)
@@ -125,8 +126,8 @@ class RepoSobrevivientesORM:
 
         try:
             tipo_nomina = TipoNominaModel.objects.get(pk=tipo_nomina_id)
-            estatus_activo = EstatusModel.objects.get(estatus__iexact='ACTIVO')
-            tipo_pasivo = TipoPersonalModel.objects.get(tipo_personal__iexact='PASIVO')
+            estatus_activo = EstatusModel.objects.get(estatus__iexact=ESTATUS_ACTIVO)
+            tipo_pasivo = TipoPersonalModel.objects.get(tipo_personal__iexact=TIPO_PERSONAL_PASIVO)
         except TipoNominaModel.DoesNotExist as exc:
             raise NotFoundError(f'Tipo de nómina {tipo_nomina_id} no encontrado.') from exc
         except (EstatusModel.DoesNotExist, TipoPersonalModel.DoesNotExist) as exc:

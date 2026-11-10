@@ -1,6 +1,6 @@
 import io
 
-from core.infrastructure.pdf.excel_seguro import neutralizar_fila
+from core.infrastructure.pdf.excel_seguro import neutralizar_fila, neutralizar_fila_valores
 from apps.autogestion.infrastructure.models.autogestion_models import (
     PreguntasEncuestasModel,
     RespuestasEncuestaModel,
@@ -119,7 +119,7 @@ def generar_excel_censo(filtros: dict | None = None) -> io.BytesIO:
         for pid in pregunta_ids:
             row.append(respuestas_map.get(pid, ""))
 
-        ws.append(row)
+        ws.append(neutralizar_fila_valores(row))
         neutralizar_fila(ws, ws.max_row)
 
     _aplicar_estilos(ws, len(headers))

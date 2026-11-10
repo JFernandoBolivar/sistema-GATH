@@ -18,6 +18,10 @@ from apps.carnetizacion.application.use_cases.consultar_qr import (
     guardar_privacidad_por_cedula_uc,
     obtener_privacidad_por_cedula_uc,
 )
+from apps.carnetizacion.application.use_cases.emitir_carnet import (
+    emitir_carnet_y_pdf,
+    listar_motivos_emision,
+)
 from apps.carnetizacion.application.use_cases.generar_pdf_carnet import generar_pdf_carnet
 from apps.carnetizacion.application.use_cases.gestionar_campos import (
     crear_campo_personalizado_uc,
@@ -527,9 +531,7 @@ class MotivosEmisionListView(APIView):
 
     @extend_schema(tags=['Carnetización'], summary='Listar motivos de emisión de carnet')
     def get(self, request):
-        from apps.carnetizacion.infrastructure.models.carnetizacion_models import MotivosEmisionModel
-        motivos = MotivosEmisionModel.objects.all().order_by('nombre')
-        return ok([{"id": m.id, "nombre": m.nombre} for m in motivos])
+        return ok(listar_motivos_emision(RepoCarnetizacionORM()))
 
 
 class CarnetActualizarVistaPreviaView(APIView):
@@ -581,14 +583,14 @@ class CarnetGenerarView(APIView):
         datos_editados = request.data.get('datos_editados', {})
         nombre_override = datos_editados.get('nombre') if isinstance(datos_editados, dict) else None
 
-        repo = RepoCarnetizacionORM()
-        carnet = repo.emitir_carnet(
+        pdf_bytes = emitir_carnet_y_pdf(
+            RepoCarnetizacionORM(),
             empleado_cedula=cedula,
             motivo_id=int(motivo_id) if motivo_id else 1,
             observaciones=observaciones,
             plantilla_id=plantilla_id,
+            nombre_override=nombre_override,
         )
-        pdf_bytes = repo.generar_pdf(carnet_id=carnet.id, nombre_override=nombre_override)
         # O46-A: el endpoint debe devolver el PDF binario, no un sobre JSON en base64.
         response = HttpResponse(pdf_bytes, content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="carnet_{cedula}.pdf"'

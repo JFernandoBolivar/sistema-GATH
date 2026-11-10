@@ -3,6 +3,7 @@ Implementación ORM de RepoReglasCatalogos (A5).
 """
 from __future__ import annotations
 
+import logging
 from typing import Sequence
 
 from django.db import transaction
@@ -40,6 +41,8 @@ from core.domain.exceptions import NotFoundError, ValidationError
 from core.domain.tipos_soporte import ItemChecklistSoporte, SeccionSoporte
 from core.presentation.cache_catalogos import invalidar_catalogos
 
+logger = logging.getLogger('gath.configuracion')
+
 
 class RepoReglasCatalogosORM(RepoReglasCatalogos):
     @staticmethod
@@ -50,6 +53,19 @@ class RepoReglasCatalogosORM(RepoReglasCatalogos):
 
     def listar_paises(self) -> Sequence[ReglaPais]:
         return [self._pais_a_entidad(p) for p in PaisModel.objects.all().order_by('nombre')]
+
+    def buscar_paises(
+        self, *, texto: str = '', pagina: int = 1, tamano_pagina: int = 10,
+    ) -> tuple[Sequence[ReglaPais], int]:
+        from django.db.models import Q
+
+        qs = PaisModel.objects.all()
+        if texto:
+            qs = qs.filter(Q(nombre__icontains=texto) | Q(codigo__icontains=texto))
+        qs = qs.order_by('-es_venezuela', 'nombre')
+        total = qs.count()
+        inicio = (pagina - 1) * tamano_pagina
+        return [self._pais_a_entidad(p) for p in qs[inicio:inicio + tamano_pagina]], total
 
     def obtener_pais(self, pais_id: int) -> ReglaPais:
         try:
@@ -357,7 +373,10 @@ class RepoReglasCatalogosORM(RepoReglasCatalogos):
             if HistorialMovimiento.objects.filter(motivo_movimiento_id=motivo_id).exists():
                 return True
         except Exception:
-            pass
+            logger.warning(
+                'No se pudo verificar si el motivo %s está usado en movimientos.',
+                motivo_id, exc_info=True,
+            )
 
         # 2. Préstamos de cargo
         try:
@@ -365,7 +384,10 @@ class RepoReglasCatalogosORM(RepoReglasCatalogos):
             if PrestamoModel.objects.filter(motivo_prestamo_id=motivo_id).exists():
                 return True
         except Exception:
-            pass
+            logger.warning(
+                'No se pudo verificar si el motivo %s está usado en préstamos de cargo.',
+                motivo_id, exc_info=True,
+            )
 
         # 3. Egresados
         try:
@@ -373,7 +395,10 @@ class RepoReglasCatalogosORM(RepoReglasCatalogos):
             if EmployeeEgresadoModel.objects.filter(motivo_egreso_id=motivo_id).exists():
                 return True
         except Exception:
-            pass
+            logger.warning(
+                'No se pudo verificar si el motivo %s está usado en egresos.',
+                motivo_id, exc_info=True,
+            )
 
         return False
 
