@@ -21,6 +21,11 @@ export interface RequestOptions {
   headers?: Record<string, string>;
   traceId?: string;
   /**
+   * Autenticación opcional: si hay sesión adjunta el token; si no, consulta
+   * como anónimo. Se usa en endpoints públicos (ficha QR del carnet).
+   */
+  authOpcional?: boolean;
+  /**
    * Parámetros de query string. Bug corregido en la Fase 1 del plan de
    * reparación: este campo existía en las llamadas de varios módulos
    * (`cargos-api.ts`, `catalogos-api.ts`, `organizacion-api.ts`,
@@ -60,6 +65,7 @@ async function buildHeaders(
   traceId: string,
   isForm: boolean,
   skipAuth = false,
+  authOpcional = false,
 ): Promise<Record<string, string>> {
   const headers: Record<string, string> = {
     "X-Trace-Id": traceId,
@@ -68,8 +74,8 @@ async function buildHeaders(
 
   if (!skipAuth) {
     const token = await getAccessToken();
-    if (!token) throw new SessionExpiredError();
-    headers["Authorization"] = `Bearer ${token}`;
+    if (!token && !authOpcional) throw new SessionExpiredError();
+    if (token) headers["Authorization"] = `Bearer ${token}`;
   }
 
   if (!isForm) headers["Content-Type"] = "application/json";
@@ -115,14 +121,20 @@ async function request<T>(
   isForm = false,
 ): Promise<T> {
   const traceId = options.traceId ?? generateTraceId();
-  let headers = await buildHeaders(options.headers, traceId, isForm, options.skipAuth);
+  let headers = await buildHeaders(options.headers, traceId, isForm, options.skipAuth, options.authOpcional);
   let response = await doFetch(path, init, headers);
 
   if (response.status === 401 && !options.skipAuth) {
-    const newToken = await refreshTokens();
-    if (!newToken) throw new SessionExpiredError();
-    headers = { ...headers, Authorization: `Bearer ${newToken}` };
-    response = await doFetch(path, init, headers);
+    if (options.authOpcional) {
+      // La sesión no es válida para este endpoint público: se reintenta sin token.
+      const { Authorization: _autorizacion, ...sinAuth } = headers;
+      response = await doFetch(path, init, sinAuth);
+    } else {
+      const newToken = await refreshTokens();
+      if (!newToken) throw new SessionExpiredError();
+      headers = { ...headers, Authorization: `Bearer ${newToken}` };
+      response = await doFetch(path, init, headers);
+    }
   }
 
   if (response.status === 403) {
@@ -153,6 +165,7 @@ async function requestBlobConRespuesta(
     traceId,
     init.body instanceof FormData,
     options.skipAuth,
+    options.authOpcional,
   );
   if (init.body && !(init.body instanceof FormData)) {
     headers["Content-Type"] = "application/json";
@@ -161,9 +174,14 @@ async function requestBlobConRespuesta(
   let response = await doFetch(path, init, headers);
 
   if (response.status === 401 && !options.skipAuth) {
-    const newToken = await refreshTokens();
-    if (!newToken) throw new SessionExpiredError();
-    response = await doFetch(path, init, { ...headers, Authorization: `Bearer ${newToken}` });
+    if (options.authOpcional) {
+      const { Authorization: _autorizacion, ...sinAuth } = headers;
+      response = await doFetch(path, init, sinAuth);
+    } else {
+      const newToken = await refreshTokens();
+      if (!newToken) throw new SessionExpiredError();
+      response = await doFetch(path, init, { ...headers, Authorization: `Bearer ${newToken}` });
+    }
   }
 
   if (!response.ok) {

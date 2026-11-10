@@ -20,7 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import Loading from "@/shared/ui/components/loading";
 import { useEffect, useState } from "react";
@@ -75,8 +75,6 @@ const MODULOS: Modulo[] = [
 export default function Dashboard() {
   const { data: session, status, update: updateSession } = useSession();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const avisoSinPermiso = searchParams.get("aviso") === "sin-permiso";
   const [showChangePassword, setShowChangePassword] = useState(false);
 
   useEffect(() => {
@@ -101,14 +99,6 @@ export default function Dashboard() {
         </p>
         <SignOut />
       </div>
-      {avisoSinPermiso && (
-        <p
-          role="alert"
-          className="mx-4 sm:mx-8 mb-4 rounded-md border border-amber-300 bg-warning-soft p-3 text-center text-sm text-warning"
-        >
-          No tiene permiso para acceder a esa sección. Se le redirigió al inicio.
-        </p>
-      )}
       <div
         id="dashboard-modulos"
         data-testid="dashboard-modulos"

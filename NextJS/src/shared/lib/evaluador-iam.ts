@@ -266,6 +266,7 @@ export function puedeVerRuta(
   permisos: string[] | null | undefined,
   ruta: string,
   condicionTrabajador?: string | null,
+  ignorarCondicion = false,
 ): boolean {
   const limpia = ruta.split(/[?#]/)[0].toLowerCase();
   const segmentos = limpia.split('/').filter(Boolean);
@@ -284,7 +285,7 @@ export function puedeVerRuta(
   );
   if (regla) {
     return (
-      cumpleCondicion(regla.condicion, condicionTrabajador) &&
+      (ignorarCondicion || cumpleCondicion(regla.condicion, condicionTrabajador)) &&
       regla.permisos.some((codigo) => tienePermiso(permisos, codigo))
     );
   }
@@ -299,7 +300,7 @@ export function puedeVerRuta(
     if (personalBienestar) return true;
     return (
       tienePermiso(permisos, 'fe_de_vida.solicitar') &&
-      cumpleCondicion('PASIVO', condicionTrabajador)
+      (ignorarCondicion || cumpleCondicion('PASIVO', condicionTrabajador))
     );
   }
   return (PERMISOS_DE_ENTRADA[modulo] ?? []).some((codigo) => tienePermiso(permisos, codigo));
