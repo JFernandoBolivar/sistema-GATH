@@ -45,6 +45,14 @@ TIPOS_DE_REPORTE = (
 
 SIN_FECHA_INGRESO = '—'
 
+# El reporte de RRHH imprime el sexo abreviado; la interfaz conserva la palabra.
+SEXO_ABREVIADO = {
+    'MASCULINO': 'M',
+    'FEMENINO': 'F',
+    'M': 'M',
+    'F': 'F',
+}
+
 
 def preparar_filas_reporte(filas) -> list[dict]:
     """Filas listas para PDF/Excel (FIX-QA14).
@@ -53,6 +61,7 @@ def preparar_filas_reporte(filas) -> list[dict]:
     - `total_anos_apn` pasa de decimal crudo (0.0082) a texto legible
       («3 días de servicio en APN»).
     - Sin fecha de ingreso se muestra «—», no «0 días».
+    - El sexo se abrevia a `M`/`F` (P4 del reporte de trabajadores).
     """
     preparadas = []
     for fila in filas:
@@ -64,6 +73,9 @@ def preparar_filas_reporte(filas) -> list[dict]:
                 if aviso
                 else formatear_tiempo_servicio(copia['total_anos_apn'])
             )
+        if 'sexo' in copia:
+            sexo = str(copia['sexo'] or '').strip().upper()
+            copia['sexo'] = SEXO_ABREVIADO.get(sexo, copia['sexo'])
         preparadas.append(copia)
     return preparadas
 
@@ -113,8 +125,13 @@ def generar_archivo_reporte(
 
     progreso(60)
     filas = preparar_filas_reporte(dto.filas)
+    # P2: el archivo por defecto reproduce las 10 columnas del reporte de RRHH;
+    # «Total años APN» sigue disponible en el JSON/la tabla de la interfaz.
+    columnas = [columna for columna in dto.columnas if columna != 'total_anos_apn']
     if para_pdf:
-        contenido = generar_reporte_pdf(dto.titulo, dto.columnas, filas, config=construir_config_pdf())
+        contenido = generar_reporte_pdf(
+            dto.titulo, columnas, filas, config=construir_config_pdf(), grupos=dto.grupos,
+        )
     else:
-        contenido = generar_reporte_excel(dto.titulo, dto.columnas, filas)
+        contenido = generar_reporte_excel(dto.titulo, columnas, filas)
     return contenido, dto.metadatos or {}

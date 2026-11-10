@@ -25,17 +25,20 @@ from reportlab import rl_config
 rl_config.useA85 = 0
 from xml.sax.saxutils import escape
 
+from reportlab.lib import colors
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
 from reportlab.platypus import Image, Paragraph, Spacer, Table, TableStyle
 
+from core.infrastructure.pdf.fuentes import FUENTE_NEGRITA
 from core.infrastructure.pdf.pdf_styles import COLORS, FONTS, get_paragraph_styles, get_table_style
 
 logger = logging.getLogger('gath.pdf')
 
 _ASSETS_DIR = os.path.join(os.path.dirname(__file__), 'assets')
 
-NOMBRE_EMPRESA_DEFECTO = "Comisión Nacional de Telecomunicaciones"
+NOMBRE_EMPRESA_DEFECTO = "COMISIÓN NACIONAL DE TELECOMUNICACIONES"
 NOMBRE_EMPRESA_DEFECTO_LINEA2 = "(CONATEL)"
 TITULO_GENERICO = "Sistema de Gestión"
 
@@ -150,11 +153,15 @@ def create_header(titulo: str, width, config: dict | None = None, mostrar_instit
         # insertarlo en el markup de reportlab; el valor por defecto conserva
         # el salto de línea del formato legado (institución / "(CONATEL)").
         linea_empresa = (
-            escape(nombre_empresa_config) if nombre_empresa_config
+            escape(nombre_empresa_config).upper() if nombre_empresa_config
             else f"{NOMBRE_EMPRESA_DEFECTO} <br/> {NOMBRE_EMPRESA_DEFECTO_LINEA2}"
         )
+        # «... (CONATEL)» va en una segunda línea, como el reporte de RRHH.
+        if nombre_empresa_config and '<br/>' not in linea_empresa and '(' in linea_empresa:
+            corte = linea_empresa.rfind('(')
+            linea_empresa = f"{linea_empresa[:corte].rstrip()} <br/> {linea_empresa[corte:]}"
         header_text = (
-            f"<font size='9'><b>{linea_empresa}</b></font><br/><font size='11'><b><br/>{titulo.upper()}</b></font>"
+            f"<font size='9'><b>{linea_empresa}</b></font><br/><font size='11'><b>{titulo.upper()}</b></font>"
             if mostrar_institucion
             else f"<font size='11'><b>{titulo.upper()}</b></font>"
         )
@@ -175,6 +182,42 @@ def create_header(titulo: str, width, config: dict | None = None, mostrar_instit
     elementos.append(tabla)
     elementos.append(Spacer(1, 4 * mm))
     return elementos
+
+
+def create_group_band(texto: str, width, nivel: int = 0) -> Table:
+    """Banda gris de un grupo jerárquico de una lista (reporte de RRHH).
+
+    Nivel 0 = ``NIVEL: ...``; nivel 1 = ``> DG / GEREN / OFIC: ...``;
+    niveles siguientes = ``- DIV / COORD: ...`` y coordinación. Reproduce las
+    bandas del reporte de trabajadores: fondo gris, texto a la izquierda y
+    línea inferior negra que separa del siguiente bloque.
+    """
+    styles = get_paragraph_styles()
+    tamano = 9 if nivel == 0 else 8
+    fondo = '#e9edf2' if nivel == 0 else '#f4f6f8'
+    grosor = 1 if nivel == 0 else 0.7
+
+    estilo = ParagraphStyle(
+        name=f'ReporteGrupo{nivel}',
+        parent=styles['TableCell'],
+        fontName=FUENTE_NEGRITA,
+        fontSize=tamano,
+        leading=tamano + 3,
+        spaceBefore=0,
+        spaceAfter=0,
+    )
+    tabla = Table([[Paragraph(escape(texto), estilo)]], colWidths=[width])
+    tabla.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(fondo)),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LINEBELOW', (0, 0), (-1, -1), grosor, COLORS['black']),
+    ]))
+    return tabla
 
 
 def create_stats_box(stats: dict, width=None) -> Table | Spacer:

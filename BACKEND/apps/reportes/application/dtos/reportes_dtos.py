@@ -11,3 +11,4 @@ class ResultadoReporteDTO:
     filas: list[dict]
     total_registros: int
     metadatos: dict = field(default_factory=dict)
+    grupos: list[dict] | None = None

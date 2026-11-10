@@ -101,6 +101,98 @@ def _etiqueta_de_grupo(valor) -> str:
     return str(valor)
 
 
+# P1 del reporte de RRHH: las listas se agrupan por la estructura orgánica.
+# `agrupar_por` es la clave del registro; el número indica hasta qué nivel se
+# muestra (nivel/dependencia -> DG -> dirección de línea -> coordinación).
+_NIVELES_AGRUPACION = {
+    'nivel': 1,
+    'dependencia': 1,
+    'direccion_general': 2,
+    'direccion_linea': 3,
+    'coordinacion': 4,
+}
+
+# Sentinela para que los registros sin unidad queden al final del reporte.
+_CODIGO_SIN_UNIDAD = '999999'
+
+
+def _niveles_de(consulta: ConsultaReportePersonal) -> int:
+    """Profundidad de agrupación de la lista (0 = tabla plana)."""
+    if consulta.tipo_reporte != 'lista':
+        return 0
+    return _NIVELES_AGRUPACION.get((consulta.agrupar_por or '').strip(), 0)
+
+
+def _niveles_organizativos(asig) -> list[tuple[str, str | None, str]]:
+    """Etiqueta, valor y código de cada nivel orgánico de una asignación."""
+    dep = getattr(asig, 'Dependencia', None) if asig else None
+    dg = getattr(asig, 'DireccionGeneral', None) if asig else None
+    dl = getattr(asig, 'DireccionLinea', None) if asig else None
+    co = getattr(asig, 'Coordinacion', None) if asig else None
+    return [
+        (
+            'NIVEL',
+            (dep.dependencia if dep else 'Sin especificar'),
+            (dep.Codigo if dep else _CODIGO_SIN_UNIDAD),
+        ),
+        (
+            '> DG / GEREN / OFIC',
+            dg.direccion_general if dg else None,
+            (dg.Codigo if dg else _CODIGO_SIN_UNIDAD),
+        ),
+        (
+            '- DIV / COORD',
+            dl.direccion_linea if dl else None,
+            (dl.Codigo if dl else _CODIGO_SIN_UNIDAD),
+        ),
+        (
+            '- COORD',
+            co.coordinacion if co else None,
+            (co.Codigo if co else _CODIGO_SIN_UNIDAD),
+        ),
+    ]
+
+
+def _construir_grupos(filas: list[dict], metas: list[list], niveles: int) -> list[dict] | None:
+    """Ordena `filas` por estructura y devuelve los grupos para el PDF.
+
+    El orden dentro de cada grupo conserva el de la consulta (apellidos y
+    nombres), porque `sorted` es estable. `#` se reinicia en cada subgrupo,
+    igual que el reporte de RRHH.
+    """
+    if not niveles or not filas:
+        return None
+
+    orden = sorted(
+        range(len(filas)),
+        key=lambda i: tuple(codigo for _, _, codigo in metas[i][:niveles]),
+    )
+    filas[:] = [filas[i] for i in orden]
+    metas = [metas[i] for i in orden]
+
+    grupos: list[dict] = []
+    clave_anterior = None
+    for indice, meta in enumerate(metas):
+        clave = tuple(codigo for _, _, codigo in meta[:niveles])
+        if clave != clave_anterior:
+            grupos.append({
+                'etiquetas': [
+                    (etiqueta, valor) for etiqueta, valor, _ in meta[:niveles] if valor
+                ],
+                'desde': indice,
+                'hasta': indice + 1,
+            })
+            clave_anterior = clave
+        else:
+            grupos[-1]['hasta'] = indice + 1
+
+    for grupo in grupos:
+        for numero, fila in enumerate(filas[grupo['desde']:grupo['hasta']], start=1):
+            fila['#'] = str(numero)
+
+    return grupos
+
+
 def _conteo_personal(qs, consulta: ConsultaReportePersonal, metadatos: dict) -> ResultadoReporte:
     """`tipo_reporte='conteo'`: agrupa por el campo elegido y cuenta."""
     from django.core.exceptions import FieldError
@@ -146,6 +238,7 @@ def _asignaciones_por_cedula(AsigTrabajoModel, cedulas) -> dict:
             .filter(employee__in=lote)
             .select_related(
                 'denominacioncargoid', 'tiponominaid', 'OrganismoAdscritoid', 'estatusid',
+                'Dependencia', 'DireccionGeneral', 'DireccionLinea', 'Coordinacion',
             )
         ))
     return elegidas
@@ -197,6 +290,7 @@ class RepoReportesORM:
         antecedentes = fechas_de_ingreso(AntecedenteServicioModel, pks)
 
         filas = []
+        metas = []
         for idx, e in enumerate(pagina, start=1):
             asig = asigs.get(e.cedulaidentidad)
             f_ing = antecedentes.get(e.pk)
@@ -217,13 +311,17 @@ class RepoReportesORM:
                 'total_anos_apn': round(float(e.apn_oficial or 0), 4),
                 'apn_aviso': '' if (e._tiene_ingreso_apn or e._tiene_contrato_apn) else 'Fecha de ingreso pendiente',
             })
+            metas.append(_niveles_organizativos(asig))
+
+        grupos = _construir_grupos(filas, metas, _niveles_de(consulta))
 
         return ResultadoReporte(
-            titulo="Reporte de Personal Activo",
+            titulo="Reporte de Trabajadores",
             columnas=['#', 'codigo', 'cedula', 'nombres', 'apellidos', 'fecha_ingreso', 'sexo', 'tipo_nomina', 'cargo', 'organismo_adscrito', 'total_anos_apn'],
             filas=filas,
             total_registros=len(filas),
             metadatos=metadatos,
+            grupos=grupos,
         )
 
     def reporte_pasivos(self, consulta: ConsultaReportePersonal, limite: int) -> ResultadoReporte:
@@ -287,6 +385,7 @@ class RepoReportesORM:
                 egresos[egr.employee_id] = egr
 
         filas = []
+        metas = []
         for idx, e in enumerate(pagina, start=1):
             asig = asigs.get(e.cedulaidentidad)
             egr = egresos.get(e.cedulaidentidad)
@@ -327,6 +426,9 @@ class RepoReportesORM:
                 'fecha_egreso': f_egr,
                 'contacto': contacto,
             })
+            metas.append(_niveles_organizativos(asig))
+
+        grupos = _construir_grupos(filas, metas, _niveles_de(consulta))
 
         return ResultadoReporte(
             titulo='Reporte de Personal Pasivo',
@@ -337,6 +439,7 @@ class RepoReportesORM:
             filas=filas,
             total_registros=len(filas),
             metadatos=metadatos,
+            grupos=grupos,
         )
 
     def reporte_egresos_pasivos(self, filtros: dict, limite: int) -> ResultadoReporte:
