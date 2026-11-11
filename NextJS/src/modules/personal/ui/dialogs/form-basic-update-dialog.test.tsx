@@ -1,10 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 vi.mock("../../infrastructure/actions/personal-actions", () => ({
   actualizarEmpleadoAction: vi.fn(),
   subirFotoEmpleadoAction: vi.fn(),
+}));
+
+const verificar = vi.hoisted(() => vi.fn());
+vi.mock("../../infrastructure/actions/correccion-cedula-actions", () => ({
+  verificarCorreccionCedulaAction: verificar,
+  ejecutarCorreccionCedulaAction: vi.fn(),
 }));
 
 vi.mock("@/shared/components/captura-foto/captura-foto", () => ({
@@ -56,5 +62,57 @@ describe("FormBasicUpdateDialog — cédula inmutable (O49-BLOQUEO / PRUEBAS-USU
     // Nombres y Apellidos sí están presentes
     expect(screen.getByLabelText(/Nombres/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Apellidos/i)).toBeInTheDocument();
+  });
+});
+
+describe("FormBasicUpdateDialog: corrección de cédula (personal.corregir_cedula)", () => {
+  const previa = {
+    trabajador: { cedulaActual: "99000302", nombre: "AUDITORIA E2E", condicion: "ACTIVO" },
+    cedulaNueva: "99000303",
+    cuenta: { existe: true, correo: "a@b.com", claveInicialPendiente: true },
+    afectados: [{ tabla: "Asignación de cargo", registros: 1 }],
+    totalRegistros: 1,
+  };
+
+  it("con el permiso, la cédula es editable y el cambio abre la confirmación con los afectados", async () => {
+    verificar.mockResolvedValue(previa);
+    render(
+      <FormBasicUpdateDialog
+        empleado={{ ...empleado, estadoCivilId: 1, nombres: "JUAN" } as EmpleadoDTO}
+        catalogos={null}
+        onGuardado={vi.fn()}
+        puedeCorregirCedula
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Actualizar Informaci/i }));
+    const campo = screen.getByLabelText("Cédula");
+    fireEvent.change(campo, { target: { value: "99000303" } });
+    fireEvent.click(screen.getByRole("button", { name: /Guardar/ }));
+
+    expect(await screen.findByTestId("tabla-afectados")).toHaveTextContent("Asignación de cargo");
+    expect(screen.getByText(/Si su clave sigue siendo la cédula/)).toBeInTheDocument();
+    const boton = screen.getByRole("button", { name: /Corregir cédula y guardar/ });
+    expect(boton).toBeDisabled();
+    fireEvent.change(screen.getByLabelText(/Motivo/), { target: { value: "Error de transcripción" } });
+    fireEvent.change(screen.getByLabelText(/Escriba la cédula nueva/), { target: { value: "99000303" } });
+    expect(boton).toBeEnabled();
+  });
+
+  it("un 409 muestra el mensaje y no abre la confirmación", async () => {
+    verificar.mockResolvedValue({ error: "La cédula nueva ya existe.", status: 409 });
+    render(
+      <FormBasicUpdateDialog
+        empleado={{ ...empleado, estadoCivilId: 1, nombres: "JUAN" } as EmpleadoDTO}
+        catalogos={null}
+        onGuardado={vi.fn()}
+        puedeCorregirCedula
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Actualizar Informaci/i }));
+    const campo = screen.getByLabelText("Cédula");
+    fireEvent.change(campo, { target: { value: "99000303" } });
+    fireEvent.click(screen.getByRole("button", { name: /Guardar/ }));
+    expect(await screen.findByText("La cédula nueva ya existe.")).toBeInTheDocument();
+    expect(screen.queryByTestId("tabla-afectados")).toBeNull();
   });
 });

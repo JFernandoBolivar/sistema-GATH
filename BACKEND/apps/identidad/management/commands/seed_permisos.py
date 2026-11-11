@@ -79,6 +79,7 @@ PERMISOS_CATALOGO = [
     ("personal.carga_masiva_aprobar", "Aprobar o rechazar una carga masiva pendiente"),
     ("personal.carga_masiva_revertir", "Revertir una carga masiva aplicada"),
     ("personal.aprobar_antecedentes", "Aprobar antecedentes de servicio en solicitudes de actualización"),
+    ("personal.corregir_cedula", "Corregir cédula del trabajador"),
 
     # ─── 5. PERSONAL PASIVO ───
     ("pasivos.ver", "Consultar listado y ficha básica de personal pasivo"),

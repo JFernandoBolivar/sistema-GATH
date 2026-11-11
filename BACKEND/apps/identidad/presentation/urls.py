@@ -40,6 +40,11 @@ from apps.identidad.presentation.views.restablecer_acceso_bloque_views import (
     RestablecerAccesoBloquePreviewView,
 )
 
+from apps.identidad.presentation.views.corregir_cedula_views import (
+    CorregirCedulaPreviewView,
+    CorregirCedulaView,
+)
+
 app_name = 'identidad'
 
 urlpatterns = [
@@ -96,6 +101,13 @@ urlpatterns = [
         RestablecerAccesoBloqueEstadoView.as_view(),
         name='restablecer-acceso-bloque-estado',
     ),
+    # Corregir la cédula de un trabajador (solo superadministrador)
+    path(
+        'usuarios/corregir-cedula/preview/',
+        CorregirCedulaPreviewView.as_view(),
+        name='corregir-cedula-preview',
+    ),
+    path('usuarios/corregir-cedula/', CorregirCedulaView.as_view(), name='corregir-cedula'),
     path('cuentas/<str:cedula>/correo-acceso/', CorreoAccesoView.as_view(), name='cuentas-correo-acceso'),
 
     # ─── Catálogo de roles (CRIT-12) ───

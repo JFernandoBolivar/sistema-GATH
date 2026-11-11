@@ -27,13 +27,20 @@ import {
 import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 
 import type { CatalogosExpedienteDTO, EmpleadoDTO } from "../../application/dtos/empleado-dto";
+import type { VistaPreviaCorreccionCedula } from "../../domain/entities/correccion-cedula";
+import {
+  ejecutarCorreccionCedulaAction,
+  verificarCorreccionCedulaAction,
+} from "../../infrastructure/actions/correccion-cedula-actions";
 import {
   actualizarEmpleadoAction,
   subirFotoEmpleadoAction,
 } from "../../infrastructure/actions/personal-actions";
 import { CORREO_MAX, NOMBRE_MAX } from "../schema/reglas-personas";
 import { empleadoBasicoFormSchema } from "../schema/schema-empleado";
+import { solicitudCedulaSchema } from "../schema/schema-correccion-cedula";
 import { CampoDialogo, avisoDeFallo, mensajeDe } from "./campo-dialogo";
+import { DialogoCorreccionCedula } from "./dialogo-correccion-cedula";
 
 interface FormBasicUpdateDialogProps {
   empleado: EmpleadoDTO;
@@ -41,6 +48,14 @@ interface FormBasicUpdateDialogProps {
   onGuardado: () => void;
   triggerClassName?: string;
   triggerLabel?: string;
+  /** Con el permiso `personal.corregir_cedula` la cédula se vuelve editable. */
+  puedeCorregirCedula?: boolean;
+  /** Se llama con la cédula nueva tras corregirla, para que el padre siga al trabajador. */
+  onCedulaCorregida?: (cedulaNueva: string) => void;
+}
+
+function esFallo(r: unknown): r is { error: string; status?: number } {
+  return typeof r === "object" && r !== null && "error" in r;
 }
 
 export default function FormBasicUpdateDialog({
@@ -49,6 +64,8 @@ export default function FormBasicUpdateDialog({
   onGuardado,
   triggerClassName = "cursor-pointer bg-blue-700 hover:bg-blue-900 text-white",
   triggerLabel = "Actualizar Información Basica",
+  puedeCorregirCedula = false,
+  onCedulaCorregida,
 }: FormBasicUpdateDialogProps) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -80,7 +97,83 @@ export default function FormBasicUpdateDialog({
   const { register, handleSubmit, setValue, watch } = form;
   const errores = form.formState.errors;
 
+  const [cedulaEditada, setCedulaEditada] = useState(empleado.cedula);
+  const [errorCedula, setErrorCedula] = useState<string | null>(null);
+  const [previaCedula, setPreviaCedula] = useState<VistaPreviaCorreccionCedula | null>(null);
+  const [datosPendientes, setDatosPendientes] = useState<Salida | null>(null);
+  const [ejecutandoCedula, setEjecutandoCedula] = useState(false);
+  const [errorConfirmacion, setErrorConfirmacion] = useState<string | null>(null);
+
+  const cedulaCambiada = puedeCorregirCedula && cedulaEditada.trim() !== empleado.cedula;
+
   const onSubmit = (data: Salida) => {
+    if (cedulaCambiada) {
+      void verificarCedula(data);
+      return;
+    }
+    guardar(data, empleado.cedula);
+  };
+
+  /** Paso previo: la vista previa decide si se puede corregir y qué afecta. */
+  const verificarCedula = async (data: Salida) => {
+    setError(null);
+    setErrorCedula(null);
+    const valida = solicitudCedulaSchema.safeParse({
+      cedulaActual: empleado.cedula,
+      cedulaNueva: cedulaEditada,
+    });
+    if (!valida.success) {
+      setErrorCedula(valida.error.issues[0]?.message ?? "Cédula no válida.");
+      return;
+    }
+    setEjecutandoCedula(true);
+    try {
+      const r = await verificarCorreccionCedulaAction(valida.data);
+      if (esFallo(r)) {
+        setErrorCedula(r.error);
+        return;
+      }
+      setDatosPendientes(data);
+      setErrorConfirmacion(null);
+      setPreviaCedula(r as VistaPreviaCorreccionCedula);
+    } catch {
+      setErrorCedula("No fue posible verificar la cédula. Intente de nuevo.");
+    } finally {
+      setEjecutandoCedula(false);
+    }
+  };
+
+  /** Corrige la cédula y, solo si salió bien, guarda lo demás con la cédula nueva. */
+  const confirmarCedula = async (motivo: string, confirmacion: string) => {
+    if (!previaCedula || !datosPendientes) return;
+    setEjecutandoCedula(true);
+    setErrorConfirmacion(null);
+    try {
+      const r = await ejecutarCorreccionCedulaAction({
+        cedulaActual: empleado.cedula,
+        cedulaNueva: previaCedula.cedulaNueva,
+        motivo,
+        confirmacion,
+      });
+      if (esFallo(r)) {
+        setErrorConfirmacion(r.error);
+        return;
+      }
+    } catch {
+      setErrorConfirmacion("No fue posible corregir la cédula. Intente de nuevo.");
+      return;
+    } finally {
+      setEjecutandoCedula(false);
+    }
+    const nueva = previaCedula.cedulaNueva;
+    const datos = datosPendientes;
+    setPreviaCedula(null);
+    setDatosPendientes(null);
+    toast.success(`Cédula corregida a ${nueva}`);
+    guardar(datos, nueva, true);
+  };
+
+  const guardar = (data: Salida, cedula: string, corregida = false) => {
     startTransition(async () => {
       setError(null);
       try {
@@ -104,12 +197,13 @@ export default function FormBasicUpdateDialog({
           ...(data.nacionalidadId ? { nacionalidadId: Number(data.nacionalidadId) } : {}),
         };
 
-        const result = await actualizarEmpleadoAction(empleado.cedula, payload);
+        const result = await actualizarEmpleadoAction(cedula, payload);
         if (result && typeof result === "object" && "error" in result) {
           const fallo = result as { error: string; errores?: Record<string, string[]> };
           const sinUbicar = aplicarErroresServidor(form, fallo.errores);
           setError(avisoDeFallo(fallo, sinUbicar));
           toast.error(fallo.error);
+          if (corregida) onCedulaCorregida?.(cedula);
           return;
         }
 
@@ -117,7 +211,7 @@ export default function FormBasicUpdateDialog({
         if (selectedFile) {
           const formData = new FormData();
           formData.append("file", selectedFile);
-          const foto = await subirFotoEmpleadoAction(empleado.cedula, formData);
+          const foto = await subirFotoEmpleadoAction(cedula, formData);
           if (foto && typeof foto === "object" && "error" in foto) {
             const falloFoto = foto as { error: string; errores?: Record<string, string[]> };
             avisoFoto = falloFoto.errores?.file?.[0] ?? falloFoto.error;
@@ -130,7 +224,8 @@ export default function FormBasicUpdateDialog({
           toast.success("Información básica actualizada exitosamente");
         }
         setOpen(false);
-        onGuardado();
+        if (corregida && onCedulaCorregida) onCedulaCorregida(cedula);
+        else onGuardado();
       } catch {
         const msg = "Error al actualizar la información básica.";
         setError(msg);
@@ -157,10 +252,41 @@ export default function FormBasicUpdateDialog({
                 {empleado.nombres} {empleado.apellidos}
               </span>
               <span className="text-muted-foreground/60" aria-hidden="true">·</span>
-              <span className="font-mono bg-muted text-foreground px-2 py-0.5 rounded text-xs">
-                Cédula {empleado.cedula}
-              </span>
+              {!puedeCorregirCedula && (
+                <span className="font-mono bg-muted text-foreground px-2 py-0.5 rounded text-xs">
+                  Cédula {empleado.cedula}
+                </span>
+              )}
             </p>
+            {puedeCorregirCedula && (
+              <div className="mt-2 flex max-w-xs flex-col gap-1.5">
+                <label htmlFor="cedula-editable" className="text-xs font-medium">
+                  Cédula
+                </label>
+                <Input
+                  id="cedula-editable"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  maxLength={9}
+                  value={cedulaEditada}
+                  aria-invalid={!!errorCedula || undefined}
+                  onChange={(e) => {
+                    setCedulaEditada(e.target.value);
+                    setErrorCedula(null);
+                  }}
+                />
+                {cedulaCambiada && !errorCedula && (
+                  <p className="text-xs text-muted-foreground">
+                    Al guardar se corregirá la cédula del trabajador (se pedirá confirmación).
+                  </p>
+                )}
+                {errorCedula && (
+                  <p role="alert" className="text-xs text-destructive">
+                    {errorCedula}
+                  </p>
+                )}
+              </div>
+            )}
           </CardHeader>
 
           <CardContent className="pt-4">
@@ -390,8 +516,8 @@ export default function FormBasicUpdateDialog({
                 </div>
 
                 <div className="flex gap-3 justify-end pt-8">
-                  <Button className="w-full" disabled={isPending}>
-                    {isPending && <Loader2 className="size-4 animate-spin mr-1" />}
+                  <Button className="w-full" disabled={isPending || ejecutandoCedula}>
+                    {(isPending || ejecutandoCedula) &&<Loader2 className="size-4 animate-spin mr-1" />}
                     Guardar
                   </Button>
                 </div>
@@ -400,6 +526,17 @@ export default function FormBasicUpdateDialog({
           </CardContent>
         </Card>
       </DialogContent>
+      <DialogoCorreccionCedula
+        key={previaCedula?.cedulaNueva ?? "cerrado"}
+        vistaPrevia={previaCedula}
+        ejecutando={ejecutandoCedula}
+        error={errorConfirmacion}
+        onCancelar={() => {
+          setPreviaCedula(null);
+          setDatosPendientes(null);
+        }}
+        onConfirmar={confirmarCedula}
+      />
     </Dialog>
   );
 }
