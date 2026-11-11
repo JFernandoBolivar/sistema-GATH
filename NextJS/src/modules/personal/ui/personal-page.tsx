@@ -65,6 +65,7 @@ export default function PersonalPage() {
   const esAdmin = tienePermiso(permisos, "*");
   const _puedeCrear = esAdmin || tienePermiso(permisos, "personal.crear");
   const puedeEditar = esAdmin || tienePermiso(permisos, "personal.editar_personales");
+  const puedeCorregirCedula = esAdmin || tienePermiso(permisos, "personal.corregir_cedula");
   const puedeVerDetalle = esAdmin || tienePermiso(permisos, "personal.ver_detalle");
   const puedeExportarPdf = esAdmin || tienePermiso(permisos, "personal.exportar_pdf");
 
@@ -436,6 +437,11 @@ export default function PersonalPage() {
         exportandoPdf={exportandoPdf}
         puedeExportarPdf={puedeExportarPdf}
         puedeEditar={puedeEditar}
+        puedeCorregirCedula={puedeCorregirCedula}
+        onCedulaCorregida={(nueva) => {
+          setCedulaDetalle(nueva);
+          cargar(form.getValues(), pagina);
+        }}
         revision={revisionDetalle}
       />
     </PageLayout>

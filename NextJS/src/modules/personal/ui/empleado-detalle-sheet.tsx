@@ -77,6 +77,9 @@ interface EmpleadoDetalleSheetProps {
   /** RECEPCIONISTA sólo consulta: se ocultan los accesos a edición y exportación */
   puedeExportarPdf: boolean;
   puedeEditar: boolean;
+  /** Permiso `personal.corregir_cedula`: la cédula se edita en «Actualizar Información Básica». */
+  puedeCorregirCedula?: boolean;
+  onCedulaCorregida?: (cedulaNueva: string) => void;
   /** Cambia con cada carga del expediente; reinicia diálogos con valores frescos. */
   revision?: number;
   /** O40: el alta/edición de vivienda de pasivos permite país distinto de Venezuela. */
@@ -94,6 +97,8 @@ export default function EmpleadoDetalleSheet({
   exportandoPdf,
   puedeExportarPdf,
   puedeEditar,
+  puedeCorregirCedula = false,
+  onCedulaCorregida,
   revision = 0,
   permitirPais = false,
 }: EmpleadoDetalleSheetProps) {
@@ -164,6 +169,8 @@ export default function EmpleadoDetalleSheet({
                     setVersionFoto((v) => v + 1);
                     onGuardado();
                   }}
+                  puedeCorregirCedula={puedeCorregirCedula}
+                  onCedulaCorregida={onCedulaCorregida}
                   triggerLabel="Actualizar Información Básica"
                   triggerClassName="w-full cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm whitespace-normal h-auto py-2 px-3 text-center leading-snug"
                 />
