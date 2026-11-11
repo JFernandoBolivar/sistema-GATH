@@ -65,7 +65,12 @@ from apps.fe_de_vida.presentation.views._comun import (
     resumen,
     validar_entrada,
 )
-from core.domain.exceptions import ConflictError, NotFoundError, ValidationError
+from core.domain.exceptions import (
+    ConflictError,
+    NotFoundError,
+    PermissionDeniedError,
+    ValidationError,
+)
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
 from core.infrastructure.storage.validacion_archivo import MAX_BYTES_FOTO, TIPOS_FOTO, validar_archivo
 from core.presentation.envelope import ok
@@ -93,6 +98,14 @@ def _nombre_funcionario(user) -> str:
 
 def _cedula_funcionario(user) -> str:
     return str(getattr(user, 'cedula_id', '') or getattr(user, 'pk', ''))
+
+
+def _exigir_canal_presencial(solicitud: SolicitudFeDeVida) -> None:
+    """L2-12: el borrador/evidencia/envío presencial solo opera solicitudes presenciales."""
+    if solicitud.canal != 'PRESENCIAL':
+        raise PermissionDeniedError(
+            'La solicitud no es presencial: use el flujo en línea de la fe de vida.'
+        )
 
 
 class BuscarPasivoPresencialView(APIView):
@@ -158,6 +171,9 @@ class IniciarOSolicitudPresencialView(APIView):
         lector_ficha = LectorFichaPasivoORM()
 
         with transaction.atomic():
+            if not verificador.es_pasivo(cedula):
+                # L2-12: la vía presencial es solo para pasivos, igual que la línea.
+                raise PermissionDeniedError("La fe de vida es solo para personal pasivo.")
             vigente = obtener_proceso_vigente(repo_proc, repo_sol, alcance, cedula=cedula, ahora=momento)
             if vigente is None:
                 raise ConflictError("No hay un proceso de fe de vida abierto o con prórroga vigente para este pasivo.")
@@ -218,6 +234,7 @@ class BorradorPresencialView(APIView):
             solicitud = repo_sol.obtener(str(solicitud_id), bloquear=True)
             if solicitud is None:
                 raise NotFoundError("La solicitud de fe de vida no existe.")
+            _exigir_canal_presencial(solicitud)
             if not solicitud.editable:
                 raise ValidationError(f"La solicitud está {solicitud.estado.value}: ya no admite cambios.")
             exigir_puede_enviar(
@@ -291,6 +308,7 @@ class EvidenciaPresencialView(APIView):
             solicitud = repo_sol.obtener(str(solicitud_id), bloquear=True)
             if solicitud is None:
                 raise NotFoundError("La solicitud de fe de vida no existe.")
+            _exigir_canal_presencial(solicitud)
 
             actualizada = subir_evidencia(
                 repo_proc, repo_sol, SeaweedFSStorage(),
@@ -333,6 +351,7 @@ class EnviarPresencialView(APIView):
             solicitud = repo_sol.obtener(str(solicitud_id), bloquear=True)
             if solicitud is None:
                 raise NotFoundError("La solicitud de fe de vida no existe.")
+            _exigir_canal_presencial(solicitud)
             if not solicitud.editable:
                 raise ConflictError(f"La solicitud está {solicitud.estado.value}: no puede enviarse.")
             if not solicitud.evidencia_clave:
@@ -343,6 +362,12 @@ class EnviarPresencialView(APIView):
                 repo_proc.listar_prorrogas(solicitud.proceso_id),
                 solicitud.cedula,
                 momento,
+            )
+
+            # L2-12: el envío presencial también exige celular, igual que la línea.
+            exigir_celular(
+                RepoCambiosActaORM(), LectorFichaPasivoORM(),
+                solicitud_id=solicitud.id, cedula=solicitud.cedula,
             )
 
             # O39: alternativo obligatorio salvo la excepción presencial justificada.

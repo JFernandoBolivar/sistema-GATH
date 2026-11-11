@@ -189,6 +189,7 @@ def guardar_borrador(
     vistos: set = set()
     cambios = [c for c in (_preparar_cambio(i, solicitud, lector, vistos) for i in items) if c is not None]
     _validar_familiares_agrupados(solicitud.cedula, cambios, lector)
+    _validar_familiares_nuevos(solicitud.cedula, cambios, lector)
     _validar_limite_contactos(solicitud.cedula, cambios, lector)
     _validar_vivienda_del_borrador(solicitud.cedula, cambios, lector)
     repo_cambios.reemplazar(ORIGEN_ACTUALIZACION, solicitud.id, cambios, conservar_secciones=(Seccion.FOTO.value,))
@@ -225,6 +226,22 @@ def _validar_familiares_agrupados(
         validador(cedula, entidad_id, valores)
 
 
+def _validar_familiares_nuevos(
+    cedula: str, cambios: list[CambioPropuesto], lector: LectorFicha,
+) -> None:
+    """L2-13: duplicados (orden/cédula) y parentescos no permitidos entre las altas."""
+    validador = getattr(lector, 'validar_familiares_nuevos', None)
+    if not callable(validador):
+        return
+    altas = [
+        c.valor_propuesto for c in cambios
+        if c.entidad_destino == 'familiar' and c.accion == Accion.CREAR.value
+        and isinstance(c.valor_propuesto, dict)
+    ]
+    if altas:
+        validador(cedula, altas)
+
+
 _CAMPOS_VIVIENDA = (
     'pais_id', 'ciudad_region', 'estado_id', 'municipio_id', 'parroquia_id',
     'direccion_exacta', 'condicion_vivienda_id', 'codigo_postal_id',
@@ -243,7 +260,10 @@ def _validar_vivienda_del_borrador(
     de_vivienda = [c for c in cambios if c.entidad_destino == 'datos_vivienda']
     if not de_vivienda:
         return
-    if lector.existe_registro_unico(cedula, 'datos_vivienda'):
+    leer = getattr(lector, 'valores_vivienda', None)
+    if callable(leer):
+        valores = dict(leer(cedula))
+    elif lector.existe_registro_unico(cedula, 'datos_vivienda'):
         valores = {
             campo: lector.valor_actual(cedula, 'datos_vivienda', None, campo)
             for campo in _CAMPOS_VIVIENDA
@@ -259,6 +279,9 @@ def _validar_vivienda_del_borrador(
         limpios.get('pais_id'),
     )
     validar_vivienda_condicional(limpios, es_venezuela)
+    cadena = getattr(lector, 'validar_cadena_geografica', None)
+    if callable(cadena):
+        cadena(limpios.get('estado_id'), limpios.get('municipio_id'), limpios.get('parroquia_id'))
 
 
 def _validar_limite_contactos(cedula: str, cambios: list[CambioPropuesto], lector: LectorFicha) -> None:

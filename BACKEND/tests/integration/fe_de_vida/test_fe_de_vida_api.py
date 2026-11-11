@@ -932,6 +932,48 @@ def test_regenerar_constancia_solo_la_administradora_y_conserva_numero_y_codigo(
     assert AuditoriaLog.objects.filter(accion='CONSTANCIA_REGENERADA', recurso_id=constancia.numero).exists()
 
 
+def test_segundo_check_rechaza_si_rrhh_cambio_el_dato_despues_del_borrador(
+    pasivo, analista, administradora, django_capture_on_commit_callbacks,
+):
+    """L2-04: validar el acta no debe pisar una corrección posterior de RR. HH."""
+    pid = proceso_abierto(administradora)
+    sid = solicitud_enviada(pasivo, pid)  # propone telefono_movil 04149999999
+    analista.post(f'{BASE}/solicitudes/{sid}/check/')
+
+    # RR. HH. corrige el teléfono por su vía antes del segundo check.
+    EmployeeModel.objects.filter(cedulaidentidad=PASIVO).update(telefono_movil='+584120000000')
+
+    with django_capture_on_commit_callbacks(execute=True):
+        r = administradora.post(f'{BASE}/solicitudes/{sid}/check/')
+
+    assert r.status_code == 409, r.content
+    assert 'cambió' in r.content.decode()
+    assert SolicitudFeDeVidaModel.objects.get(pk=sid).estado == 'PENDIENTE_SEGUNDO_CHECK'
+    assert EmployeeModel.objects.get(cedulaidentidad=PASIVO).telefono_movil == '+584120000000'
+
+
+def test_borrador_rechaza_dos_hijos_nuevos_con_el_mismo_orden(pasivo, analista, datos):
+    """L2-13: el duplicado se detecta al guardar, no al aprobar."""
+    parentesco, _ = ParentescoModel.objects.get_or_create(
+        descripcion_parentesco='HIJO (A)', defaults={'aplica_familiar': True},
+    )
+    sexo_id = SexoModel.objects.values_list('pk', flat=True).first()
+    proceso_abierto(cliente(ADMINISTRADORA, PERMISOS_ADMINISTRADORA, 4))
+    sid = cuerpo(pasivo.post(f'{BASE}/procesos/vigente/solicitud/'))['id']
+    base = {
+        'primer_nombre': 'LUCIA', 'primer_apellido': 'PRUEBA', 'parentesco_id': parentesco.pk,
+        'orden_hijo': 1,
+        'fecha_nacimiento': (timezone.now().date() - timedelta(days=365 * 4)).isoformat(), 'sexo_id': sexo_id,
+    }
+    segundo = dict(base, primer_nombre='ANA')
+    r = pasivo.put(f'{BASE}/mis-solicitudes/{sid}/borrador/', {'cambios': [
+        {'seccion': 'familiar', 'entidad': 'familiar', 'accion': 'CREAR', 'campo': '*', 'valor': base},
+        {'seccion': 'familiar', 'entidad': 'familiar', 'accion': 'CREAR', 'campo': '*', 'valor': segundo},
+    ]}, format='json')
+    assert r.status_code == 400, r.content
+    assert 'orden_hijo' in cuerpo(r).get('errores', {})
+
+
 def _validada_sin_constancia(administradora, pasivo, analista, ejecutar_on_commit):
     """Deja una solicitud VALIDADA sin constancia, como cuando falla la emisión (L2-02)."""
     pid = proceso_abierto(administradora)

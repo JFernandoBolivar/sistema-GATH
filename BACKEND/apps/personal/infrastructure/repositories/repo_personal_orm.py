@@ -7,7 +7,7 @@ from django.db import transaction
 from django.db.models import Model, Q
 
 from core.domain.catalogos import TIPO_PERSONAL_ACTIVO
-from core.domain.exceptions import NotFoundError, ValidationError
+from core.domain.exceptions import ConflictError, NotFoundError, ValidationError
 from apps.personal.domain.entities.empleado import Empleado
 from apps.personal.infrastructure.mappers.mapper_personal import (
     apn_oficial,
@@ -460,6 +460,26 @@ class RepoPersonalORM:
     def _upsert_vivienda(self, empleado: EmployeeModel, data: dict | None) -> None:
         if not data:
             return
+        # L2-16: una vivienda parcial sin fila previa reventaba con IntegrityError
+        # (500) al aplicar el acta; con filas duplicadas, con MultipleObjectsReturned.
+        existentes = list(DatosViviendaModel.objects.filter(empleado=empleado)[:2])
+        if len(existentes) > 1:
+            raise ConflictError(
+                'Hay más de una ficha de vivienda para el trabajador: '
+                'RR. HH. debe depurar los datos antes de aplicar el cambio.'
+            )
+        if not existentes:
+            faltan = [
+                etiqueta for campo, etiqueta in (
+                    ('condicion_vivienda_id', 'la condición de la vivienda'),
+                    ('direccion_exacta', 'la dirección exacta'),
+                ) if not data.get(campo)
+            ]
+            if faltan:
+                raise ConflictError(
+                    'El trabajador no tiene ficha de vivienda y faltan datos obligatorios: '
+                    + ' y '.join(faltan) + '. Registre la vivienda completa antes de aplicar.'
+                )
         DatosViviendaModel.objects.update_or_create(
             empleado=empleado,
             defaults=self._normalizar_fks(

@@ -9,7 +9,12 @@ from datetime import datetime
 
 from apps.autogestion.application.use_cases.decision_bienestar import aplicar_cambios_aprobados
 from apps.autogestion.domain.entities.solicitud_actualizacion import CambioPropuesto
-from apps.autogestion.domain.services.validacion_cambios import validar_estructura, validar_registro_nuevo, validar_valor
+from apps.autogestion.domain.services.validacion_cambios import (
+    validar_estructura,
+    validar_registro_nuevo,
+    validar_valor,
+    validar_vivienda_condicional,
+)
 from apps.autogestion.domain.value_objects.secciones import (
     CAMPO_REGISTRO_NUEVO,
     CAMPOS_POR_SECCION,
@@ -24,7 +29,7 @@ from apps.autogestion.infrastructure.repositories.repo_cambios_soportes_orm impo
 from apps.fe_de_vida.domain.entities.cambio_acta import CambioActa
 from apps.fe_de_vida.domain.value_objects.estados import ORIGEN_FE_DE_VIDA
 from apps.fe_de_vida.domain.value_objects.lista_blanca import CAMPOS_ADICIONALES_ACTA
-from core.domain.exceptions import NotFoundError, ValidationError
+from core.domain.exceptions import ConflictError, NotFoundError, ValidationError
 
 
 # Secciones de autogestión que la fe de vida no hereda: identidad (solo nombres/apellidos/fecha, vía CAMPOS_ADICIONALES_ACTA) y salud.
@@ -154,6 +159,42 @@ class ValidadorCambiosActaORM:
             grupos.setdefault(str(cambio.entidad_id), {})[cambio.campo] = cambio.valor_propuesto
         for entidad_id, valores in grupos.items():
             self._lector.validar_familiar_cambio(cedula, entidad_id, valores)
+        self._validar_familiares_nuevos(cedula, cambios)
+        self._validar_vivienda(cedula, cambios)
+
+    def _validar_familiares_nuevos(self, cedula: str, cambios: list[CambioActa]) -> None:
+        """L2-13: duplicados y parentescos no permitidos entre las altas del borrador."""
+        validador = getattr(self._lector, 'validar_familiares_nuevos', None)
+        if not callable(validador):
+            return
+        altas = [
+            c.valor_propuesto for c in cambios
+            if c.entidad_destino == 'familiar' and c.accion == Accion.CREAR.value
+            and isinstance(c.valor_propuesto, dict)
+        ]
+        if altas:
+            validador(cedula, altas)
+
+    def _validar_vivienda(self, cedula: str, cambios: list[CambioActa]) -> None:
+        """L2-16: coherencia del estado FINAL de la vivienda al modificarla o crearla."""
+        de_vivienda = [c for c in cambios if c.entidad_destino == 'datos_vivienda']
+        if not de_vivienda:
+            return
+        leer = getattr(self._lector, 'valores_vivienda', None)
+        valores = dict(leer(cedula)) if callable(leer) else {}
+        for cambio in de_vivienda:
+            if cambio.accion in (Accion.CREAR.value, Accion.MODIFICAR.value) and isinstance(
+                cambio.valor_propuesto, dict
+            ):
+                valores.update(cambio.valor_propuesto)
+        limpios = {k: v for k, v in valores.items() if v not in (None, '')}
+        es_venezuela = self._lector.es_pais_venezuela(limpios.get('pais_id'))
+        validar_vivienda_condicional(limpios, es_venezuela)
+        cadena = getattr(self._lector, 'validar_cadena_geografica', None)
+        if callable(cadena):
+            cadena(
+                limpios.get('estado_id'), limpios.get('municipio_id'), limpios.get('parroquia_id'),
+            )
 
 
 class AplicadorCambiosActaORM:
@@ -166,11 +207,32 @@ class AplicadorCambiosActaORM:
     def aplicar(self, solicitud_id: str, cedula: str, actor_cedula: str, ahora: datetime) -> int:
         repo = RepoCambiosPropuestosORM()
         pendientes = [c for c in repo.listar(ORIGEN_FE_DE_VIDA, solicitud_id) if c.decision is DecisionCambio.PENDIENTE]
+        # L2-04: no pisar correcciones de RR. HH. hechas después de proponer el acta.
+        # Se compara cada MODIFICAR con el valor real de hoy, igual que autogestión.
+        self._exigir_sin_conflictos(cedula, pendientes)
         repo.guardar_decisiones([c.con_decision(DecisionCambio.APROBADO, '', actor_cedula, ahora) for c in pendientes])
         return aplicar_cambios_aprobados(
             AplicadorCambiosORM(), cedula=cedula, cambios=repo.listar(ORIGEN_FE_DE_VIDA, solicitud_id),
             soportes=[], actor=actor_cedula,
         )
+
+    def _exigir_sin_conflictos(self, cedula: str, cambios) -> None:
+        from apps.autogestion.domain.services.validacion_cambios import mismo_valor
+
+        lector = LectorFichaORM()
+        for cambio in cambios:
+            if cambio.accion != Accion.MODIFICAR.value:
+                continue
+            actual = lector.valor_actual(cedula, cambio.entidad_destino, cambio.entidad_id, cambio.campo)
+            sin_conflicto = (
+                mismo_valor(cambio.campo, actual, cambio.valor_anterior)
+                or mismo_valor(cambio.campo, cambio.valor_anterior, actual)
+            )
+            if not sin_conflicto:
+                raise ConflictError(
+                    f"El dato '{cambio.campo}' cambió en la ficha después de la propuesta: "
+                    'devuelva la solicitud o pida al pasivo una nueva.'
+                )
 
 
 class LectorValorActualORM:

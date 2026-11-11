@@ -172,6 +172,24 @@ class LectorFichaORM:
                 resultado[campo] = valor.isoformat() if isinstance(valor, date) else valor
         return resultado
 
+    def valores_vivienda(self, cedula: str) -> dict:
+        """Estado actual de la vivienda (ids y textos) para validar el resultado del acta."""
+        from apps.personal.infrastructure.models.expediente_models import DatosViviendaModel
+
+        fila = DatosViviendaModel.objects.filter(empleado__cedulaidentidad=cedula).first()
+        if fila is None:
+            return {}
+        return {
+            'pais_id': fila.pais_id,
+            'estado_id': fila.estado_id,
+            'municipio_id': fila.municipio_id,
+            'parroquia_id': fila.parroquia_id,
+            'ciudad_region': fila.ciudad_region,
+            'direccion_exacta': fila.direccion_exacta,
+            'condicion_vivienda_id': fila.condicion_vivienda_id,
+            'codigo_postal_id': fila.codigo_postal_id,
+        }
+
     def validar_referencias(self, valores: dict) -> None:
         for campo, valor in valores.items():
             if campo in _CAMPOS_MULTIPLES:
@@ -292,6 +310,74 @@ class LectorFichaORM:
         if (valores.get('cedula_familiar') or '').strip():
             return None
         return resuelta
+
+    def aplica_a_familiar(self, parentesco_id) -> bool:
+        """L2-13: el parentesco está habilitado para familiares (`aplica_familiar`)."""
+        if parentesco_id is None:
+            return True
+        from apps.catalogos.infrastructure.models.catalogo_models import ParentescoModel
+
+        valor = ParentescoModel.objects.filter(pk=parentesco_id).values_list(
+            'aplica_familiar', flat=True,
+        ).first()
+        return True if valor is None else bool(valor)
+
+    def validar_familiares_nuevos(self, cedula: str, altas: list[dict]) -> None:
+        """L2-13: duplicados y parentescos no permitidos dentro del mismo borrador.
+
+        Al aprobar, dos altas con el mismo orden (o la misma cédula) hacen fallar la
+        transacción del segundo check con un 409 que el pasivo nunca pudo prever.
+        Se valida aquí, al guardar, para que reciba el error mientras edita.
+        """
+        ordenes: set[int] = set()
+        cedulas: set[str] = set()
+        for valores in altas:
+            if not self.aplica_a_familiar(valores.get('parentesco_id')):
+                raise ValidationError(
+                    'El parentesco seleccionado no está permitido para familiares.',
+                    campo='parentesco_id',
+                )
+            orden = valores.get('orden_hijo')
+            if orden not in (None, ''):
+                try:
+                    numero = int(orden)
+                except (TypeError, ValueError):
+                    numero = None
+                if numero is not None:
+                    if numero in ordenes:
+                        raise ValidationError(
+                            'Dos familiares nuevos usan el mismo orden de nacimiento.',
+                            campo='orden_hijo',
+                        )
+                    ordenes.add(numero)
+            cedula_familiar = str(valores.get('cedula_familiar') or '').strip()
+            if cedula_familiar:
+                if cedula_familiar in cedulas:
+                    raise ValidationError(
+                        'La cédula está repetida entre los familiares nuevos.',
+                        campo='cedula_familiar',
+                    )
+                cedulas.add(cedula_familiar)
+
+    def validar_cadena_geografica(
+        self, estado_id, municipio_id, parroquia_id,
+    ) -> None:
+        """L2-16: estado → municipio → parroquia deben pertenecer entre sí."""
+        from apps.catalogos.infrastructure.models.geografia_models import (
+            MunicipioModel,
+            ParroquiaModel,
+        )
+
+        if estado_id and municipio_id:
+            if not MunicipioModel.objects.filter(pk=municipio_id, estadoid_id=estado_id).exists():
+                raise ValidationError(
+                    'El municipio no pertenece al estado seleccionado.', campo='municipio_id',
+                )
+        if municipio_id and parroquia_id:
+            if not ParroquiaModel.objects.filter(pk=parroquia_id, municipioid_id=municipio_id).exists():
+                raise ValidationError(
+                    'La parroquia no pertenece al municipio seleccionado.', campo='parroquia_id',
+                )
 
     def validar_familiar_cambio(self, cedula: str, entidad_id: str, valores: dict) -> None:
         """FIX-FAM2: valida el estado final del familiar al editar campos sensibles."""
