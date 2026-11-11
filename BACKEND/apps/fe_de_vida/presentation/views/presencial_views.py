@@ -372,7 +372,7 @@ class EnviarPresencialView(APIView):
 
             # O39: alternativo obligatorio salvo la excepción presencial justificada.
             exigir_correo_alternativo(
-                RepoCambiosActaORM(), LectorFichaPasivoORM(), solicitud=solicitud, presencial=True,
+                RepoCambiosActaORM(), LectorFichaPasivoORM(), solicitud=solicitud,
             )
 
             funcionario_nombre = _nombre_funcionario(request.user)

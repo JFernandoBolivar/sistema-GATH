@@ -978,6 +978,43 @@ def test_borrador_rechaza_dos_hijos_nuevos_con_el_mismo_orden(pasivo, analista, 
     assert 'orden_hijo' in cuerpo(r).get('errores', {})
 
 
+def test_pasivo_en_linea_puede_marcar_sin_correo_con_justificacion(datos):
+    """U1: «No tiene correo» también en la fe de vida en línea, con justificación."""
+    from apps.autogestion.infrastructure.models.actualizacion_models import (
+        DatosComplementariosTrabajadorModel,
+    )
+
+    # El pasivo de prueba tenía correo alternativo en la ficha: se retira para
+    # ejercitar la rama de «sin correo».
+    DatosComplementariosTrabajadorModel.objects.filter(cedula=PASIVO).delete()
+    proceso_abierto(cliente(ADMINISTRADORA, PERMISOS_ADMINISTRADORA, 4))
+    cli = cliente(PASIVO, PERMISOS_PASIVO, 1)
+    sid = cuerpo(cli.post(f'{BASE}/procesos/vigente/solicitud/'))['id']
+
+    r = cli.put(f'{BASE}/mis-solicitudes/{sid}/borrador/', {
+        'cambios': [], 'sin_correo_alternativo': True, 'justificacion_sin_correo': 'corto',
+    }, format='json')
+    assert r.status_code == 400, r.content
+    assert 'justificacion_sin_correo' in cuerpo(r)['errores']
+
+    justificacion = 'El pasivo no posee correo electrónico ni familiar de contacto.'
+    r = cli.put(f'{BASE}/mis-solicitudes/{sid}/borrador/', {
+        'cambios': [], 'sin_correo_alternativo': True, 'justificacion_sin_correo': justificacion,
+    }, format='json')
+    assert r.status_code == 200, r.content
+    guardada = cuerpo(r)['solicitud']
+    assert guardada['sin_correo_alternativo'] is True
+    assert guardada['justificacion_sin_correo'] == justificacion
+
+    r = cli.post(
+        f'{BASE}/mis-solicitudes/{sid}/evidencia/', {'file': foto(), 'origen': 'CAMARA'}, format='multipart',
+    )
+    assert r.status_code == 200, r.content
+    r = cli.post(f'{BASE}/mis-solicitudes/{sid}/enviar/')
+    assert r.status_code == 200, r.content
+    assert cuerpo(r)['estado'] == 'PENDIENTE_REVISION'
+
+
 def _validada_sin_constancia(administradora, pasivo, analista, ejecutar_on_commit):
     """Deja una solicitud VALIDADA sin constancia, como cuando falla la emisión (L2-02)."""
     pid = proceso_abierto(administradora)

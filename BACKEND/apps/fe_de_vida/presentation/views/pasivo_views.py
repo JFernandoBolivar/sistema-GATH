@@ -166,12 +166,20 @@ class BorradorView(APIView):
         request=GuardarBorradorSerializer, responses={200: DetalleSolicitudSerializer, **ERRORES},
     )
     def put(self, request, solicitud_id):
-        cambios = [a_cambio_acta(c) for c in validar_entrada(GuardarBorradorSerializer, request.data)['cambios']]
+        datos = validar_entrada(GuardarBorradorSerializer, request.data)
+        cambios = [a_cambio_acta(c) for c in datos['cambios']]
         cedula = cedula_de_sesion(request)
+        # Solo se envían si vinieron en la petición: un cliente que no conoce la
+        # casilla «No tiene correo» no debe borrar lo que ya guardó otro paso.
+        opciones = {
+            clave: datos[clave]
+            for clave in ('sin_correo_alternativo', 'justificacion_sin_correo')
+            if clave in request.data
+        }
         with transaction.atomic():
             guardar_borrador(
                 RepoProcesosORM(), RepoSolicitudesFeDeVidaORM(), RepoCambiosActaORM(), ValidadorCambiosActaORM(),
-                solicitud_id=str(solicitud_id), cedula=cedula, cambios=cambios, ahora=ahora(),
+                solicitud_id=str(solicitud_id), cedula=cedula, cambios=cambios, ahora=ahora(), **opciones,
             )
             auditar(request, 'BORRADOR_GUARDADO', str(solicitud_id), None, {'cambios': len(cambios)})
         detalle = obtener_mi_solicitud(
@@ -228,7 +236,7 @@ class EnviarView(APIView):
             if actual is None:
                 raise NotFoundError("La solicitud de fe de vida no existe.")
             exigir_correo_alternativo(
-                RepoCambiosActaORM(), LectorFichaPasivoORM(), solicitud=actual, presencial=False,
+                RepoCambiosActaORM(), LectorFichaPasivoORM(), solicitud=actual,
             )
             exigir_celular(RepoCambiosActaORM(), LectorFichaPasivoORM(), solicitud_id=str(solicitud_id), cedula=cedula)
             solicitud = enviar_solicitud(

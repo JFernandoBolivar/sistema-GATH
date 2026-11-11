@@ -48,7 +48,7 @@ export const repoFeDeVidaApi: RepoFeDeVida = {
   async obtenerMiSolicitud(id) {
     return mapperDetalle((await feDeVidaApi.miSolicitud(id)).data);
   },
-  async guardarBorrador(id, cambios) {
+  async guardarBorrador(id, cambios, opciones) {
     const cuerpo = cambios.map((c) => ({
       seccion: c.seccion,
       entidad: c.entidad,
@@ -57,7 +57,7 @@ export const repoFeDeVidaApi: RepoFeDeVida = {
       valor: c.valor,
       entidad_id: c.entidadId ?? null,
     }));
-    return mapperDetalle((await feDeVidaApi.borrador(id, cuerpo)).data);
+    return mapperDetalle((await feDeVidaApi.borrador(id, cuerpo, opciones)).data);
   },
   async subirEvidencia(id, evidencia) {
     const form = new FormData();

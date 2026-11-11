@@ -257,12 +257,12 @@ export function FormularioFeDeVida({
     siguiente: number,
     opciones?: { sinCorreoAlternativo: boolean; justificacionSinCorreo: string },
   ) {
-    const opts = opciones ?? (esPresencial ? opcionesPresencial : undefined);
+    const opts = opciones ?? opcionesPresencial;
     iniciarGuardado(async () => {
       try {
         const res = esPresencial
           ? await guardarBorradorPresencialAction(solicitud.id, aEntrada(nuevos), opts)
-          : await guardarBorradorAction(solicitud.id, aEntrada(nuevos));
+          : await guardarBorradorAction(solicitud.id, aEntrada(nuevos), opts);
         if (!res.ok) {
           toast.error(res.mensaje);
           // Conservar lo editado en este paso aunque el servidor rechace otro dato.
@@ -370,7 +370,7 @@ export function FormularioFeDeVida({
       try {
         const guardado = esPresencial
           ? await guardarBorradorPresencialAction(solicitud.id, aEntrada(items), opcionesPresencial)
-          : await guardarBorradorAction(solicitud.id, aEntrada(items));
+          : await guardarBorradorAction(solicitud.id, aEntrada(items), opcionesPresencial);
         if (!guardado.ok) {
           toast.error(guardado.mensaje);
           if (guardado.errores) irASeccionConError(guardado.errores);
@@ -437,7 +437,7 @@ export function FormularioFeDeVida({
           ficha={ficha}
           valoresIniciales={inicialesContacto}
           guardando={guardando}
-          permiteSinCorreo={esPresencial}
+          permiteSinCorreo
           sinCorreoInicial={opcionesPresencial.sinCorreoAlternativo}
           justificacionInicial={opcionesPresencial.justificacionSinCorreo}
           onContinuar={continuarContacto}

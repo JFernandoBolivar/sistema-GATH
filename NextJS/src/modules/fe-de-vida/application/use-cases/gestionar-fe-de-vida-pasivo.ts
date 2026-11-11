@@ -43,8 +43,9 @@ export function guardarBorrador(
   repo: RepoFeDeVida,
   id: string,
   cambios: CambioEntrada[],
+  opciones?: { sinCorreoAlternativo?: boolean; justificacionSinCorreo?: string },
 ): Promise<DetalleSolicitudDTO> {
-  return repo.guardarBorrador(id, cambios);
+  return repo.guardarBorrador(id, cambios, opciones);
 }
 
 /** Valida tipo y tamaño de la foto antes de enviarla (el servidor vuelve a validar la firma real). */

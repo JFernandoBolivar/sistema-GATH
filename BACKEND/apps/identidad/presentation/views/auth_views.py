@@ -227,6 +227,13 @@ class LoginView(APIView):
         limpiar_bloqueo(cedula_registro)
         limpiar_bloqueo(identificador)
 
+        # «Último acceso» del listado de usuarios: el login por JWT no pasa por
+        # `django.contrib.auth.login`, así que `last_login` nunca se actualizaba.
+        try:
+            type(cuenta).objects.filter(pk=cuenta.pk).update(last_login=timezone.now())
+        except Exception:  # noqa: BLE001 - registrar el acceso no debe impedir el ingreso
+            logger.exception('login: no se pudo registrar el último acceso')
+
         tokens = emitir_tokens_sesion(
             cuenta,
             cedula=str(cuenta.cedula_id) if cuenta.cedula_id else None,

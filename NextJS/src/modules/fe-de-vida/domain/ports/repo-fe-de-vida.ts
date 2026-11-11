@@ -110,7 +110,11 @@ export interface RepoFeDeVida {
   iniciarSolicitud(): Promise<SolicitudEntity>;
   listarMisSolicitudes(f: FiltrosHistorial): Promise<PaginaEntity<SolicitudEntity>>;
   obtenerMiSolicitud(id: string): Promise<DetalleSolicitudEntity>;
-  guardarBorrador(id: string, cambios: CambioEntrada[]): Promise<DetalleSolicitudEntity>;
+  guardarBorrador(
+    id: string,
+    cambios: CambioEntrada[],
+    opciones?: { sinCorreoAlternativo?: boolean; justificacionSinCorreo?: string },
+  ): Promise<DetalleSolicitudEntity>;
   subirEvidencia(id: string, evidencia: EvidenciaNueva): Promise<SolicitudEntity>;
   enviar(id: string): Promise<SolicitudEntity>;
   descargarConstancia(id: string): Promise<Blob>;

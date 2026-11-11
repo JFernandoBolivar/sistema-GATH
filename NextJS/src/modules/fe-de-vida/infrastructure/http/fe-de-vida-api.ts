@@ -334,8 +334,20 @@ export const feDeVidaApi = {
     apiClient.get<ApiResponse<PaginaApi<SolicitudApi>>>(`${BASE}/mis-solicitudes/`, { params }),
   miSolicitud: (id: string) =>
     apiClient.get<ApiResponse<DetalleApi>>(`${BASE}/mis-solicitudes/${id}/`),
-  borrador: (id: string, cambios: unknown[]) =>
-    apiClient.put<ApiResponse<DetalleApi>>(`${BASE}/mis-solicitudes/${id}/borrador/`, { cambios }),
+  borrador: (
+    id: string,
+    cambios: unknown[],
+    opciones?: { sinCorreoAlternativo?: boolean; justificacionSinCorreo?: string },
+  ) =>
+    apiClient.put<ApiResponse<DetalleApi>>(`${BASE}/mis-solicitudes/${id}/borrador/`, {
+      cambios,
+      ...(opciones
+        ? {
+            sin_correo_alternativo: opciones.sinCorreoAlternativo ?? false,
+            justificacion_sin_correo: opciones.justificacionSinCorreo ?? "",
+          }
+        : {}),
+    }),
   evidencia: (id: string, form: FormData) =>
     apiClient.postForm<ApiResponse<SolicitudApi>>(`${BASE}/mis-solicitudes/${id}/evidencia/`, form),
   enviar: (id: string) =>

@@ -150,6 +150,33 @@ def test_guardar_borrador_valida_descarta_sin_cambio_y_rechaza_repetidos(m):
                             cambios=[CambioActa('contacto', 'MODIFICAR', 'employee', 'cedulaidentidad', '1')], ahora=AHORA)
 
 
+def test_guardar_borrador_persiste_sin_correo_y_justificacion(m):
+    """U1: la casilla «No tiene correo» del pasivo en línea se guarda en el borrador."""
+    s = iniciar(m)
+    sp.guardar_borrador(
+        m.procesos, m.solicitudes, m.cambios, m.validador, solicitud_id=s.id, cedula=PASIVO,
+        cambios=[], ahora=AHORA, sin_correo_alternativo=True,
+        justificacion_sin_correo='No posee correo electrónico ni familiar de contacto.',
+    )
+    guardada = m.solicitudes.obtener(s.id)
+    assert guardada.sin_correo_alternativo is True
+    assert guardada.justificacion_sin_correo == 'No posee correo electrónico ni familiar de contacto.'
+
+    with pytest.raises(ValidationError) as e:
+        sp.guardar_borrador(
+            m.procesos, m.solicitudes, m.cambios, m.validador, solicitud_id=s.id, cedula=PASIVO,
+            cambios=[], ahora=AHORA, sin_correo_alternativo=True, justificacion_sin_correo='corto',
+        )
+    assert e.value.campo == 'justificacion_sin_correo'
+
+    # Al desmarcar la casilla se limpia la justificación.
+    sp.guardar_borrador(
+        m.procesos, m.solicitudes, m.cambios, m.validador, solicitud_id=s.id, cedula=PASIVO,
+        cambios=[], ahora=AHORA, sin_correo_alternativo=False,
+    )
+    assert m.solicitudes.obtener(s.id).justificacion_sin_correo == ''
+
+
 def test_un_pasivo_no_opera_la_solicitud_de_otro(m):
     s = iniciar(m)
     with pytest.raises(PermissionDeniedError):
@@ -395,29 +422,28 @@ def test_correo_alternativo_obligatorio_en_linea(m):
 
     s = iniciar(m)
     with pytest.raises(ValidationError) as e:
-        sp.exigir_correo_alternativo(m.cambios, _FichaMem(None), solicitud=s, presencial=False)
+        sp.exigir_correo_alternativo(m.cambios, _FichaMem(None), solicitud=s)
     assert e.value.campo == 'correo_alternativo'
 
     # Ya consta en la ficha.
     sp.exigir_correo_alternativo(
-        m.cambios, _FichaMem('04140000000', 'alt@correo.test'), solicitud=s, presencial=False,
+        m.cambios, _FichaMem('04140000000', 'alt@correo.test'), solicitud=s,
     )
     # Propuesto en el acta.
     m.cambios.reemplazar(s.id, [CambioActa(
         'contacto', 'MODIFICAR', 'datos_complementarios', 'correo_alternativo', 'nuevo@correo.test',
     )])
-    sp.exigir_correo_alternativo(m.cambios, _FichaMem(None), solicitud=s, presencial=False)
+    sp.exigir_correo_alternativo(m.cambios, _FichaMem(None), solicitud=s)
 
-    # En línea no se permite la excepción presencial.
+    # U1: en línea también se admite «sin correo» con justificación.
     m.cambios.reemplazar(s.id, [])
     excepcion = replace(
         s, sin_correo_alternativo=True, justificacion_sin_correo='No posee correo electrónico',
     )
-    with pytest.raises(ValidationError):
-        sp.exigir_correo_alternativo(m.cambios, _FichaMem(None), solicitud=excepcion, presencial=False)
+    sp.exigir_correo_alternativo(m.cambios, _FichaMem(None), solicitud=excepcion)
 
 
-def test_excepcion_sin_correo_solo_en_presencial_y_con_justificacion(m):
+def test_excepcion_sin_correo_en_ambos_canales_y_con_justificacion(m):
     from dataclasses import replace
 
     s = iniciar(m)
@@ -425,19 +451,20 @@ def test_excepcion_sin_correo_solo_en_presencial_y_con_justificacion(m):
         s, sin_correo_alternativo=True,
         justificacion_sin_correo='El pasivo no posee correo electrónico ni familiar de contacto.',
     )
-    sp.exigir_correo_alternativo(m.cambios, _FichaMem(None), solicitud=valida, presencial=True)
+    # Línea y presencial comparten la misma regla.
+    sp.exigir_correo_alternativo(m.cambios, _FichaMem(None), solicitud=valida)
 
     with pytest.raises(ValidationError) as e:
         sp.exigir_correo_alternativo(
             m.cambios, _FichaMem(None),
-            solicitud=replace(valida, justificacion_sin_correo='corto'), presencial=True,
+            solicitud=replace(valida, justificacion_sin_correo='corto'),
         )
     assert e.value.campo == 'justificacion_sin_correo'
 
     with pytest.raises(ValidationError) as e:
         sp.exigir_correo_alternativo(
             m.cambios, _FichaMem(None),
-            solicitud=replace(valida, sin_correo_alternativo=False), presencial=True,
+            solicitud=replace(valida, sin_correo_alternativo=False),
         )
     assert e.value.campo == 'correo_alternativo'
 
