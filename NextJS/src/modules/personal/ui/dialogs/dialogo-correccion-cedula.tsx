@@ -5,7 +5,7 @@
  * motivo y que se escriba la cédula nueva. No ejecuta nada: devuelve motivo y confirmación.
  */
 import { useState } from "react";
-import { Loader2, TriangleAlert } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 import { Button } from "@/shared/ui/components/button";
 import {
@@ -52,7 +52,10 @@ export function DialogoCorreccionCedula({
     : false;
 
   return (
-    <Dialog open={vistaPrevia !== null} onOpenChange={(abierto) => !abierto && !ejecutando && onCancelar()}>
+    <Dialog
+      open={vistaPrevia !== null}
+      onOpenChange={(abierto) => !abierto && !ejecutando && onCancelar()}
+    >
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Confirmar corrección de cédula</DialogTitle>
@@ -63,39 +66,40 @@ export function DialogoCorreccionCedula({
         </DialogHeader>
         {vistaPrevia && (
           <div className="flex flex-col gap-3">
-            <p className="text-sm" data-testid="cuenta-cedula">
-              {vistaPrevia.cuenta.existe
-                ? `Cuenta: ${vistaPrevia.cuenta.correo ?? "sin correo"}. ${
-                    vistaPrevia.cuenta.claveInicialPendiente
-                      ? "La clave inicial sigue pendiente."
-                      : "Ya cambió su clave."
-                  }`
-                : "No tiene cuenta."}
-            </p>
-            <table className="w-full text-sm" data-testid="tabla-afectados">
-              <thead>
-                <tr className="text-left">
-                  <th className="py-1 font-medium">Tabla</th>
-                  <th className="py-1 text-right font-medium">Registros</th>
-                </tr>
-              </thead>
-              <tbody>
-                {vistaPrevia.afectados.map((a) => (
-                  <tr key={a.tabla} className="border-t">
-                    <td className="py-1">{a.tabla}</td>
-                    <td className="py-1 text-right">{a.registros}</td>
+            <ul className="flex list-disc flex-col gap-1 pl-5 text-sm" data-testid="cuenta-cedula">
+              <li>
+                {!vistaPrevia.cuenta.existe
+                  ? "No tiene cuenta de acceso."
+                  : vistaPrevia.cuenta.claveInicialPendiente
+                    ? "Aún no ha cambiado su clave inicial: su clave pasará a ser la cédula nueva."
+                    : "Ya cambió su clave: la conserva."}
+              </li>
+              {vistaPrevia.cuenta.existe && (
+                <li>Se cerrarán sus sesiones abiertas y deberá ingresar de nuevo.</li>
+              )}
+              <li>Su información se actualiza en todo el sistema; no se pierde nada.</li>
+            </ul>
+            <details className="text-sm">
+              <summary className="cursor-pointer text-muted-foreground">
+                Ver detalle ({vistaPrevia.totalRegistros} registros)
+              </summary>
+              <table className="mt-2 w-full text-sm" data-testid="tabla-afectados">
+                <thead>
+                  <tr className="text-left">
+                    <th className="py-1 font-medium">Dónde</th>
+                    <th className="py-1 text-right font-medium">Registros</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            <p
-              role="alert"
-              className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
-            >
-              <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-              Se actualizarán {vistaPrevia.totalRegistros} registros. Si su clave sigue siendo la
-              cédula, pasará a ser la nueva. Se cerrarán sus sesiones.
-            </p>
+                </thead>
+                <tbody>
+                  {vistaPrevia.afectados.map((a) => (
+                    <tr key={a.tabla} className="border-t">
+                      <td className="py-1">{a.tabla}</td>
+                      <td className="py-1 text-right">{a.registros}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </details>
           </div>
         )}
         <div className="flex flex-col gap-1.5">

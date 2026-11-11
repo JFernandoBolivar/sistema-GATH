@@ -90,7 +90,8 @@ describe("FormBasicUpdateDialog: corrección de cédula (personal.corregir_cedul
     fireEvent.click(screen.getByRole("button", { name: /Guardar/ }));
 
     expect(await screen.findByTestId("tabla-afectados")).toHaveTextContent("Asignación de cargo");
-    expect(screen.getByText(/Si su clave sigue siendo la cédula/)).toBeInTheDocument();
+    expect(screen.getByText(/Se cerrarán sus sesiones abiertas/)).toBeInTheDocument();
+    expect(screen.getByText(/Ver detalle/)).toBeInTheDocument();
     const boton = screen.getByRole("button", { name: /Corregir cédula y guardar/ });
     expect(boton).toBeDisabled();
     fireEvent.change(screen.getByLabelText(/Motivo/), { target: { value: "Error de transcripción" } });
