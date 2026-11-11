@@ -148,7 +148,7 @@ test.describe("Revisión de Bienestar", () => {
     test.skip(!(await abrir.isVisible().catch(() => false)), "No hay solicitudes pendientes de revisión");
     await abrir.click();
     await expect(page.getByRole("heading", { name: /foto con la cédula/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: /ampliar/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /ver completa/i })).toBeVisible();
     await expect(page.getByRole("heading", { name: /datos propuestos por el pasivo/i })).toBeVisible();
     await expect(page.getByRole("button", { name: /devolver para corrección/i })).toBeVisible();
     await expect(page.getByRole("button", { name: /rechazar/i })).toBeVisible();

@@ -39,10 +39,9 @@ test("Reportes de pasivos descarga PDF como en activos", async ({ page }) => {
   await iniciarSesionComo(page, BIEN_EMAIL, BIEN_PASSWORD);
   await page.goto("/pasivos/reportes");
 
-  await expect(page.getByRole("tab", { name: /pasivos/i })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
+  // La pantalla de reportes de pasivos ya no usa pestañas: es el reporte con
+  // su propio título y los botones de descarga.
+  await expect(page.getByRole("heading", { name: /reporte de pasivos/i })).toBeVisible();
   await expect(page.getByRole("button", { name: /^excel$/i })).toBeVisible();
 
   const [descarga] = await Promise.all([
