@@ -241,7 +241,10 @@ class AplicarCargaMasivaView(APIView):
     def post(self, request, carga_id):
         carga = _carga_visible(request, carga_id)
         aplicar_carga_uc(carga, _cedula(request), AplicadorCargaORM(), getattr(request.user, 'pk', None))
-        _auditar(request, 'CARGA_MASIVA_APLICADA', carga, {'estado': carga.estado})
+        _auditar(request, 'CARGA_MASIVA_APLICADA', carga, {
+            'estado': carga.estado,
+            'filas_fallidas': getattr(carga, 'filas_fallidas_aplicacion', 0),
+        })
         return ok(_resumen(carga), 'Carga aplicada.')
 
 

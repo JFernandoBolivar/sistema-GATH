@@ -7,7 +7,10 @@ carnetización por egreso).
 """
 from datetime import date, datetime, time
 
+import logging
+
 from django.db import transaction
+from django.db.models import ProtectedError
 from django.utils import timezone
 
 from core.domain.catalogos import TIPO_PERSONAL_PASIVO
@@ -659,6 +662,9 @@ def _aplicar_cambio_condicion(
         )
 
 
+logger = logging.getLogger(__name__)
+
+
 def _requiere_aprobacion() -> bool:
     lector = obtener_lector_configuracion()
     if lector is None:
@@ -680,7 +686,17 @@ def aplicar_carga(
         _notificar_aprobacion(carga)
         raise ConflictError('La carga requiere la aprobación de otra persona.')
     aplicadas = 0
+    fallidas = 0
     with transaction.atomic():
+        # L2-05: se revalida el estado con la carga bloqueada; una segunda
+        # aplicación concurrente espera aquí y encuentra la carga ya aplicada.
+        bloqueada = CargaMasivaModel.objects.select_for_update().get(pk=carga.pk)
+        if bloqueada.estado not in (
+            CargaMasivaModel.Estado.ANALIZADA,
+            CargaMasivaModel.Estado.PENDIENTE_APROBACION,
+        ):
+            raise ConflictError('La carga no está lista para aplicarse.')
+        carga.estado = bloqueada.estado
         filas = list(carga.filas.select_for_update())
         # Los movimientos de condición se resuelven primero para que las demás
         # filas de la misma cédula encuentren el movimiento ya ejecutado.
@@ -694,7 +710,7 @@ def aplicar_carga(
         ))
         movimientos_hechos: set[str] = set()
         for fila in filas:
-            if not puede_aplicarse(fila.estado, fila.confirmada):
+            if fila.aplicada or not puede_aplicarse(fila.estado, fila.confirmada):
                 continue
             cedula = _cedula_de(fila)
             try:
@@ -722,11 +738,21 @@ def aplicar_carga(
             except Exception as exc:  # noqa: BLE001
                 movimientos_hechos.discard(cedula)
                 fila.error_aplicacion = str(exc)[:300]
+                fallidas += 1
             fila.save(update_fields=['aplicada', 'anteriores', 'error_aplicacion', 'movimiento'])
         carga.filas_confirmadas = carga.filas.filter(confirmada=True).count()
         carga.estado = CargaMasivaModel.Estado.APLICADA
         carga.aplicada_en = timezone.now()
         carga.save(update_fields=['estado', 'aplicada_en', 'filas_confirmadas'])
+    # L2-11: no existe un estado intermedio sin cambiar la interfaz; la carga
+    # queda APLICADA y el conteo de filas fallidas se registra en el log. El
+    # detalle por fila sigue en `error_aplicacion`.
+    carga.filas_fallidas_aplicacion = fallidas
+    if fallidas:
+        logger.warning(
+            'Carga masiva %s aplicada con %s fila(s) fallida(s) de %s.',
+            carga.pk, fallidas, aplicadas + fallidas,
+        )
     return carga
 
 
@@ -877,7 +903,21 @@ def _revertir_movimiento(
 def revertir_carga(carga: CargaMasivaModel, actor_id: int | None = None) -> CargaMasivaModel:
     if carga.estado != CargaMasivaModel.Estado.APLICADA:
         raise ConflictError('Solo se puede revertir una carga aplicada.')
+    try:
+        return _revertir_carga_bloqueada(carga, actor_id)
+    except ProtectedError as exc:
+        # L2-10: registros posteriores (cuenta, cargo, carnet...) impiden el borrado.
+        raise ConflictError(
+            'No se puede revertir la carga: algunos registros creados por ella ya '
+            'tienen datos asociados (cuenta, cargo, carnet u otros).'
+        ) from exc
+
+
+def _revertir_carga_bloqueada(carga: CargaMasivaModel, actor_id: int | None) -> CargaMasivaModel:
     with transaction.atomic():
+        bloqueada = CargaMasivaModel.objects.select_for_update().get(pk=carga.pk)
+        if bloqueada.estado != CargaMasivaModel.Estado.APLICADA:
+            raise ConflictError('Solo se puede revertir una carga aplicada.')
         filas = list(carga.filas.filter(aplicada=True).order_by('numero_fila'))
         movimientos_revertidos: set[str] = set()
         for fila in filas:
@@ -896,7 +936,10 @@ def revertir_carga(carga: CargaMasivaModel, actor_id: int | None = None) -> Carg
                     empleado.delete()
                 elif empleado:
                     for campo in ('nombres', 'apellidos', 'correo', 'telefono_movil', 'telefono_habitacion'):
-                        setattr(empleado, campo, fila.anteriores.get(campo) or None)
+                        valor = fila.anteriores.get(campo) or None
+                        if valor is None and campo in ('nombres', 'apellidos'):
+                            continue  # columnas obligatorias: no se vacían
+                        setattr(empleado, campo, valor)
                     empleado.save()
             elif fila.tipo == 'familiares' and fila.anteriores.get('id'):
                 familiar = EmployeefamilyModel.objects.filter(pk=fila.anteriores['id']).first()
