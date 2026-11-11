@@ -34,6 +34,11 @@ from apps.identidad.presentation.views.rol_catalogo_views import (
     RolEliminarView,
     RolListCrearView,
 )
+from apps.identidad.presentation.views.restablecer_acceso_bloque_views import (
+    RestablecerAccesoBloqueEjecutarView,
+    RestablecerAccesoBloqueEstadoView,
+    RestablecerAccesoBloquePreviewView,
+)
 
 app_name = 'identidad'
 
@@ -73,6 +78,23 @@ urlpatterns = [
         'usuarios/<int:id>/restablecer-acceso/',
         UsuarioRestablecerAccesoView.as_view(),
         name='usuarios-restablecer-acceso',
+    ),
+
+    # U2: restablecimiento de acceso en bloque (solo superadministrador)
+    path(
+        'usuarios/restablecer-acceso-bloque/preview/',
+        RestablecerAccesoBloquePreviewView.as_view(),
+        name='restablecer-acceso-bloque-preview',
+    ),
+    path(
+        'usuarios/restablecer-acceso-bloque/',
+        RestablecerAccesoBloqueEjecutarView.as_view(),
+        name='restablecer-acceso-bloque-ejecutar',
+    ),
+    path(
+        'usuarios/restablecer-acceso-bloque/<str:task_id>/',
+        RestablecerAccesoBloqueEstadoView.as_view(),
+        name='restablecer-acceso-bloque-estado',
     ),
     path('cuentas/<str:cedula>/correo-acceso/', CorreoAccesoView.as_view(), name='cuentas-correo-acceso'),
 

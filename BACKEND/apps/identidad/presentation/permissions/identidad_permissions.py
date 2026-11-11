@@ -5,6 +5,9 @@ Bindings de permisos del módulo identidad (B3.1).
 operación propia (Contrato C-3): las vistas importan de aquí, nunca escriben
 el literal suelto.
 """
+from django.conf import settings as django_settings
+from rest_framework.permissions import BasePermission
+
 from core.presentation.permissions import HasPermission
 
 PERMISO_LISTAR_PERMISOS = HasPermission('identidad.listar_permisos')
@@ -32,3 +35,18 @@ PERMISO_GESTIONAR_PERMISOS_INDIVIDUALES = HasPermission(
     'identidad.gestionar_permisos_individuales'
 )
 PERMISO_EDITAR_MATRIZ = HasPermission('identidad.asignar_permisos')
+
+
+class EsSuperadministrador(BasePermission):
+    """U2: además del permiso de Parámetros, exige la cédula del superadministrador."""
+
+    message = 'Solo el superadministrador puede ejecutar esta operación.'
+
+    def has_permission(self, request, view) -> bool:
+        user = getattr(request, 'user', None)
+        if not user or not getattr(user, 'is_authenticated', False):
+            return False
+        cedula = getattr(user, 'cedula_id', None) or getattr(user, 'cedula', None)
+        if not cedula:
+            return False
+        return str(cedula) == str(getattr(django_settings, 'SUPERADMIN_CEDULA', '30799436'))
