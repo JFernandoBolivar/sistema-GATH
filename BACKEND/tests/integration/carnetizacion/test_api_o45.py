@@ -152,6 +152,36 @@ def test_importar_invitados_rechaza_extensiones_y_tamanos_no_admitidos(datos_bas
     assert "tamaño máximo" in r.content.decode()
 
 
+def test_emision_con_pdf_fallido_no_deja_carnet_ni_desactiva_el_anterior(datos_base, monkeypatch):
+    """L2-18: emisión y PDF comparten transacción; si el PDF falla no hay cambios."""
+    from apps.carnetizacion.infrastructure.repositories.repo_carnetizacion_orm import (
+        RepoCarnetizacionORM,
+    )
+    from apps.carnetizacion.presentation.views import carnetizacion_views
+
+    api = datos_base["api"]
+    empleado = datos_base["empleado"]
+    previo = datos_base["carnet"]
+    assert previo.activo is True
+
+    def explota(repo, **kwargs):
+        # Simula el carnet ya creado (y el anterior desactivado) antes del fallo.
+        RepoCarnetizacionORM().emitir_carnet(
+            empleado_cedula=kwargs["empleado_cedula"], motivo_id=kwargs["motivo_id"],
+        )
+        raise RuntimeError("fallo al generar el PDF")
+
+    monkeypatch.setattr(carnetizacion_views, "emitir_carnet_y_pdf", explota)
+
+    # El handler central traduce la excepción a 500 (no se propaga al cliente).
+    respuesta = api.post(f"{BASE}/generar/V-1/", {"motivo_id": previo.motivo_id}, format="json")
+    assert respuesta.status_code == 500, respuesta.content
+
+    previo.refresh_from_db()
+    assert previo.activo is True, "el carnet anterior no debe quedar desactivado"
+    assert CarnetEmitidoModel.objects.filter(employee=empleado).count() == 1
+
+
 def test_todos_los_get_de_carnetizacion(datos_base):
     api = datos_base["api"]
     carnet = datos_base["carnet"]

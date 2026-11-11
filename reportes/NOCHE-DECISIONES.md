@@ -78,3 +78,43 @@ _(se irán agregando aquí a medida que avancen las tareas)_
   devuelve `Resultado<T>` en sus escrituras (20 `throw`). Convertirlo exige sus
   pruebas de eventos; los `throw` de las acciones de lectura son intencionales
   para SWR.
+
+- **Paginación de los listados (AUD3-03-05)**: la paginación global de DRF
+  (`PageNumberPagination`, `PAGE_SIZE=10`) no actúa sobre las 327 vistas
+  `APIView`; cada listado decide. `CensoConsultarView` sin cédula devuelve todos
+  los censados con sus respuestas. Paginar cambia el contrato del frontend
+  (`ok(lista)` → `ok({results, count, …})`). Propuesta: helper
+  `paginar(queryset, request)` en `core/presentation/` y migrar por módulos,
+  empezando por censos.
+
+- **Cobertura del esquema OpenAPI (AUD3-03-12)**: `spectacular --validate`
+  reporta 294 errores (71 vistas únicas) por vistas `APIView` sin `responses=`.
+  No rompe el runtime ni el comando (exit 0), pero deja fuera del contrato a
+  carga masiva, censo, autogestión, cargos y carnets. Anotarlas es una tarea de
+  documentación sin cambio funcional.
+
+- **Dependencias del frontend (AUD3-04-01, eleva F2-01 a bloqueante)**:
+  `pnpm audit --prod` da 67 vulnerabilidades (7 críticas): RCE de Next 16.1.3 en
+  Image Optimization (AVIF/SVG) y Windows, bypass de middleware/proxy, y
+  `next-auth` con fallo abierto y bypass del `@` por homoglifos. Corregido en
+  `next >= 16.4.1` y `next-auth` estable (`@auth/core >= 0.41.3`). Mitigantes
+  actuales: SVG deshabilitado, sin `remotePatterns` y autorización real en
+  Django. Requiere rama de upgrade con E2E completa.
+
+- **Contraseña inicial del superadministrador (AUD3-04-02)**: el bootstrap crea
+  `30799436` con contraseña igual a la cédula y cambio forzado a 7 días.
+  Recomendación: `SUPERADMIN_PASSWORD_INICIAL` obligatoria y aleatoria en
+  producción; abortar el bootstrap si no está.
+
+- **Archivos de `MEDIA_ROOT` (AUD3-04-04)**: `media_views` sirve cualquier
+  archivo a cualquier sesión (solo deniega `familiares/`). Recomendación: servir
+  por clave opaca o comprobar el dueño; si queda vacío en producción, retirar el
+  endpoint.
+
+- **Documentación OpenAPI (AUD3-04-05)**: `/api/schema|docs|redoc` solo exigen
+  sesión; cualquier cuenta ve el contrato. Recomendación: permiso administrativo
+  o solo red interna/`DEBUG`.
+
+- **Auditoría de dependencias del backend (AUD3-04-06)**: `pip-audit` no está
+  instalado y las versiones no están fijadas. Recomendación: añadirlo al CI con
+  la tarea de `requirements-dev.txt`.

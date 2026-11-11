@@ -90,6 +90,7 @@ from core.domain.exceptions import DomainError
 from core.presentation.audit import origen_de_peticion
 from core.presentation.cookies import clear_jwt_cookies, set_jwt_cookies
 from core.presentation.envelope import fail, ok
+from core.presentation.ip_cliente import ip_del_cliente
 from core.presentation.schema import MensajeRespuestaSerializer
 
 logger = logging.getLogger('security_backend')
@@ -163,7 +164,7 @@ class LoginView(APIView):
         except DjangoValidationError:
             return fail('Ingrese su correo electrónico.', 400)
 
-        ip_cliente = request.META.get('REMOTE_ADDR')
+        ip_cliente = ip_del_cliente(request)
 
         repo_auth = RepoCuentaAuthORM()
         cedula_registro = repo_auth.obtener_cedula_por_email(identificador) or str(identificador)[:20]

@@ -12,6 +12,7 @@
 | Suites de los módulos tocados tras el PASO 2/3 | `pytest tests/integration/carnetizacion/test_api_o45.py tests/unit/configuracion tests/unit/personal tests/integration/personal/test_reportes_error_views.py tests/integration/exportaciones --create-db` | **267 passed** en 1:02 |
 | Contratos de arquitectura | `lint-imports` | **103 contratos, 0 rotos** |
 | Migraciones | `manage.py makemigrations --check --dry-run` | **No changes detected** |
+| Esquema OpenAPI | `manage.py spectacular --file /tmp/esquema.yml --validate` | exit 0; 469 avisos / 294 errores de «unable to guess serializer» en 71 vistas (AUD3-03-12) |
 | Sintaxis | `python -m compileall apps core` | OK |
 
 `test_arranque_frio` es sensible a la carga (mide el arranque de un intérprete

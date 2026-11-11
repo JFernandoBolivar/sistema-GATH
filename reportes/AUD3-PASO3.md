@@ -125,6 +125,20 @@ Los formularios usan `react-hook-form` + `zodResolver`; las constantes de
 repiten a propósito para dar feedback, y la validación que protege es la del
 servidor (revalidación en la Server Action). Ver PASO 2.
 
+### 03-12 — Cobertura del esquema OpenAPI (MEDIA, a decisión)
+
+`manage.py spectacular --validate` termina con **exit 0**, pero reporta
+**294 errores (71 vistas únicas) y 469 avisos**: son vistas `APIView` sin
+`responses=` en `@extend_schema`, así que el generador no puede inferir el
+serializer («unable to guess serializer») y las deja fuera del contrato. No
+afecta al runtime, pero el contrato que consume el frontend queda ciego para
+esas rutas (carga masiva, censo, autogestión, cargos, carnets…).
+
+Anotar las 71 vistas es una tarea de documentación sin cambio de
+comportamiento; recomendación: añadir `responses=` empezando por los endpoints
+que usa el frontend y, cuando estén todas, correr `spectacular --validate` en CI
+con `--fail-on-warn`/errores como puerta.
+
 ## Verificación de este paso
 
 - `python -m compileall` de los archivos tocados: OK.
