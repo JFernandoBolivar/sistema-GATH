@@ -359,6 +359,12 @@ CELERY_BEAT_SCHEDULE = {
         # 2:00, 12:00 y 17:00 hora de Venezuela (pedido del usuario, 2026-11-03).
         'schedule': crontab(hour='2,12,17', minute=0),
     },
+    # S2-02: vence una sola vez la clave inicial de las cuentas antiguas. El
+    # arranque ya la encola; esta red reintenta hasta que termine (idempotente).
+    'identidad-vencer-claves-iniciales-antiguas': {
+        'task': 'identidad.vencer_claves_iniciales_antiguas',
+        'schedule': 900.0,  # cada 15 minutos
+    },
     # E3: profundidad de la cola y tareas activas en una linea JSON.
     'core-metricas-cola': {
         'task': 'core.metricas_cola',
