@@ -203,8 +203,19 @@ class EmpleadoFotoView(APIView):
             return [IsAuthenticated(), self._PuedeSubirFoto()]
         return [IsAuthenticated()]
 
+    # S2-05: la foto es un dato personal; solo la ve el propio titular o quien
+    # puede ver el expediente (activos, pasivos) o emitir su carnet.
+    _CODIGOS_VER_FOTO = ('personal.ver_detalle', 'pasivos.ver_detalle', 'carnetizacion.emitir')
+
+    @staticmethod
+    def _cedula_propia(user) -> str:
+        return str(getattr(user, 'cedula_id', None) or getattr(getattr(user, 'cedula', None), 'cedulaidentidad', '') or '')
+
     @extend_schema(tags=['Personal'], summary='Obtener fotografía de perfil del empleado (binario)')
     def get(self, request, cedula: str):
+        es_propia = bool(cedula) and self._cedula_propia(request.user) == str(cedula)
+        if not es_propia and not any(usuario_tiene_permiso(request.user, c) for c in self._CODIGOS_VER_FOTO):
+            return fail("No posee permiso para ver la fotografía de este trabajador.", status=403)
         clave = obtener_clave_foto(RepoPersonalORM(), cedula=cedula)
         return respuesta_archivo(SeaweedFSStorage(), clave, cache='private, max-age=86400')
 

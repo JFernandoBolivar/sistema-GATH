@@ -282,6 +282,8 @@ EXPORTACIONES_MAX_MINUTOS_EN_CURSO = config('EXPORTACIONES_MAX_MINUTOS_EN_CURSO'
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
 # Fe de vida: calidad mínima de la selfie (lado menor, px) y base del QR de verificación de la constancia.
 FE_DE_VIDA_EVIDENCIA_LADO_MINIMO_PX = config('FE_DE_VIDA_EVIDENCIA_LADO_MINIMO_PX', default=480, cast=int)
+# S2-10: tope de píxeles de una imagen subida (anti bomba de descompresión).
+IMAGEN_MAX_PIXELES = config('IMAGEN_MAX_PIXELES', default=40_000_000, cast=int)
 FE_DE_VIDA_URL_VERIFICACION = config(
     'FE_DE_VIDA_URL_VERIFICACION', default=f"{FRONTEND_URL.rstrip('/')}/fe-de-vida/verificar",
 )

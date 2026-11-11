@@ -14,6 +14,7 @@ from apps.identidad.application.use_cases.solicitar_recuperacion_password import
     solicitar_recuperacion_password,
     MENSAJE_RESPUESTA_GENERICO,
 )
+from apps.identidad.domain.services.huella_password import huella_password
 from apps.identidad.application.use_cases.restablecer_password import (
     restablecer_password,
 )
@@ -31,7 +32,7 @@ def test_generar_y_validar_token_recuperacion():
     res_id, res_cedula, res_hash = validar_token_recuperacion(token, max_age=900)
     assert res_id == cuenta_id
     assert res_cedula == cedula
-    assert res_hash == pwhash[:16]
+    assert res_hash == huella_password(pwhash)
 
 
 def test_token_expirado_lanza_validation_error():
@@ -252,7 +253,7 @@ def test_solicitar_recuperacion_auditoria_y_log_fallo_envio(caplog):
 
 def test_restablecer_password_exitoso():
     repo = RepoRecuperacionMemoria(_cuenta(cedula="V-12345678", password_hash="hash_antiguo_1234567890"))
-    mock_validar_token = MagicMock(return_value=(1, "V-12345678", "hash_antiguo_123"))
+    mock_validar_token = MagicMock(return_value=(1, "V-12345678", huella_password("hash_antiguo_1234567890")))
     mock_validar_fortaleza = MagicMock()
 
     resultado = restablecer_password(
@@ -426,3 +427,26 @@ def test_vista_recuperacion_por_cedula_no_revela_existencia_de_cuenta(mock_tarea
     assert metadata["ip_origen"] == "192.168.1.100"
     assert "TestBrowser" in metadata["user_agent"]
     assert "trace_id" in metadata
+
+
+@pytest.mark.parametrize("hash_antes,hash_despues", [
+    ("argon2$argon2id$v=19$m=102400,t=2,p=8$AAAA$BBBB", "argon2$argon2id$v=19$m=102400,t=2,p=8$CCCC$DDDD"),
+    ("pbkdf2_sha256$600000$salt1$hashA", "pbkdf2_sha256$600000$salt2$hashB"),
+])
+def test_token_recuperacion_es_de_un_solo_uso(hash_antes, hash_despues):
+    """S2-04: tras cambiar la clave el mismo token deja de servir (argon2 y pbkdf2)."""
+    cuenta = _cuenta(cedula="V-12345678", password_hash=hash_antes)
+    repo = RepoRecuperacionMemoria(cuenta)
+    token = generar_token_recuperacion(cuenta.id, cuenta.cedula, cuenta.password_hash)
+    kwargs = dict(
+        token=token, password_nuevo="Conatel2026!Nueva", password_confirmacion="Conatel2026!Nueva",
+        validar_token_fn=validar_token_recuperacion, validar_fortaleza_fn=MagicMock(),
+    )
+
+    assert "exitosamente" in restablecer_password(repo, **kwargs)  # primer uso
+
+    cuenta.password_hash = hash_despues  # la clave cambió
+    with pytest.raises(ValidationError) as exc:
+        restablecer_password(repo, **kwargs)
+    assert "ya ha sido utilizado" in str(exc.value)
+    assert len(repo.restablecidas) == 1

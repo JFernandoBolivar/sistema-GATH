@@ -25,6 +25,7 @@ import {
 } from "@/shared/ui/components/form";
 import { Input } from "@/shared/ui/components/input";
 import { loginFormSchema, type LoginFormType } from "./schema/schema-login";
+import { destinoPostLogin } from "./destino-post-login";
 import { loginAction } from "../infrastructure/actions/auth-actions";
 
 export default function LoginForm() {
