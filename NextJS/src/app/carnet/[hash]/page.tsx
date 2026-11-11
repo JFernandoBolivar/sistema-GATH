@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 export default async function VerificarCarnetPage({ params }: Props) {
   const { hash } = await params;
   return (
-    <main className="min-h-screen bg-muted/20 py-8 px-4 flex flex-col items-center justify-center">
+    <main className="min-h-svh bg-muted/20 py-8 px-4 flex flex-col items-center justify-center">
       <VerificarCarnetQrView securityHash={hash} />
     </main>
   );

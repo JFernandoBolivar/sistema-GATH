@@ -60,16 +60,20 @@ Especificaciones ejecutadas contra el sistema reconstruido:
 
 | Spec | Qué cubre | Resultado |
 | ---- | --------- | --------- |
-| `e2e/auth-sesion.spec.ts` | login, cookies HttpOnly, aviso de inactividad, ojo de la contraseña | **4 passed** |
-| `e2e/fe-de-vida.spec.ts` | revisión de Bienestar (bandeja, filtros, foto, botones) y procesos/cobertura | **2 passed, 3 skipped** |
+| `e2e/auth-sesion.spec.ts` | login, cookies HttpOnly, aviso de inactividad, ojo de la contraseña | **4 passed** (en la corrida conjunta la prueba del reloj virtual pasó al reintento; aislada 4/4) |
+| `e2e/fe-de-vida.spec.ts` | revisión de Bienestar (bandeja, filtros, foto, botones) y procesos/cobertura | **2 passed, 3 skipped** (una de ellas pasó al reintento por carga) |
 | `e2e/auditoria/fe-de-vida-movil.spec.ts` | recorrido móvil completo: inicio, guía, captura, envío y QR (**T7**) | **2 passed** |
-| `e2e/fe-de-vida-verificacion.spec.ts` | verificación pública de constancia (código inexistente, mal formado y válido) | **2 passed, 1 skipped** en la corrida conjunta; **3 passed** al repetir con `E2E_CONSTANCIA_CODIGO` |
-| `e2e/carnetizacion.spec.ts` | consola de emisión, búsqueda por cédula, plantillas y estadísticas | **5 passed** |
-| `e2e/pasivos-fe-de-vida-reportes.spec.ts` | fe de vida y reportes dentro de pasivos, descarga del PDF (**T7**) | **3 passed** |
+| `e2e/fe-de-vida-verificacion.spec.ts` | verificación pública de constancia (inexistente, mal formada y válida con `E2E_CONSTANCIA_CODIGO`) | **3 passed** |
+| `e2e/carnetizacion.spec.ts` | consola de emisión, búsqueda por cédula, plantillas y estadísticas | **5 passed** aislada; en la corrida conjunta 1 falló por timeout de navegación bajo carga |
+| `e2e/pasivos-fe-de-vida-reportes.spec.ts` | fe de vida y reportes dentro de pasivos, descarga del PDF (**T7**) | **3 passed** (el PDF pasó al reintento: el trabajo de Celery tardó más de 5 min con la cola cargada) |
 | `e2e/auditoria/fix-fv1.spec.ts` | fe de vida **presencial** (búsqueda y formulario sin correo, PC y móvil) | **2 passed** |
+| `e2e/accesibilidad.spec.ts` | axe-core en autogestión, Bienestar y Administración (0 `serious`/`critical`) | **9 passed** |
 
-**Corrida conjunta (7 specs): 20 passed, 3 skipped, 1 flaky (pasó al reintento),
-0 failed** en 7:48, con `--retries=1`.
+**Corrida conjunta (8 specs): 26 passed, 3 skipped, 3 flaky (pasaron al
+reintento) y 1 failed**, este último por timeout de navegación (60 s) en
+`/carnetizacion/estadisticas` con la cola de Celery y los reintentos en curso;
+la spec de carnetizacion pasa **5/5** en aislamiento. El detalle y la
+estabilización aplicada están en `AUD3-PASO7.md`.
 
 ### Causa de cada skip
 
@@ -112,8 +116,9 @@ máquina (`/home/jbolivar@...`); se eliminaron esas capturas.
 
 ### Alcance de esta corrida
 
-La corrida E2E se hizo contra la imagen reconstruida del árbol de la FASE 1. Las
-correcciones posteriores de la auditoría 3 (PASO 2 y 3) son de tipos, movimiento
-de un cliente HTTP, dos imports de tipos y la retirada de `"use server"` de un
-layout; se validaron con `tsc`, `eslint`, `vitest` y `next build`, y la corrida
-E2E completa se repite al cerrar la FASE 3, como pide el plan.
+La corrida E2E se hizo contra la imagen reconstruida con las correcciones de los
+pasos 1 a 7 (incluida la accesibilidad). Las pruebas de navegación usan
+`domcontentloaded` y tiempos ampliados porque el árbol vive en OneDrive y la
+primera petición tras reconstruir puede tardar; la estabilización está en
+`AUD3-PASO7.md`. Las pruebas que fallaron en la corrida conjunta por ese motivo
+pasan en aislamiento (carnetización 5/5, autenticación 4/4).

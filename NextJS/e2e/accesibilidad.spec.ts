@@ -11,6 +11,9 @@ import { iniciarSesionComo } from "./inicio-sesion";
  */
 async function sinGraves(page: Page) {
   await page.waitForLoadState("networkidle").catch(() => {});
+  // El popover del tour entra con una transición de 0.2 s. Medir a mitad de la
+  // animación hace que axe calcule colores con opacidad y reporte contraste.
+  await page.waitForTimeout(500);
   const r = await new AxeBuilder({ page }).analyze();
   const graves = r.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
   expect(
@@ -35,7 +38,7 @@ const PERFILES = [
     email: process.env.E2E_TRAB_EMAIL,
     password: process.env.E2E_TRAB_PASSWORD,
     rutas: [
-      ["/autogestion", /buenos|buenas/i],
+      ["/autogestion", /Mis datos, solicitudes y fe de vida/i],
       ["/autogestion/ficha", /Identificación/i],
       ["/autogestion/solicitudes", /Mis solicitudes/i],
       ["/autogestion/solicitudes/nueva", /Solicitar actualización de datos/i],

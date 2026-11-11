@@ -13,11 +13,21 @@ test.skip(!BIEN_EMAIL || !BIEN_PASSWORD, "Faltan E2E_BIEN_EMAIL/E2E_BIEN_PASSWOR
 
 test("Fe de vida desde pasivos no salta al módulo de activos", async ({ page }) => {
   await iniciarSesionComo(page, BIEN_EMAIL, BIEN_PASSWORD);
-  await page.goto("/pasivos/consultar");
+  await page.goto("/pasivos/consultar", { waitUntil: "domcontentloaded" });
 
   const sidebar = page.locator("[data-sidebar='sidebar']");
-  await sidebar.getByRole("button", { name: /fe de vida/i }).click();
-  await sidebar.getByRole("link", { name: /bandeja de revisión/i }).click();
+  const grupoFeDeVida = sidebar.getByRole("button", { name: /^fe de vida$/i });
+  const enlaceBandeja = sidebar.getByRole("link", { name: /bandeja de revisión/i });
+  // El submenú puede estar abierto o cerrado y el primer clic puede perderse si
+  // React aún no hidrató: se reintenta hasta que el enlace esté visible.
+  await expect(grupoFeDeVida).toBeVisible();
+  await expect(async () => {
+    if (!(await enlaceBandeja.isVisible().catch(() => false))) {
+      await grupoFeDeVida.click();
+    }
+    expect(await enlaceBandeja.isVisible().catch(() => false)).toBe(true);
+  }).toPass({ timeout: 30_000 });
+  await enlaceBandeja.click();
 
   await expect(page).toHaveURL(/\/pasivos\/fe-de-vida$/);
   await expect(page.getByRole("button", { name: /gestion personal pasivo/i })).toBeVisible();
@@ -25,7 +35,7 @@ test("Fe de vida desde pasivos no salta al módulo de activos", async ({ page })
 
 test("Familiares de pasivos se consultan dentro del módulo de pasivos", async ({ page }) => {
   await iniciarSesionComo(page, BIEN_EMAIL, BIEN_PASSWORD);
-  await page.goto("/pasivos/consultar");
+  await page.goto("/pasivos/consultar", { waitUntil: "domcontentloaded" });
 
   const sidebar = page.locator("[data-sidebar='sidebar']");
   // En /pasivos/consultar el submenú ya está abierto.
@@ -36,10 +46,11 @@ test("Familiares de pasivos se consultan dentro del módulo de pasivos", async (
 });
 
 test("Reportes de pasivos descarga PDF como en activos", async ({ page }) => {
-  // El reporte de pasivos se genera en Celery y con la base local tarda ~90 s.
-  test.setTimeout(300_000);
+  // El reporte de pasivos se genera en Celery y con la base local tarda ~90 s;
+  // bajo carga (varios workers) puede pasar de 4 min.
+  test.setTimeout(420_000);
   await iniciarSesionComo(page, BIEN_EMAIL, BIEN_PASSWORD);
-  await page.goto("/pasivos/reportes");
+  await page.goto("/pasivos/reportes", { waitUntil: "domcontentloaded" });
 
   // La pantalla de reportes de pasivos ya no usa pestañas ni botón Excel: es el
   // mismo reporte de activos con su título. El PDF se consulta y luego se
@@ -51,7 +62,7 @@ test("Reportes de pasivos descarga PDF como en activos", async ({ page }) => {
 
   await consultar.click();
   const descargar = page.getByRole("link", { name: /descargar reporte/i });
-  await expect(descargar).toBeVisible({ timeout: 240_000 });
+  await expect(descargar).toBeVisible({ timeout: 300_000 });
 
   const [descarga] = await Promise.all([
     page.waitForEvent("download"),

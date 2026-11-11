@@ -118,3 +118,14 @@ _(se irán agregando aquí a medida que avancen las tareas)_
 - **Auditoría de dependencias del backend (AUD3-04-06)**: `pip-audit` no está
   instalado y las versiones no están fijadas. Recomendación: añadirlo al CI con
   la tarea de `requirements-dev.txt`.
+
+- **Breakpoint del armazón móvil (AUD3-07-04)**: `use-mobile.ts` usa 1024 px y
+  la skill del proyecto documenta 768. Moverlo cambia qué pantallas usan el
+  cajón lateral; es una decisión de diseño.
+
+- **Endurecimiento de contenedores (AUD3-08-06..10)**: el contenedor de Django
+  corre como **root** (sin `USER`), no hay `read_only`/`cap_drop` ni límites de
+  CPU/memoria en `django`, las imágenes usan etiquetas flotantes (`portainer`,
+  `redis`, `rabbitmq`) y Django/Next publican puertos al host. El plan excluye
+  tocar Docker/compose: aplicar en el servidor (usuario sin privilegios,
+  límites, solo el proxy publicado, digest fijo).

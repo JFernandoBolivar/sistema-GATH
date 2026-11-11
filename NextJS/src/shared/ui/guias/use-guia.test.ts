@@ -151,6 +151,40 @@ describe("useGuia hook", () => {
     expect(mockMarcarGuiaVistaAction).toHaveBeenCalledWith("guia_test", 1);
   });
 
+  it("quita del elemento resaltado los atributos ARIA que driver.js añade", async () => {
+    const el1 = document.createElement("div");
+    el1.setAttribute("data-guia-id", "elemento-1");
+    document.body.appendChild(el1);
+
+    const { result } = renderHook(() =>
+      useGuia({ guia: GUIA_PRUEBA, autoIniciar: false }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.cargando).toBe(false);
+    });
+
+    act(() => {
+      result.current.iniciarGuia();
+    });
+
+    const resaltado = document.createElement("div");
+    resaltado.setAttribute("aria-haspopup", "dialog");
+    resaltado.setAttribute("aria-expanded", "true");
+    resaltado.setAttribute("aria-controls", "driver-popover-content");
+
+    act(() => {
+      const onHighlighted = capturedDriverConfig.onHighlighted as (
+        elemento: Element,
+      ) => void;
+      onHighlighted?.(resaltado);
+    });
+
+    expect(resaltado.hasAttribute("aria-expanded")).toBe(false);
+    expect(resaltado.hasAttribute("aria-haspopup")).toBe(false);
+    expect(resaltado.hasAttribute("aria-controls")).toBe(false);
+  });
+
   it("marca como vista en el servidor si el usuario la cierra voluntariamente", async () => {
     const el1 = document.createElement("div");
     el1.setAttribute("data-guia-id", "elemento-1");

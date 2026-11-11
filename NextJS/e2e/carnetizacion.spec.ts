@@ -57,15 +57,19 @@ test.describe("Carnetización UI - Consola de emisión, plantillas y estadístic
   test("2. la consola busca por cédula y muestra los parámetros de emisión del titular", async ({
     page,
   }) => {
-    await page.goto("/carnetizacion/emision");
+    await page.goto("/carnetizacion/emision", { waitUntil: "domcontentloaded" });
+    // Espera la hidratación: si se escribe antes, React reinicia el input
+    // controlado al montar y la búsqueda nunca se dispara.
+    await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => {});
 
     const buscador = page.getByRole("searchbox", {
       name: /buscar personal para emisión de carnet/i,
     });
     await buscador.fill(CEDULA);
+    await expect(buscador).toHaveValue(CEDULA);
 
     const resultado = page.getByRole("button").filter({ hasText: NOMBRE }).first();
-    await expect(resultado).toBeVisible({ timeout: 20_000 });
+    await expect(resultado).toBeVisible({ timeout: 30_000 });
     await resultado.click();
 
     await expect(page.getByRole("heading", { level: 3, name: NOMBRE })).toBeVisible();
@@ -88,7 +92,7 @@ test.describe("Carnetización UI - Consola de emisión, plantillas y estadístic
     page,
   }) => {
     for (const ruta of ["/carnetizacion/buscar", `/carnetizacion/generar?cedula=${CEDULA}`]) {
-      await page.goto(ruta);
+      await page.goto(ruta, { waitUntil: "domcontentloaded" });
       await expect(
         page.getByRole("heading", { name: "Consola de Emisión de Credenciales" }),
       ).toBeVisible();
@@ -101,7 +105,7 @@ test.describe("Carnetización UI - Consola de emisión, plantillas y estadístic
   test("4. /carnetizacion/plantillas muestra el motor de plantillas y sus pestañas", async ({
     page,
   }) => {
-    await page.goto("/carnetizacion/plantillas");
+    await page.goto("/carnetizacion/plantillas", { waitUntil: "domcontentloaded" });
 
     await expect(page.getByRole("heading", { name: "Plantillas de Carnet" })).toBeVisible();
     await expect(
@@ -121,7 +125,7 @@ test.describe("Carnetización UI - Consola de emisión, plantillas y estadístic
   test("5. /carnetizacion/estadisticas muestra tarjetas de métricas y tabla de últimos carnets", async ({
     page,
   }) => {
-    await page.goto("/carnetizacion/estadisticas");
+    await page.goto("/carnetizacion/estadisticas", { waitUntil: "domcontentloaded" });
 
     await expect(
       page.getByRole("heading", { name: "Estadísticas de Carnetización" }),

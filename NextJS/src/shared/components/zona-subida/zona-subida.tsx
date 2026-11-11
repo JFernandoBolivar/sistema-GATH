@@ -47,48 +47,52 @@ export function ZonaSubida({
   }
 
   return (
-    <div
-      role="button"
-      tabIndex={disabled ? -1 : 0}
-      aria-label={etiquetaZona}
-      aria-disabled={disabled}
-      onClick={abrir}
-      onKeyDown={(e) => {
-        if (disabled) return;
-        if (e.key === "Enter" || e.key === " ") {
+    <>
+      <div
+        role="button"
+        tabIndex={disabled ? -1 : 0}
+        aria-label={etiquetaZona}
+        aria-disabled={disabled}
+        onClick={abrir}
+        onKeyDown={(e) => {
+          if (disabled) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
+        onDragOver={(e) => {
           e.preventDefault();
-          inputRef.current?.click();
-        }
-      }}
-      onDragOver={(e) => {
-        e.preventDefault();
-        if (!disabled) setArrastrando(true);
-      }}
-      onDragLeave={() => setArrastrando(false)}
-      onDrop={(e) => {
-        e.preventDefault();
-        setArrastrando(false);
-        if (disabled) return;
-        const archivo = e.dataTransfer.files?.[0];
-        if (archivo) onArchivo(archivo);
-      }}
-      className={cn(
-        "mx-auto flex w-full max-w-xl cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-input bg-muted/20 px-4 py-8 text-center transition-colors hover:border-primary/60 hover:bg-primary/5 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none sm:px-6 sm:py-10",
-        arrastrando && "border-primary bg-primary/5",
-        disabled && "cursor-not-allowed opacity-60",
-        className,
-      )}
-    >
-      <Upload className="size-10 text-muted-foreground" aria-hidden />
-      <p className="text-base font-semibold">{titulo}</p>
-      <p className="text-xs text-muted-foreground">{detalle}</p>
-      <p className="text-sm text-muted-foreground">{ayuda}</p>
+          if (!disabled) setArrastrando(true);
+        }}
+        onDragLeave={() => setArrastrando(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setArrastrando(false);
+          if (disabled) return;
+          const archivo = e.dataTransfer.files?.[0];
+          if (archivo) onArchivo(archivo);
+        }}
+        className={cn(
+          "mx-auto flex w-full max-w-xl cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-input bg-muted/20 px-4 py-8 text-center transition-colors hover:border-primary/60 hover:bg-primary/5 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none sm:px-6 sm:py-10",
+          arrastrando && "border-primary bg-primary/5",
+          disabled && "cursor-not-allowed opacity-60",
+          className,
+        )}
+      >
+        <Upload className="size-10 text-muted-foreground" aria-hidden />
+        <p className="text-base font-semibold">{titulo}</p>
+        <p className="text-xs text-muted-foreground">{detalle}</p>
+        <p className="text-sm text-muted-foreground">{ayuda}</p>
+      </div>
+      {/* Fuera del `role="button"`: un control enfocable dentro de otro control
+          interactivo es una violación de accesibilidad (nested-interactive). */}
       <input
         ref={inputRef}
         type="file"
         accept={accept}
         disabled={disabled}
-        aria-label={etiquetaInput}
+        aria-label={etiquetaInput ?? etiquetaZona}
         onClick={(e) => e.stopPropagation()}
         onChange={(e) => {
           const archivo = e.target.files?.[0];
@@ -98,7 +102,7 @@ export function ZonaSubida({
         }}
         className="sr-only"
       />
-    </div>
+    </>
   );
 }
 

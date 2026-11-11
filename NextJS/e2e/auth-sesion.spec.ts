@@ -36,6 +36,9 @@ test.describe("Ciclo de vida de sesión, tokens y aviso de inactividad E2E", () 
     await expect(page.getByText(/Tu sesión está por cerrarse por inactividad/i)).toHaveCount(0);
 
     // B. Avanzamos 14 minutos de inactividad (IDLE_TIMEOUT - GRACE_PERIOD = 840s)
+    // Se espera un instante real para que el efecto del temporizador se monte
+    // antes de adelantar el reloj virtual (si no, el aviso nunca se programa).
+    await page.waitForTimeout(3_000);
     await page.clock.fastForward(14 * 60 * 1000);
 
     // C. Debe mostrarse la ventana modal de aviso con sus componentes
@@ -113,7 +116,7 @@ test.describe("Ciclo de vida de sesión, tokens y aviso de inactividad E2E", () 
     await inputEmail.fill(EMAIL);
     await page.getByRole("button", { name: /iniciar sesión/i }).click();
 
-    await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
   });
 });
 

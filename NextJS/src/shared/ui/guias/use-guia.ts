@@ -163,8 +163,29 @@ export function useGuia({
         // Ignorar interacciones o clics espurios durante la animación
         animandoRef.current = true;
       },
-      onHighlighted: () => {
+      onHighlighted: (elemento) => {
         animandoRef.current = false;
+        // driver.js marca el elemento resaltado con `aria-haspopup`,
+        // `aria-expanded` y `aria-controls` de diálogo. Si el paso apunta a un
+        // contenedor genérico (div), esos atributos no están permitidos
+        // (`aria-allowed-attr`, crítico en axe). El popover ya tiene su propio
+        // `role="dialog"` y su etiqueta; se retiran del resaltado. driver.js los
+        // fija después de este hook, así que se limpian ahora y se observan
+        // durante la animación de entrada.
+        if (!(elemento instanceof HTMLElement)) return;
+        const limpiar = () => {
+          elemento.removeAttribute("aria-haspopup");
+          elemento.removeAttribute("aria-expanded");
+          elemento.removeAttribute("aria-controls");
+        };
+        limpiar();
+        window.setTimeout(limpiar, 0);
+        const observador = new MutationObserver(limpiar);
+        observador.observe(elemento, {
+          attributes: true,
+          attributeFilter: ["aria-haspopup", "aria-expanded", "aria-controls"],
+        });
+        window.setTimeout(() => observador.disconnect(), 1500);
       },
       onCloseClick: () => {
         // Cierre voluntario por el usuario
