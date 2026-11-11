@@ -39,6 +39,7 @@ PERMISOS_ADMINISTRACION = (
     'identidad.restablecer_acceso',
     'identidad.cambiar_correo_acceso',
     'configuracion.editar',
+    'personal.corregir_cedula',
 )
 
 
