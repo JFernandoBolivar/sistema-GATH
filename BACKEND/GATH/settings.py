@@ -444,6 +444,11 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
+    # F2-05: DRF calcula la IP del cliente desde `X-Forwarded-For` con este
+    # número de proxies de confianza. Next (y nginx, si está delante) reenvían
+    # la IP real; sin este ajuste DRF usaba la cabecera completa (falsificable)
+    # o, sin cabecera, la IP del contenedor de Next.
+    'NUM_PROXIES': config('DJANGO_NUM_PROXIES', default=1, cast=int),
     # B2.4 (C-1, S6): toda excepción sale por el sobre unificado, sin filtrar
     # detalle interno al cliente.
     'EXCEPTION_HANDLER': 'core.presentation.exception_handler.custom_exception_handler',

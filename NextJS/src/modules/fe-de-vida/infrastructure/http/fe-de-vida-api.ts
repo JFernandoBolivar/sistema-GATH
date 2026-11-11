@@ -349,6 +349,10 @@ export const feDeVidaApi = {
   verificacionInterna: (codigo: string) =>
     apiClient.get<ApiResponse<VerificacionApi>>(
       `${BASE}/constancias/verificar/${encodeURIComponent(codigo)}/`,
+      // F2-04: se consulta desde el render de la página; no refrescar aquí
+      // (no puede guardar cookies y Django ya habría rotado el refresh). Si el
+      // access venció, el caso de uso cae a la vía pública.
+      { sinRefresco: true },
     ),
   constancia: (id: string) => apiClient.getBlob(`${BASE}/mis-solicitudes/${id}/constancia/`),
 

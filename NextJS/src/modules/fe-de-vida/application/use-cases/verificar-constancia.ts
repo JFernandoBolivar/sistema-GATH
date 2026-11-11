@@ -26,7 +26,10 @@ async function consultar(
     const estado = estadoDe(error);
     if (estado === 404) return { tipo: "invalida" };
     if (estado === 429) return { tipo: "error", mensaje: MENSAJE_LIMITE };
-    if (interna && (estado === 401 || estado === 403)) return "sin-permiso";
+    // F2-04: si la vía interna falla (sesión vencida, refresh imposible, 401/403
+    // o cualquier 5xx) no se muestra el error genérico: se cae a la vía pública,
+    // que no depende de la sesión y devuelve la misma constancia.
+    if (interna) return "sin-permiso";
     return { tipo: "error", mensaje: MENSAJE_ERROR };
   }
 }

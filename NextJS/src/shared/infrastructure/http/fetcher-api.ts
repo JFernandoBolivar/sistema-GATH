@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { auth } from "#/auth";
 import { refreshTokens } from "@/lib/api-client";
 import { DJANGO_API_SERVER } from "@/shared/commons/api";
+import { ipDelCliente } from "@/shared/infrastructure/http/ip-cliente";
 import { SessionExpiredError, ApiHttpError } from "./errors";
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 
@@ -35,6 +36,14 @@ export interface RequestOptions {
    */
   params?: Record<string, string | number | boolean | undefined | null>;
   skipAuth?: boolean;
+  /**
+   * F2-04: no intentar refrescar `dj_access` en esta llamada. Un refresco desde
+   * el render de una página (Server Component) no puede escribir las cookies
+   * nuevas y Django ya rotó el refresh: se perdería la sesión. Sin refresco, si
+   * el access venció la llamada falla con `SessionExpiredError` y quien la hace
+   * decide (p. ej. la verificación del QR cae a la vía pública).
+   */
+  sinRefresco?: boolean;
 }
 
 function construirRuta(path: string, params?: RequestOptions["params"]): string {
@@ -49,7 +58,7 @@ function construirRuta(path: string, params?: RequestOptions["params"]): string 
   return path.includes("?") ? `${path}&${queryString}` : `${path}?${queryString}`;
 }
 
-async function getAccessToken(): Promise<string | null> {
+async function getAccessToken(sinRefresco = false): Promise<string | null> {
   const session = await auth();
   if (!session?.user) return null;
 
@@ -57,6 +66,7 @@ async function getAccessToken(): Promise<string | null> {
   const existing = cookieStore.get("dj_access")?.value;
   if (existing) return existing;
 
+  if (sinRefresco) return null;
   return refreshTokens();
 }
 
@@ -66,20 +76,24 @@ async function buildHeaders(
   isForm: boolean,
   skipAuth = false,
   authOpcional = false,
+  sinRefresco = false,
 ): Promise<Record<string, string>> {
-  const headers: Record<string, string> = {
+  const headersSalida: Record<string, string> = {
     "X-Trace-Id": traceId,
     ...extra,
   };
+  // F2-05: Django aplica el throttling por IP; sin esto vería la IP de Next.
+  const ip = await ipDelCliente();
+  if (ip) headersSalida["X-Forwarded-For"] = ip;
 
   if (!skipAuth) {
-    const token = await getAccessToken();
+    const token = await getAccessToken(sinRefresco);
     if (!token && !authOpcional) throw new SessionExpiredError();
-    if (token) headers["Authorization"] = `Bearer ${token}`;
+    if (token) headersSalida["Authorization"] = `Bearer ${token}`;
   }
 
-  if (!isForm) headers["Content-Type"] = "application/json";
-  return headers;
+  if (!isForm) headersSalida["Content-Type"] = "application/json";
+  return headersSalida;
 }
 
 async function extractError(
@@ -121,7 +135,9 @@ async function request<T>(
   isForm = false,
 ): Promise<T> {
   const traceId = options.traceId ?? generateTraceId();
-  let headers = await buildHeaders(options.headers, traceId, isForm, options.skipAuth, options.authOpcional);
+  let headers = await buildHeaders(
+    options.headers, traceId, isForm, options.skipAuth, options.authOpcional, options.sinRefresco,
+  );
   let response = await doFetch(path, init, headers);
 
   if (response.status === 401 && !options.skipAuth) {
@@ -129,6 +145,9 @@ async function request<T>(
       // La sesión no es válida para este endpoint público: se reintenta sin token.
       const { Authorization: _autorizacion, ...sinAuth } = headers;
       response = await doFetch(path, init, sinAuth);
+    } else if (options.sinRefresco) {
+      // Sin refresco permitido (render de página): que el llamador decida.
+      throw new SessionExpiredError();
     } else {
       const newToken = await refreshTokens();
       if (!newToken) throw new SessionExpiredError();
@@ -166,6 +185,7 @@ async function requestBlobConRespuesta(
     init.body instanceof FormData,
     options.skipAuth,
     options.authOpcional,
+    options.sinRefresco,
   );
   if (init.body && !(init.body instanceof FormData)) {
     headers["Content-Type"] = "application/json";
@@ -177,6 +197,8 @@ async function requestBlobConRespuesta(
     if (options.authOpcional) {
       const { Authorization: _autorizacion, ...sinAuth } = headers;
       response = await doFetch(path, init, sinAuth);
+    } else if (options.sinRefresco) {
+      throw new SessionExpiredError();
     } else {
       const newToken = await refreshTokens();
       if (!newToken) throw new SessionExpiredError();
