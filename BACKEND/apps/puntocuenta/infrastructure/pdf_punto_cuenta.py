@@ -179,7 +179,11 @@ def _construir_bloque_firmas(firmas: list[dict], styles: dict[str, ParagraphStyl
 def construir_pdf_punto_cuenta(dto: PuntoCuentaDTO, configuracion: dict | None = None, proceso: str | None = None) -> bytes:
     if configuracion is None:
         from apps.puntocuenta.application.use_cases.configurar_punto_cuenta import obtener_configuracion_activa
-        configuracion = obtener_configuracion_activa()
+        from apps.puntocuenta.infrastructure.repositories.repo_punto_cuenta_config_orm import (
+            RepoConfiguracionPuntoCuentaORM,
+        )
+
+        configuracion = obtener_configuracion_activa(RepoConfiguracionPuntoCuentaORM())
 
     generado_en = datetime.now()
     page_config = PAGE_CONFIG['portrait']

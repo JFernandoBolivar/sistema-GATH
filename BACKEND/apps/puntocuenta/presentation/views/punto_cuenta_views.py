@@ -32,6 +32,9 @@ from apps.puntocuenta.infrastructure.pdf_punto_cuenta import (
     construir_pdf_punto_cuenta,
     generar_vista_previa_pdf,
 )
+from apps.puntocuenta.infrastructure.repositories.repo_punto_cuenta_config_orm import (
+    RepoConfiguracionPuntoCuentaORM,
+)
 from apps.puntocuenta.infrastructure.repositories.repo_punto_cuenta_orm import RepoPuntoCuentaORM
 from apps.puntocuenta.infrastructure.serializers.punto_cuenta_lectura_serializers import (
     ActualizarConfiguracionPuntoCuentaSerializer,
@@ -126,7 +129,7 @@ class PuntoCuentaConfiguracionView(APIView):
         responses={200: ConfiguracionPuntoCuentaSerializer},
     )
     def get(self, request):
-        cfg = obtener_configuracion_activa()
+        cfg = obtener_configuracion_activa(RepoConfiguracionPuntoCuentaORM())
         return ok(ConfiguracionPuntoCuentaSerializer(cfg).data)
 
     @extend_schema(
@@ -139,7 +142,9 @@ class PuntoCuentaConfiguracionView(APIView):
         serializer = ActualizarConfiguracionPuntoCuentaSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        resultado = guardar_configuracion(serializer.validated_data, usuario_id=request.user.pk)
+        resultado = guardar_configuracion(
+            serializer.validated_data, usuario_id=request.user.pk, repo=RepoConfiguracionPuntoCuentaORM(),
+        )
 
         usuario = request.user
         registrar_auditoria(

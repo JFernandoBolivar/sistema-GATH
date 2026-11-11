@@ -7,7 +7,7 @@ metadatos. Puro: sin Django.
 """
 from dataclasses import dataclass
 
-from apps.autogestion.domain.value_objects.secciones import CODIGOS_SECCIONES
+from core.domain.secciones import CODIGOS_SECCIONES
 from core.domain.configuracion import (
     ALCANCES_CARNET,
     ALCANCE_CARNET_NADIE,

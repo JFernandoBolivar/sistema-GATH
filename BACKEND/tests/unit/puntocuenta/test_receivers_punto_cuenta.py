@@ -24,9 +24,18 @@ def _lector(activo: bool):
 
 @pytest.fixture
 def generar():
+    config = {
+        'version': 1,
+        'procesos_habilitados': {
+            'cambio_oficina': True, 'cambio_nivel': False, 'cambio_division': False,
+            'cambio_cargo_misma_oficina': False, 'egreso_activo': False,
+            'pase_a_pasivo': False, 'encargaduria_prestamo': False, 'cambio_estatus': False,
+        },
+    }
     with patch.object(r, 'RepoPuntoCuentaORM'), \
          patch.object(r, 'generar_punto_cuenta') as gen, \
          patch.object(r, 'adjuntar_documento_punto_cuenta'), \
+         patch.object(r, 'obtener_configuracion_activa', return_value=config), \
          patch.object(r, 'obtener_siguiente_correlativo', return_value=(1, '0001-2026')):
         gen.return_value = MagicMock(id=1, numero='0001-2026')
         yield gen

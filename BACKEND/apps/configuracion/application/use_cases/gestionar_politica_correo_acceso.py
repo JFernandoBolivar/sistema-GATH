@@ -12,20 +12,20 @@ from apps.configuracion.domain.correo_acceso import (
     generar_vista_previa_masiva,
     resolver_correo_para_trabajador,
 )
-from apps.configuracion.infrastructure.repositories.repo_politica_correo_acceso_orm import (
-    RepoPoliticaCorreoAccesoORM,
+from apps.configuracion.domain.ports.repo_politica_correo_acceso import (
+    RepoPoliticaCorreoAcceso,
 )
 from core.domain.exceptions import ValidationError
 
 
 def obtener_politica_correo_acceso(
-    repo: RepoPoliticaCorreoAccesoORM,
+    repo: RepoPoliticaCorreoAcceso,
 ) -> PoliticaCorreoAcceso:
     return repo.obtener_politica()
 
 
 def actualizar_politica_correo_acceso(
-    repo: RepoPoliticaCorreoAccesoORM,
+    repo: RepoPoliticaCorreoAcceso,
     datos: dict,
     actor_id: int | None = None,
 ) -> tuple[PoliticaCorreoAcceso, PoliticaCorreoAcceso]:

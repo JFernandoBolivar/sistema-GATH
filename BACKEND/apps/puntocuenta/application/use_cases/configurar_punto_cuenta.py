@@ -1,20 +1,25 @@
 """
 Casos de uso para leer y actualizar la configuración de Punto de Cuenta.
+
+El ORM y las transacciones viven en `infrastructure` (A2-02); aquí solo se
+calculan los valores y se llama al puerto `RepoConfiguracionPuntoCuenta`.
 """
+import logging
 from typing import Any
-from django.db import transaction
 
 from core.domain.configuracion import CLAVE_GENERAR_PUNTOS_CUENTA
 from core.infrastructure.providers import obtener_lector_configuracion
+from apps.puntocuenta.domain.ports.repo_punto_cuenta_config import RepoConfiguracionPuntoCuenta
 from apps.puntocuenta.domain.services.variables_plantilla import obtener_ayuda_variables
-from apps.puntocuenta.infrastructure.models.configuracion_punto_cuenta_model import (
-    ConfiguracionPuntoCuentaModel,
+from apps.puntocuenta.domain.value_objects.plantilla_punto_cuenta import (
     CUERPO_POR_DEFECTO,
     ENCABEZADO_POR_DEFECTO,
     FIRMAS_POR_DEFECTO,
     PROCESOS_POR_DEFECTO,
     TITULO_POR_DEFECTO,
 )
+
+logger = logging.getLogger('gath.puntocuenta')
 
 PRESENTADO_A_DEFECTO = "Director(a) General de la Comisión Nacional de Telecomunicaciones"
 CARGO_PRESENTADO_A_DEFECTO = "Director(a) General"
@@ -41,18 +46,15 @@ def _generacion_activa() -> bool:
     try:
         lector = obtener_lector_configuracion()
         return bool(lector.obtener_booleano(CLAVE_GENERAR_PUNTOS_CUENTA)) if lector is not None else False
-    except Exception:
+    except Exception:  # noqa: BLE001 - sin parámetro, la generación queda apagada
+        logger.warning('no se pudo leer %s; se asume apagado', CLAVE_GENERAR_PUNTOS_CUENTA, exc_info=True)
         return False
 
 
-def obtener_configuracion_activa() -> dict[str, Any]:
+def obtener_configuracion_activa(repo: RepoConfiguracionPuntoCuenta) -> dict[str, Any]:
     """Obtiene la configuración más reciente o los valores por defecto."""
     generar = _generacion_activa()
-    cfg = None
-    try:
-        cfg = ConfiguracionPuntoCuentaModel.objects.first()
-    except Exception:
-        cfg = None
+    cfg = repo.actual()
 
     if cfg is None:
         return {
@@ -138,74 +140,68 @@ def obtener_configuracion_activa() -> dict[str, Any]:
     }
 
 
-def guardar_configuracion(datos: dict[str, Any], usuario_id: int | None) -> dict[str, Any]:
+def guardar_configuracion(
+    datos: dict[str, Any], usuario_id: int | None, repo: RepoConfiguracionPuntoCuenta,
+) -> dict[str, Any]:
     """
     Crea una nueva versión de la configuración de punto de cuenta
     y actualiza el parámetro general `puntocuenta.generar` si fue provisto.
     """
-    with transaction.atomic():
-        if 'generar' in datos:
-            from apps.configuracion.application.use_cases.guardar_parametro import guardar_parametro
-            from apps.configuracion.infrastructure.repositories.repo_parametros_orm import RepoParametrosORM
-            guardar_parametro(
-                repo=RepoParametrosORM(),
-                clave=CLAVE_GENERAR_PUNTOS_CUENTA,
-                valor_nuevo='true' if datos['generar'] else 'false',
-                usuario_id=usuario_id,
-            )
+    if 'generar' in datos:
+        repo.guardar_generar(bool(datos['generar']), usuario_id)
 
-        cfg_actual = ConfiguracionPuntoCuentaModel.objects.first()
-        nueva_version = (cfg_actual.version + 1) if cfg_actual else 1
+    cfg_actual = repo.actual()
+    nueva_version = (cfg_actual.version + 1) if cfg_actual else 1
 
-        procesos = dict(PROCESOS_POR_DEFECTO)
-        if 'procesos_habilitados' in datos and isinstance(datos['procesos_habilitados'], dict):
-            procesos.update(datos['procesos_habilitados'])
-        elif cfg_actual and cfg_actual.procesos_habilitados:
-            procesos.update(cfg_actual.procesos_habilitados)
+    procesos = dict(PROCESOS_POR_DEFECTO)
+    if 'procesos_habilitados' in datos and isinstance(datos['procesos_habilitados'], dict):
+        procesos.update(datos['procesos_habilitados'])
+    elif cfg_actual and cfg_actual.procesos_habilitados:
+        procesos.update(cfg_actual.procesos_habilitados)
 
-        plantillas = dict(
-            datos.get('plantillas_procesos')
-            if 'plantillas_procesos' in datos
-            else (getattr(cfg_actual, 'plantillas_procesos', None) or {})
-        )
+    plantillas = dict(
+        datos.get('plantillas_procesos')
+        if 'plantillas_procesos' in datos
+        else (getattr(cfg_actual, 'plantillas_procesos', None) or {})
+    )
 
-        gen_actual = plantillas.get('general', {})
-        if not isinstance(gen_actual, dict):
-            gen_actual = {}
+    gen_actual = plantillas.get('general', {})
+    if not isinstance(gen_actual, dict):
+        gen_actual = {}
 
-        campos_seccion = [
-            'presentado_a', 'cargo_presentado_a', 'presentado_por', 'cargo_presentado_por',
-            'unidad', 'asunto', 'exposicion', 'propuesta', 'base_legal', 'observaciones_texto',
-            'incluir_presentado_a', 'incluir_presentado_por', 'incluir_asunto', 'incluir_exposicion',
-            'incluir_propuesta', 'incluir_base_legal', 'incluir_decision', 'incluir_observaciones',
-            'incluir_tabla_resumen', 'incluir_firmas',
-        ]
-        for c in campos_seccion:
-            if c in datos:
-                gen_actual[c] = datos[c]
-        plantillas['general'] = gen_actual
+    campos_seccion = [
+        'presentado_a', 'cargo_presentado_a', 'presentado_por', 'cargo_presentado_por',
+        'unidad', 'asunto', 'exposicion', 'propuesta', 'base_legal', 'observaciones_texto',
+        'incluir_presentado_a', 'incluir_presentado_por', 'incluir_asunto', 'incluir_exposicion',
+        'incluir_propuesta', 'incluir_base_legal', 'incluir_decision', 'incluir_observaciones',
+        'incluir_tabla_resumen', 'incluir_firmas',
+    ]
+    for c in campos_seccion:
+        if c in datos:
+            gen_actual[c] = datos[c]
+    plantillas['general'] = gen_actual
 
-        encabezado_str = str(
-            datos.get('encabezado') if 'encabezado' in datos
-            else (datos.get('asunto') if 'asunto' in datos
-            else (cfg_actual.encabezado if cfg_actual else ENCABEZADO_POR_DEFECTO))
-        )
-        cuerpo_str = str(
-            datos.get('cuerpo') if 'cuerpo' in datos
-            else (datos.get('exposicion') if 'exposicion' in datos
-            else (cfg_actual.cuerpo if cfg_actual else CUERPO_POR_DEFECTO))
-        )
+    encabezado_str = str(
+        datos.get('encabezado') if 'encabezado' in datos
+        else (datos.get('asunto') if 'asunto' in datos
+        else (cfg_actual.encabezado if cfg_actual else ENCABEZADO_POR_DEFECTO))
+    )
+    cuerpo_str = str(
+        datos.get('cuerpo') if 'cuerpo' in datos
+        else (datos.get('exposicion') if 'exposicion' in datos
+        else (cfg_actual.cuerpo if cfg_actual else CUERPO_POR_DEFECTO))
+    )
 
-        ConfiguracionPuntoCuentaModel.objects.create(
-            procesos_habilitados=procesos,
-            titulo=str(datos.get('titulo') or (cfg_actual.titulo if cfg_actual else TITULO_POR_DEFECTO)).strip(),
-            encabezado=encabezado_str,
-            cuerpo=cuerpo_str,
-            firmas=list(datos.get('firmas') if 'firmas' in datos else (cfg_actual.firmas if cfg_actual else FIRMAS_POR_DEFECTO)),
-            mostrar_nivel=bool(datos.get('mostrar_nivel', cfg_actual.mostrar_nivel if cfg_actual else True)),
-            plantillas_procesos=plantillas,
-            version=nueva_version,
-            actualizado_por_id=usuario_id,
-        )
+    repo.crear_version({
+        'procesos_habilitados': procesos,
+        'titulo': str(datos.get('titulo') or (cfg_actual.titulo if cfg_actual else TITULO_POR_DEFECTO)).strip(),
+        'encabezado': encabezado_str,
+        'cuerpo': cuerpo_str,
+        'firmas': list(datos.get('firmas') if 'firmas' in datos else (cfg_actual.firmas if cfg_actual else FIRMAS_POR_DEFECTO)),
+        'mostrar_nivel': bool(datos.get('mostrar_nivel', cfg_actual.mostrar_nivel if cfg_actual else True)),
+        'plantillas_procesos': plantillas,
+        'version': nueva_version,
+        'actualizado_por_id': usuario_id,
+    })
 
-        return obtener_configuracion_activa()
+    return obtener_configuracion_activa(repo)

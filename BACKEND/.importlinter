@@ -1290,3 +1290,175 @@ forbidden_modules =
     apps.autogestion
     apps.reportes
     apps.auditoria
+
+
+# ---- App configuracion (A2-03): contratos propios ----
+[importlinter:contract:apps-configuracion-domain-puro]
+name = apps.configuracion.domain no depende de framework ni librerias de I/O (B1)
+type = forbidden
+source_modules =
+    apps.configuracion.domain
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-configuracion-application-puro]
+name = apps.configuracion.application no depende de framework (B4)
+type = forbidden
+source_modules =
+    apps.configuracion.application
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-configuracion-capas]
+name = capas del modulo configuracion apuntan hacia adentro (B2/B3)
+type = layers
+layers =
+    apps.configuracion.presentation
+    apps.configuracion.infrastructure
+    apps.configuracion.application
+    apps.configuracion.domain
+
+[importlinter:contract:apps-configuracion-no-cruzado]
+name = apps.configuracion.domain/application no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.configuracion.domain
+    apps.configuracion.application
+forbidden_modules =
+    apps.identidad
+    apps.personal
+    apps.catalogos
+    apps.organizacion
+    apps.cargos
+    apps.movimientos
+    apps.pasivos
+    apps.familiares
+    apps.carnetizacion
+    apps.autogestion
+    apps.reportes
+
+[importlinter:contract:apps-configuracion-presentacion-no-cruzado]
+name = apps.configuracion.presentation no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.configuracion.presentation
+forbidden_modules =
+    apps.identidad
+    apps.personal
+    apps.catalogos
+    apps.organizacion
+    apps.cargos
+    apps.movimientos
+    apps.pasivos
+    apps.familiares
+    apps.carnetizacion
+    apps.autogestion
+    apps.reportes
+allow_indirect_imports = True
+
+[importlinter:contract:configuracion-independiente]
+name = apps.configuracion no importa de las apps legadas (B16)
+type = forbidden
+source_modules =
+    apps.configuracion
+forbidden_modules =
+    RAC
+    USER
+    CARNETIZACION
+    AUTOGESTION
+
+# ---- App puntocuenta (A2-03): contratos propios ----
+[importlinter:contract:apps-puntocuenta-domain-puro]
+name = apps.puntocuenta.domain no depende de framework ni librerias de I/O (B1)
+type = forbidden
+source_modules =
+    apps.puntocuenta.domain
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-puntocuenta-application-puro]
+name = apps.puntocuenta.application no depende de framework (B4)
+type = forbidden
+source_modules =
+    apps.puntocuenta.application
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-puntocuenta-capas]
+name = capas del modulo puntocuenta apuntan hacia adentro (B2/B3)
+type = layers
+layers =
+    apps.puntocuenta.presentation
+    apps.puntocuenta.infrastructure
+    apps.puntocuenta.application
+    apps.puntocuenta.domain
+
+[importlinter:contract:apps-puntocuenta-no-cruzado]
+name = apps.puntocuenta.domain/application no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.puntocuenta.domain
+    apps.puntocuenta.application
+forbidden_modules =
+    apps.identidad
+    apps.personal
+    apps.catalogos
+    apps.organizacion
+    apps.cargos
+    apps.movimientos
+    apps.pasivos
+    apps.familiares
+    apps.carnetizacion
+    apps.autogestion
+    apps.reportes
+    apps.configuracion
+
+[importlinter:contract:apps-puntocuenta-presentacion-no-cruzado]
+name = apps.puntocuenta.presentation no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.puntocuenta.presentation
+forbidden_modules =
+    apps.identidad
+    apps.personal
+    apps.catalogos
+    apps.organizacion
+    apps.cargos
+    apps.movimientos
+    apps.pasivos
+    apps.familiares
+    apps.carnetizacion
+    apps.autogestion
+    apps.reportes
+allow_indirect_imports = True
+
+[importlinter:contract:puntocuenta-independiente]
+name = apps.puntocuenta no importa de las apps legadas (B16)
+type = forbidden
+source_modules =
+    apps.puntocuenta
+forbidden_modules =
+    RAC
+    USER
+    CARNETIZACION
+    AUTOGESTION
