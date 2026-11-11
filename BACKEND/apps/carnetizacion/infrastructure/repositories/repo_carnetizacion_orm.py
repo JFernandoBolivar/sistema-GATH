@@ -41,7 +41,10 @@ from apps.carnetizacion.domain.entities.privacidad import (
     PRIVACIDAD_POR_DEFECTO,
     validar_preferencias_privacidad,
 )
-from apps.carnetizacion.domain.entities.verificacion_integracion import VerificacionCarnet
+from apps.carnetizacion.domain.entities.verificacion_integracion import (
+    VerificacionCarnet,
+    normalizar_documento,
+)
 from apps.carnetizacion.domain.services.plantilla_defecto import (
     plantilla_defecto_pasivo,
     plantilla_defecto_trabajador,
@@ -1315,7 +1318,7 @@ class RepoCarnetizacionORM:
         )
 
         carnet = (
-            CarnetEmitidoModel.objects.select_related('employee')
+            CarnetEmitidoModel.objects.select_related('employee', 'employee__nacionalidad')
             .filter(security_hash=security_hash)
             .first()
         )
@@ -1340,10 +1343,13 @@ class RepoCarnetizacionORM:
             if externa.estado != CredencialExternaModel.Estado.ACTIVA:
                 estado = 'VENCIDO' if externa.estado == CredencialExternaModel.Estado.VENCIDA else 'ANULADO'
                 return VerificacionCarnet(valido=False, estado=estado, mensaje='Credencial no vigente.')
+            cedula_externa, nacionalidad_externa = normalizar_documento(externa.documento)
             return VerificacionCarnet(
                 valido=True,
                 estado='VIGENTE',
-                cedula=externa.documento,
+                cedula=cedula_externa,
+                nacionalidad=nacionalidad_externa,
+                documento=externa.documento,
                 nombre=externa.nombre,
                 tipo_credencial=str(externa.tipo_credencial_id),
                 fecha_emision=externa.vigencia_desde.date().isoformat(),
@@ -1375,6 +1381,7 @@ class RepoCarnetizacionORM:
             valido=True,
             estado='VIGENTE',
             cedula=empleado.cedulaidentidad,
+            nacionalidad=(getattr(empleado.nacionalidad, 'codigo', None) or None) if empleado.nacionalidad_id else None,
             nombre=f"{empleado.nombres} {empleado.apellidos}".strip(),
             tipo_credencial='pasivo' if es_pasivo else 'trabajador',
             estado_laboral='PASIVO' if es_pasivo else estatus,

@@ -74,6 +74,7 @@ def test_vigente_devuelve_cedula_aunque_privacidad_la_oculte(cliente):
     d = resp.json()
     assert d['valido'] is True and d['estado'] == 'VIGENTE'
     assert d['cedula'] == 'V30799436'
+    assert 'nacionalidad' in d and d['documento'] is None
     assert d['nombre'] == 'Ana Pérez'
     assert d['tipo_credencial'] == 'trabajador'
     assert d['fecha_vencimiento']  # carnet anterior (NULL): se calcula en lectura
@@ -133,7 +134,9 @@ def test_credencial_externa_vigente_y_anulada(cliente):
         security_hash=secrets.token_hex(32), estado=CredencialExternaModel.Estado.ANULADA, **datos,
     )
     d = _get(cliente, activa.security_hash).json()
-    assert d['valido'] is True and d['cedula'] == 'V12345678' and d['tipo_credencial'] == 'visitante'
+    assert d['valido'] is True and d['tipo_credencial'] == 'visitante'
+    # Cédula normalizada a solo dígitos, nacionalidad aparte y el documento original intacto.
+    assert d['cedula'] == '12345678' and d['nacionalidad'] == 'V' and d['documento'] == 'V12345678'
     d = _get(cliente, anulada.security_hash).json()
     assert d['valido'] is False and d['estado'] == 'ANULADO' and d['cedula'] is None
 
@@ -209,3 +212,29 @@ def test_ficha_publica_acepta_ambos_formatos_y_rechaza_invalidos(cliente):
     assert cliente.get(f'/api/v1/carnetizacion/public/qr/{corto}/').status_code == 200
     r = cliente.get('/api/v1/carnetizacion/public/qr/no-valido/')
     assert r.json()['data']['estado'] == 'NO_REGISTRADO'
+
+
+def test_credencial_externa_con_pasaporte_no_inventa_cedula(cliente):
+    tipo, _ = TipoCredencialModel.objects.get_or_create(
+        codigo='visitante',
+        defaults={'nombre': 'Visitante', 'descripcion': 'v', 'grupo': 'externo', 'ancho_mm': 54,
+                  'alto_mm': 85.6, 'orientacion': 'vertical', 'activo': True, 'orden': 99},
+    )
+    ahora = timezone.now()
+    externa = CredencialExternaModel.objects.create(
+        security_hash=secrets.token_hex(32), tipo_credencial=tipo, nombre='Ana Visita',
+        documento='AB1234567', motivo='Reunión',
+        vigencia_desde=ahora - timedelta(hours=1), vigencia_hasta=ahora + timedelta(days=1),
+    )
+    d = _get(cliente, externa.security_hash).json()
+    assert d['valido'] is True
+    assert d['cedula'] is None and d['nacionalidad'] is None and d['documento'] == 'AB1234567'
+
+
+@pytest.mark.parametrize('documento,esperado', [
+    ('V-12.345.678', ('12345678', 'V')), ('e 1234567', ('1234567', 'E')), ('30799436', ('30799436', None)),
+    ('AB1234567', (None, None)), ('V-123', (None, None)), ('', (None, None)), (None, (None, None)),
+])
+def test_normalizar_documento(documento, esperado):
+    from apps.carnetizacion.domain.entities.verificacion_integracion import normalizar_documento
+    assert normalizar_documento(documento) == esperado

@@ -28,7 +28,9 @@ MODULO_AUDITORIA = 'carnetizacion'
 class VerificacionCarnetSerializer(serializers.Serializer):
     valido = serializers.BooleanField()
     estado = serializers.CharField(help_text='VIGENTE, ANULADO, VENCIDO o NO_REGISTRADO.')
-    cedula = serializers.CharField(allow_null=True)
+    cedula = serializers.CharField(allow_null=True, help_text='Solo dígitos, sin prefijo. En externos, null si el documento no es una cédula (p. ej. pasaporte).')
+    nacionalidad = serializers.CharField(required=False, allow_null=True, help_text="'V', 'E' o null si se desconoce.")
+    documento = serializers.CharField(required=False, allow_null=True, help_text='Solo credenciales externas: documento tal como se registró (cédula con prefijo, pasaporte...).')
     nombre = serializers.CharField(required=False)
     tipo_credencial = serializers.CharField(required=False, allow_null=True)
     estado_laboral = serializers.CharField(required=False, allow_null=True)
@@ -48,6 +50,8 @@ def _cuerpo(v) -> dict:
         'valido': True,
         'estado': v.estado,
         'cedula': v.cedula,
+        'nacionalidad': v.nacionalidad,
+        'documento': v.documento,
         'nombre': v.nombre,
         'tipo_credencial': v.tipo_credencial,
         'estado_laboral': v.estado_laboral,

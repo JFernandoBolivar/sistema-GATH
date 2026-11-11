@@ -527,6 +527,8 @@ Respuesta `200`:
   "valido": true,
   "estado": "VIGENTE",
   "cedula": "30799436",
+  "nacionalidad": "V",
+  "documento": null,
   "nombre": "JOSE FERNANDO BOLIVAR HURTADO",
   "tipo_credencial": "trabajador",
   "estado_laboral": "ACTIVO",
@@ -729,6 +731,8 @@ Carnet vigente (trabajador, pasivo o credencial externa):
   "valido": true,
   "estado": "VIGENTE",
   "cedula": "30799436",
+  "nacionalidad": "V",
+  "documento": null,
   "nombre": "JOSE FERNANDO BOLIVAR HURTADO",
   "tipo_credencial": "trabajador",
   "estado_laboral": "ACTIVO",
@@ -753,9 +757,15 @@ para un código con formato inválido):
 
 Notas:
 
-- `tipo_credencial` es `trabajador`, `pasivo` o el código del tipo de credencial externa
-  (p. ej. `visitante`); en externas, `cedula` es el documento registrado y
-  `estado_laboral` es `null`.
+- `tipo_credencial` es `trabajador`, `pasivo` o el código del tipo de credencial externa:
+  `visitante`, `contratista` o `trabajador_temporal`. En externas, `estado_laboral` es `null`.
+- `cedula` viene **siempre solo con dígitos**, sin prefijo ni puntos. `nacionalidad` es `V`, `E`
+  o `null` si se desconoce. En la tabla `Employee` la cédula es única, así que V y E con el mismo
+  número no pueden coexistir.
+- `documento` (solo externas) es el documento tal como se registró. Si es una cédula
+  (`V-12.345.678`, `E1234567`, `12345678`), `cedula` trae los dígitos y `nacionalidad` la letra.
+  Si es un pasaporte u otro documento, `cedula` y `nacionalidad` vienen en `null`: SILOG no
+  puede crear el Apoyo de forma automática y lo atiende el operador.
 - `fecha_vencimiento` es `null` para trabajadores mientras no se defina la vigencia; en
   credenciales externas trae la fecha de fin de vigencia.
 - La respuesta nunca incluye datos de salud, foto, contactos ni datos de vivienda.
