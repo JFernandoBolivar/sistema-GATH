@@ -930,3 +930,54 @@ def test_regenerar_constancia_solo_la_administradora_y_conserva_numero_y_codigo(
     constancia.refresh_from_db()
     assert constancia.codigo_verificacion == codigo
     assert AuditoriaLog.objects.filter(accion='CONSTANCIA_REGENERADA', recurso_id=constancia.numero).exists()
+
+
+def _validada_sin_constancia(administradora, pasivo, analista, ejecutar_on_commit):
+    """Deja una solicitud VALIDADA sin constancia, como cuando falla la emisión (L2-02)."""
+    pid = proceso_abierto(administradora)
+    sid = solicitud_enviada(pasivo, pid)
+    analista.post(f'{BASE}/solicitudes/{sid}/check/')
+    with ejecutar_on_commit():
+        administradora.post(f'{BASE}/solicitudes/{sid}/check/')
+    ConstanciaFeDeVidaModel.objects.filter(solicitud_id=sid).delete()
+    return sid
+
+
+def test_regenerar_recupera_la_constancia_de_una_validada_que_quedo_sin_emitir(
+    pasivo, analista, administradora, django_capture_on_commit_callbacks,
+):
+    """L2-02: antes «Regenerar» respondía 409 cuando la constancia no existía."""
+    sid = _validada_sin_constancia(
+        administradora, pasivo, analista, django_capture_on_commit_callbacks,
+    )
+    r = administradora.post(f'{BASE}/solicitudes/{sid}/regenerar-constancia/', {}, format='json')
+    assert r.status_code == 200, r.content
+    constancia = ConstanciaFeDeVidaModel.objects.get(solicitud_id=sid)
+    assert constancia.numero.startswith('FV-') and constancia.clave_pdf
+    assert AlmacenFalso.objetos[constancia.clave_pdf].startswith(b'%PDF')
+
+
+def test_constancias_faltantes_detecta_y_emite_las_validadas_sin_constancia(
+    pasivo, analista, administradora, django_capture_on_commit_callbacks, monkeypatch,
+):
+    """L2-02: comando de recuperación (dry-run detecta, --aplicar emite)."""
+    from io import StringIO
+
+    from django.core.management import call_command
+
+    monkeypatch.setattr(
+        'apps.fe_de_vida.management.commands.constancias_faltantes.SeaweedFSStorage', AlmacenFalso,
+    )
+    sid = _validada_sin_constancia(
+        administradora, pasivo, analista, django_capture_on_commit_callbacks,
+    )
+
+    salida = StringIO()
+    call_command('constancias_faltantes', stdout=salida)
+    assert 'sin constancia con PDF: 1' in salida.getvalue()
+    assert not ConstanciaFeDeVidaModel.objects.filter(solicitud_id=sid).exists()
+
+    salida = StringIO()
+    call_command('constancias_faltantes', '--aplicar', stdout=salida)
+    constancia = ConstanciaFeDeVidaModel.objects.get(solicitud_id=sid)
+    assert constancia.clave_pdf and AlmacenFalso.objetos[constancia.clave_pdf].startswith(b'%PDF')
