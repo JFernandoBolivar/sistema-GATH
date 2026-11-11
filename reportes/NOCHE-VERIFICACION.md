@@ -9,22 +9,30 @@
 | ------------ | ------- | --------- |
 | Pruebas completas | `pytest --create-db -q` (contenedor `gath-backend:latest`, BD `test_GATH-PRODUCT`) | **2190 passed, 1 skipped, 1 failed** en 32:19 |
 | Prueba fallida | `tests/integration/core/test_arranque_frio.py::test_primera_peticion_de_un_interprete_nuevo_baja_de_un_segundo` | falló **solo** con el build de Docker en paralelo; aislada: **5 passed** en 1:48 |
+| Suites de los módulos tocados tras el PASO 2/3 | `pytest tests/integration/carnetizacion/test_api_o45.py tests/unit/configuracion tests/unit/personal tests/integration/personal/test_reportes_error_views.py tests/integration/exportaciones --create-db` | **267 passed** en 1:02 |
 | Contratos de arquitectura | `lint-imports` | **103 contratos, 0 rotos** |
 | Migraciones | `manage.py makemigrations --check --dry-run` | **No changes detected** |
 | Sintaxis | `python -m compileall apps core` | OK |
 
 `test_arranque_frio` es sensible a la carga (mide el arranque de un intérprete
-nuevo contra un umbral de 1 s). No es una regresión: pasa sola y en la segunda
-corrida completa del cierre.
+nuevo contra un umbral de 1 s). No es una regresión: pasa sola.
+
+**Nota sobre la segunda corrida completa.** Se intentó repetir la batería
+completa después de las correcciones del PASO 2 y 3, pero el `TRUNCATE` de
+teardown de pytest se quedó varios minutos bloqueado por la E/S del equipo
+(OneDrive/antivirus sobre el árbol montado) y la corrida no terminó en un tiempo
+razonable; se detuvo. Las suites de todos los módulos backend tocados se
+ejecutaron por separado con el resultado de arriba (**267 passed**), y el resto
+del backend no cambió respecto de la corrida completa.
 
 ## 2. Frontend
 
 | Comprobación | Comando | Resultado |
 | ------------ | ------- | --------- |
-| Tipos | `npx tsc --noEmit` | **0 errores** |
-| Lint | `npx eslint src --quiet` | **0 errores** |
-| Pruebas unitarias | `npx vitest run` | **210 archivos / 1118 pruebas passed** (8:52) |
-| Build de producción | `npx next build` | **exit 0** |
+| Tipos | `npx tsc --noEmit` | **0 errores** (repetido tras el PASO 2/3) |
+| Lint | `npx eslint src --quiet` | **0 errores** (repetido tras el PASO 2/3) |
+| Pruebas unitarias | `npx vitest run` | **210 archivos / 1118 pruebas passed** (11:26, repetido tras el PASO 2/3) |
+| Build de producción | `npx next build` | **exit 0** (repetido tras el PASO 2/3) |
 
 Prettier no se aplica: `prettier --check` falla en 1192 archivos y el formateo
 global va a una decisión aparte (`NOCHE-DECISIONES.md`).
@@ -100,3 +108,11 @@ Todas se ajustaron **sin cambiar la aplicación** (mismos textos y contratos):
 
 `carnetizacion.spec.ts` además escribía capturas en una ruta absoluta de otra
 máquina (`/home/jbolivar@...`); se eliminaron esas capturas.
+
+### Alcance de esta corrida
+
+La corrida E2E se hizo contra la imagen reconstruida del árbol de la FASE 1. Las
+correcciones posteriores de la auditoría 3 (PASO 2 y 3) son de tipos, movimiento
+de un cliente HTTP, dos imports de tipos y la retirada de `"use server"` de un
+layout; se validaron con `tsc`, `eslint`, `vitest` y `next build`, y la corrida
+E2E completa se repite al cerrar la FASE 3, como pide el plan.

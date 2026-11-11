@@ -12,6 +12,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from core.infrastructure.pdf.report_excel import generar_reporte_excel
+from core.infrastructure.storage.validacion_archivo import MAX_BYTES_DOCUMENTO
 from core.presentation.envelope import fail, ok
 from core.presentation.permissions import HasAnyPermission, HasPermission
 from apps.carnetizacion.application.dtos.evento_dtos import (
@@ -327,7 +328,17 @@ class EventoInvitadosImportarView(APIView):
 
         archivo = request.FILES.get("archivo")
         if archivo:
+            # Validación de entrada: el import se lee entero en memoria, así que
+            # se acota el tamaño y se aceptan solo los formatos que se procesan.
+            if archivo.size > MAX_BYTES_DOCUMENTO:
+                return fail(
+                    "El archivo excede el tamaño máximo de "
+                    f"{MAX_BYTES_DOCUMENTO // (1024 * 1024)} MB.",
+                    status=400,
+                )
             nombre = archivo.name.lower()
+            if not nombre.endswith((".xlsx", ".csv")):
+                return fail("El archivo debe ser .xlsx o .csv.", status=400)
             if nombre.endswith(".xlsx"):
                 try:
                     import openpyxl

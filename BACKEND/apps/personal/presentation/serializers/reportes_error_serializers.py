@@ -3,6 +3,7 @@ Serializers DRF para Reportes de Error en Datos Laborales (C-1 / D-10).
 """
 from core.domain.limites_texto import OBSERVACION_MIN, mensajes_texto
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 
 from apps.personal.domain.entities.reporte_error import (
     LONGITUD_MAXIMA_DESCRIPCION,
@@ -63,12 +64,15 @@ class ReporteErrorLecturaSerializer(serializers.Serializer):
     atendido_el = serializers.DateTimeField(allow_null=True)
     observacion_atencion = serializers.CharField(allow_blank=True)
 
+    @extend_schema_field(serializers.CharField())
     def get_dato(self, obj) -> str:
         return str(getattr(obj.dato, 'value', obj.dato))
 
+    @extend_schema_field(serializers.CharField())
     def get_estado(self, obj) -> str:
         return str(getattr(obj.estado, 'value', obj.estado))
 
+    @extend_schema_field(serializers.CharField())
     def get_dato_etiqueta(self, obj) -> str:
         dato_val = getattr(obj.dato, 'value', str(obj.dato))
         return ETIQUETAS_DATO.get(dato_val, dato_val)

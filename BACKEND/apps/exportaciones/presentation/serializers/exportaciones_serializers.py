@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 
@@ -18,14 +19,18 @@ class TrabajoExportacionSerializer(serializers.Serializer):
     limite = serializers.SerializerMethodField()
     truncado = serializers.SerializerMethodField()
 
+    @extend_schema_field(serializers.CharField())
     def get_estado(self, obj) -> str:
         return obj.estado.value
 
+    @extend_schema_field(serializers.IntegerField(allow_null=True))
     def get_total_encontrados(self, obj):
         return obj.metadatos.get('total_encontrados')
 
+    @extend_schema_field(serializers.IntegerField(allow_null=True))
     def get_limite(self, obj):
         return obj.metadatos.get('limite')
 
+    @extend_schema_field(serializers.BooleanField())
     def get_truncado(self, obj):
         return bool(obj.metadatos.get('truncado'))

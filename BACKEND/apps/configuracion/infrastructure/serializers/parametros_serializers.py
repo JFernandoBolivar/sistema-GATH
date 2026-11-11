@@ -1,5 +1,6 @@
 """Serializers de los parámetros del sistema (D9)."""
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 
 
 class OpcionParametroSerializer(serializers.Serializer):
@@ -25,6 +26,7 @@ class ParametroSerializer(serializers.Serializer):
     opciones = OpcionParametroSerializer(many=True)
     depende_de = serializers.SerializerMethodField()
 
+    @extend_schema_field(serializers.DictField(allow_null=True))
     def get_depende_de(self, obj):
         dep = getattr(obj, 'depende_de', None)
         if not dep:

@@ -132,6 +132,26 @@ def _crear_evento(api: APIClient) -> dict:
     return respuesta.json()["data"]
 
 
+def test_importar_invitados_rechaza_extensiones_y_tamanos_no_admitidos(datos_base):
+    """PASO 3: el import se lee entero en memoria; solo .xlsx/.csv y hasta 10 MB."""
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    api = datos_base["api"]
+    evento = _crear_evento(api)
+
+    txt = SimpleUploadedFile("invitados.txt", b"nombre,correo\n", content_type="text/plain")
+    r = api.post(f"{BASE}/eventos/{evento['id']}/invitados/importar/", {"archivo": txt}, format="multipart")
+    assert r.status_code == 400, r.content
+    assert "xlsx o .csv" in r.content.decode()
+
+    grande = SimpleUploadedFile(
+        "invitados.csv", b"a,b\n" + b"x" * (10 * 1024 * 1024 + 10), content_type="text/csv",
+    )
+    r = api.post(f"{BASE}/eventos/{evento['id']}/invitados/importar/", {"archivo": grande}, format="multipart")
+    assert r.status_code == 400, r.content
+    assert "tamaño máximo" in r.content.decode()
+
+
 def test_todos_los_get_de_carnetizacion(datos_base):
     api = datos_base["api"]
     carnet = datos_base["carnet"]
