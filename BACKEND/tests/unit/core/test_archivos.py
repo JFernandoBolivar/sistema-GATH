@@ -139,10 +139,51 @@ def test_foto_empleado_post_guarda_con_clave_uuid_y_devuelve_ruta_de_la_api():
     assert resp.data["data"]["url"].startswith("/api/v1/personal/123/foto/")
 
 
+def _get_foto_autorizado(cedula_propia="123"):
+    from types import SimpleNamespace
+
+    request = APIRequestFactory().get("/api/v1/personal/123/foto/")
+    request.user = SimpleNamespace(cedula_id=cedula_propia, is_authenticated=True)
+    return request
+
+
+def test_foto_empleado_get_ajena_sin_permiso_es_403():
+    from apps.personal.presentation.views.personal_views import EmpleadoFotoView
+
+    request = _get_foto_autorizado(cedula_propia="999")
+    with patch("apps.personal.presentation.views.personal_views.usuario_tiene_permiso", return_value=False),             patch("apps.personal.presentation.views.personal_views.SeaweedFSStorage") as storage:
+        resp = EmpleadoFotoView().get(request, cedula="123")
+    assert resp.status_code == 403
+    storage.return_value.descargar_flujo.assert_not_called()
+
+
+def test_foto_empleado_get_ajena_con_ver_detalle_se_sirve():
+    from apps.personal.presentation.views.personal_views import EmpleadoFotoView
+
+    request = _get_foto_autorizado(cedula_propia="999")
+    with patch("apps.personal.presentation.views.personal_views.usuario_tiene_permiso",
+               side_effect=lambda u, c: c == "personal.ver_detalle"),             patch("apps.personal.presentation.views.personal_views.RepoPersonalORM") as repo,             patch("apps.personal.presentation.views.personal_views.SeaweedFSStorage") as storage:
+        repo.return_value.obtener_clave_foto.return_value = "perfiles/abc.png"
+        storage.return_value.descargar_flujo.return_value = iter([b"png"])
+        resp = EmpleadoFotoView().get(request, cedula="123")
+    assert resp.status_code == 200
+
+
+def test_foto_empleado_get_propia_sin_permisos_se_sirve():
+    from apps.personal.presentation.views.personal_views import EmpleadoFotoView
+
+    request = _get_foto_autorizado(cedula_propia="123")
+    with patch("apps.personal.presentation.views.personal_views.usuario_tiene_permiso", return_value=False),             patch("apps.personal.presentation.views.personal_views.RepoPersonalORM") as repo,             patch("apps.personal.presentation.views.personal_views.SeaweedFSStorage") as storage:
+        repo.return_value.obtener_clave_foto.return_value = "perfiles/abc.png"
+        storage.return_value.descargar_flujo.return_value = iter([b"png"])
+        resp = EmpleadoFotoView().get(request, cedula="123")
+    assert resp.status_code == 200
+
+
 def test_foto_empleado_get_sirve_el_binario_y_no_filtra_el_detalle_del_error():
     from apps.personal.presentation.views.personal_views import EmpleadoFotoView
 
-    request = APIRequestFactory().get("/api/v1/personal/123/foto/")
+    request = _get_foto_autorizado()
     view = EmpleadoFotoView()
     with patch("apps.personal.presentation.views.personal_views.RepoPersonalORM") as repo, \
             patch("apps.personal.presentation.views.personal_views.SeaweedFSStorage") as storage:
@@ -160,7 +201,7 @@ def test_foto_empleado_get_sirve_el_binario_y_no_filtra_el_detalle_del_error():
 def test_foto_empleado_get_sin_foto_es_not_found():
     from apps.personal.presentation.views.personal_views import EmpleadoFotoView
 
-    request = APIRequestFactory().get("/api/v1/personal/123/foto/")
+    request = _get_foto_autorizado()
     with patch("apps.personal.presentation.views.personal_views.RepoPersonalORM") as repo:
         repo.return_value.obtener_clave_foto.return_value = None
         with pytest.raises(NotFoundError):

@@ -100,11 +100,11 @@ function reproducirTono(tipo: "permitido" | "ya_ingreso" | "denegado") {
 /** Extrae el hash de un QR de carnet (URL nueva, texto GATH-ID o hash suelto). */
 function hashDeCarnet(codigo: string): string | null {
   const texto = codigo.trim();
-  const enUrl = texto.match(/\/carnet\/([a-f0-9]{64})/i);
+  const enUrl = texto.match(/\/carnet\/([a-f0-9]{64}|[A-Za-z0-9_-]{22})(?![A-Za-z0-9_-])/i);
   if (enUrl) return enUrl[1];
-  const enTexto = texto.match(/GATH-ID:\s*([a-f0-9]{64})/i);
+  const enTexto = texto.match(/GATH-ID:\s*([a-f0-9]{64}|[A-Za-z0-9_-]{22})(?![A-Za-z0-9_-])/i);
   if (enTexto) return enTexto[1];
-  return /^[a-f0-9]{64}$/i.test(texto) ? texto : null;
+  return /^([a-f0-9]{64}|[A-Za-z0-9_-]{22})$/i.test(texto) ? texto : null;
 }
 
 function dispararVibracion(tipo: "permitido" | "ya_ingreso" | "denegado") {

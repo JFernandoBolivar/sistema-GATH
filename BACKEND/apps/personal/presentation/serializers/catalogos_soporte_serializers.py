@@ -9,6 +9,7 @@ lectura: `{ id, nombre }`. Filas con un campo único de texto (`politicas`,
 para que el frontend las consuma igual.
 """
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 
 
 class PaisSerializer(serializers.Serializer):
@@ -33,6 +34,7 @@ class CatalogoItemSerializer(serializers.Serializer):
     region_descripcion = serializers.CharField(read_only=True, allow_null=True, required=False)
     region = serializers.SerializerMethodField(required=False)
 
+    @extend_schema_field(serializers.DictField(allow_null=True))
     def get_categoria(self, obj):
         cat_id = getattr(obj, 'categoria_id', None)
         cat_nom = getattr(obj, 'categoria_nombre', None)
@@ -40,6 +42,7 @@ class CatalogoItemSerializer(serializers.Serializer):
             return {'id': cat_id, 'nombre': cat_nom, 'nombre_categoria': cat_nom}
         return None
 
+    @extend_schema_field(serializers.DictField(allow_null=True))
     def get_tipo_prenda(self, obj):
         tipo_id = getattr(obj, 'tipo_prenda_id', None)
         tipo_nom = getattr(obj, 'tipo_prenda_nombre', None)
@@ -47,6 +50,7 @@ class CatalogoItemSerializer(serializers.Serializer):
             return {'id': tipo_id, 'categoria': tipo_nom}
         return None
 
+    @extend_schema_field(serializers.DictField(allow_null=True))
     def get_region(self, obj):
         reg_id = getattr(obj, 'region_id', None)
         reg_cod = getattr(obj, 'region_codigo', None)

@@ -18,6 +18,7 @@ Supuestos (el legado `RAC/services/egreso_services.py` no está en el repo):
 """
 from django.db import transaction
 
+from core.domain.catalogos import ESTATUS_ACTIVO, TIPO_PERSONAL_PASIVO
 from core.domain.categorias_motivo import CATEGORIAS_FALLECIMIENTO, MOTIVO_SISTEMA_PENSION_SOBREVIVIENTE
 from apps.catalogos.infrastructure.repositories.motivos_por_categoria import obtener_motivo_de_sistema
 
@@ -49,6 +50,13 @@ from apps.personal.infrastructure.models.expediente_models import (
 )
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from core.domain.exceptions import ConflictError, NotFoundError, ValidationError
+
+
+def _es_cedula_correlativa(cedula: str, cedula_titular: str) -> bool:
+    """L2-14: `titular-N`, la cédula sintética de un hijo menor sin cédula propia."""
+    prefijo = f'{str(cedula_titular).strip()}-'
+    resto = cedula[len(prefijo):] if cedula.startswith(prefijo) else ''
+    return bool(resto) and resto.isdigit()
 
 
 def _unir(*partes: str | None) -> str:
@@ -108,13 +116,21 @@ class RepoSobrevivientesORM:
         cedula = (familiar.cedulaFamiliar or '').strip()
         if not cedula:
             raise ValidationError('El familiar no tiene cédula registrada.')
+        # L2-14: la cédula correlativa (`titular-N`) es sintética y no sirve como
+        # `cedulaidentidad` inmutable del nuevo pasivo (no cumple el formato de los
+        # demás flujos y no se puede corregir después).
+        if _es_cedula_correlativa(cedula, cedula_titular):
+            raise ConflictError(
+                'El familiar solo tiene la cédula correlativa del titular. '
+                'Registre su cédula propia o cargue al representante antes de dar de alta la pensión.'
+            )
         nombre = _unir(familiar.primer_nombre, familiar.segundo_nombre,
                        familiar.primer_apellido, familiar.segundo_apellido)
 
         existente = EmployeeModel.objects.filter(cedulaidentidad=cedula).first()
         if existente:
             asig = AsigTrabajoModel.objects.filter(
-                employee=existente, Tipo_personal__tipo_personal__iexact='PASIVO'
+                employee=existente, Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO
             ).first()
             if asig:
                 return ResultadoAltaSobreviviente(cedula, nombre, False, asig.codigo)
@@ -125,8 +141,8 @@ class RepoSobrevivientesORM:
 
         try:
             tipo_nomina = TipoNominaModel.objects.get(pk=tipo_nomina_id)
-            estatus_activo = EstatusModel.objects.get(estatus__iexact='ACTIVO')
-            tipo_pasivo = TipoPersonalModel.objects.get(tipo_personal__iexact='PASIVO')
+            estatus_activo = EstatusModel.objects.get(estatus__iexact=ESTATUS_ACTIVO)
+            tipo_pasivo = TipoPersonalModel.objects.get(tipo_personal__iexact=TIPO_PERSONAL_PASIVO)
         except TipoNominaModel.DoesNotExist as exc:
             raise NotFoundError(f'Tipo de nómina {tipo_nomina_id} no encontrado.') from exc
         except (EstatusModel.DoesNotExist, TipoPersonalModel.DoesNotExist) as exc:

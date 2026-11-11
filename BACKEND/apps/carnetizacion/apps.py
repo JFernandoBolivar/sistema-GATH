@@ -1,4 +1,8 @@
+import logging
+
 from django.apps import AppConfig
+
+logger = logging.getLogger('gath.carnetizacion')
 
 
 class CarnetizacionConfig(AppConfig):
@@ -11,4 +15,5 @@ class CarnetizacionConfig(AppConfig):
             from apps.carnetizacion.infrastructure.signals_carnet import conectar_senales_carnet
             conectar_senales_carnet()
         except Exception:
-            pass
+            # La app debe arrancar aunque las señales fallen; el aviso queda en el log.
+            logger.warning('No se pudieron conectar las señales de carnetización.', exc_info=True)

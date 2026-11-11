@@ -12,6 +12,11 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { formatInTimeZone } from "date-fns-tz";
 import { Airplay, ArrowUpDown, Copy, MoreHorizontal } from "lucide-react";
 
+import {
+  ESTATUS_ACTIVO,
+  ESTATUS_SUSPENDIDO,
+  ESTATUS_VACANTE,
+} from "@/shared/domain/catalogos";
 import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
 import {
@@ -31,13 +36,13 @@ import {
 import type { CargoAsignacionDTO } from "../application/dtos/cargo-dto";
 
 function EstatusBadge({ estatusNombre, estaVacante }: { estatusNombre: string; estaVacante: boolean }) {
-  if (estaVacante || estatusNombre === "VACANTE") {
+  if (estaVacante || estatusNombre === ESTATUS_VACANTE) {
     return <Badge className="bg-green-700 text-white hover:bg-green-700">VACANTE</Badge>;
   }
-  if (estatusNombre === "ACTIVO") {
+  if (estatusNombre === ESTATUS_ACTIVO) {
     return <Badge className="bg-[#ffc523] text-black hover:bg-[#ffc523]">ACTIVO</Badge>;
   }
-  if (estatusNombre === "SUSPENDIDO") {
+  if (estatusNombre === ESTATUS_SUSPENDIDO) {
     return <Badge className="bg-gray-500 text-white hover:bg-gray-500">SUSPENDIDO</Badge>;
   }
   return <Badge variant="destructive">{estatusNombre}</Badge>;

@@ -2,6 +2,7 @@
 Vistas delgadas de Carnetización (Reglas B4, B7, O44 - E3).
 Con Envelope unificado `ok()` / `fail()` y permisos PBAC.
 """
+from django.db import transaction
 from django.http import HttpResponse
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -10,6 +11,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
+from core.domain.exceptions import ValidationError
 from core.infrastructure.storage.validacion_archivo import MAX_BYTES_IMAGEN, TIPOS_IMAGEN, clave_segura, validar_archivo
 from core.presentation.envelope import fail, ok
 from core.presentation.permissions import HasPermission
@@ -17,6 +19,10 @@ from apps.carnetizacion.application.use_cases.consultar_qr import (
     consultar_ficha_qr_uc,
     guardar_privacidad_por_cedula_uc,
     obtener_privacidad_por_cedula_uc,
+)
+from apps.carnetizacion.application.use_cases.emitir_carnet import (
+    emitir_carnet_y_pdf,
+    listar_motivos_emision,
 )
 from apps.carnetizacion.application.use_cases.generar_pdf_carnet import generar_pdf_carnet
 from apps.carnetizacion.application.use_cases.gestionar_campos import (
@@ -123,7 +129,7 @@ class RevocarCarnetView(APIView):
 
 
 class ValidarCarnetHashView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.ver')]
 
     @extend_schema(tags=['Carnetización'], summary='Validar autenticidad de carnet por hash SHA-256', responses={200: ValidacionCarnetSerializer})
     def get(self, request, security_hash: str):
@@ -527,9 +533,7 @@ class MotivosEmisionListView(APIView):
 
     @extend_schema(tags=['Carnetización'], summary='Listar motivos de emisión de carnet')
     def get(self, request):
-        from apps.carnetizacion.infrastructure.models.carnetizacion_models import MotivosEmisionModel
-        motivos = MotivosEmisionModel.objects.all().order_by('nombre')
-        return ok([{"id": m.id, "nombre": m.nombre} for m in motivos])
+        return ok(listar_motivos_emision(RepoCarnetizacionORM()))
 
 
 class CarnetActualizarVistaPreviaView(APIView):
@@ -581,14 +585,24 @@ class CarnetGenerarView(APIView):
         datos_editados = request.data.get('datos_editados', {})
         nombre_override = datos_editados.get('nombre') if isinstance(datos_editados, dict) else None
 
-        repo = RepoCarnetizacionORM()
-        carnet = repo.emitir_carnet(
-            empleado_cedula=cedula,
-            motivo_id=int(motivo_id) if motivo_id else 1,
-            observaciones=observaciones,
-            plantilla_id=plantilla_id,
-        )
-        pdf_bytes = repo.generar_pdf(carnet_id=carnet.id, nombre_override=nombre_override)
+        try:
+            motivo = int(motivo_id) if motivo_id else 1
+        except (TypeError, ValueError):
+            raise ValidationError(
+                'El motivo de emisión no es válido.', campo='motivo_id',
+            ) from None
+
+        # L2-18: emisión y PDF en la misma transacción: si el PDF falla no queda
+        # un carnet nuevo con el anterior ya anulado.
+        with transaction.atomic():
+            pdf_bytes = emitir_carnet_y_pdf(
+                RepoCarnetizacionORM(),
+                empleado_cedula=cedula,
+                motivo_id=motivo,
+                observaciones=observaciones,
+                plantilla_id=plantilla_id,
+                nombre_override=nombre_override,
+            )
         # O46-A: el endpoint debe devolver el PDF binario, no un sobre JSON en base64.
         response = HttpResponse(pdf_bytes, content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="carnet_{cedula}.pdf"'
@@ -605,6 +619,18 @@ def _aplicar_cabeceras_anti_rastreo(response: HttpResponse) -> HttpResponse:
     return response
 
 
+def _datos_auditoria_request(request) -> tuple[str, str]:
+    """IP y user-agent acotados a las columnas de la bitácora.
+
+    X-Forwarded-For puede traer una cadena larga o varias IPs; se toma la
+    primera y se recorta a 45 caracteres (límite de `BitacoraAccesoQrModel.ip`).
+    El user-agent se recorta a 500 para no almacenar cabeceras abusivas.
+    """
+    reenviada = (request.META.get('HTTP_X_FORWARDED_FOR') or '').split(',')[0].strip()
+    ip = reenviada or request.META.get('REMOTE_ADDR', '')
+    return str(ip)[:45], str(request.META.get('HTTP_USER_AGENT', ''))[:500]
+
+
 class FichaQrPublicaView(APIView):
     """
     Consulta pública y segura de la ficha de carnetización a través del código QR (O44 - E9).
@@ -615,8 +641,7 @@ class FichaQrPublicaView(APIView):
 
     @extend_schema(tags=['Carnetización'], summary='Consultar ficha de verificación QR del carnet', responses={200: FichaQrSerializer})
     def get(self, request, security_hash: str):
-        ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', ''))
-        ua = request.META.get('HTTP_USER_AGENT', '')
+        ip, ua = _datos_auditoria_request(request)
         repo = RepoCarnetizacionORM()
         ficha = consultar_ficha_qr_uc(
             repo,
@@ -640,8 +665,7 @@ class FichaQrMedicaView(APIView):
 
     @extend_schema(tags=['Carnetización'], summary='Apertura auditada de datos médicos de emergencia', responses={200: FichaQrSerializer})
     def post(self, request, security_hash: str):
-        ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', ''))
-        ua = request.META.get('HTTP_USER_AGENT', '')
+        ip, ua = _datos_auditoria_request(request)
         repo = RepoCarnetizacionORM()
         ficha = consultar_ficha_qr_uc(
             repo,

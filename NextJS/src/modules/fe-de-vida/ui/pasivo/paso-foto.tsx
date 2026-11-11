@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import { CapturaFoto, type OrigenFoto } from "@/shared/components/captura-foto/captura-foto";
 import { AyudaPermisoCamara } from "./ayuda-permiso-camara";
 
+/** F2-11: se admite un original grande porque la validación final es tras reducir. */
+const MAX_BYTES_ORIGINAL = 25 * 1024 * 1024;
+
 interface Props {
   /** Ya hay una foto guardada en el servidor y no se exige otra. */
   fotoVigente: boolean;
@@ -78,6 +81,7 @@ export function PasoFoto({
       {mostrarCaptura ? (
         <CapturaFoto
           etiqueta="Foto con su cédula"
+          maxBytes={MAX_BYTES_ORIGINAL}
           valorInicial={fotoElegida}
           nombreArchivo="fe-de-vida-cedula.jpg"
           disabled={subiendo}

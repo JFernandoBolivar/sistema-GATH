@@ -1,5 +1,7 @@
 """Verificación PÚBLICA de la constancia (la que abre el QR del documento impreso): sin sesión, con throttle por IP."""
 from drf_spectacular.utils import extend_schema
+import logging
+
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 
@@ -14,12 +16,12 @@ from apps.fe_de_vida.presentation.serializers.fe_de_vida_serializers import (
 )
 from apps.fe_de_vida.presentation.views._comun import auditar
 from core.domain.exceptions import NotFoundError
-from core.infrastructure.models.auditoria import AuditoriaLog
 from core.presentation.envelope import ok
 from core.presentation.schema import MensajeRespuestaSerializer
 
+logger = logging.getLogger('gath.fe_de_vida')
+
 RECURSO_CONSTANCIA = 'ConstanciaFeDeVida'
-RECURSO_DESCONOCIDO = 'N/D'  # no se guarda el código consultado: es dato del visitante, sin validar
 
 
 class VerificarConstanciaPublicaView(APIView):
@@ -45,10 +47,10 @@ class VerificarConstanciaPublicaView(APIView):
                 RepoConstanciasORM(), RepoSolicitudesFeDeVidaORM(), RepoProcesosORM(), LectorPasivosORM(), codigo=codigo,
             )
         except NotFoundError:
-            auditar(
-                request, 'CONSTANCIA_VERIFICADA_PUBLICA', RECURSO_DESCONOCIDO, None, None,
-                recurso_tipo=RECURSO_CONSTANCIA, resultado=AuditoriaLog.Resultado.FAILED,
-            )
+            # L2-20: no se audita la consulta fallida. Cada escritura de auditoría
+            # toma un bloqueo asesor global; un bot recorriendo códigos serializaba
+            # la auditoría de todo el sistema. El 404 es idéntico para el visitante.
+            logger.info('constancia pública no encontrada')
             raise
         auditar(request, 'CONSTANCIA_VERIFICADA_PUBLICA', v.numero, None, None, recurso_tipo=RECURSO_CONSTANCIA)
         return ok(a_dict_verificacion_publica(v))

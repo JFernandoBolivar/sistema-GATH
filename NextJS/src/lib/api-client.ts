@@ -5,6 +5,7 @@ import { AuthSessionExpiredError } from "./auth-errors";
 import { cache } from "react";
 import { DJANGO_API_SERVER } from "@/shared/commons/api";
 import { authCookieSecure } from "@/shared/commons/auth-cookies";
+import { ipDelCliente } from "@/shared/infrastructure/http/ip-cliente";
 
 const AUTH_COOKIE_PREFIXES = [
   "authjs.session-token",
@@ -128,7 +129,15 @@ async function getAuthHeaders(): Promise<Record<string, string> | null> {
   const accessToken = await getValidAccessToken();
   if (!accessToken) return null;
 
-  return { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
+  const cabeceras: Record<string, string> = {
+    Authorization: `Bearer ${accessToken}`,
+    "Content-Type": "application/json",
+  };
+  // F2-05: reenviar la IP real del visitante para el throttling y la auditoría
+  // de Django (el valor lo pone el proxy de entrada; solo se toma el primero).
+  const ip = await ipDelCliente();
+  if (ip) cabeceras["X-Forwarded-For"] = ip;
+  return cabeceras;
 }
 
 function buildApiUrl(url: string): string {

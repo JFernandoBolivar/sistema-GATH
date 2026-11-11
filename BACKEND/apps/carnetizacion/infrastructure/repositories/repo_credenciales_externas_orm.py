@@ -1,13 +1,11 @@
 """
 Repositorio ORM de credenciales externas y temporales (O45-A).
 """
+import logging
 import base64
-import hashlib
-import secrets
 from datetime import datetime
 from typing import Any
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
@@ -16,6 +14,8 @@ from apps.carnetizacion.domain.entities.credencial_externa import CredencialExte
 from apps.carnetizacion.domain.services.plantilla_defecto import (
     plantilla_defecto_trabajador,
 )
+from apps.carnetizacion.domain.services.vigencia_carnet import TIPO_VIGENCIA_EXTERNO
+from apps.carnetizacion.infrastructure.codigo_qr import codigo_qr_unico
 from apps.carnetizacion.infrastructure.mappers.mapper_carnetizacion import (
     credencial_externa_a_entidad,
 )
@@ -26,6 +26,9 @@ from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
 )
 from apps.carnetizacion.infrastructure.models.credencial_externa_model import (
     CredencialExternaModel,
+)
+from apps.carnetizacion.infrastructure.repositories.repo_carnetizacion_orm import (
+    vencimiento_segun_parametros,
 )
 from apps.carnetizacion.infrastructure.pdf.carnet_pdf import (
     DatosCarnetPdf,
@@ -40,9 +43,11 @@ from apps.notificaciones.infrastructure.planificador_envio_celery import (
 from apps.notificaciones.infrastructure.repositories.repo_outbox_orm import RepoOutboxORM
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
+
 from core.domain.exceptions import NotFoundError, ValidationError
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
 
+logger = logging.getLogger('gath.carnetizacion')
 
 class RepoCredencialesExternasORM:
     def __init__(self, almacen: Any = None) -> None:
@@ -122,7 +127,7 @@ class RepoCredencialesExternasORM:
         documento: str,
         motivo: str,
         vigencia_desde: datetime,
-        vigencia_hasta: datetime,
+        vigencia_hasta: datetime | None = None,
         correo: str = '',
         empresa: str = '',
         contrato: str = '',
@@ -139,6 +144,9 @@ class RepoCredencialesExternasORM:
                 'El tipo de credencial no pertenece a esta pantalla.',
                 'tipo_credencial',
             )
+        if vigencia_hasta is None:
+            # Sin fecha final: se aplica la vigencia por defecto (días) de Gestión del Sistema.
+            vigencia_hasta = vencimiento_segun_parametros(vigencia_desde, TIPO_VIGENCIA_EXTERNO)
         if vigencia_hasta <= vigencia_desde:
             raise ValidationError(
                 'La vigencia final debe ser posterior a la inicial.',
@@ -161,12 +169,7 @@ class RepoCredencialesExternasORM:
                 'empleado_cedula',
             )
 
-        now = timezone.now()
-        raw = (
-            f"{tipo_codigo}|{documento}|{now.isoformat()}|"
-            f"{settings.SECRET_KEY}|{secrets.token_hex(16)}"
-        )
-        security_hash = hashlib.sha256(raw.encode('utf-8')).hexdigest()
+        security_hash = codigo_qr_unico()
         creado_por_id = (
             getattr(creado_por, 'pk', None)
             if isinstance(creado_por, get_user_model())
@@ -290,6 +293,9 @@ class RepoCredencialesExternasORM:
                 try:
                     foto_bytes = self._almacen.descargar(emp.profile) or None
                 except Exception:
+                    logger.warning(
+                        'No se pudo leer la foto de la credencial externa.', exc_info=True,
+                    )
                     foto_bytes = None
         else:
             nombre = fila.nombre
@@ -310,6 +316,7 @@ class RepoCredencialesExternasORM:
             'persona_visitada': fila.persona_visitada,
             'vigencia_desde': fila.vigencia_desde.isoformat(),
             'vigencia_hasta': fila.vigencia_hasta.isoformat(),
+            'vence': fila.vigencia_hasta.strftime('%d/%m/%Y'),
             'foto_bytes': foto_bytes,
         }
         return datos, definicion

@@ -1,7 +1,7 @@
 """Unitarios (sin BD) de reenviar y regenerar constancia de fe de vida (A8)."""
 import itertools
 from dataclasses import replace
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
@@ -140,14 +140,18 @@ def test_reenviar_constancia_limite_diario():
     )
 
     # 5 reenvíos permitidos
+    claves = set()
     for i in range(LIMITE_REENVIOS_DIARIOS):
         res = reenviar_constancia(
             m.solicitudes, repo_const, m.procesos, lector, notificador,
             solicitud_id=s_val.id, actor_cedula=ADMINISTRADORA.cedula, ahora=AHORA,
         )
         assert res['reenvios_hoy'] == i + 1
-        # Cada reenvío es un hecho distinto para el outbox (no se deduplica).
-        assert notificador.notificaciones[-1].clave == f'reenvio-{i + 1}'
+        # Cada reenvío es un hecho distinto para el outbox: clave única (L2-01).
+        clave = notificador.notificaciones[-1].clave
+        assert clave.startswith('reenvio-')
+        claves.add(clave)
+    assert len(claves) == LIMITE_REENVIOS_DIARIOS
 
     # El 6.º debe ser rechazado
     with pytest.raises(ConflictError, match="límite de 5 reenvíos por día"):
@@ -155,6 +159,37 @@ def test_reenviar_constancia_limite_diario():
             m.solicitudes, repo_const, m.procesos, lector, notificador,
             solicitud_id=s_val.id, actor_cedula=ADMINISTRADORA.cedula, ahora=AHORA,
         )
+
+
+def test_reenvio_en_dias_distintos_vuelve_a_notificar():
+    """L2-01: antes la clave `reenvio-1` se repetía cada día y el segundo día no salía correo."""
+    m = Mundo()
+    s = m.solicitud_enviada()
+    revision.dar_check(m.solicitudes, m.aplicador, m.publicador, solicitud_id=s.id, actor=ANALISTA, ahora=AHORA)
+    s_val = revision.dar_check(m.solicitudes, m.aplicador, m.publicador, solicitud_id=s.id, actor=ADMINISTRADORA, ahora=AHORA)
+
+    repo_const = RepoConstanciasMem()
+    lector = LectorPasivosMem()
+    notificador = NotificadorMem()
+    emitir_constancia(
+        m.procesos, m.solicitudes, repo_const, lector, GeneradorMem(), m.storage,
+        solicitud_id=s_val.id, url_verificacion_base=URL, ahora=AHORA,
+    )
+
+    reenviar_constancia(
+        m.solicitudes, repo_const, m.procesos, lector, notificador,
+        solicitud_id=s_val.id, actor_cedula=ADMINISTRADORA.cedula, ahora=AHORA,
+    )
+    dia_siguiente = AHORA + timedelta(days=1)
+    res = reenviar_constancia(
+        m.solicitudes, repo_const, m.procesos, lector, notificador,
+        solicitud_id=s_val.id, actor_cedula=ADMINISTRADORA.cedula, ahora=dia_siguiente,
+    )
+
+    assert res['reenvios_hoy'] == 1  # el límite es diario
+    assert len(notificador.notificaciones) == 2
+    claves = [n.clave for n in notificador.notificaciones]
+    assert claves[0] != claves[1]
 
 
 def test_regenerar_constancia_conserva_numero_y_actualiza_plantilla():
@@ -187,6 +222,32 @@ def test_regenerar_constancia_conserva_numero_y_actualiza_plantilla():
     assert c2.codigo_verificacion == codigo_original
     assert c2.plantilla_version == 2
     assert repo_const.obtener_de_solicitud(s_val.id).plantilla_version == 2
+
+
+def test_regenerar_sin_constancia_la_emite_y_luego_conserva_el_numero():
+    """L2-02: una VALIDADA sin constancia se recupera; la segunda pasada es idempotente."""
+    m = Mundo()
+    s = m.solicitud_enviada()
+    revision.dar_check(m.solicitudes, m.aplicador, m.publicador, solicitud_id=s.id, actor=ANALISTA, ahora=AHORA)
+    s_val = revision.dar_check(m.solicitudes, m.aplicador, m.publicador, solicitud_id=s.id, actor=ADMINISTRADORA, ahora=AHORA)
+
+    repo_const = RepoConstanciasMem()
+    lector = LectorPasivosMem()
+    assert repo_const.obtener_de_solicitud(s_val.id) is None
+
+    emitida = regenerar_constancia(
+        m.procesos, m.solicitudes, repo_const, lector, GeneradorMem(), m.storage,
+        solicitud_id=s_val.id, url_verificacion_base=URL, ahora=AHORA,
+    )
+    assert emitida.clave_pdf
+    assert repo_const.obtener_de_solicitud(s_val.id).clave_pdf == emitida.clave_pdf
+
+    otra_vez = regenerar_constancia(
+        m.procesos, m.solicitudes, repo_const, lector, GeneradorMem(), m.storage,
+        solicitud_id=s_val.id, url_verificacion_base=URL, ahora=AHORA,
+    )
+    assert otra_vez.numero == emitida.numero
+    assert otra_vez.codigo_verificacion == emitida.codigo_verificacion
 
 
 def test_acciones_disponibles_en_solicitud_validada():

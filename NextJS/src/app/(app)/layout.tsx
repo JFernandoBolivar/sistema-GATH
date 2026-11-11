@@ -1,4 +1,3 @@
-"use server";
 import { Toaster } from "@/components/ui/sonner";
 import { SessionProvider } from "next-auth/react";
 import {

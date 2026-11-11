@@ -4,6 +4,9 @@ from unittest.mock import Mock
 
 import pytest
 
+from django.db.models import ProtectedError
+
+from core.domain.exceptions import ConflictError
 from apps.carga_masiva.infrastructure.aplicacion import (
     _notificar_aprobacion,
     aplicar_carga,
@@ -207,3 +210,71 @@ def test_notifica_al_aprobador_y_excluye_al_solicitante(datos, monkeypatch):
     assert solicitud.permiso_destino == 'personal.carga_masiva_aprobar'
     assert solicitud.excluir_cedulas == ('99000400',)
     assert solicitud.ref_id == str(carga.id)
+
+
+def _fila_hijo(parentesco='HIJO (A)'):
+    return {
+        'tipo': 'familiares',
+        'datos': {
+            'cedula_titular': '99000400', 'nombres': 'LUCIA', 'apellidos': 'PEREZ',
+            'parentesco_id': parentesco, 'fecha_nacimiento': '2022-01-01',
+            'sexo_id': 'M', 'orden_hijo': 1,
+        },
+    }
+
+
+def test_l2_05_segunda_aplicacion_con_carga_desactualizada_se_rechaza(datos):
+    ParentescoModel.objects.create(descripcion_parentesco='HIJO (A)')
+    carga = _carga([_fila_hijo()])
+    obsoleta = CargaMasivaModel.objects.get(pk=carga.pk)  # leída antes de aplicar
+    aplicar_carga(carga, '1')
+    with pytest.raises(ConflictError):
+        aplicar_carga(obsoleta, '1')
+    assert EmployeefamilyModel.objects.filter(employeecedula_id='99000400').count() == 1
+
+
+def test_l2_05_filas_ya_aplicadas_no_se_reaplican(datos):
+    ParentescoModel.objects.create(descripcion_parentesco='HIJO (A)')
+    carga = _carga([_fila_hijo()])
+    aplicar_carga(carga, '1')
+    CargaMasivaModel.objects.filter(pk=carga.pk).update(estado=CargaMasivaModel.Estado.ANALIZADA)
+    aplicar_carga(CargaMasivaModel.objects.get(pk=carga.pk), '1')
+    assert EmployeefamilyModel.objects.filter(employeecedula_id='99000400').count() == 1
+
+
+def test_l2_10_revertir_con_registros_protegidos_da_conflicto(datos, monkeypatch):
+    ParentescoModel.objects.create(descripcion_parentesco='HIJO (A)')
+    carga = _carga([_fila_hijo()])
+    aplicar_carga(carga, '1')
+
+    def _protegido(self, *args, **kwargs):
+        raise ProtectedError('protegido', [])
+
+    monkeypatch.setattr(EmployeefamilyModel, 'delete', _protegido)
+    with pytest.raises(ConflictError):
+        revertir_carga(CargaMasivaModel.objects.get(pk=carga.pk))
+    carga.refresh_from_db()
+    assert carga.estado == CargaMasivaModel.Estado.APLICADA
+    assert EmployeefamilyModel.objects.filter(employeecedula_id='99000400').count() == 1
+
+
+def test_l2_10_revertir_con_carga_desactualizada_se_rechaza(datos):
+    ParentescoModel.objects.create(descripcion_parentesco='HIJO (A)')
+    carga = _carga([_fila_hijo()])
+    aplicar_carga(carga, '1')
+    obsoleta = CargaMasivaModel.objects.get(pk=carga.pk)
+    revertir_carga(carga)
+    with pytest.raises(ConflictError):
+        revertir_carga(obsoleta)
+
+
+def test_l2_11_registra_filas_fallidas_y_conserva_el_estado(datos, caplog):
+    ParentescoModel.objects.create(descripcion_parentesco='HIJO (A)')
+    carga = _carga([_fila_hijo(), _fila_hijo('NO EXISTE')])
+    with caplog.at_level('WARNING'):
+        aplicar_carga(carga, '1')
+    assert carga.estado == CargaMasivaModel.Estado.APLICADA
+    assert carga.filas_fallidas_aplicacion == 1
+    assert 'fallida' in caplog.text
+    fallida = carga.filas.get(numero_fila=2)
+    assert not fallida.aplicada and fallida.error_aplicacion

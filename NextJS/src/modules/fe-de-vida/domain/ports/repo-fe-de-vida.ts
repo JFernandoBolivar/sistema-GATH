@@ -14,7 +14,7 @@ import type {
 } from "../entities/fe-de-vida";
 import type { EstadoSolicitud } from "../value-objects/estados";
 import type { EstadisticasEntity, PasivoEstadisticaEntity } from "../entities/estadisticas";
-import type { ReenvioConstanciaDTO, RegenerarConstanciaDTO } from "../../application/dtos/fe-de-vida-dto";
+import type { ReenvioConstanciaDTO, RegenerarConstanciaDTO } from "../entities/constancia";
 import type { OrigenEvidencia } from "../value-objects/estados";
 
 export interface PaginaPedida {
@@ -110,7 +110,11 @@ export interface RepoFeDeVida {
   iniciarSolicitud(): Promise<SolicitudEntity>;
   listarMisSolicitudes(f: FiltrosHistorial): Promise<PaginaEntity<SolicitudEntity>>;
   obtenerMiSolicitud(id: string): Promise<DetalleSolicitudEntity>;
-  guardarBorrador(id: string, cambios: CambioEntrada[]): Promise<DetalleSolicitudEntity>;
+  guardarBorrador(
+    id: string,
+    cambios: CambioEntrada[],
+    opciones?: { sinCorreoAlternativo?: boolean; justificacionSinCorreo?: string },
+  ): Promise<DetalleSolicitudEntity>;
   subirEvidencia(id: string, evidencia: EvidenciaNueva): Promise<SolicitudEntity>;
   enviar(id: string): Promise<SolicitudEntity>;
   descargarConstancia(id: string): Promise<Blob>;

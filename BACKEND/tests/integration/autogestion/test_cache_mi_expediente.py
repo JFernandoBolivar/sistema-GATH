@@ -11,6 +11,7 @@ from apps.catalogos.infrastructure.models.catalogo_models import (
     NacionalidadModel,
     SexoModel,
 )
+from apps.configuracion.infrastructure.models.parametro_model import ParametroSistemaModel
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 
 pytestmark = pytest.mark.django_db
@@ -61,3 +62,17 @@ def test_mi_expediente_usa_cache_y_la_invalida_al_guardar_empleado(mock_uc, mock
 
     assert view(_request()).status_code == 200
     assert mock_uc.call_count == 2
+
+
+@pytest.mark.django_db
+def test_guardar_parametro_de_mi_carnet_no_vacia_toda_la_cache():
+    """L2-17: antes `cache.clear()` borraba también los contadores de throttling."""
+    cache.set('throttle:login:203.0.113.9', 5, 60)
+
+    ParametroSistemaModel.objects.create(
+        clave='carnetizacion.mi_carnet_alcance', etiqueta='Alcance', descripcion='',
+        grupo='carnetizacion', tipo='texto', valor='todos',
+    )
+
+    # La clave ajena sigue viva: no hubo FLUSHDB.
+    assert cache.get('throttle:login:203.0.113.9') == 5

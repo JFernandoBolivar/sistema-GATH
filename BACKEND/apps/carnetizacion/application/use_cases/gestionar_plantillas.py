@@ -12,7 +12,13 @@ from apps.carnetizacion.application.dtos.carnetizacion_dtos import (
 from apps.carnetizacion.domain.entities.plantilla import PlantillaCarnet
 from apps.carnetizacion.domain.entities.tipo_credencial import TipoCredencial
 from apps.carnetizacion.domain.ports.repo_carnetizacion import RepoCarnetizacion
+from apps.carnetizacion.domain.services.qr_legible import validar_qr_legible
+from core.domain.configuracion import CLAVE_CARNETIZACION_QR_TAMANO_MINIMO_MM
 from core.domain.exceptions import NotFoundError, ValidationError
+from core.domain.ports import LectorConfiguracion
+from core.infrastructure.providers import obtener_lector_configuracion
+
+QR_TAMANO_MINIMO_DEFECTO_MM = 20
 
 
 def _plantilla_a_dto(p: PlantillaCarnet) -> PlantillaCarnetDTO:
@@ -194,11 +200,23 @@ def publicar_plantilla(
     plantilla_id: str | int,
     activar: bool = True,
     publicado_por: str | None = None,
+    lector: LectorConfiguracion | None = None,
 ) -> PlantillaDetalleDTO:
     """
     Publica una plantilla. Genera una versión inmutable e incrementa versionado.
     Si activar=True, desactiva la versión activa previa del mismo tipo y regla.
+    Exige al menos un QR de N × N mm (parámetro del sistema) legible con teléfono.
     """
+    origen = repo.obtener_plantilla(plantilla_id)
+    if not origen:
+        raise NotFoundError(f"Plantilla con id {plantilla_id} no encontrada")
+    lector = lector or obtener_lector_configuracion()
+    minimo = (
+        lector.obtener_entero(CLAVE_CARNETIZACION_QR_TAMANO_MINIMO_MM)
+        if lector is not None
+        else QR_TAMANO_MINIMO_DEFECTO_MM
+    )
+    validar_qr_legible(origen.definicion, minimo)
     p = repo.publicar_plantilla(
         plantilla_id=plantilla_id,
         activar=activar,

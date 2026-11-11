@@ -32,6 +32,9 @@ from apps.identidad.infrastructure.models.cuenta_models import (
     RolModel,
     DepartamentoModel,
 )
+from apps.identidad.infrastructure.models.ejecucion_unica_model import (
+    EjecucionUnicaModel,
+)
 
 __all__ = [
     'PermisoModel',
@@ -46,4 +49,5 @@ __all__ = [
     'CuentaModel',
     'RolModel',
     'DepartamentoModel',
+    'EjecucionUnicaModel',
 ]

@@ -19,9 +19,16 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
+
+from core.domain.catalogos import (
+    CONDICION_PASIVO,
+    ESTATUS_PASIVO,
+    TIPO_PERSONAL_PASIVO,
+)
 
 from apps.cargos.infrastructure.models.cargo_models import (
     AsigTrabajoModel,
@@ -87,6 +94,11 @@ class Command(BaseCommand):
             help='Fuerza el modo simulación aunque se indique --aplicar.',
         )
         parser.add_argument(
+            '--forzar',
+            action='store_true',
+            help='Permite escribir fuera de un entorno de prueba (DEBUG=False).',
+        )
+        parser.add_argument(
             '--respaldo-dir',
             default='logs/qa_usuarios',
             help='Carpeta donde se guarda el respaldo JSON (por defecto logs/qa_usuarios).',
@@ -97,6 +109,14 @@ class Command(BaseCommand):
             self._mostrar_plan()
             return
 
+        # A2-20: los datos QA son reales (cédulas y correos de personas). El
+        # comando solo puede escribir fuera de producción salvo petición explícita.
+        if not settings.DEBUG and not opciones['forzar']:
+            raise CommandError(
+                'crear_usuarios_qa escribe datos de prueba con cédulas y correos reales. '
+                'Solo se ejecuta con DEBUG=True o con --forzar en un entorno controlado.'
+            )
+
         respaldo = self._respaldar(Path(opciones['respaldo_dir']))
         self.stdout.write(f'Respaldo previo: {respaldo}')
 
@@ -104,10 +124,10 @@ class Command(BaseCommand):
             self._preparar_admin()
             self._preparar_analista()
             self._preparar_pasivo(
-                PASIVO1_CEDULA, 'PASIVO', 'UNO QA', PASIVO1_CORREO
+                PASIVO1_CEDULA, CONDICION_PASIVO, 'UNO QA', PASIVO1_CORREO
             )
             self._preparar_pasivo(
-                PASIVO2_CEDULA, 'PASIVO', 'DOS QA', PASIVO2_CORREO
+                PASIVO2_CEDULA, CONDICION_PASIVO, 'DOS QA', PASIVO2_CORREO
             )
 
         self._mostrar_credenciales()
@@ -266,7 +286,7 @@ class Command(BaseCommand):
     def _asegurar_asignacion_pasivo(self, cedula: str) -> None:
         if AsigTrabajoModel.objects.filter(
             employee_id=cedula,
-            Tipo_personal__tipo_personal__iexact='PASIVO',
+            Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO,
         ).exists():
             return
         try:
@@ -278,9 +298,9 @@ class Command(BaseCommand):
             direccion = DireccionGeneralModel.objects.get(
                 direccion_general__iexact='OFICINA DE GESTION HUMANA'
             )
-            estatus = EstatusModel.objects.get(estatus__iexact='PASIVO')
+            estatus = EstatusModel.objects.get(estatus__iexact=ESTATUS_PASIVO)
             tipo_personal = TipoPersonalModel.objects.get(
-                tipo_personal__iexact='PASIVO'
+                tipo_personal__iexact=TIPO_PERSONAL_PASIVO
             )
         except (
             DenominacionCargoModel.DoesNotExist,

@@ -6,6 +6,7 @@ import {
   ETIQUETA_SERIAL_CARNET_PATRIA,
 } from "@/shared/domain/etiquetas-carnet-patria";
 import { LIMITES_TEXTO } from "@/shared/validation/limites-texto";
+import { ESTATUS_ACTIVO } from "@/shared/domain/catalogos";
 import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -880,8 +881,8 @@ export default function MiExpedienteView({ initialTab = "personal" }: MiExpedien
                           </TableCell>
                           <TableCell>
                             <Badge
-                              variant={con.estatus_nombre === "ACTIVO" ? "default" : "secondary"}
-                              className={`text-xs font-semibold px-2.5 py-0.5 ${con.estatus_nombre === "ACTIVO" ? "bg-emerald-600 text-white" : ""}`}
+                              variant={con.estatus_nombre === ESTATUS_ACTIVO ? "default" : "secondary"}
+                              className={`text-xs font-semibold px-2.5 py-0.5 ${con.estatus_nombre === ESTATUS_ACTIVO ? "bg-emerald-600 text-white" : ""}`}
                             >
                               {con.estatus_nombre || "ACTIVO"}
                             </Badge>

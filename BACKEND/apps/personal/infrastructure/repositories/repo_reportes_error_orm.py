@@ -32,6 +32,17 @@ def _a_entidad(m: ReporteErrorDatoLaboralModel) -> ReporteErrorDatoLaboral:
 
 
 class RepoReportesErrorLaboralORM:
+    def nombre_trabajador(self, cedula: str) -> str:
+        """Nombre y apellidos del trabajador para el reporte ('' si no existe)."""
+        if not cedula:
+            return ''
+        from apps.personal.infrastructure.models.personal_models import EmployeeModel
+
+        emp = EmployeeModel.objects.filter(cedulaidentidad=cedula).first()
+        if not emp:
+            return ''
+        return f"{emp.nombres or ''} {emp.apellidos or ''}".strip()
+
     def guardar(self, reporte: ReporteErrorDatoLaboral) -> ReporteErrorDatoLaboral:
         obj, _ = ReporteErrorDatoLaboralModel.objects.update_or_create(
             id=reporte.id,

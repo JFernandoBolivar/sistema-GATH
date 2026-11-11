@@ -8,6 +8,12 @@ from typing import Sequence
 from django.conf import settings
 from django.db import transaction
 
+from core.domain.catalogos import (
+    CONDICION_ACTIVO,
+    CONDICION_PASIVO,
+    ESTATUS_ACTIVO,
+    TIPO_PERSONAL_PASIVO,
+)
 from apps.autogestion.infrastructure.models.actualizacion_models import (
     DatosComplementariosTrabajadorModel,
 )
@@ -96,27 +102,27 @@ class RepoPoliticaCorreoAccesoORM:
         if es_grupo_pasivos:
             cedulas_set = set(
                 AsigTrabajoModel.objects.filter(
-                    Tipo_personal__tipo_personal__iexact='PASIVO', employee__isnull=False
+                    Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO, employee__isnull=False
                 ).values_list('employee_id', flat=True)
             ) | set(EmployeeEgresadoModel.objects.values_list('employee_id', flat=True))
-            condicion_str = 'PASIVO'
+            condicion_str = CONDICION_PASIVO
         else:
             pasivos_set = set(
                 AsigTrabajoModel.objects.filter(
-                    Tipo_personal__tipo_personal__iexact='PASIVO', employee__isnull=False
+                    Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO, employee__isnull=False
                 ).values_list('employee_id', flat=True)
             ) | set(EmployeeEgresadoModel.objects.values_list('employee_id', flat=True))
             cedulas_set = (
                 set(
                     AsigTrabajoModel.objects.filter(
-                        estatusid__estatus__iexact='ACTIVO', employee__isnull=False
+                        estatusid__estatus__iexact=ESTATUS_ACTIVO, employee__isnull=False
                     )
-                    .exclude(Tipo_personal__tipo_personal__iexact='PASIVO')
+                    .exclude(Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO)
                     .values_list('employee_id', flat=True)
                 )
                 - pasivos_set
             )
-            condicion_str = 'ACTIVO'
+            condicion_str = CONDICION_ACTIVO
 
         if not cedulas_set:
             return []

@@ -35,11 +35,13 @@ class LectorFicha(Protocol):
         """Si el parentesco corresponde a un hijo(a): exige partida de nacimiento."""
         ...
 
-    def validar_familiar_alta(self, cedula: str, valores: dict) -> None:
+    def validar_familiar_alta(self, cedula: str, valores: dict) -> str | None:
         """Alta de familiar: cédula obligatoria salvo hijo(a) menor de 9 años.
 
-        Reutiliza la regla del módulo de familiares (cédula del titular + orden). Lanza
-        `ValidationError` con `campo='cedula_familiar'`.
+        Reutiliza la regla del módulo de familiares (cédula del titular + orden).
+        Lanza `ValidationError` con `campo='cedula_familiar'`. **No modifica
+        `valores`**: devuelve la cédula que se generará al aprobar (o `None` si el
+        familiar trae la suya); la revisión la calcula para mostrarla.
         """
         ...
 

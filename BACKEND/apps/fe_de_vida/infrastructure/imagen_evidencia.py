@@ -17,6 +17,12 @@ def sanear_imagen(contenido: bytes, mime: str) -> bytes:
     formato, opciones = FORMATOS[mime]
     try:
         with Image.open(BytesIO(contenido)) as origen:
+            # S2-10: el tamaño declarado se lee de la cabecera, antes de decodificar los píxeles.
+            limite = settings.IMAGEN_MAX_PIXELES
+            if origen.width * origen.height > limite:
+                raise ValidationError(
+                    f"La imagen es demasiado grande: no puede superar {limite // 1_000_000} megapíxeles.",
+                )
             origen.load()
             imagen = ImageOps.exif_transpose(origen)  # respeta la orientación antes de quitar el EXIF
             if min(imagen.size) < settings.FE_DE_VIDA_EVIDENCIA_LADO_MINIMO_PX:

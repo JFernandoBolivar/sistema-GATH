@@ -171,7 +171,6 @@ PASSWORD_HASHERS = [
 ]
 
 # Security Headers (B1.3 / ALTA-13, MED-14)
-SECURE_BROWSER_XSS_FILTER = True
 X_FRAME_OPTIONS = 'DENY'
 SECURE_CONTENT_TYPE_NOSNIFF = True
 
@@ -242,7 +241,9 @@ if not DEBUG and FRONTEND_URL == 'http://localhost:3001':
 
 # Configuración del sistema de carnetización
 # Sin default propio: por omisión apunta a la ruta pública /validar del frontend.
-CARNET_VALIDATOR_URL = config('CARNET_VALIDATOR_URL', default=f"{FRONTEND_URL.rstrip('/')}/validar")
+# Integración SILOG: claves de API por sistema, "sistema:clave" separadas por coma. Vacío = endpoint cerrado (503).
+INTEGRACION_CARNET_API_KEYS = config('INTEGRACION_CARNET_API_KEYS', default='')
+CARNET_VALIDATOR_URL =config('CARNET_VALIDATOR_URL', default=f"{FRONTEND_URL.rstrip('/')}/validar")
 # Vacío = pdf2image usa el poppler del PATH (Linux/Docker). En Windows, definir POPPLER_PATH.
 POPPLER_PATH = os.getenv('POPPLER_PATH') or None
 
@@ -283,11 +284,16 @@ EXPORTACIONES_MAX_MINUTOS_EN_CURSO = config('EXPORTACIONES_MAX_MINUTOS_EN_CURSO'
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
 # Fe de vida: calidad mínima de la selfie (lado menor, px) y base del QR de verificación de la constancia.
 FE_DE_VIDA_EVIDENCIA_LADO_MINIMO_PX = config('FE_DE_VIDA_EVIDENCIA_LADO_MINIMO_PX', default=480, cast=int)
+# S2-10: tope de píxeles de una imagen subida (anti bomba de descompresión).
+IMAGEN_MAX_PIXELES = config('IMAGEN_MAX_PIXELES', default=40_000_000, cast=int)
 FE_DE_VIDA_URL_VERIFICACION = config(
     'FE_DE_VIDA_URL_VERIFICACION', default=f"{FRONTEND_URL.rstrip('/')}/fe-de-vida/verificar",
 )
 # Dominio que se completa cuando el usuario inicia sesión con su correo sin dominio (usuario -> usuario@dominio).
 DOMINIO_CORREO_INSTITUCIONAL = config('DOMINIO_CORREO_INSTITUCIONAL', default='conatel.gob.ve')
+# A2-19: titular de la cuenta superadministrador que garantiza `preparar_produccion`.
+# Configurable para no depender de una cédula fija (el valor histórico es el respaldo).
+SUPERADMIN_CEDULA = config('SUPERADMIN_CEDULA', default='30799436')
 
 # ─── Celery (Etapa A1, D-02) ─────────────────────────────────────────────────
 # Broker RabbitMQ (vhost `gath`): compose.yml arma CELERY_BROKER_URL desde
@@ -322,6 +328,11 @@ CELERY_BROKER_CONNECTION_MAX_RETRIES = 1
 from celery.schedules import crontab  # noqa: E402
 
 CELERY_BEAT_SCHEDULE = {
+    # Cargos (L2-06/L2-08): inicia, marca POR VENCER y finaliza los prestamos de cargo por fecha (idempotente).
+    'cargos-procesar-vencimientos-prestamos': {
+        'task': 'cargos.procesar_vencimientos_prestamos',
+        'schedule': crontab(hour=0, minute=10),
+    },
     # Autogestión (B3): marca EXPIRADA toda ventana de actualización vencida (idempotente).
     'autogestion-expirar-ventanas': {
         'task': 'autogestion.expirar_ventanas',
@@ -357,6 +368,12 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'identidad.sincronizar_cuentas_trabajadores',
         # 2:00, 12:00 y 17:00 hora de Venezuela (pedido del usuario, 2026-11-03).
         'schedule': crontab(hour='2,12,17', minute=0),
+    },
+    # S2-02: vence una sola vez la clave inicial de las cuentas antiguas. El
+    # arranque ya la encola; esta red reintenta hasta que termine (idempotente).
+    'identidad-vencer-claves-iniciales-antiguas': {
+        'task': 'identidad.vencer_claves_iniciales_antiguas',
+        'schedule': 900.0,  # cada 15 minutos
     },
     # E3: profundidad de la cola y tareas activas en una linea JSON.
     'core-metricas-cola': {
@@ -421,6 +438,8 @@ REST_FRAMEWORK = {
         'password_reset': config('PASSWORD_RESET_THROTTLE_RATE', default='10/minute'),
         # Fe de vida: verificación pública de constancias (QR), por IP.
         'fe_de_vida_verificacion_publica': config('FE_DE_VIDA_VERIFICACION_PUBLICA_THROTTLE_RATE', default='30/minute'),
+        # Integración SILOG: verificación del QR del carnet, por sistema (clave de API).
+        'integracion_carnet': config('INTEGRACION_CARNET_THROTTLE_RATE', default='600/minute'),
         'upload': config('UPLOAD_THROTTLE_RATE', default='20/minute'),
         'export': config('EXPORT_THROTTLE_RATE', default='60/minute'),
         'refresh': config('REFRESH_THROTTLE_RATE', default='60/minute'),
@@ -428,6 +447,11 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
+    # F2-05: DRF calcula la IP del cliente desde `X-Forwarded-For` con este
+    # número de proxies de confianza. Next (y nginx, si está delante) reenvían
+    # la IP real; sin este ajuste DRF usaba la cabecera completa (falsificable)
+    # o, sin cabecera, la IP del contenedor de Next.
+    'NUM_PROXIES': config('DJANGO_NUM_PROXIES', default=1, cast=int),
     # B2.4 (C-1, S6): toda excepción sale por el sobre unificado, sin filtrar
     # detalle interno al cliente.
     'EXCEPTION_HANDLER': 'core.presentation.exception_handler.custom_exception_handler',

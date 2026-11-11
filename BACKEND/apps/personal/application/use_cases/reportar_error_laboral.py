@@ -8,6 +8,7 @@ No altera ninguna tabla maestra ni modifica el expediente del trabajador.
 from datetime import datetime, timezone
 from typing import Callable
 from uuid import uuid4
+import logging
 
 from apps.personal.application.dtos.reporte_error_dtos import CrearReporteErrorDTO
 from apps.personal.domain.entities.reporte_error import (
@@ -18,6 +19,8 @@ from apps.personal.domain.entities.reporte_error import (
 from apps.personal.domain.ports.repo_reportes_error import RepoReportesErrorLaboral
 from core.domain.exceptions import ValidationError
 from core.domain.notificaciones import SolicitudNotificacion
+
+logger = logging.getLogger('gath.personal')
 
 
 def crear_reporte_error_laboral(
@@ -76,6 +79,8 @@ def crear_reporte_error_laboral(
             notificador_fn(solicitud)
         except Exception:
             # Una falla en el sistema de notificación no debe anular la creación del reporte
-            pass
+            logger.warning(
+                'no se pudo notificar el reporte de error laboral %s', reporte_guardado.id, exc_info=True,
+            )
 
     return reporte_guardado

@@ -12,6 +12,15 @@ export interface FotoLocalAlmacenada {
 const DB_NOMBRE = "gath_fe_de_vida";
 const DB_VERSION = 1;
 const STORE_FOTOS = "fotos_locales";
+/** F2-13: la foto local es un respaldo temporal, no un archivo permanente. */
+export const HORAS_VIGENCIA_FOTO_LOCAL = 24;
+
+function vigente(guardadoEn: string | undefined): boolean {
+  if (!guardadoEn) return false;
+  const fecha = new Date(guardadoEn).getTime();
+  if (!Number.isFinite(fecha)) return false;
+  return Date.now() - fecha <= HORAS_VIGENCIA_FOTO_LOCAL * 60 * 60 * 1000;
+}
 
 function abrirDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -79,6 +88,12 @@ export async function recuperarFotoLocal(
           // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
           const res = req.result as FotoLocalAlmacenada | undefined;
           if (!res || !res.blob) {
+            resolve(null);
+            return;
+          }
+          if (!vigente(res.guardadoEn)) {
+            // F2-13: una foto vieja (o de un dispositivo compartido) se descarta.
+            store.delete(solicitudId);
             resolve(null);
             return;
           }

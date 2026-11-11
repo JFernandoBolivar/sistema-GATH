@@ -3,6 +3,14 @@ Repositorio ORM de Cargos (Reglas B4, B7, D-09).
 """
 from django.db import transaction
 
+from core.domain.catalogos import (
+    ESTATUS_ACTIVO,
+    ESTATUS_BLOQUEADO,
+    ESTATUS_SUSPENDIDO,
+    ESTATUS_VACANTE,
+    TIPO_PERSONAL_ACTIVO,
+    TIPO_PERSONAL_PASIVO,
+)
 from core.domain.categorias_motivo import Operacion
 from core.domain.exceptions import ConflictError, NotFoundError, ValidationError
 from apps.catalogos.infrastructure.repositories.motivos_por_categoria import (
@@ -41,7 +49,7 @@ from apps.organizacion.infrastructure.models.organizacion_models import (
     DireccionLineaModel,
 )
 
-ESTATUS_PERMITIDOS_GESTION = ('SUSPENDIDO', 'BLOQUEADO', 'ACTIVO')
+ESTATUS_PERMITIDOS_GESTION = (ESTATUS_SUSPENDIDO, ESTATUS_BLOQUEADO, ESTATUS_ACTIVO)
 
 
 class RepoCargosORM(RepoPrestamosCargoORM):
@@ -107,7 +115,7 @@ class RepoCargosORM(RepoPrestamosCargoORM):
             )
             # Gestión de personal activo: los puestos de pasivos (P_…, tipo de
             # personal PASIVO) se gestionan en el módulo de Pasivos.
-            .exclude(Tipo_personal__tipo_personal__iexact='PASIVO')
+            .exclude(Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO)
             .order_by('-fecha_actualizacion')
         )
         if tipo_nomina_id is not None:
@@ -148,7 +156,8 @@ class RepoCargosORM(RepoPrestamosCargoORM):
     def asignar_cargo_a_empleado(
         self, cargo_id: int, cedula: str, motivo_id: int | None = None, usuario_id: int | None = None
     ) -> CargoAsignacion:
-        fila = AsigTrabajoModel.objects.filter(pk=cargo_id).first()
+        # L2-19: bloqueo de fila; dos asignaciones simultaneas se serializan.
+        fila = AsigTrabajoModel.objects.select_for_update().filter(pk=cargo_id).first()
         if not fila:
             raise NotFoundError(f"Cargo con id {cargo_id} no encontrado")
         if fila.employee_id is not None:
@@ -158,7 +167,7 @@ class RepoCargosORM(RepoPrestamosCargoORM):
         # Paridad con el legado (`EmployeeAssignmentSerializer.update`):
         # asignar transiciona el estatus a ACTIVO.
         try:
-            estatus_activo = EstatusModel.objects.get(estatus__iexact='ACTIVO')
+            estatus_activo = EstatusModel.objects.get(estatus__iexact=ESTATUS_ACTIVO)
         except EstatusModel.DoesNotExist as exc:
             raise ValidationError("El estatus 'ACTIVO' no está configurado en el sistema.") from exc
 
@@ -168,7 +177,7 @@ class RepoCargosORM(RepoPrestamosCargoORM):
         # Códigos creados antes de corregir `crear_cargo` quedaron sin tipo de
         # personal: al ocuparlos por personal activo se completa.
         if fila.Tipo_personal_id is None:
-            tipo_activo = TipoPersonalModel.objects.filter(tipo_personal__iexact='ACTIVO').first()
+            tipo_activo = TipoPersonalModel.objects.filter(tipo_personal__iexact=TIPO_PERSONAL_ACTIVO).first()
             if tipo_activo is not None:
                 fila.Tipo_personal = tipo_activo
                 campos.append('Tipo_personal')
@@ -310,8 +319,8 @@ class RepoCargosORM(RepoPrestamosCargoORM):
             raise NotFoundError(f"Tipo de nómina {datos['tipo_nomina_id']} no encontrado")
 
         try:
-            estatus_vacante = EstatusModel.objects.get(estatus__iexact='VACANTE')
-            tipo_personal_activo = TipoPersonalModel.objects.get(tipo_personal__iexact='ACTIVO')
+            estatus_vacante = EstatusModel.objects.get(estatus__iexact=ESTATUS_VACANTE)
+            tipo_personal_activo = TipoPersonalModel.objects.get(tipo_personal__iexact=TIPO_PERSONAL_ACTIVO)
         except (EstatusModel.DoesNotExist, TipoPersonalModel.DoesNotExist) as exc:
             raise ValidationError(f"Error de configuración: {exc}") from exc
 
@@ -352,8 +361,8 @@ class RepoCargosORM(RepoPrestamosCargoORM):
             )
 
         try:
-            estatus_activo = EstatusModel.objects.get(estatus__iexact='ACTIVO')
-            tipo_personal_activo = TipoPersonalModel.objects.get(tipo_personal__iexact='ACTIVO')
+            estatus_activo = EstatusModel.objects.get(estatus__iexact=ESTATUS_ACTIVO)
+            tipo_personal_activo = TipoPersonalModel.objects.get(tipo_personal__iexact=TIPO_PERSONAL_ACTIVO)
         except (EstatusModel.DoesNotExist, TipoPersonalModel.DoesNotExist) as exc:
             raise ValidationError(f"Error de configuración: {exc}") from exc
 
@@ -426,7 +435,7 @@ class RepoCargosORM(RepoPrestamosCargoORM):
             fila.Coordinacion_id = datos['Coordinacion'] if datos['Coordinacion'] and datos['Coordinacion'] > 0 else None
 
         if fila.Tipo_personal_id is None:
-            tipo_activo = TipoPersonalModel.objects.filter(tipo_personal__iexact='ACTIVO').first()
+            tipo_activo = TipoPersonalModel.objects.filter(tipo_personal__iexact=TIPO_PERSONAL_ACTIVO).first()
             if tipo_activo is not None:
                 fila.Tipo_personal = tipo_activo
 
@@ -466,8 +475,8 @@ class RepoCargosORM(RepoPrestamosCargoORM):
             raise NotFoundError(f"Cargo con id {cargo_nuevo_id} no encontrado")
 
         try:
-            estatus_vacante = EstatusModel.objects.get(estatus__iexact='VACANTE')
-            estatus_activo = EstatusModel.objects.get(estatus__iexact='ACTIVO')
+            estatus_vacante = EstatusModel.objects.get(estatus__iexact=ESTATUS_VACANTE)
+            estatus_activo = EstatusModel.objects.get(estatus__iexact=ESTATUS_ACTIVO)
         except EstatusModel.DoesNotExist as exc:
             raise ValidationError('Los estatus VACANTE/ACTIVO no están configurados en el sistema.') from exc
 

@@ -30,7 +30,6 @@ from apps.familiares.application.use_cases.listar_familiares import (
     obtener_familiar_por_id,
     subir_documento_familiar,
 )
-from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
 from apps.familiares.infrastructure.repositories.repo_familiares_orm import RepoFamiliaresORM
 from apps.familiares.presentation.serializers.familiares_serializers import (
     DocumentoFamiliarSerializer,
@@ -76,7 +75,8 @@ class FamiliarDetailView(APIView):
 
     @extend_schema(tags=['Familiares'], summary='Actualizar familiar', request=RegistrarFamiliarInputSerializer, responses={200: FamiliarSerializer})
     def put(self, request, familiar_id: int):
-        instancia = EmployeefamilyModel.objects.filter(pk=familiar_id).first()
+        repo = RepoFamiliaresORM()
+        instancia = repo.obtener_instancia(familiar_id)
         if instancia is None:
             from core.domain.exceptions import NotFoundError
             raise NotFoundError(f"Familiar con id {familiar_id} no encontrado")
@@ -89,7 +89,6 @@ class FamiliarDetailView(APIView):
         )
         serializer.is_valid(raise_exception=True)
 
-        repo = RepoFamiliaresORM()
         dto = actualizar_familiar(repo, familiar_id=familiar_id, datos=serializer.validated_data)
         return ok(FamiliarSerializer(dto).data)
 

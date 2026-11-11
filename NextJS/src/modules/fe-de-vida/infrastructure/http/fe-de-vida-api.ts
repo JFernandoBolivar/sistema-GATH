@@ -334,8 +334,20 @@ export const feDeVidaApi = {
     apiClient.get<ApiResponse<PaginaApi<SolicitudApi>>>(`${BASE}/mis-solicitudes/`, { params }),
   miSolicitud: (id: string) =>
     apiClient.get<ApiResponse<DetalleApi>>(`${BASE}/mis-solicitudes/${id}/`),
-  borrador: (id: string, cambios: unknown[]) =>
-    apiClient.put<ApiResponse<DetalleApi>>(`${BASE}/mis-solicitudes/${id}/borrador/`, { cambios }),
+  borrador: (
+    id: string,
+    cambios: unknown[],
+    opciones?: { sinCorreoAlternativo?: boolean; justificacionSinCorreo?: string },
+  ) =>
+    apiClient.put<ApiResponse<DetalleApi>>(`${BASE}/mis-solicitudes/${id}/borrador/`, {
+      cambios,
+      ...(opciones
+        ? {
+            sin_correo_alternativo: opciones.sinCorreoAlternativo ?? false,
+            justificacion_sin_correo: opciones.justificacionSinCorreo ?? "",
+          }
+        : {}),
+    }),
   evidencia: (id: string, form: FormData) =>
     apiClient.postForm<ApiResponse<SolicitudApi>>(`${BASE}/mis-solicitudes/${id}/evidencia/`, form),
   enviar: (id: string) =>
@@ -349,6 +361,10 @@ export const feDeVidaApi = {
   verificacionInterna: (codigo: string) =>
     apiClient.get<ApiResponse<VerificacionApi>>(
       `${BASE}/constancias/verificar/${encodeURIComponent(codigo)}/`,
+      // F2-04: se consulta desde el render de la página; no refrescar aquí
+      // (no puede guardar cookies y Django ya habría rotado el refresh). Si el
+      // access venció, el caso de uso cae a la vía pública.
+      { sinRefresco: true },
     ),
   constancia: (id: string) => apiClient.getBlob(`${BASE}/mis-solicitudes/${id}/constancia/`),
 

@@ -10,6 +10,7 @@ estructurada con formato fijo de §I.4.7; el formatter añade el timestamp.
 import logging
 
 from core.infrastructure.models.auditoria import AuditoriaLog
+from core.presentation.ip_cliente import ip_del_cliente
 
 logger = logging.getLogger('audit_backend')
 
@@ -20,7 +21,7 @@ def origen_de_peticion(request) -> dict:
 
     user_agent = (request.META.get('HTTP_USER_AGENT') or '')[:255]
     return {
-        'ip_origen': request.META.get('REMOTE_ADDR') or None,
+        'ip_origen': ip_del_cliente(request),
         'user_agent': user_agent,
         'dispositivo': dispositivo_de_user_agent(user_agent),
     }

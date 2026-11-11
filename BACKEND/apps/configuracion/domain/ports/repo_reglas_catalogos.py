@@ -21,6 +21,12 @@ class RepoReglasCatalogos(Protocol):
     def listar_paises(self) -> Sequence[ReglaPais]:
         ...
 
+    def buscar_paises(
+        self, *, texto: str = '', pagina: int = 1, tamano_pagina: int = 10,
+    ) -> tuple[Sequence[ReglaPais], int]:
+        """Países filtrados por texto, con el total, para el buscador paginado."""
+        ...
+
     def obtener_pais(self, pais_id: int) -> ReglaPais:
         ...
 

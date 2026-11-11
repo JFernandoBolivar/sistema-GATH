@@ -13,6 +13,7 @@ from PIL import Image
 from rest_framework.test import APIClient
 
 from apps.autogestion.infrastructure.models.actualizacion_models import DatosComplementariosTrabajadorModel
+from apps.autogestion.infrastructure.repositories.lector_ficha_orm import LectorFichaORM
 from apps.cargos.infrastructure.models.cargo_models import (
     AsigTrabajoModel,
     DenominacionCargoEspecificoModel,
@@ -492,7 +493,10 @@ def test_validar_acta_familiar_reutiliza_la_regla_de_cedula_de_familiares(datos)
         PASIVO, CambioActa('familiar', 'CREAR', 'familiar', '*', dict(base, parentesco_id=1)),
     )
     assert menor is not None and 'cedula_familiar' not in menor.valor_propuesto
-    assert menor.valor_propuesto['cedula_generada'] == f'{PASIVO}-2'
+    # FIX hijo sin cédula: no se escribe en el valor propuesto (trababa el borrador);
+    # la cédula que se generará la muestra la revisión y la resuelve la aprobación.
+    assert 'cedula_generada' not in menor.valor_propuesto
+    assert LectorFichaORM().validar_familiar_alta(PASIVO, dict(base, parentesco_id=1)) == f'{PASIVO}-2'
 
     with pytest.raises(ValidationError) as error:
         validador.validar(
@@ -779,7 +783,11 @@ def test_verificacion_publica_404_generico_si_no_existe_o_esta_mal_formado(datos
     respuestas = [cliente.get(f'{BASE}/constancias/publica/{c}/') for c in ('inexistente', 'f' * 64)]
     assert [r.status_code for r in respuestas] == [404, 404]
     assert respuestas[0].json() == respuestas[1].json() and respuestas[0].json()['status'] == 'error'
-    assert AuditoriaLog.objects.filter(accion='CONSTANCIA_VERIFICADA_PUBLICA', resultado='FAILED').count() == 2
+    # L2-20: las consultas fallidas del endpoint público no se auditan (cada
+    # escritura toma un bloqueo asesor global y un bot podía serializar el sistema).
+    assert not AuditoriaLog.objects.filter(
+        accion='CONSTANCIA_VERIFICADA_PUBLICA', resultado='FAILED',
+    ).exists()
 
 
 def test_verificacion_publica_404_si_la_solicitud_no_esta_validada(pasivo, administradora):
@@ -926,3 +934,133 @@ def test_regenerar_constancia_solo_la_administradora_y_conserva_numero_y_codigo(
     constancia.refresh_from_db()
     assert constancia.codigo_verificacion == codigo
     assert AuditoriaLog.objects.filter(accion='CONSTANCIA_REGENERADA', recurso_id=constancia.numero).exists()
+
+
+def test_segundo_check_rechaza_si_rrhh_cambio_el_dato_despues_del_borrador(
+    pasivo, analista, administradora, django_capture_on_commit_callbacks,
+):
+    """L2-04: validar el acta no debe pisar una corrección posterior de RR. HH."""
+    pid = proceso_abierto(administradora)
+    sid = solicitud_enviada(pasivo, pid)  # propone telefono_movil 04149999999
+    analista.post(f'{BASE}/solicitudes/{sid}/check/')
+
+    # RR. HH. corrige el teléfono por su vía antes del segundo check.
+    EmployeeModel.objects.filter(cedulaidentidad=PASIVO).update(telefono_movil='+584120000000')
+
+    with django_capture_on_commit_callbacks(execute=True):
+        r = administradora.post(f'{BASE}/solicitudes/{sid}/check/')
+
+    assert r.status_code == 409, r.content
+    assert 'cambió' in r.content.decode()
+    assert SolicitudFeDeVidaModel.objects.get(pk=sid).estado == 'PENDIENTE_SEGUNDO_CHECK'
+    assert EmployeeModel.objects.get(cedulaidentidad=PASIVO).telefono_movil == '+584120000000'
+
+
+def test_borrador_rechaza_dos_hijos_nuevos_con_el_mismo_orden(pasivo, analista, datos):
+    """L2-13: el duplicado se detecta al guardar, no al aprobar."""
+    parentesco, _ = ParentescoModel.objects.get_or_create(
+        descripcion_parentesco='HIJO (A)', defaults={'aplica_familiar': True},
+    )
+    sexo_id = SexoModel.objects.values_list('pk', flat=True).first()
+    proceso_abierto(cliente(ADMINISTRADORA, PERMISOS_ADMINISTRADORA, 4))
+    sid = cuerpo(pasivo.post(f'{BASE}/procesos/vigente/solicitud/'))['id']
+    base = {
+        'primer_nombre': 'LUCIA', 'primer_apellido': 'PRUEBA', 'parentesco_id': parentesco.pk,
+        'orden_hijo': 1,
+        'fecha_nacimiento': (timezone.now().date() - timedelta(days=365 * 4)).isoformat(), 'sexo_id': sexo_id,
+    }
+    segundo = dict(base, primer_nombre='ANA')
+    r = pasivo.put(f'{BASE}/mis-solicitudes/{sid}/borrador/', {'cambios': [
+        {'seccion': 'familiar', 'entidad': 'familiar', 'accion': 'CREAR', 'campo': '*', 'valor': base},
+        {'seccion': 'familiar', 'entidad': 'familiar', 'accion': 'CREAR', 'campo': '*', 'valor': segundo},
+    ]}, format='json')
+    assert r.status_code == 400, r.content
+    assert 'orden_hijo' in cuerpo(r).get('errores', {})
+
+
+def test_pasivo_en_linea_puede_marcar_sin_correo_con_justificacion(datos):
+    """U1: «No tiene correo» también en la fe de vida en línea, con justificación."""
+    from apps.autogestion.infrastructure.models.actualizacion_models import (
+        DatosComplementariosTrabajadorModel,
+    )
+
+    # El pasivo de prueba tenía correo alternativo en la ficha: se retira para
+    # ejercitar la rama de «sin correo».
+    DatosComplementariosTrabajadorModel.objects.filter(cedula=PASIVO).delete()
+    proceso_abierto(cliente(ADMINISTRADORA, PERMISOS_ADMINISTRADORA, 4))
+    cli = cliente(PASIVO, PERMISOS_PASIVO, 1)
+    sid = cuerpo(cli.post(f'{BASE}/procesos/vigente/solicitud/'))['id']
+
+    r = cli.put(f'{BASE}/mis-solicitudes/{sid}/borrador/', {
+        'cambios': [], 'sin_correo_alternativo': True, 'justificacion_sin_correo': 'corto',
+    }, format='json')
+    assert r.status_code == 400, r.content
+    assert 'justificacion_sin_correo' in cuerpo(r)['errores']
+
+    justificacion = 'El pasivo no posee correo electrónico ni familiar de contacto.'
+    r = cli.put(f'{BASE}/mis-solicitudes/{sid}/borrador/', {
+        'cambios': [], 'sin_correo_alternativo': True, 'justificacion_sin_correo': justificacion,
+    }, format='json')
+    assert r.status_code == 200, r.content
+    guardada = cuerpo(r)['solicitud']
+    assert guardada['sin_correo_alternativo'] is True
+    assert guardada['justificacion_sin_correo'] == justificacion
+
+    r = cli.post(
+        f'{BASE}/mis-solicitudes/{sid}/evidencia/', {'file': foto(), 'origen': 'CAMARA'}, format='multipart',
+    )
+    assert r.status_code == 200, r.content
+    r = cli.post(f'{BASE}/mis-solicitudes/{sid}/enviar/')
+    assert r.status_code == 200, r.content
+    assert cuerpo(r)['estado'] == 'PENDIENTE_REVISION'
+
+
+def _validada_sin_constancia(administradora, pasivo, analista, ejecutar_on_commit):
+    """Deja una solicitud VALIDADA sin constancia, como cuando falla la emisión (L2-02)."""
+    pid = proceso_abierto(administradora)
+    sid = solicitud_enviada(pasivo, pid)
+    analista.post(f'{BASE}/solicitudes/{sid}/check/')
+    with ejecutar_on_commit():
+        administradora.post(f'{BASE}/solicitudes/{sid}/check/')
+    ConstanciaFeDeVidaModel.objects.filter(solicitud_id=sid).delete()
+    return sid
+
+
+def test_regenerar_recupera_la_constancia_de_una_validada_que_quedo_sin_emitir(
+    pasivo, analista, administradora, django_capture_on_commit_callbacks,
+):
+    """L2-02: antes «Regenerar» respondía 409 cuando la constancia no existía."""
+    sid = _validada_sin_constancia(
+        administradora, pasivo, analista, django_capture_on_commit_callbacks,
+    )
+    r = administradora.post(f'{BASE}/solicitudes/{sid}/regenerar-constancia/', {}, format='json')
+    assert r.status_code == 200, r.content
+    constancia = ConstanciaFeDeVidaModel.objects.get(solicitud_id=sid)
+    assert constancia.numero.startswith('FV-') and constancia.clave_pdf
+    assert AlmacenFalso.objetos[constancia.clave_pdf].startswith(b'%PDF')
+
+
+def test_constancias_faltantes_detecta_y_emite_las_validadas_sin_constancia(
+    pasivo, analista, administradora, django_capture_on_commit_callbacks, monkeypatch,
+):
+    """L2-02: comando de recuperación (dry-run detecta, --aplicar emite)."""
+    from io import StringIO
+
+    from django.core.management import call_command
+
+    monkeypatch.setattr(
+        'apps.fe_de_vida.management.commands.constancias_faltantes.SeaweedFSStorage', AlmacenFalso,
+    )
+    sid = _validada_sin_constancia(
+        administradora, pasivo, analista, django_capture_on_commit_callbacks,
+    )
+
+    salida = StringIO()
+    call_command('constancias_faltantes', stdout=salida)
+    assert 'sin constancia con PDF: 1' in salida.getvalue()
+    assert not ConstanciaFeDeVidaModel.objects.filter(solicitud_id=sid).exists()
+
+    salida = StringIO()
+    call_command('constancias_faltantes', '--aplicar', stdout=salida)
+    constancia = ConstanciaFeDeVidaModel.objects.get(solicitud_id=sid)
+    assert constancia.clave_pdf and AlmacenFalso.objetos[constancia.clave_pdf].startswith(b'%PDF')

@@ -14,6 +14,9 @@ from dataclasses import dataclass
 from datetime import date
 
 from apps.familiares.domain.entities.familiar import CEDULA_FAMILIAR_MAX
+from apps.familiares.domain.value_objects.regla_parentesco import (  # noqa: F401 (reexport)
+    ReglaParentescoFamiliar,
+)
 
 # Compatibilidad con llamadores antiguos: el prefijo ya no decide la regla,
 # pero se conserva el helper para no romper pruebas o integraciones externas.
@@ -23,26 +26,6 @@ EDAD_MAXIMA_HIJO_SIN_CEDULA = 9
 ORDEN_HIJO_MIN = 1
 ORDEN_HIJO_MAX = 99
 EDAD_MAXIMA_FAMILIAR = 120
-
-
-@dataclass(frozen=True)
-class ReglaParentescoFamiliar:
-    """Regla configurable del catálogo de parentescos (sin dependencias de Django)."""
-
-    descripcion: str = ''
-    es_hijo: bool = False
-    menor_a_cargo: bool = False
-    sin_cedula_hasta_edad: int | None = None
-    edad_minima: int | None = None
-    diferencia_minima: int | None = None
-    diferencia_tipo: str = 'NINGUNA'
-    sexo_permitido: str = ''
-    soporte_sugerido: str = ''
-    activo: bool = True
-
-    @property
-    def permite_cedula_sintetica(self) -> bool:
-        return bool(self.es_hijo or self.menor_a_cargo)
 
 
 def regla_por_defecto(descripcion: str | None) -> ReglaParentescoFamiliar:

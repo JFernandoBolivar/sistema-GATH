@@ -7,6 +7,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
+    BitacoraAccesoQrModel,
     CarnetEmitidoModel,
     MotivosEmisionModel,
     TipoCredencialModel,
@@ -67,7 +68,7 @@ def datos_base(tablas_legadas):
     carnet = CarnetEmitidoModel.objects.create(
         employee=empleado,
         motivo=motivo,
-        security_hash="hash-api-o45fix",
+        security_hash="HashApiO45Fix_-abcdef0",
         activo=True,
     )
     for codigo, grupo, orden in (
@@ -129,6 +130,56 @@ def _crear_evento(api: APIClient) -> dict:
     )
     assert respuesta.status_code == 201, respuesta.content
     return respuesta.json()["data"]
+
+
+def test_importar_invitados_rechaza_extensiones_y_tamanos_no_admitidos(datos_base):
+    """PASO 3: el import se lee entero en memoria; solo .xlsx/.csv y hasta 10 MB."""
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    api = datos_base["api"]
+    evento = _crear_evento(api)
+
+    txt = SimpleUploadedFile("invitados.txt", b"nombre,correo\n", content_type="text/plain")
+    r = api.post(f"{BASE}/eventos/{evento['id']}/invitados/importar/", {"archivo": txt}, format="multipart")
+    assert r.status_code == 400, r.content
+    assert "xlsx o .csv" in r.content.decode()
+
+    grande = SimpleUploadedFile(
+        "invitados.csv", b"a,b\n" + b"x" * (10 * 1024 * 1024 + 10), content_type="text/csv",
+    )
+    r = api.post(f"{BASE}/eventos/{evento['id']}/invitados/importar/", {"archivo": grande}, format="multipart")
+    assert r.status_code == 400, r.content
+    assert "tamaño máximo" in r.content.decode()
+
+
+def test_emision_con_pdf_fallido_no_deja_carnet_ni_desactiva_el_anterior(datos_base, monkeypatch):
+    """L2-18: emisión y PDF comparten transacción; si el PDF falla no hay cambios."""
+    from apps.carnetizacion.infrastructure.repositories.repo_carnetizacion_orm import (
+        RepoCarnetizacionORM,
+    )
+    from apps.carnetizacion.presentation.views import carnetizacion_views
+
+    api = datos_base["api"]
+    empleado = datos_base["empleado"]
+    previo = datos_base["carnet"]
+    assert previo.activo is True
+
+    def explota(repo, **kwargs):
+        # Simula el carnet ya creado (y el anterior desactivado) antes del fallo.
+        RepoCarnetizacionORM().emitir_carnet(
+            empleado_cedula=kwargs["empleado_cedula"], motivo_id=kwargs["motivo_id"],
+        )
+        raise RuntimeError("fallo al generar el PDF")
+
+    monkeypatch.setattr(carnetizacion_views, "emitir_carnet_y_pdf", explota)
+
+    # El handler central traduce la excepción a 500 (no se propaga al cliente).
+    respuesta = api.post(f"{BASE}/generar/V-1/", {"motivo_id": previo.motivo_id}, format="json")
+    assert respuesta.status_code == 500, respuesta.content
+
+    previo.refresh_from_db()
+    assert previo.activo is True, "el carnet anterior no debe quedar desactivado"
+    assert CarnetEmitidoModel.objects.filter(employee=empleado).count() == 1
 
 
 def test_todos_los_get_de_carnetizacion(datos_base):
@@ -336,4 +387,44 @@ def test_generar_carnet_devuelve_pdf_binario(datos_base):
     assert resp.status_code == 200, resp.content
     assert resp["Content-Type"].startswith("application/pdf")
     assert resp.content[:5] == b"%PDF-"
+
+
+def test_validar_hash_exige_autenticacion_y_permiso(datos_base):
+    """S4-01: el hash de un carnet no puede validarse de forma anónima."""
+    carnet = datos_base["carnet"]
+    ruta = f"{BASE}/validar/hash/{carnet.security_hash}/"
+
+    anonimo = APIClient()
+    assert anonimo.get(ruta).status_code in (401, 403)
+
+    sin_permiso = Usuario(cedula="V-2")
+    sin_permiso.tiene_permiso = lambda codigo: False
+    cliente_sin_permiso = APIClient()
+    cliente_sin_permiso.force_authenticate(user=sin_permiso)
+    assert cliente_sin_permiso.get(ruta).status_code == 403
+
+    assert datos_base["api"].get(ruta).status_code == 200
+
+
+def test_ficha_qr_publica_recorta_ip_y_user_agent(datos_base):
+    """S4-02: cabeceras largas no deben romper la bitácora ni devolver 500."""
+    carnet = datos_base["carnet"]
+    ip_larga = "203.0.113.9, " + "9" * 600
+    ua_largo = "A" * 2000
+
+    respuesta = APIClient().get(
+        f"{BASE}/public/qr/{carnet.security_hash}/",
+        HTTP_X_FORWARDED_FOR=ip_larga,
+        HTTP_USER_AGENT=ua_largo,
+    )
+
+    assert respuesta.status_code == 200, respuesta.content
+    bitacora = (
+        BitacoraAccesoQrModel.objects
+        .filter(security_hash=carnet.security_hash)
+        .latest("created_at")
+    )
+    assert bitacora.ip == "203.0.113.9"
+    assert len(bitacora.ip) <= 45
+    assert len(bitacora.user_agent) <= 500
 

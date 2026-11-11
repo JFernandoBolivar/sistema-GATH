@@ -32,6 +32,11 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import {
+  ESTATUS_PRESTAMO_ACTIVO,
+  ESTATUS_PRESTAMO_FINALIZADA,
+  ESTATUS_PRESTAMO_POR_VENCER,
+} from "@/shared/domain/catalogos";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -79,9 +84,9 @@ import {
 } from "@/modules/cargos/ui/schema/schema-asignar-cargo";
 
 const STATUS_BADGE: Record<string, string> = {
-  ACTIVO: "bg-green-600",
-  "POR VENCER": "bg-yellow-500",
-  FINALIZADA: "bg-muted0",
+  [ESTATUS_PRESTAMO_ACTIVO]: "bg-green-600",
+  [ESTATUS_PRESTAMO_POR_VENCER]: "bg-yellow-500",
+  [ESTATUS_PRESTAMO_FINALIZADA]: "bg-muted0",
 };
 
 export function PrestamoCargoPage() {
@@ -647,7 +652,7 @@ export function PrestamoCargoPage() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {!p.estaFinalizada && p.estatusNombre !== "FINALIZADA" && (
+                    {!p.estaFinalizada && p.estatusNombre !== ESTATUS_PRESTAMO_FINALIZADA && (
                       <Dialog open={finalizarOpen === p.id} onOpenChange={(o) => !o && setFinalizarOpen(null)}>
                         <DialogTrigger asChild>
                           <Button

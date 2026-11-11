@@ -12,6 +12,7 @@
  */
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
+import { unstable_rethrow } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Loader2, Search, UserPlus, Users } from "lucide-react";
 
@@ -73,7 +74,16 @@ export default function UsuariosPage() {
   const cargar = (siguientes: UsuariosFiltrosDTO) => {
     startTransition(async () => {
       setError(null);
-      const resultado = await listarUsuariosAction(siguientes);
+      let resultado: Awaited<ReturnType<typeof listarUsuariosAction>>;
+      try {
+        resultado = await listarUsuariosAction(siguientes);
+      } catch (e) {
+        // Un fallo del transporte de la server action (proxy, timeout, petición cortada al
+        // paginar muy rápido) no debe tumbar la pantalla: se informa y se queda en la página.
+        unstable_rethrow(e);
+        setError("No fue posible cargar los usuarios. Intente de nuevo.");
+        return;
+      }
       if (resultado && typeof resultado === "object" && "error" in resultado) {
         setError((resultado as { error: string }).error);
         return;

@@ -2,13 +2,14 @@
 Generador y validador de tokens seguros para recuperación de contraseña (C-2, S4, S5).
 
 Utiliza `TimestampSigner` de Django con salt específico. El payload firmado
-incluye los primeros 16 caracteres del hash actual de la contraseña del usuario:
+incluye una huella (sha256 truncado) del hash completo actual de la contraseña del usuario:
 en cuanto la contraseña se cambia, cualquier token generado previamente queda
 invalidado inmediatamente (un solo uso, protección anti-replay).
 La vigencia por defecto es de 15 minutos (900 segundos).
 """
 from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
 
+from apps.identidad.domain.services.huella_password import huella_password
 from core.domain.exceptions import ValidationError
 
 SALT_RECUPERACION = 'gath-password-reset'
@@ -18,7 +19,7 @@ MAX_AGE_DEFAULT = 900  # 15 minutos en segundos
 def generar_token_recuperacion(cuenta_id: int, cedula: str, password_hash: str) -> str:
     """Genera un token firmado con timestamp para recuperación de contraseña."""
     signer = TimestampSigner(salt=SALT_RECUPERACION)
-    hash_slice = (password_hash or '')[:16]
+    hash_slice = huella_password(password_hash)
     payload = f"{cuenta_id}:{cedula}:{hash_slice}"
     return signer.sign(payload)
 

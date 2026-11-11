@@ -89,7 +89,7 @@ describe("PasoContacto: teléfono celular", () => {
     expect(onContinuar).not.toHaveBeenCalled();
   });
 
-  it("en presencial permite «No tiene correo» con justificación (O39)", async () => {
+  it("en línea permite «No tiene correo» con justificación (U1)", async () => {
     const { onContinuar, usuario } = montar("+584147574312", {
       correoAlternativo: "",
       permiteSinCorreo: true,
@@ -104,5 +104,17 @@ describe("PasoContacto: teléfono celular", () => {
       sinCorreoAlternativo: true,
       justificacionSinCorreo: "El pasivo no posee correo electrónico ni familiar de contacto.",
     });
+  }, 30000);
+
+  it("en línea no continúa con «No tiene correo» y justificación corta (U1)", async () => {
+    const { onContinuar, usuario } = montar("+584147574312", {
+      correoAlternativo: "",
+      permiteSinCorreo: true,
+    });
+    fireEvent.click(screen.getByLabelText("No tiene correo"));
+    fireEvent.change(screen.getByLabelText(/Justificación/), { target: { value: "corto" } });
+    await usuario.click(screen.getByRole("button", { name: /continuar/i }));
+    expect(await screen.findByText(/al menos 10 caracteres/i)).toBeInTheDocument();
+    expect(onContinuar).not.toHaveBeenCalled();
   }, 30000);
 });

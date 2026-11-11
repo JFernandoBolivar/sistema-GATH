@@ -225,6 +225,35 @@ def test_flujo_completo_fe_de_vida_presencial(datos):
     assert m.registrada_por_cedula == ANALISTA
 
 
+def test_presencial_solo_para_pasivos_y_no_opera_sobre_solicitudes_en_linea(datos):
+    """L2-12: la vía presencial exige pasivo y una solicitud del canal PRESENCIAL."""
+    cli_admin = _cliente(ADMINISTRADORA, {'fe_de_vida.gestionar_procesos'})
+    r_proc = cli_admin.post(f'{BASE}/procesos/', {
+        'nombre': 'JUBILADOS 2026', 'fecha_apertura': '2026-01-01T00:00:00Z',
+        'fecha_cierre': '2026-12-31T23:59:59Z',
+    }, format='json')
+    pid = _cuerpo(r_proc)['id']
+    cli_admin.post(f'{BASE}/procesos/{pid}/abrir/')
+    cli_bienestar = _cliente(ANALISTA, {'fe_de_vida.registrar_presencial'})
+
+    # Un trabajador activo no puede registrar una fe de vida presencial.
+    r_activo = cli_bienestar.post(f'{BASE}/presencial/solicitudes/', {'cedula': ANALISTA}, format='json')
+    assert r_activo.status_code == 403
+
+    # El borrador presencial no puede tocar una solicitud del flujo en línea.
+    cli_pasivo = _cliente(PASIVO, {'fe_de_vida.solicitar', 'fe_de_vida.ver_propia'})
+    r_sol = cli_pasivo.post(f'{BASE}/procesos/vigente/solicitud/')
+    sid = _cuerpo(r_sol)['id']
+    r_borrador = cli_bienestar.put(
+        f'{BASE}/presencial/solicitudes/{sid}/borrador/', {'cambios': []}, format='json',
+    )
+    assert r_borrador.status_code == 403
+    r_envio = cli_bienestar.post(
+        f'{BASE}/presencial/solicitudes/{sid}/enviar/', {'declaracion_presencial': True}, format='json',
+    )
+    assert r_envio.status_code == 403
+
+
 def test_flujo_presencial_sin_correo_con_justificacion(datos):
     cli_admin = _cliente(ADMINISTRADORA, {'fe_de_vida.gestionar_procesos'})
     r_proc = cli_admin.post(f'{BASE}/procesos/', {

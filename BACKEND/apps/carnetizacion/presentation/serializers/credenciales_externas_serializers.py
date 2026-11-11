@@ -28,7 +28,7 @@ class CrearCredencialExternaSerializer(serializers.Serializer):
     documento = serializers.CharField(max_length=50)
     motivo = serializers.CharField(max_length=200)
     vigencia_desde = serializers.DateTimeField()
-    vigencia_hasta = serializers.DateTimeField()
+    vigencia_hasta = serializers.DateTimeField(required=False, allow_null=True, default=None)
     correo = serializers.EmailField(required=False, allow_blank=True, default='')
     empresa = serializers.CharField(required=False, allow_blank=True, default='', max_length=150)
     contrato = serializers.CharField(required=False, allow_blank=True, default='', max_length=100)
@@ -41,7 +41,7 @@ class CrearCredencialExternaSerializer(serializers.Serializer):
     observaciones = serializers.CharField(required=False, allow_blank=True, default='')
 
     def validate(self, attrs):
-        if attrs['vigencia_hasta'] <= attrs['vigencia_desde']:
+        if attrs.get('vigencia_hasta') and attrs['vigencia_hasta'] <= attrs['vigencia_desde']:
             raise serializers.ValidationError(
                 {'vigencia_hasta': ['La vigencia final debe ser posterior a la inicial.']}
             )

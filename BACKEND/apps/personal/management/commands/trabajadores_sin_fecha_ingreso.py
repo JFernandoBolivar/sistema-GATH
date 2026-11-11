@@ -15,6 +15,7 @@ from django.core.management.base import BaseCommand
 
 from apps.personal.infrastructure.models.expediente_models import ContratoModel
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
+from core.infrastructure.pdf.excel_seguro import neutralizar_fila_valores
 
 
 class Command(BaseCommand):
@@ -50,12 +51,12 @@ class Command(BaseCommand):
         for celda in hoja[1]:
             celda.font = Font(bold=True)
         for emp in pendientes:
-            hoja.append([
+            hoja.append(neutralizar_fila_valores([
                 emp.cedulaidentidad,
                 emp.nombres,
                 emp.apellidos,
                 'Complete la fecha de ingreso del antecedente o contrato vigente.',
-            ])
+            ]))
         hoja.column_dimensions['A'].width = 18
         hoja.column_dimensions['B'].width = 28
         hoja.column_dimensions['C'].width = 28

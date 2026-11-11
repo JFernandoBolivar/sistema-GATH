@@ -20,6 +20,8 @@ import {
 import { useWatch, type UseFormReturn } from "react-hook-form";
 import { Eraser, Search } from "lucide-react";
 
+import type { SchemaFilterFormType } from "@/modules/cargos/ui/schema/schema-asignar-cargo";
+
 interface ItemData {
   id: number;
   nombre?: string;
@@ -33,8 +35,7 @@ interface ItemData {
 }
 
 interface CodeFilterFormProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  form: UseFormReturn<any>;
+  form: UseFormReturn<SchemaFilterFormType>;
   dependencyData?: ItemData[];
   directionGeneralData?: ItemData[];
   directionLineData?: ItemData[];
@@ -45,8 +46,7 @@ interface CodeFilterFormProps {
   isLoadingDirectionLine?: boolean;
   isLoadingCoordination?: boolean;
   isLoadingNomina?: boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  onSearch: (values: any) => void;
+  onSearch: (values: SchemaFilterFormType) => void;
   onClean: () => void;
 }
 
@@ -161,7 +161,7 @@ export function CodeFilterForm({
                 <Select
                   onValueChange={(v) => field.onChange(Number(v))}
                   value={field.value?.toString() ?? ""}
-                  disabled={!watchedDependencia || watchedDependencia === "0" || watchedDependencia === 0}
+                  disabled={!watchedDependencia || watchedDependencia === 0}
                 >
                   <FormControl>
                     <SelectTrigger className="w-full truncate">
@@ -195,7 +195,7 @@ export function CodeFilterForm({
                 <Select
                   onValueChange={(v) => field.onChange(Number(v))}
                   value={field.value?.toString() ?? ""}
-                  disabled={!watchedDireccionGeneral || watchedDireccionGeneral === "0" || watchedDireccionGeneral === 0}
+                  disabled={!watchedDireccionGeneral || watchedDireccionGeneral === 0}
                 >
                   <FormControl>
                     <SelectTrigger className="w-full truncate">
@@ -229,7 +229,7 @@ export function CodeFilterForm({
                 <Select
                   onValueChange={(v) => field.onChange(Number(v))}
                   value={field.value?.toString() ?? ""}
-                  disabled={!watchedDireccionLinea || watchedDireccionLinea === "0" || watchedDireccionLinea === 0}
+                  disabled={!watchedDireccionLinea || watchedDireccionLinea === 0}
                 >
                   <FormControl>
                     <SelectTrigger className="w-full truncate">

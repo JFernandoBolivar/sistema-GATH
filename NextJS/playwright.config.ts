@@ -9,13 +9,16 @@ export default defineConfig({
   testDir: "./e2e",
   // El backend de desarrollo (runserver) tarda ~7 s en listar todo el personal y
   // las Server Actions de Next se ejecutan en serie: se amplían los plazos.
-  timeout: 120_000,
+  timeout: 180_000,
   expect: { timeout: 20_000 },
   fullyParallel: false,
   retries: 0,
   reporter: [["list"], ["json", { outputFile: "e2e-results/results.json" }]],
   use: {
     baseURL: process.env.E2E_BASE_URL || "http://127.0.0.1:3001",
+    // Evita que una navegación quede esperando el evento `load` de recursos
+    // largos (imágenes de SeaweedFS) más allá del tiempo de la prueba.
+    navigationTimeout: 60_000,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "off",

@@ -52,6 +52,29 @@ describe("verificarConstancia", () => {
     expect(r).toMatchObject({ tipo: "valida", interna: false });
   });
 
+  it("si la sesión venció (error sin status, F2-04) cae a la pública", async () => {
+    // SessionExpiredError no lleva `status`: antes acababa en el mensaje genérico.
+    const sesionVencida = Object.assign(new Error("Sesión expirada"), {
+      name: "SessionExpiredError",
+    });
+    const repo = repoFake({ verificarInterna: vi.fn().mockRejectedValue(sesionVencida) });
+    const r = await verificarConstancia(repo, CODIGO, true);
+    expect(r).toMatchObject({ tipo: "valida", interna: false });
+    expect(repo.verificarPublica).toHaveBeenCalledWith(CODIGO);
+  });
+
+  it("si la interna falla con 5xx también cae a la pública", async () => {
+    const repo = repoFake({ verificarInterna: vi.fn().mockRejectedValue(errorHttp(500)) });
+    const r = await verificarConstancia(repo, CODIGO, true);
+    expect(r).toMatchObject({ tipo: "valida", interna: false });
+  });
+
+  it("un 404 interno es inválida y no consulta la pública", async () => {
+    const repo = repoFake({ verificarInterna: vi.fn().mockRejectedValue(errorHttp(404)) });
+    expect(await verificarConstancia(repo, CODIGO, true)).toEqual({ tipo: "invalida" });
+    expect(repo.verificarPublica).not.toHaveBeenCalled();
+  });
+
   it("un código mal formado es inválido y no consulta al servidor", async () => {
     const repo = repoFake();
     expect(await verificarConstancia(repo, "abc", true)).toEqual({ tipo: "invalida" });

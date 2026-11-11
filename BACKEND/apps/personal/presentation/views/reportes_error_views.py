@@ -21,7 +21,6 @@ from apps.personal.application.use_cases.gestionar_reportes_error_laboral import
 from apps.personal.application.use_cases.reportar_error_laboral import (
     crear_reporte_error_laboral,
 )
-from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from apps.personal.infrastructure.repositories.repo_reportes_error_orm import (
     RepoReportesErrorLaboralORM,
 )
@@ -39,6 +38,11 @@ from core.presentation.permissions import HasPermission
 PERMISO_REPORTES_ERROR_VER = 'personal.reportes_error_ver'
 
 
+def _nombre_de_trabajador(cedula: str) -> str:
+    """Nombre y apellidos del trabajador, leídos por el repositorio (sin ORM aquí)."""
+    return RepoReportesErrorLaboralORM().nombre_trabajador(cedula)
+
+
 class ReportarErrorLaboralView(APIView):
     """
     Endpoint para que el trabajador autenticado reporte un error en sus datos
@@ -49,14 +53,6 @@ class ReportarErrorLaboralView(APIView):
     def _obtener_cedula_trabajador(self, request) -> str:
         cedula = getattr(request.user, 'cedula_id', None) or getattr(request.user, 'cedula', None)
         return str(cedula or '').strip()
-
-    def _obtener_nombre_trabajador(self, cedula: str) -> str:
-        if not cedula:
-            return ''
-        emp = EmployeeModel.objects.filter(cedulaidentidad=cedula).first()
-        if emp:
-            return f"{emp.nombres or ''} {emp.apellidos or ''}".strip()
-        return ''
 
     @extend_schema(
         tags=['Personal - Reportes Error'],
@@ -73,7 +69,7 @@ class ReportarErrorLaboralView(APIView):
         serializer = CrearReporteErrorSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        nombre = self._obtener_nombre_trabajador(cedula)
+        nombre = _nombre_de_trabajador(cedula)
         dto = CrearReporteErrorDTO(
             trabajador_cedula=cedula,
             dato=serializer.validated_data['dato'],
@@ -204,11 +200,7 @@ class AtenderReporteErrorLaboralView(APIView):
         serializer.is_valid(raise_exception=True)
 
         funcionario_cedula = str(getattr(request.user, 'cedula_id', None) or getattr(request.user, 'cedula', None) or '').strip()
-        funcionario_nombre = ''
-        if funcionario_cedula:
-            emp = EmployeeModel.objects.filter(cedulaidentidad=funcionario_cedula).first()
-            if emp:
-                funcionario_nombre = f"{emp.nombres or ''} {emp.apellidos or ''}".strip()
+        funcionario_nombre = _nombre_de_trabajador(funcionario_cedula)
         if not funcionario_nombre:
             funcionario_nombre = str(getattr(request.user, 'username', 'Analista RRHH'))
 

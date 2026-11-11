@@ -153,9 +153,10 @@ export async function obtenerMiSolicitudAction(
 export async function guardarBorradorAction(
   id: string,
   cambios: CambioEntrada[],
+  opciones?: { sinCorreoAlternativo?: boolean; justificacionSinCorreo?: string },
 ): Promise<ResultadoAccion<DetalleSolicitudDTO>> {
   return ejecutar("feDeVida.borrador", "Borrador guardado.", "No se pudo guardar el borrador.", () =>
-    guardarBorrador(repo, idValido(id), cambios),
+    guardarBorrador(repo, idValido(id), cambios, opciones),
   );
 }
 
