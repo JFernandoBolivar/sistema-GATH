@@ -1,6 +1,7 @@
 """
 Tests unitarios del flujo de recuperación y restablecimiento de contraseña (C-2, S4, S5).
 """
+import dataclasses
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -445,7 +446,7 @@ def test_token_recuperacion_es_de_un_solo_uso(hash_antes, hash_despues):
 
     assert "exitosamente" in restablecer_password(repo, **kwargs)  # primer uso
 
-    cuenta.password_hash = hash_despues  # la clave cambió
+    repo.cuenta = dataclasses.replace(cuenta, password_hash=hash_despues)  # la clave cambió
     with pytest.raises(ValidationError) as exc:
         restablecer_password(repo, **kwargs)
     assert "ya ha sido utilizado" in str(exc.value)
