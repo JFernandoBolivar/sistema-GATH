@@ -13,6 +13,8 @@ import type {
   EventoCategoria,
   EventoInvitado,
   EventoZona,
+  FiltrosInvitados,
+  PaginaInvitados,
   PanelEvento,
   ResumenImportacion,
 } from "@/modules/carnetizacion/domain/entities/evento";
@@ -131,26 +133,41 @@ export async function crearZonaEvento(
   return res.data;
 }
 
-export async function getInvitadosEvento(
-  eventoId: string,
-  filtros?: {
-    categoria_id?: string;
-    zona_id?: string;
-    estado?: string;
-    busqueda?: string;
-  }
-): Promise<EventoInvitado[]> {
+function paramsInvitados(filtros?: FiltrosInvitados): Record<string, string | undefined> {
   const params: Record<string, string | undefined> = {};
   if (filtros?.categoria_id) params.categoria_id = filtros.categoria_id;
   if (filtros?.zona_id) params.zona_id = filtros.zona_id;
   if (filtros?.estado) params.estado = filtros.estado;
   if (filtros?.busqueda) params.busqueda = filtros.busqueda;
+  if (filtros?.pagina) params.pagina = String(filtros.pagina);
+  if (filtros?.page_size) params.page_size = String(filtros.page_size);
+  return params;
+}
 
-  const res = await apiClient.get<ApiResponse<EventoInvitado[]>>(
+/** Una página de invitados; filtros y corte de página los resuelve el servidor. */
+export async function getInvitadosEvento(
+  eventoId: string,
+  filtros?: FiltrosInvitados
+): Promise<PaginaInvitados> {
+  const res = await apiClient.get<ApiResponse<PaginaInvitados>>(
     `${BASE_URL}/${eventoId}/invitados/`,
-    { params }
+    { params: paramsInvitados(filtros) }
   );
-  return res.data || [];
+  return (
+    res.data || { resultados: [], total: 0, pagina: 1, tamano: filtros?.page_size ?? 10, total_paginas: 1 }
+  );
+}
+
+/** Ids de todos los invitados que cumplen el filtro (selección masiva), sin paginar. */
+export async function getIdsInvitadosEvento(
+  eventoId: string,
+  filtros?: Omit<FiltrosInvitados, "pagina" | "page_size">
+): Promise<string[]> {
+  const res = await apiClient.get<ApiResponse<{ ids: string[]; total: number }>>(
+    `${BASE_URL}/${eventoId}/invitados/ids/`,
+    { params: paramsInvitados(filtros) }
+  );
+  return res.data?.ids || [];
 }
 
 export async function crearInvitado(

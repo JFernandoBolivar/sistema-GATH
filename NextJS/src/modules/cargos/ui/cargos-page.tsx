@@ -6,6 +6,7 @@
  * funcional del legado `listado-codigo` y `code-list.tsx`).
  */
 import { useEffect, useState, useTransition } from "react";
+import { unstable_rethrow } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSession } from "next-auth/react";
@@ -22,6 +23,7 @@ import {
 } from "@/shared/ui/components/card";
 import { DataTable } from "@/shared/ui/components/data-table";
 import { Input } from "@/shared/ui/components/input";
+import { Label } from "@/shared/ui/components/label";
 import {
   Form,
   FormControl,
@@ -42,6 +44,7 @@ import { Loading } from "@/shared/ui/components/loading";
 import type {
   CargoAsignacionDTO,
   CatalogoCargoItemDTO,
+  PaginaCargosDTO,
   UnidadOrganizativaCargoDTO,
 } from "../application/dtos/cargo-dto";
 import {
@@ -49,7 +52,8 @@ import {
   cambiarCargoAction,
   desasignarCargoAction,
   gestionarEstatusAction,
-  getCargosAction,
+  getCargosPaginadoAction,
+  getCargosVacantesAction,
   getCoordinacionesAction,
   getDependenciasAction,
   getDireccionesGeneralesAction,
@@ -65,13 +69,29 @@ import {
   type SchemaFilterFormType,
 } from "./schema/schema-asignar-cargo";
 
+interface FiltrosCargos {
+  codigo?: string;
+  tipoNominaId?: number;
+  dependenciaId?: number;
+  direccionGeneralId?: number;
+  direccionLineaId?: number;
+  coordinacionId?: number;
+  pagina: number;
+  pageSize: number;
+}
+
+const FILTROS_INICIALES: FiltrosCargos = { pagina: 1, pageSize: 10 };
+
 export default function CargosPage() {
   const { data: session } = useSession();
   const permisos = session?.user?.permisos;
   const puedeVerDetalle = tienePermiso(permisos, "cargos.ver");
   const puedeAsignar = tienePermiso(permisos, "cargos.asignar");
 
-  const [cargos, setCargos] = useState<CargoAsignacionDTO[]>([]);
+  const [pagina, setPagina] = useState<PaginaCargosDTO | null>(null);
+  const [filtros, setFiltros] = useState<FiltrosCargos>(FILTROS_INICIALES);
+  const [vacantes, setVacantes] = useState<CargoAsignacionDTO[]>([]);
+  const cargos = pagina?.resultados ?? [];
   const [nominas, setNominas] = useState<CatalogoCargoItemDTO[]>([]);
   const [dependencias, setDependencias] = useState<UnidadOrganizativaCargoDTO[]>([]);
   const [direccionesGenerales, setDireccionesGenerales] = useState<UnidadOrganizativaCargoDTO[]>([]);
@@ -109,26 +129,22 @@ export default function CargosPage() {
     },
   });
 
-  const cargarCargos = (filtros?: {
-    codigo?: string;
-    tipoNominaId?: number;
-    dependenciaId?: number;
-    direccionGeneralId?: number;
-    direccionLineaId?: number;
-    coordinacionId?: number;
-  }) => {
+  const cargarCargos = (siguientes: FiltrosCargos) => {
     startTransition(async () => {
       setError(null);
       try {
-        setCargos(await getCargosAction(filtros));
-      } catch {
+        setPagina(await getCargosPaginadoAction(siguientes));
+      } catch (e) {
+        // Un fallo del transporte de la server action (proxy, timeout, petición cortada al
+        // paginar muy rápido) no debe tumbar la pantalla: se informa y se queda en la página.
+        unstable_rethrow(e);
         setError("No fue posible cargar los cargos.");
       }
     });
   };
 
   useEffect(() => {
-    cargarCargos();
+    cargarCargos(FILTROS_INICIALES);
     const cargarCatalogosIniciales = async () => {
       setIsLoadingCatalogos(true);
       try {
@@ -219,14 +235,31 @@ export default function CargosPage() {
   };
 
   const onSearch = (values: SchemaFilterFormType) => {
-    cargarCargos({
+    const siguientes: FiltrosCargos = {
       codigo: values.codigo?.trim() || undefined,
       tipoNominaId: values.tipo_nomina && values.tipo_nomina > 0 ? values.tipo_nomina : undefined,
       dependenciaId: values.dependencia_id || undefined,
       direccionGeneralId: values.direccion_general_id || undefined,
       direccionLineaId: values.direccion_linea_id || undefined,
       coordinacionId: values.coordinacion_id || undefined,
-    });
+      pagina: 1,
+      pageSize: filtros.pageSize,
+    };
+    setFiltros(siguientes);
+    cargarCargos(siguientes);
+  };
+
+  const cambiarPagina = (nueva: number) => {
+    if (!pagina || nueva < 1 || nueva > pagina.totalPaginas) return;
+    const siguientes = { ...filtros, pagina: nueva };
+    setFiltros(siguientes);
+    cargarCargos(siguientes);
+  };
+
+  const cambiarTamano = (valor: string) => {
+    const siguientes = { ...filtros, pageSize: Number(valor), pagina: 1 };
+    setFiltros(siguientes);
+    cargarCargos(siguientes);
   };
 
   const cleanFields = () => {
@@ -244,15 +277,24 @@ export default function CargosPage() {
     setDireccionesGenerales([]);
     setDireccionesLinea([]);
     setCoordinaciones([]);
-    cargarCargos({});
+    const iniciales = { ...FILTROS_INICIALES, pageSize: filtros.pageSize };
+    setFiltros(iniciales);
+    cargarCargos(iniciales);
   };
 
   const cargoSeleccionado = cargos.find((c) => c.id === viendoDetalleId) ?? null;
-  const cargosVacantes = cargos.filter((c) => c.estaVacante);
 
   const onVerDetalle = (cargoId: number) => {
     setViendoDetalleId(cargoId);
     setDetalleAbierto(true);
+    // Destinos del traslado: las vacantes ya no salen de la página visible (solo trae una
+    // parte del listado), así que se piden completas al abrir el detalle.
+    getCargosVacantesAction()
+      .then(setVacantes)
+      .catch((e) => {
+        unstable_rethrow(e);
+        setVacantes([]);
+      });
   };
 
   const onAsignar = (empleadoCedula: string) => {
@@ -264,7 +306,7 @@ export default function CargosPage() {
         setError((result as { error: string }).error);
         return;
       }
-      cargarCargos();
+      cargarCargos(filtros);
     });
   };
 
@@ -277,7 +319,7 @@ export default function CargosPage() {
         setError((result as { error: string }).error);
         return;
       }
-      cargarCargos();
+      cargarCargos(filtros);
     });
   };
 
@@ -294,7 +336,7 @@ export default function CargosPage() {
         return;
       }
       setDetalleAbierto(false);
-      cargarCargos();
+      cargarCargos(filtros);
     });
   };
 
@@ -310,7 +352,7 @@ export default function CargosPage() {
         setError(errores ? "Revise los campos marcados en rojo." : (result as { error: string }).error);
         return;
       }
-      cargarCargos();
+      cargarCargos(filtros);
     });
   };
 
@@ -550,7 +592,7 @@ export default function CargosPage() {
 
         {error && <p role="alert" className="mt-4 text-sm text-destructive">{error}</p>}
 
-        {isPending && cargos.length === 0 ? (
+        {isPending && !pagina ? (
           <Loading className="mt-6 border-none shadow-none" promiseMessage="Cargando Cargos..." />
         ) : (
           <div className="mt-4 w-full">
@@ -558,7 +600,55 @@ export default function CargosPage() {
               columns={columnas}
               data={cargos}
               emptyMessage="Sin Resultados"
+              hidePagination
             />
+            {pagina && (
+              <>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {pagina.total} registro(s); página {pagina.pagina} de {pagina.totalPaginas}.
+                </p>
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="tamano-pagina-cargos" className="text-sm">
+                      Filas
+                    </Label>
+                    <Select value={String(pagina.tamano)} onValueChange={cambiarTamano}>
+                      <SelectTrigger id="tamano-pagina-cargos" className="w-24">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => cambiarPagina(pagina.pagina - 1)}
+                      disabled={pagina.pagina <= 1 || isPending}
+                    >
+                      Anterior
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      Página {pagina.pagina} de {pagina.totalPaginas}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => cambiarPagina(pagina.pagina + 1)}
+                      disabled={pagina.pagina >= pagina.totalPaginas || isPending}
+                    >
+                      Siguiente
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -569,7 +659,7 @@ export default function CargosPage() {
             if (!open) setViendoDetalleId(null);
           }}
           cargo={cargoSeleccionado}
-          cargosVacantes={cargosVacantes.filter((c) => c.id !== viendoDetalleId)}
+          cargosVacantes={vacantes.filter((c) => c.id !== viendoDetalleId)}
           erroresTraslado={erroresTraslado}
           erroresEstatus={erroresEstatus}
           estatus={estatus}
@@ -588,7 +678,7 @@ export default function CargosPage() {
             if (!open) setCargoParaActualizar(null);
           }}
           cargo={cargoParaActualizar}
-          onUpdated={() => cargarCargos()}
+          onUpdated={() => cargarCargos(filtros)}
         />
       </CardContent>
     </Card>

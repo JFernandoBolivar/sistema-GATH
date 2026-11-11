@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { unstable_rethrow } from "next/navigation";
 import {
   ArrowLeft,
   Calendar,
@@ -35,6 +36,7 @@ import {
 import { Button } from "@/shared/ui/components/button";
 import { Badge } from "@/shared/ui/components/badge";
 import { Input } from "@/shared/ui/components/input";
+import { Label } from "@/shared/ui/components/label";
 import {
   Tabs,
   TabsContent,
@@ -64,6 +66,7 @@ import {
   enviarCredencialesCorreoAction,
   getCategoriasEventoAction,
   getEventoDetalleAction,
+  getIdsInvitadosEventoAction,
   getInvitadosEventoAction,
   getPanelEventoAction,
   getZonasEventoAction,
@@ -86,7 +89,17 @@ interface EventoDetallePanelProps {
 export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
   const [evento, setEvento] = useState<Evento | null>(null);
   const [panel, setPanel] = useState<PanelEvento | null>(null);
+  // Invitados de la página visible (el servidor filtra y corta la página).
   const [invitados, setInvitados] = useState<EventoInvitado[]>([]);
+  const [totalFiltrados, setTotalFiltrados] = useState(0);
+  const [totalPaginas, setTotalPaginas] = useState(1);
+  // Resumen del evento: primeros registros y total sin filtro (pestañas Resumen y Gafetes).
+  const [primerosInvitados, setPrimerosInvitados] = useState<EventoInvitado[]>([]);
+  const [totalEvento, setTotalEvento] = useState(0);
+  const [cargandoPagina, setCargandoPagina] = useState(false);
+  const [seleccionandoTodos, setSeleccionandoTodos] = useState(false);
+  const [recarga, setRecarga] = useState(0);
+  const peticionPagina = useRef(0);
   const [categorias, setCategorias] = useState<EventoCategoria[]>([]);
   const [zonas, setZonas] = useState<EventoZona[]>([]);
 
@@ -95,10 +108,11 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
 
   // Filtros de invitados
   const [busqueda, setBusqueda] = useState("");
+  const [busquedaAplicada, setBusquedaAplicada] = useState("");
   const [catFiltro, setCatFiltro] = useState<string>("todas");
   const [zonaFiltro, setZonaFiltro] = useState<string>("todas");
 
-  // Paginación en servidor / cliente (10 por defecto)
+  // Paginación en el servidor (10 por defecto)
   const [paginaActual, setPaginaActual] = useState(1);
   const [filasPorPagina, setFilasPorPagina] = useState(10);
 
@@ -122,19 +136,22 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
   const cargarDatos = useCallback(() => {
     startTransition(async () => {
       try {
-        const [ev, p, invs, cats, zns] = await Promise.all([
+        const [ev, p, resumen, cats, zns] = await Promise.all([
           getEventoDetalleAction(eventoId),
           getPanelEventoAction(eventoId),
-          getInvitadosEventoAction(eventoId),
+          getInvitadosEventoAction(eventoId, { pagina: 1, page_size: 6 }),
           getCategoriasEventoAction(eventoId),
           getZonasEventoAction(eventoId),
         ]);
         setEvento(ev);
         setPanel(p);
-        setInvitados(invs);
+        setPrimerosInvitados(resumen.resultados);
+        setTotalEvento(resumen.total);
         setCategorias(cats);
         setZonas(zns);
+        setRecarga((n) => n + 1);
       } catch (err) {
+        unstable_rethrow(err);
         console.error("Error cargando panel de evento:", err);
       }
     });
@@ -144,47 +161,79 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
     cargarDatos();
   }, [cargarDatos]);
 
-  // Filtrado de invitados
-  const invitadosFiltrados = useMemo(() => {
-    return invitados.filter((inv) => {
-      const matchBusqueda =
-        !busqueda ||
-        inv.nombre_completo.toLowerCase().includes(busqueda.toLowerCase()) ||
-        (inv.documento_identidad && inv.documento_identidad.toLowerCase().includes(busqueda.toLowerCase())) ||
-        (inv.codigo_credencial && inv.codigo_credencial.toLowerCase().includes(busqueda.toLowerCase())) ||
-        (inv.organizacion && inv.organizacion.toLowerCase().includes(busqueda.toLowerCase()));
+  // La búsqueda por texto se envía al servidor con una pequeña espera entre teclas.
+  useEffect(() => {
+    const t = setTimeout(() => setBusquedaAplicada(busqueda.trim()), 300);
+    return () => clearTimeout(t);
+  }, [busqueda]);
 
-      const matchCat = catFiltro === "todas" || inv.categoria_id === catFiltro;
-      const matchZona = zonaFiltro === "todas" || inv.zona_id === zonaFiltro;
+  const filtrosServidor = {
+    busqueda: busquedaAplicada || undefined,
+    categoria_id: catFiltro === "todas" ? undefined : catFiltro,
+    zona_id: zonaFiltro === "todas" ? undefined : zonaFiltro,
+  };
+  const claveFiltros = JSON.stringify(filtrosServidor);
 
-      return matchBusqueda && matchCat && matchZona;
-    });
-  }, [invitados, busqueda, catFiltro, zonaFiltro]);
-
-  // Paginación
-  const totalPaginas = Math.max(1, Math.ceil(invitadosFiltrados.length / filasPorPagina));
-  const indiceInicio = (paginaActual - 1) * filasPorPagina;
-  const invitadosPaginados = invitadosFiltrados.slice(indiceInicio, indiceInicio + filasPorPagina);
+  // Página de invitados: el servidor filtra y corta; se descartan respuestas atrasadas.
+  useEffect(() => {
+    const numero = ++peticionPagina.current;
+    setCargandoPagina(true);
+    getInvitadosEventoAction(eventoId, {
+      ...(JSON.parse(claveFiltros) as typeof filtrosServidor),
+      pagina: paginaActual,
+      page_size: filasPorPagina,
+    })
+      .then((res) => {
+        if (numero !== peticionPagina.current) return;
+        setInvitados(res.resultados);
+        setTotalFiltrados(res.total);
+        setTotalPaginas(res.total_paginas);
+        // Si la página quedó fuera de rango (p. ej. tras borrar), se vuelve a la última.
+        if (paginaActual > res.total_paginas) setPaginaActual(res.total_paginas);
+      })
+      .catch((err) => {
+        unstable_rethrow(err);
+        if (numero !== peticionPagina.current) return;
+        setErrorAccion("No fue posible cargar los invitados. Intente de nuevo.");
+      })
+      .finally(() => {
+        if (numero === peticionPagina.current) setCargandoPagina(false);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventoId, claveFiltros, paginaActual, filasPorPagina, recarga]);
 
   // Selección masiva
   const estanTodosDePaginaSeleccionados =
-    invitadosPaginados.length > 0 &&
-    invitadosPaginados.every((inv) => selectedIds.has(inv.id));
+    invitados.length > 0 && invitados.every((inv) => selectedIds.has(inv.id));
 
   const toggleSeleccionarPagina = () => {
     setSelectedIds((prev) => {
       const nuevo = new Set(prev);
       if (estanTodosDePaginaSeleccionados) {
-        invitadosPaginados.forEach((inv) => nuevo.delete(inv.id));
+        invitados.forEach((inv) => nuevo.delete(inv.id));
       } else {
-        invitadosPaginados.forEach((inv) => nuevo.add(inv.id));
+        invitados.forEach((inv) => nuevo.add(inv.id));
       }
       return nuevo;
     });
   };
 
-  const seleccionarTodosLosFiltrados = () => {
-    setSelectedIds(new Set(invitadosFiltrados.map((inv) => inv.id)));
+  // Abarca todo el filtro, no solo la página: el servidor devuelve únicamente los ids.
+  const seleccionarTodosLosFiltrados = async () => {
+    setSeleccionandoTodos(true);
+    try {
+      setErrorAccion(null);
+      const ids = await getIdsInvitadosEventoAction(
+        eventoId,
+        JSON.parse(claveFiltros) as typeof filtrosServidor
+      );
+      setSelectedIds(new Set(ids));
+    } catch (err) {
+      unstable_rethrow(err);
+      setErrorAccion("No fue posible seleccionar todos los resultados del filtro.");
+    } finally {
+      setSeleccionandoTodos(false);
+    }
   };
 
   const limpiarSeleccion = () => {
@@ -290,7 +339,7 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
 
   // Primer invitado seleccionado o de ejemplo para la vista previa del gafete
   const invitadoParaPreview =
-    invitados.find((inv) => selectedIds.has(inv.id)) || invitados[0];
+    invitados.find((inv) => selectedIds.has(inv.id)) || invitados[0] || primerosInvitados[0];
 
   return (
     <PageLayout
@@ -401,7 +450,7 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
               Resumen
             </TabsTrigger>
             <TabsTrigger value="invitados" className="text-xs py-2.5 font-semibold">
-              Invitados ({invitados.length})
+              Invitados ({totalEvento})
             </TabsTrigger>
             <TabsTrigger value="emision" className="text-xs py-2.5 font-semibold">
               Gafetes
@@ -425,7 +474,7 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Invitados</p>
                     <p className="mt-1 text-3xl font-bold text-foreground sm:text-4xl">
-                      {panel?.total_invitados ?? invitados.length}
+                      {panel?.total_invitados ?? totalEvento}
                     </p>
                     <p className="text-xs text-muted-foreground">Aforo registrado</p>
                   </div>
@@ -527,14 +576,14 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {invitados.length === 0 ? (
+                        {primerosInvitados.length === 0 ? (
                           <TableRow>
                             <TableCell colSpan={4} className="p-6 text-center text-sm text-muted-foreground">
                               Aún no hay invitados registrados.
                             </TableCell>
                           </TableRow>
                         ) : (
-                          invitados.slice(0, 6).map((inv) => {
+                          primerosInvitados.map((inv) => {
                             const ingreso = inv.estado === "ingreso";
                             const emitido =
                               ingreso ||
@@ -633,7 +682,7 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
                     <p className="text-xs text-muted-foreground">No hay categorías configuradas.</p>
                   ) : (
                     categorias.map((cat) => {
-                      const conteo = invitados.filter((i) => i.categoria_id === cat.id).length;
+                      const conteo = panel?.por_categoria?.[cat.nombre] ?? 0;
                       return (
                         <div key={cat.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/40 text-xs">
                           <div className="flex items-center gap-2">
@@ -664,7 +713,7 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
                     <p className="text-xs text-muted-foreground">No hay zonas configuradas.</p>
                   ) : (
                     zonas.map((z) => {
-                      const conteo = invitados.filter((i) => i.zona_id === z.id).length;
+                      const conteo = panel?.por_zona?.[z.nombre] ?? 0;
                       return (
                         <div key={z.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/40 text-xs">
                           <span className="font-semibold text-foreground">{z.nombre}</span>
@@ -771,7 +820,7 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/40 text-xs">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <span className="font-medium">
-                      Seleccionados: <strong>{selectedIds.size}</strong> de {invitadosFiltrados.length}
+                      Seleccionados: <strong>{selectedIds.size}</strong> de {totalFiltrados}
                     </span>
                     {selectedIds.size > 0 && (
                       <Button
@@ -787,15 +836,16 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {invitadosFiltrados.length > 0 && selectedIds.size < invitadosFiltrados.length && (
+                    {totalFiltrados > 0 && selectedIds.size < totalFiltrados && (
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
                         onClick={seleccionarTodosLosFiltrados}
+                        disabled={seleccionandoTodos}
                         className="h-7 text-xs text-primary font-medium hover:underline"
                       >
-                        Seleccionar todos los resultados del filtro ({invitadosFiltrados.length})
+                        Seleccionar todos los resultados del filtro ({totalFiltrados})
                       </Button>
                     )}
 
@@ -846,14 +896,14 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {invitadosPaginados.length === 0 ? (
+                    {invitados.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={7} className="p-8 text-center text-xs text-muted-foreground">
                           No se encontraron asistentes para los criterios seleccionados.
                         </TableCell>
                       </TableRow>
                     ) : (
-                      invitadosPaginados.map((inv) => {
+                      invitados.map((inv) => {
                         const isSelected = selectedIds.has(inv.id);
                         return (
                           <TableRow
@@ -931,54 +981,55 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
                 </Table>
               </div>
 
-              {/* Barra de Paginación */}
-              <div className="p-3 border-t border-border/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
-                <div>
-                  Mostrando {invitadosFiltrados.length > 0 ? indiceInicio + 1 : 0} -{" "}
-                  {Math.min(indiceInicio + filasPorPagina, invitadosFiltrados.length)} de{" "}
-                  {invitadosFiltrados.length} invitados
+              {/* Barra de Paginación (en el servidor) */}
+              <div className="p-3 border-t border-border/60 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="filas-invitados" className="text-xs">
+                    Filas
+                  </Label>
+                  <Select
+                    value={String(filasPorPagina)}
+                    onValueChange={(v) => {
+                      setFilasPorPagina(Number(v));
+                      setPaginaActual(1);
+                    }}
+                  >
+                    <SelectTrigger id="filas-invitados" className="h-8 w-20 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1.5">
-                    <span>Por página:</span>
-                    <select
-                      value={filasPorPagina}
-                      onChange={(e) => {
-                        setFilasPorPagina(Number(e.target.value));
-                        setPaginaActual(1);
-                      }}
-                      className="h-8 px-2 bg-background border border-input rounded text-xs text-foreground focus:outline-none"
-                    >
-                      <option value={10}>10</option>
-                      <option value={25}>25</option>
-                      <option value={50}>50</option>
-                    </select>
-                  </div>
+                <span>
+                  {totalFiltrados} registro(s); página {paginaActual} de {totalPaginas}
+                </span>
 
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPaginaActual((p) => Math.max(1, p - 1))}
-                      disabled={paginaActual <= 1}
-                      className="h-8 px-2.5 text-xs"
-                    >
-                      Anterior
-                    </Button>
-                    <span className="px-2 font-medium">
-                      {paginaActual} / {totalPaginas}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPaginaActual((p) => Math.min(totalPaginas, p + 1))}
-                      disabled={paginaActual >= totalPaginas}
-                      className="h-8 px-2.5 text-xs"
-                    >
-                      Siguiente
-                    </Button>
-                  </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPaginaActual((p) => Math.max(1, p - 1))}
+                    disabled={paginaActual <= 1 || cargandoPagina}
+                    className="h-8 px-2.5 text-xs"
+                  >
+                    Anterior
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPaginaActual((p) => Math.min(totalPaginas, p + 1))}
+                    disabled={paginaActual >= totalPaginas || cargandoPagina}
+                    className="h-8 px-2.5 text-xs"
+                  >
+                    Siguiente
+                  </Button>
                 </div>
               </div>
             </Card>
@@ -1011,11 +1062,11 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
                         <span className="text-muted-foreground text-[11px]">
                           {selectedIds.size > 0
                             ? `${selectedIds.size} asistente(s) seleccionado(s) específicamente.`
-                            : `Todos los ${invitados.length} asistentes registrados en el evento.`}
+                            : `Todos los ${totalEvento} asistentes registrados en el evento.`}
                         </span>
                       </div>
                       <Badge variant="default" className="text-xs font-mono font-bold px-2.5 py-1">
-                        {selectedIds.size > 0 ? selectedIds.size : invitados.length}
+                        {selectedIds.size > 0 ? selectedIds.size : totalEvento}
                       </Badge>
                     </div>
 

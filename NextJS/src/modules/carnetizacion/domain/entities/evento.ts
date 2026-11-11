@@ -120,3 +120,22 @@ export interface PanelEvento {
   por_categoria: Record<string, number>;
   por_zona: Record<string, number>;
 }
+
+/** Página de invitados de un evento (paginada en el servidor). */
+export interface PaginaInvitados {
+  resultados: EventoInvitado[];
+  total: number;
+  pagina: number;
+  tamano: number;
+  total_paginas: number;
+}
+
+/** Filtros del listado de invitados; los aplica el servidor. */
+export interface FiltrosInvitados {
+  categoria_id?: string;
+  zona_id?: string;
+  estado?: string;
+  busqueda?: string;
+  pagina?: number;
+  page_size?: number;
+}

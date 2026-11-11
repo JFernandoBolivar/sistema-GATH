@@ -1,8 +1,9 @@
 """
 Casos de uso para consultar puestos de trabajo y vacantes.
 """
-from apps.cargos.application.dtos.cargos_dtos import CargoAsignacionDTO
+from apps.cargos.application.dtos.cargos_dtos import CargoAsignacionDTO, PaginaCargosDTO
 from apps.cargos.domain.ports.repo_cargos import RepoCargos
+from apps.cargos.domain.value_objects.paginacion import Paginacion
 
 
 def _a_dto(entidad) -> CargoAsignacionDTO:
@@ -62,3 +63,33 @@ def listar_cargos(
             solo_vacantes=solo_vacantes,
         )
     return [_a_dto(e) for e in entidades]
+
+
+def listar_cargos_paginado(
+    repo: RepoCargos,
+    paginacion: Paginacion,
+    tipo_nomina_id: int | None = None,
+    dependencia_id: int | None = None,
+    solo_vacantes: bool = False,
+    direccion_general_id: int | None = None,
+    direccion_linea_id: int | None = None,
+    coordinacion_id: int | None = None,
+    codigo: str | None = None,
+) -> PaginaCargosDTO:
+    entidades, total = repo.listar_cargos_paginado(
+        paginacion,
+        tipo_nomina_id=tipo_nomina_id,
+        dependencia_id=dependencia_id,
+        solo_vacantes=solo_vacantes,
+        direccion_general_id=direccion_general_id,
+        direccion_linea_id=direccion_linea_id,
+        coordinacion_id=coordinacion_id,
+        codigo=codigo,
+    )
+    return PaginaCargosDTO(
+        resultados=[_a_dto(e) for e in entidades],
+        total=total,
+        pagina=paginacion.pagina,
+        tamano=paginacion.tamano,
+        total_paginas=paginacion.total_paginas(total),
+    )

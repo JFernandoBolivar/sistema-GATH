@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { unstable_rethrow } from "next/navigation";
 import {
   ETIQUETA_CODIGO_CARNET_PATRIA,
   ETIQUETA_SERIAL_CARNET_PATRIA,
@@ -16,6 +17,7 @@ import PageLayout from "@/components/layout/page-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Form,
@@ -50,7 +52,7 @@ import {
 import Loading from "@/shared/ui/components/loading";
 
 import {
-  consultarCensoEmpleadoAction,
+  consultarCensoPaginaAction,
   exportarCensoExcelAction,
   getDependencyAction,
   getDirectionGeneralAction,
@@ -225,6 +227,8 @@ function DetalleCenso({ empleado }: { empleado: CensoEmpleado }) {
 
 export default function ConsultarCensoPage() {
   const [searchCedula, setSearchCedula] = useState<string>("");
+  const [pagina, setPagina] = useState(1);
+  const [tamano, setTamano] = useState(10);
   const [isPending, startTransition] = useTransition();
 
   const [dependencyId, setDependencyId] = useState<number>(0);
@@ -249,10 +253,22 @@ export default function ConsultarCensoPage() {
     },
   });
 
-  const { data, isLoading, mutate } = useSWR(
-    ["censo-consultar", searchCedula],
-    () => consultarCensoEmpleadoAction(searchCedula || undefined),
-    { revalidateOnFocus: false },
+  // El servidor pagina: cada página trae solo sus censados con sus respuestas.
+  const { data, isLoading, error, mutate } = useSWR(
+    ["censo-consultar", searchCedula, pagina, tamano],
+    async () => {
+      try {
+        return await consultarCensoPaginaAction({
+          pagina,
+          page_size: tamano,
+          cedula: searchCedula || undefined,
+        });
+      } catch (e) {
+        unstable_rethrow(e);
+        throw e;
+      }
+    },
+    { revalidateOnFocus: false, keepPreviousData: true },
   );
 
   const { data: dependency, isLoading: isLoadingDependency } = useSWR(
@@ -280,10 +296,15 @@ export default function ConsultarCensoPage() {
     () => getNominaGeneralAction(),
   );
 
-  const empleados: CensoEmpleado[] = (data?.data as unknown as CensoEmpleado[]) ?? [];
+  const resultadosPagina = data?.data;
+  const empleados: CensoEmpleado[] = (resultadosPagina?.resultados as CensoEmpleado[] | undefined) ?? [];
+  const totalCensos = resultadosPagina?.total ?? 0;
+  const paginaActual = resultadosPagina?.pagina ?? pagina;
+  const totalPaginas = resultadosPagina?.total_paginas ?? 1;
 
   const onSearch = (values: z.infer<typeof schemaSearch>) => {
     setSearchCedula(values.cedula || "");
+    setPagina(1);
     mutate();
   };
 
@@ -375,6 +396,7 @@ export default function ConsultarCensoPage() {
               onClick={() => {
                 formSearch.reset({ cedula: "" });
                 setSearchCedula("");
+                setPagina(1);
                 mutate();
               }}
             >
@@ -682,6 +704,57 @@ export default function ConsultarCensoPage() {
             </Table>
           </ScrollArea>
         )}
+
+        {error ? (
+          <p className="text-sm text-destructive">No fue posible cargar los censos. Intente de nuevo.</p>
+        ) : null}
+
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="filas-censo" className="text-sm">
+              Filas
+            </Label>
+            <Select
+              value={String(tamano)}
+              onValueChange={(v) => {
+                setTamano(Number(v));
+                setPagina(1);
+              }}
+            >
+              <SelectTrigger id="filas-censo" className="w-24">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <span className="text-sm text-muted-foreground">
+            {totalCensos} registro(s); página {paginaActual} de {totalPaginas}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setPagina(paginaActual - 1)}
+              disabled={paginaActual <= 1 || isLoading}
+            >
+              Anterior
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setPagina(paginaActual + 1)}
+              disabled={paginaActual >= totalPaginas || isLoading}
+            >
+              Siguiente
+            </Button>
+          </div>
+        </div>
       </div>
     </PageLayout>
   );

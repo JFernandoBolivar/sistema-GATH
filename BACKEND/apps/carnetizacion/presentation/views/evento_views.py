@@ -11,6 +11,7 @@ from rest_framework.parsers import FormParser, MultiPartParser, JSONParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
+from core.domain.paginacion import Paginacion
 from core.infrastructure.pdf.report_excel import generar_reporte_excel
 from core.infrastructure.storage.validacion_archivo import MAX_BYTES_DOCUMENTO
 from core.presentation.envelope import fail, ok
@@ -39,7 +40,8 @@ from apps.carnetizacion.application.use_cases.gestionar_invitados import (
     ActualizarInvitadoUseCase,
     CrearInvitadoUseCase,
     ImportarInvitadosUseCase,
-    ListarInvitadosUseCase,
+    ListarIdsInvitadosUseCase,
+    ListarInvitadosPaginadoUseCase,
 )
 from apps.carnetizacion.application.use_cases.obtener_panel_evento import (
     ObtenerPanelEventoUseCase,
@@ -223,30 +225,30 @@ class EventoInvitadosListView(APIView):
 
     @extend_schema(
         tags=["Carnetización - Eventos"],
-        summary="Listar invitados de un evento",
+        summary="Listar invitados de un evento (paginado)",
         parameters=[
+            OpenApiParameter("pagina", int, required=False),
+            OpenApiParameter("page_size", int, required=False),
             OpenApiParameter("categoria_id", str, required=False),
             OpenApiParameter("zona_id", str, required=False),
             OpenApiParameter("estado", str, required=False),
             OpenApiParameter("busqueda", str, required=False),
         ],
-        responses={200: EventoInvitadoSerializer(many=True)},
     )
     def get(self, request, evento_id: str):
-        repo = RepoEventosORM()
-        categoria_id = request.query_params.get("categoria_id")
-        zona_id = request.query_params.get("zona_id")
-        estado = request.query_params.get("estado")
-        busqueda = request.query_params.get("busqueda")
-
-        invitados = ListarInvitadosUseCase(repo).ejecutar(
+        """`?pagina=`, `?page_size=` (10 por defecto, tope 50) y los filtros; responde
+        `{resultados, total, pagina, tamano, total_paginas}`."""
+        paginacion = Paginacion.desde_parametros(request.query_params.dict())
+        invitados, total = ListarInvitadosPaginadoUseCase(RepoEventosORM()).ejecutar(
             str(evento_id),
-            categoria_id=categoria_id,
-            zona_id=zona_id,
-            estado=estado,
-            busqueda=busqueda,
+            paginacion.offset,
+            paginacion.tamano,
+            categoria_id=request.query_params.get("categoria_id"),
+            zona_id=request.query_params.get("zona_id"),
+            estado=request.query_params.get("estado"),
+            busqueda=request.query_params.get("busqueda"),
         )
-        return ok(EventoInvitadoSerializer(invitados, many=True).data)
+        return ok(paginacion.envolver(EventoInvitadoSerializer(invitados, many=True).data, total))
 
     @extend_schema(
         tags=["Carnetización - Eventos"],
@@ -277,6 +279,32 @@ class EventoInvitadosListView(APIView):
         repo = RepoEventosORM()
         invitado = CrearInvitadoUseCase(repo).ejecutar(dto)
         return ok(EventoInvitadoSerializer(invitado).data, status=201)
+
+
+class EventoInvitadosIdsView(APIView):
+    """Ids de todos los invitados del filtro, sin paginar: alimenta la selección masiva."""
+
+    permission_classes = [IsAuthenticated, HasPermission("carnetizacion.eventos")]
+
+    @extend_schema(
+        tags=["Carnetización - Eventos"],
+        summary="Ids de los invitados de un evento que cumplen el filtro",
+        parameters=[
+            OpenApiParameter("categoria_id", str, required=False),
+            OpenApiParameter("zona_id", str, required=False),
+            OpenApiParameter("estado", str, required=False),
+            OpenApiParameter("busqueda", str, required=False),
+        ],
+    )
+    def get(self, request, evento_id: str):
+        ids = ListarIdsInvitadosUseCase(RepoEventosORM()).ejecutar(
+            str(evento_id),
+            categoria_id=request.query_params.get("categoria_id"),
+            zona_id=request.query_params.get("zona_id"),
+            estado=request.query_params.get("estado"),
+            busqueda=request.query_params.get("busqueda"),
+        )
+        return ok({"ids": ids, "total": len(ids)})
 
 
 class EventoInvitadoDetalleView(APIView):

@@ -8,6 +8,15 @@ export interface DenominacionCargo {
   orden: number;
 }
 
+/** Una página de puestos paginada en el servidor. */
+export interface PaginaCargos {
+  resultados: CargoAsignacion[];
+  total: number;
+  pagina: number;
+  tamano: number;
+  totalPaginas: number;
+}
+
 export interface CargoAsignacion {
   id: number;
   codigo: string;

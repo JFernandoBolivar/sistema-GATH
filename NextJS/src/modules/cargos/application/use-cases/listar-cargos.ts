@@ -4,6 +4,7 @@
 import type { RepoCargos } from "../../domain/ports/repo-cargos";
 import type {
   CargoAsignacionDTO,
+  PaginaCargosDTO,
   DenominacionCargoDTO,
   CatalogoCargoItemDTO,
   UnidadOrganizativaCargoDTO,
@@ -72,6 +73,20 @@ export async function listarCargos(
 ): Promise<CargoAsignacionDTO[]> {
   const entidades = await repo.listarCargos(filtros);
   return entidades.map(cargoADto);
+}
+
+export async function listarCargosPaginado(
+  repo: RepoCargos,
+  filtros: Parameters<RepoCargos["listarCargosPaginado"]>[0],
+): Promise<PaginaCargosDTO> {
+  const p = await repo.listarCargosPaginado(filtros);
+  return {
+    resultados: p.resultados.map(cargoADto),
+    total: p.total,
+    pagina: p.pagina,
+    tamano: p.tamano,
+    totalPaginas: p.totalPaginas,
+  };
 }
 
 export async function listarDenominaciones(

@@ -335,7 +335,7 @@ def test_flujo_evento_invitado_y_control_entrada(datos_base):
 
     listado = api.get(f"{BASE}/eventos/{evento['id']}/invitados/")
     assert listado.status_code == 200
-    fila = next(f for f in listado.json()["data"] if str(f["id"]) == str(invitado_id))
+    fila = next(f for f in listado.json()["data"]["resultados"] if str(f["id"]) == str(invitado_id))
     codigo = fila.get("security_hash") or fila.get("codigo_credencial")
     assert codigo
 

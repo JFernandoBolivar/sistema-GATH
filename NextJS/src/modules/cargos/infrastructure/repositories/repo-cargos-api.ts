@@ -41,6 +41,29 @@ export const repoCargosApi: RepoCargos = {
     return raw.map(cargoApiAEntidad);
   },
 
+  async listarCargosPaginado(filtros) {
+    const p = await cargosApi.getCargosPaginado(
+      {
+        dependencia_id: filtros.dependenciaId,
+        tipo_nomina_id: filtros.tipoNominaId,
+        direccion_general_id: filtros.direccionGeneralId,
+        direccion_linea_id: filtros.direccionLineaId,
+        coordinacion_id: filtros.coordinacionId,
+        codigo: filtros.codigo,
+        pagina: filtros.pagina,
+        page_size: filtros.pageSize,
+      },
+      filtros.soloVacantes,
+    );
+    return {
+      resultados: p.resultados.map(cargoApiAEntidad),
+      total: p.total,
+      pagina: p.pagina,
+      tamano: p.tamano,
+      totalPaginas: p.total_paginas,
+    };
+  },
+
   async listarDenominaciones() {
     return (await cargosApi.getDenominaciones()).map(denominacionApiAEntidad);
   },

@@ -25,9 +25,15 @@ def _generar_hash_invitado(evento_id: str, nombre: str) -> str:
     return hashlib.sha256(seed.encode('utf-8')).hexdigest()
 
 
-def _formatear_invitado_dto(inv: EventoInvitado, repo: RepoEventosPort) -> EventoInvitadoDTO:
-    cat = repo.obtener_categoria(inv.categoria_id)
-    zona = repo.obtener_zona(inv.zona_id)
+def _formatear_invitado_dto(
+    inv: EventoInvitado,
+    repo: RepoEventosPort,
+    categorias: dict | None = None,
+    zonas: dict | None = None,
+) -> EventoInvitadoDTO:
+    """`categorias`/`zonas` (id -> entidad) evitan una consulta por invitado en listados."""
+    cat = categorias.get(str(inv.categoria_id)) if categorias is not None else repo.obtener_categoria(inv.categoria_id)
+    zona = zonas.get(str(inv.zona_id)) if zonas is not None else repo.obtener_zona(inv.zona_id)
     hora_txt = ""
     if inv.fecha_ingreso:
         hora_txt = inv.fecha_ingreso.strftime("%I:%M %p").lstrip("0")
@@ -103,6 +109,47 @@ class ListarInvitadosUseCase:
     ) -> list[EventoInvitadoDTO]:
         invitados = self.repo.listar_invitados(evento_id, categoria_id, zona_id, estado, busqueda)
         return [_formatear_invitado_dto(i, self.repo) for i in invitados]
+
+
+class ListarInvitadosPaginadoUseCase:
+    """Página de invitados de un evento, con el filtro aplicado en el servidor."""
+
+    def __init__(self, repo: RepoEventosPort):
+        self.repo = repo
+
+    def ejecutar(
+        self,
+        evento_id: str,
+        offset: int,
+        limite: int,
+        categoria_id: str | None = None,
+        zona_id: str | None = None,
+        estado: str | None = None,
+        busqueda: str | None = None,
+    ) -> tuple[list[EventoInvitadoDTO], int]:
+        invitados, total = self.repo.listar_invitados_paginado(
+            evento_id, offset, limite, categoria_id, zona_id, estado, busqueda
+        )
+        categorias = {str(c.id): c for c in self.repo.listar_categorias(evento_id)}
+        zonas = {str(z.id): z for z in self.repo.listar_zonas(evento_id)}
+        return [_formatear_invitado_dto(i, self.repo, categorias, zonas) for i in invitados], total
+
+
+class ListarIdsInvitadosUseCase:
+    """Ids de todos los invitados que cumplen el filtro (seleccionar todo el filtro)."""
+
+    def __init__(self, repo: RepoEventosPort):
+        self.repo = repo
+
+    def ejecutar(
+        self,
+        evento_id: str,
+        categoria_id: str | None = None,
+        zona_id: str | None = None,
+        estado: str | None = None,
+        busqueda: str | None = None,
+    ) -> list[str]:
+        return self.repo.listar_ids_invitados(evento_id, categoria_id, zona_id, estado, busqueda)
 
 
 class ActualizarInvitadoUseCase:

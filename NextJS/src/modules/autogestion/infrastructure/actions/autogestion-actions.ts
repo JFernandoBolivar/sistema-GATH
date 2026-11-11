@@ -69,6 +69,34 @@ export async function consultarCensoEmpleadoAction(cedula?: string) {
   }
 }
 
+export async function consultarCensoPaginaAction(filtros: {
+  pagina: number;
+  page_size: number;
+  cedula?: string;
+}) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const res = await autogestionApi.consultarCensoPagina(filtros);
+    await logAudit({
+      traceId,
+      action: "consultarCensoPaginaAction",
+      status: "SUCCESS",
+      durationMs: Date.now() - startedAt,
+    });
+    return res;
+  } catch (error) {
+    await logAudit({
+      traceId,
+      action: "consultarCensoPaginaAction",
+      status: "FAILED",
+      durationMs: Date.now() - startedAt,
+    });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
 export async function enviarAutogestionAction(
   carnetPatria: string,
   datosVivienda: DatosViviendaPayload | undefined,

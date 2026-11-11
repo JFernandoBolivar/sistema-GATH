@@ -9,6 +9,8 @@ import type {
   EventoCategoria,
   EventoInvitado,
   EventoZona,
+  FiltrosInvitados,
+  PaginaInvitados,
   PanelEvento,
   ResumenImportacion,
 } from "../../domain/entities/evento";
@@ -26,6 +28,7 @@ import {
   getCategoriasEvento,
   getEventoDetalle,
   getEventos,
+  getIdsInvitadosEvento,
   getInvitadosEvento,
   getPanelEvento,
   getZonasEvento,
@@ -269,13 +272,8 @@ export async function crearZonaEventoAction(
 
 export async function getInvitadosEventoAction(
   eventoId: string,
-  filtros?: {
-    categoria_id?: string;
-    zona_id?: string;
-    estado?: string;
-    busqueda?: string;
-  }
-): Promise<EventoInvitado[]> {
+  filtros?: FiltrosInvitados
+): Promise<PaginaInvitados> {
   const traceId = generateTraceId();
   const startedAt = Date.now();
   try {
@@ -291,6 +289,34 @@ export async function getInvitadosEventoAction(
     await logAudit({
       traceId,
       action: "getInvitadosEventoAction",
+      status: "FAILED",
+      durationMs: Date.now() - startedAt,
+    });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+/** Ids de todos los invitados del filtro: «seleccionar todos» abarca más que la página visible. */
+export async function getIdsInvitadosEventoAction(
+  eventoId: string,
+  filtros?: Omit<FiltrosInvitados, "pagina" | "page_size">
+): Promise<string[]> {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await getIdsInvitadosEvento(eventoId, filtros);
+    await logAudit({
+      traceId,
+      action: "getIdsInvitadosEventoAction",
+      status: "SUCCESS",
+      durationMs: Date.now() - startedAt,
+    });
+    return result;
+  } catch (error) {
+    await logAudit({
+      traceId,
+      action: "getIdsInvitadosEventoAction",
       status: "FAILED",
       durationMs: Date.now() - startedAt,
     });

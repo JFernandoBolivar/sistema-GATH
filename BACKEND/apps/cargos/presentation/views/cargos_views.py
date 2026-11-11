@@ -15,7 +15,7 @@ from apps.cargos.application.use_cases.asignar_cargo_especial import asignar_car
 from apps.cargos.application.use_cases.cambiar_cargo import cambiar_cargo
 from apps.cargos.application.use_cases.crear_cargo import crear_cargo
 from apps.cargos.application.use_cases.gestionar_estatus_puesto import gestionar_estatus_puesto
-from apps.cargos.application.use_cases.listar_cargos import listar_cargos
+from apps.cargos.application.use_cases.listar_cargos import listar_cargos, listar_cargos_paginado
 from apps.cargos.application.use_cases.listar_denominaciones import (
     listar_denominaciones,
     listar_denominaciones_especificas,
@@ -33,6 +33,7 @@ from apps.cargos.application.use_cases.prestamo_cargo import (
     finalizar_prestamo,
     listar_prestamos,
 )
+from apps.cargos.domain.value_objects.paginacion import Paginacion
 from apps.cargos.infrastructure.repositories.repo_cargos_orm import RepoCargosORM
 from apps.cargos.presentation.serializers.cargos_serializers import (
     ActualizarCargoInputSerializer,
@@ -135,69 +136,65 @@ class DenominacionesEspecificasListView(APIView):
         return ok(DenominacionSerializer(dtos, many=True).data)
 
 
+def _entero_o_none(valor):
+    return int(valor) if valor and str(valor).isdigit() else None
+
+
+def _listar_puestos(request, solo_vacantes: bool):
+    """Lista puestos con los filtros de la query.
+
+    Con `?pagina=` o `?page_size=` devuelve `{resultados, total, pagina, tamano,
+    total_paginas}` (tope 50 por página). Sin ellos devuelve la lista completa:
+    la usan los combos de Movimientos (asignar, cambiar y préstamo de cargo).
+    """
+    params = request.query_params
+    filtros = dict(
+        tipo_nomina_id=_entero_o_none(params.get('tipo_nomina_id')),
+        dependencia_id=_entero_o_none(params.get('dependencia_id')),
+        solo_vacantes=solo_vacantes,
+        direccion_general_id=_entero_o_none(params.get('direccion_general_id')),
+        direccion_linea_id=_entero_o_none(params.get('direccion_linea_id')),
+        coordinacion_id=_entero_o_none(params.get('coordinacion_id')),
+        codigo=params.get('codigo'),
+    )
+    repo = RepoCargosORM()
+    if not Paginacion.solicitada(params):
+        return ok(CargoAsignacionSerializer(listar_cargos(repo, **filtros), many=True).data)
+    pagina = listar_cargos_paginado(repo, Paginacion.desde_parametros(params.dict()), **filtros)
+    return ok({
+        'resultados': CargoAsignacionSerializer(pagina.resultados, many=True).data,
+        'total': pagina.total,
+        'pagina': pagina.pagina,
+        'tamano': pagina.tamano,
+        'total_paginas': pagina.total_paginas,
+    })
+
+
 class CargosListView(APIView):
     permission_classes = [IsAuthenticated, HasPermission('cargos.ver')]
 
-    @extend_schema(tags=['Cargos'], summary='Listar puestos de trabajo con filtros', responses={200: CargoAsignacionSerializer(many=True)})
+    @extend_schema(
+        tags=['Cargos'],
+        summary='Listar puestos de trabajo con filtros',
+        description='Paginación opcional: ?pagina= y ?page_size= (10 por defecto, tope 50). Sin ellos devuelve la lista completa.',
+        responses={200: CargoAsignacionSerializer(many=True)},
+    )
     def get(self, request):
-        tipo_nomina = request.query_params.get('tipo_nomina_id')
-        dependencia = request.query_params.get('dependencia_id')
-        direccion_general = request.query_params.get('direccion_general_id')
-        direccion_linea = request.query_params.get('direccion_linea_id')
-        coordinacion = request.query_params.get('coordinacion_id')
-        codigo = request.query_params.get('codigo')
         solo_vacantes = request.query_params.get('solo_vacantes', '').lower() in ('true', '1')
-
-        tn_id = int(tipo_nomina) if tipo_nomina and str(tipo_nomina).isdigit() else None
-        dep_id = int(dependencia) if dependencia and str(dependencia).isdigit() else None
-        dg_id = int(direccion_general) if direccion_general and str(direccion_general).isdigit() else None
-        dl_id = int(direccion_linea) if direccion_linea and str(direccion_linea).isdigit() else None
-        coord_id = int(coordinacion) if coordinacion and str(coordinacion).isdigit() else None
-
-        repo = RepoCargosORM()
-        dtos = listar_cargos(
-            repo,
-            tipo_nomina_id=tn_id,
-            dependencia_id=dep_id,
-            solo_vacantes=solo_vacantes,
-            direccion_general_id=dg_id,
-            direccion_linea_id=dl_id,
-            coordinacion_id=coord_id,
-            codigo=codigo,
-        )
-        return ok(CargoAsignacionSerializer(dtos, many=True).data)
+        return _listar_puestos(request, solo_vacantes)
 
 
 class CargosVacantesListView(APIView):
     permission_classes = [IsAuthenticated, HasPermission('cargos.ver')]
 
-    @extend_schema(tags=['Cargos'], summary='Listar únicamente puestos de trabajo vacantes', responses={200: CargoAsignacionSerializer(many=True)})
+    @extend_schema(
+        tags=['Cargos'],
+        summary='Listar únicamente puestos de trabajo vacantes',
+        description='Paginación opcional: ?pagina= y ?page_size= (10 por defecto, tope 50). Sin ellos devuelve la lista completa.',
+        responses={200: CargoAsignacionSerializer(many=True)},
+    )
     def get(self, request):
-        tipo_nomina = request.query_params.get('tipo_nomina_id')
-        dependencia = request.query_params.get('dependencia_id')
-        direccion_general = request.query_params.get('direccion_general_id')
-        direccion_linea = request.query_params.get('direccion_linea_id')
-        coordinacion = request.query_params.get('coordinacion_id')
-        codigo = request.query_params.get('codigo')
-
-        tn_id = int(tipo_nomina) if tipo_nomina and str(tipo_nomina).isdigit() else None
-        dep_id = int(dependencia) if dependencia and str(dependencia).isdigit() else None
-        dg_id = int(direccion_general) if direccion_general and str(direccion_general).isdigit() else None
-        dl_id = int(direccion_linea) if direccion_linea and str(direccion_linea).isdigit() else None
-        coord_id = int(coordinacion) if coordinacion and str(coordinacion).isdigit() else None
-
-        repo = RepoCargosORM()
-        dtos = listar_cargos(
-            repo,
-            tipo_nomina_id=tn_id,
-            dependencia_id=dep_id,
-            solo_vacantes=True,
-            direccion_general_id=dg_id,
-            direccion_linea_id=dl_id,
-            coordinacion_id=coord_id,
-            codigo=codigo,
-        )
-        return ok(CargoAsignacionSerializer(dtos, many=True).data)
+        return _listar_puestos(request, True)
 
 
 class AsignarCargoView(APIView):

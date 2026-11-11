@@ -38,6 +38,14 @@ export interface CargoApiItem {
   punto_cuenta?: { id: string; numero: string | null } | null;
 }
 
+export interface PaginaCargosApi {
+  resultados: CargoApiItem[];
+  total: number;
+  pagina: number;
+  tamano: number;
+  total_paginas: number;
+}
+
 export type ActualizarCargoBody = {
   denominacioncargoid: number;
   denominacioncargoespecificoid: number;
@@ -158,6 +166,27 @@ export const cargosApi = {
   }) =>
     list<CargoApiItem>(
       apiClient.get<ApiResponse<CargoApiItem[]>>("/api/v1/cargos/", { params: filtros }),
+    ),
+
+  /** Una página (`?pagina=` y `?page_size=`); el vacante-only usa `/vacantes/`. */
+  getCargosPaginado: (
+    filtros: {
+      dependencia_id?: number;
+      tipo_nomina_id?: number;
+      direccion_general_id?: number;
+      direccion_linea_id?: number;
+      coordinacion_id?: number;
+      codigo?: string;
+      pagina: number;
+      page_size: number;
+    },
+    soloVacantes = false,
+  ) =>
+    single<PaginaCargosApi>(
+      apiClient.get<ApiResponse<PaginaCargosApi>>(
+        soloVacantes ? "/api/v1/cargos/vacantes/" : "/api/v1/cargos/",
+        { params: filtros },
+      ),
     ),
 
   getVacantes: (filtros?: {

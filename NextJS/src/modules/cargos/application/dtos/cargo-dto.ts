@@ -39,6 +39,14 @@ export interface CargoAsignacionDTO {
   puntoCuenta?: { id: string; numero: string | null } | null;
 }
 
+export interface PaginaCargosDTO {
+  resultados: CargoAsignacionDTO[];
+  total: number;
+  pagina: number;
+  tamano: number;
+  totalPaginas: number;
+}
+
 export interface ActualizarCargoInputDTO {
   denominacioncargoid: number;
   denominacioncargoespecificoid: number;

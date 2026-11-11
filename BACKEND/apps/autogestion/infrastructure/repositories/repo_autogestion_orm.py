@@ -96,16 +96,36 @@ class RepoAutogestionORM:
                 return []
             return [self._serializar_censo_empleado(emp)]
 
-        empleados_cedulas = list(
-            RespuestasEncuestaModel.objects.values_list('empleado_id', flat=True).distinct()
-        )
         empleados = (
-            EmployeeModel.objects.filter(cedulaidentidad__in=empleados_cedulas)
+            self._qs_empleados_censados()
             .prefetch_related('antecedentes_servicio')
             .order_by('cedulaidentidad')
         )
+        return self._serializar_bloque_censos(list(empleados))
+
+    def consultar_censos_paginado(
+        self, offset: int, limite: int, cedula: str | None = None
+    ) -> tuple[list[dict], int]:
+        """Página de censados con sus respuestas: el corte va en la consulta (offset/limit)
+        y cargos, vivienda y respuestas se traen en bloque solo para los de la página."""
+        qs = self._qs_empleados_censados()
+        if cedula:
+            qs = qs.filter(cedulaidentidad=cedula)
+        total = qs.count()
+        pagina = list(
+            qs.prefetch_related('antecedentes_servicio')
+            .order_by('cedulaidentidad')[offset:offset + limite]
+        )
+        return self._serializar_bloque_censos(pagina), total
+
+    @staticmethod
+    def _qs_empleados_censados():
+        return EmployeeModel.objects.filter(
+            cedulaidentidad__in=RespuestasEncuestaModel.objects.values('empleado_id')
+        )
+
+    def _serializar_bloque_censos(self, empleados: list) -> list[dict]:
         # Carga en bloque (3 consultas en total) en vez de 3 por empleado.
-        empleados = list(empleados)
         cedulas = [e.cedulaidentidad for e in empleados]
         ids = [e.pk for e in empleados]
         cargos_por_cedula: dict = {}

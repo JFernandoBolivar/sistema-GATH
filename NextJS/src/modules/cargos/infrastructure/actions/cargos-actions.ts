@@ -6,6 +6,7 @@
  * caso de uso. Captura errores y llama `handleSessionExpired` (R7) y registra
  * la auditoría en `logs/frontend/audit_frontend.txt` (D-04/C-5).
  */
+import { unstable_rethrow } from "next/navigation";
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
@@ -24,6 +25,7 @@ import type { CrearCargoEspecialInputDTO } from "../../application/dtos/cargo-dt
 import type { OperacionMotivo } from "../../domain/value-objects/operacion-motivo";
 import {
   listarCargos,
+  listarCargosPaginado,
   listarCoordinaciones,
   listarDependencias,
   listarDenominaciones,
@@ -91,6 +93,49 @@ export async function getCargosAction(filtros?: {
     return result;
   } catch (error) {
     await logAudit({ traceId, action: "getCargosAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+/**
+ * Listado de `/cargos` paginado en el servidor (10 por defecto, tope 50). Las pantallas
+ * de Movimientos (asignar, cambiar y prestar cargo) siguen con `getCargosAction` /
+ * `getCargosVacantesAction`, que devuelven la lista completa para sus combos.
+ */
+export async function getCargosPaginadoAction(filtros?: {
+  dependenciaId?: number | null;
+  tipoNominaId?: number | null;
+  direccionGeneralId?: number | null;
+  direccionLineaId?: number | null;
+  coordinacionId?: number | null;
+  codigo?: string | null;
+  soloVacantes?: boolean;
+  pagina?: number;
+  pageSize?: number;
+}) {
+  const validated = cargosFiltroSchema.safeParse(filtros ?? {});
+  const f = validated.success ? validated.data : {};
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarCargosPaginado(repoCargosApi, {
+      dependenciaId: f.dependenciaId ?? undefined,
+      tipoNominaId: f.tipoNominaId ?? undefined,
+      direccionGeneralId: f.direccionGeneralId ?? undefined,
+      direccionLineaId: f.direccionLineaId ?? undefined,
+      coordinacionId: f.coordinacionId ?? undefined,
+      codigo: f.codigo || undefined,
+      soloVacantes: f.soloVacantes,
+      pagina: f.pagina ?? 1,
+      pageSize: f.pageSize ?? 10,
+    });
+    await logAudit({ traceId, action: "getCargosPaginadoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    unstable_rethrow(error);
+    await logAudit({ traceId, action: "getCargosPaginadoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
   }

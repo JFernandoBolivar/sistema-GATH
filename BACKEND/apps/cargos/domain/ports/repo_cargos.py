@@ -7,6 +7,7 @@ from apps.cargos.domain.entities.cargo_asignacion import CargoAsignacion
 from apps.cargos.domain.entities.denominacion_cargo import DenominacionCargo
 from apps.cargos.domain.entities.denominacion_especifica import DenominacionEspecifica
 from apps.cargos.domain.entities.prestamo_cargo import PrestamoCargo
+from apps.cargos.domain.value_objects.paginacion import Paginacion
 
 
 class RepoCargos(Protocol):
@@ -44,6 +45,20 @@ class RepoCargos(Protocol):
         coordinacion_id: int | None = None,
         codigo: str | None = None,
     ) -> list[CargoAsignacion]:
+        ...
+
+    def listar_cargos_paginado(
+        self,
+        paginacion: Paginacion,
+        tipo_nomina_id: int | None = None,
+        dependencia_id: int | None = None,
+        solo_vacantes: bool = False,
+        direccion_general_id: int | None = None,
+        direccion_linea_id: int | None = None,
+        coordinacion_id: int | None = None,
+        codigo: str | None = None,
+    ) -> tuple[list[CargoAsignacion], int]:
+        """Una página de puestos y el total que cumple los filtros."""
         ...
 
     def obtener_cargo(self, cargo_id: int) -> CargoAsignacion | None:

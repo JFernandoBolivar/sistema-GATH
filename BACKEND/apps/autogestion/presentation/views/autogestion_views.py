@@ -8,9 +8,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from django.db import transaction
 from django.http import HttpResponse
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 
 from core.presentation.validadores_personas import validar_serial_carnet_patria
+from core.domain.paginacion import Paginacion
 from core.presentation.envelope import ok, fail
 from core.presentation.permissions import EsPropiaCedulaOTienePermiso, HasPermission
 from apps.autogestion.application.use_cases.obtener_mi_expediente import (
@@ -155,17 +156,32 @@ class CensoEmpleadoView(APIView):
 
 class CensoConsultarView(APIView):
     """
-    Consultar todos los censos o buscar por cédula.
-    Paridad con /censo-vivienda/consultar/ y /censo-vivienda/consultar/<cedula>/
+    Consultar los censos. Con la cédula en la ruta devuelve su lista (1 elemento).
+    Sin ella, el listado va paginado en el servidor: `?pagina=`, `?page_size=`
+    (10 por defecto, tope 50) y `?cedula=`; responde
+    `{resultados, total, pagina, tamano, total_paginas}`.
     """
     permission_classes = [IsAuthenticated, HasPermission('autogestion.censo_ver_todos')]
 
-    @extend_schema(tags=['Autogestión'], summary='Consultar todos los censos o filtrar por cédula')
+    @extend_schema(
+        tags=['Autogestión'],
+        summary='Consultar los censos (paginado) o el de una cédula',
+        parameters=[
+            OpenApiParameter('pagina', int, required=False),
+            OpenApiParameter('page_size', int, required=False),
+            OpenApiParameter('cedula', str, required=False),
+        ],
+    )
     def get(self, request, cedula: str | None = None):
         repo = RepoAutogestionORM()
-        target_cedula = cedula or request.query_params.get('cedula')
-        resultados = repo.consultar_todos_censos(cedula=target_cedula)
-        return ok(resultados)
+        if cedula:
+            return ok(repo.consultar_todos_censos(cedula=cedula))
+        paginacion = Paginacion.desde_parametros(request.query_params.dict())
+        filtro = (request.query_params.get('cedula') or '').strip() or None
+        resultados, total = repo.consultar_censos_paginado(
+            paginacion.offset, paginacion.tamano, cedula=filtro
+        )
+        return ok(paginacion.envolver(resultados, total))
 
 
 class ReporteCensoDependenciasView(APIView):

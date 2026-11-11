@@ -127,6 +127,15 @@ export type CensoViviendaApiItem = ViviendaCenso;
 
 export type CensoEmpleadoItem = CensoEmpleado;
 
+/** Página del listado de censos (paginado en el servidor). */
+export interface PaginaCensos {
+  resultados: CensoEmpleadoItem[];
+  total: number;
+  pagina: number;
+  tamano: number;
+  total_paginas: number;
+}
+
 export interface SubmitPayload {
   carnet_patria: string;
   carnet_patria_serial?: string;
@@ -165,6 +174,22 @@ export const autogestionApi = {
       ? `/api/v1/autogestion/censo/consultar/${encodeURIComponent(cedula)}/`
       : `/api/v1/autogestion/censo/consultar/`;
     return apiClient.get<ApiResponse<CensoEmpleadoItem[]>>(url);
+  },
+
+  /** Listado de censados paginado en el servidor (`?pagina=`, `?page_size=`, `?cedula=`). */
+  consultarCensoPagina: async (filtros: {
+    pagina: number;
+    page_size: number;
+    cedula?: string;
+  }): Promise<ApiResponse<PaginaCensos>> => {
+    const params: Record<string, string | undefined> = {
+      pagina: String(filtros.pagina),
+      page_size: String(filtros.page_size),
+    };
+    if (filtros.cedula) params.cedula = filtros.cedula;
+    return apiClient.get<ApiResponse<PaginaCensos>>(`/api/v1/autogestion/censo/consultar/`, {
+      params,
+    });
   },
 
   submitCensoVivienda: async (

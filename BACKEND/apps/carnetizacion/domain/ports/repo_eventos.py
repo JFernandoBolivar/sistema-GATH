@@ -103,6 +103,32 @@ class RepoEventosPort(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def listar_invitados_paginado(
+        self,
+        evento_id: str,
+        offset: int,
+        limite: int,
+        categoria_id: str | None = None,
+        zona_id: str | None = None,
+        estado: str | None = None,
+        busqueda: str | None = None,
+    ) -> tuple[list[EventoInvitado], int]:
+        """Página de invitados (corte en la consulta) y total que cumple el filtro."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def listar_ids_invitados(
+        self,
+        evento_id: str,
+        categoria_id: str | None = None,
+        zona_id: str | None = None,
+        estado: str | None = None,
+        busqueda: str | None = None,
+    ) -> list[str]:
+        """Solo los ids que cumplen el filtro (selección masiva de todo el filtro)."""
+        raise NotImplementedError
+
+    @abstractmethod
     def registrar_ingreso(
         self,
         invitado_id: str,

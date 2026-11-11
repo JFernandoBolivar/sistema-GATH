@@ -255,6 +255,31 @@ class RepoEventosORM(RepoEventosPort):
             return None, None
         return a_entidad_invitado(m), a_entidad_evento(m.evento)
 
+    def listar_invitados_paginado(
+        self,
+        evento_id: str,
+        offset: int,
+        limite: int,
+        categoria_id: str | None = None,
+        zona_id: str | None = None,
+        estado: str | None = None,
+        busqueda: str | None = None,
+    ) -> tuple[list[EventoInvitado], int]:
+        qs = self._qs_invitados(evento_id, categoria_id, zona_id, estado, busqueda)
+        total = qs.count()
+        return [a_entidad_invitado(m) for m in qs[offset:offset + limite]], total
+
+    def listar_ids_invitados(
+        self,
+        evento_id: str,
+        categoria_id: str | None = None,
+        zona_id: str | None = None,
+        estado: str | None = None,
+        busqueda: str | None = None,
+    ) -> list[str]:
+        qs = self._qs_invitados(evento_id, categoria_id, zona_id, estado, busqueda)
+        return [str(i) for i in qs.values_list('id', flat=True)]
+
     def listar_invitados(
         self,
         evento_id: str,
@@ -263,7 +288,18 @@ class RepoEventosORM(RepoEventosPort):
         estado: str | None = None,
         busqueda: str | None = None,
     ) -> list[EventoInvitado]:
-        qs = EventoInvitadoModel.objects.filter(evento_id=evento_id).order_by('nombre_completo')
+        qs = self._qs_invitados(evento_id, categoria_id, zona_id, estado, busqueda)
+        return [a_entidad_invitado(m) for m in qs]
+
+    @staticmethod
+    def _qs_invitados(
+        evento_id: str,
+        categoria_id: str | None = None,
+        zona_id: str | None = None,
+        estado: str | None = None,
+        busqueda: str | None = None,
+    ):
+        qs = EventoInvitadoModel.objects.filter(evento_id=evento_id).order_by('nombre_completo', 'id')
         if categoria_id:
             qs = qs.filter(categoria_id=categoria_id)
         if zona_id:
@@ -279,7 +315,7 @@ class RepoEventosORM(RepoEventosPort):
                 | Q(codigo_credencial__icontains=term)
                 | Q(correo__icontains=term)
             )
-        return [a_entidad_invitado(m) for m in qs]
+        return qs
 
     def registrar_ingreso(
         self,

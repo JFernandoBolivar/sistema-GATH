@@ -6,6 +6,7 @@
  * - `listarDenominaciones`/`especificas` → DenominacionSerializer
  * - `prestamos` → PrestamoCargoSerializer
  */
+import type { PaginaCargos } from "../entities/cargo";
 import type {
   CargoAsignacion,
   CatalogoCargoItem,
@@ -80,6 +81,18 @@ export interface RepoCargos {
     codigo?: string;
     soloVacantes?: boolean;
   }): Promise<CargoAsignacion[]>;
+  /** Una página (el corte lo hace el servidor). Las pantallas de Movimientos siguen usando `listarCargos`. */
+  listarCargosPaginado(filtros: {
+    dependenciaId?: number;
+    tipoNominaId?: number;
+    direccionGeneralId?: number;
+    direccionLineaId?: number;
+    coordinacionId?: number;
+    codigo?: string;
+    soloVacantes?: boolean;
+    pagina: number;
+    pageSize: number;
+  }): Promise<PaginaCargos>;
   listarDenominaciones(): Promise<DenominacionCargo[]>;
   listarDenominacionesEspecificas(): Promise<DenominacionCargo[]>;
   asignarCargo(cargoId: number, empleadoCedula: string): Promise<CargoAsignacion>;

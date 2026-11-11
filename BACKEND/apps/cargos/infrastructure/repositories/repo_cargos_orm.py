@@ -21,6 +21,7 @@ from apps.cargos.domain import events
 from apps.cargos.domain.entities.cargo_asignacion import CargoAsignacion
 from apps.cargos.domain.entities.denominacion_cargo import DenominacionCargo
 from apps.cargos.domain.entities.denominacion_especifica import DenominacionEspecifica
+from apps.cargos.domain.value_objects.paginacion import Paginacion
 from apps.cargos.domain.services.generacion_codigo import (
     generar_codigo_normal,
     generar_prefijo_nomina,
@@ -89,16 +90,11 @@ class RepoCargosORM(RepoPrestamosCargoORM):
     def eliminar_denominacion_especifica(self, denominacion_id: int) -> None:
         DenominacionCargoEspecificoModel.objects.filter(pk=denominacion_id).delete()
 
-    def listar_cargos(
-        self,
-        tipo_nomina_id: int | None = None,
-        dependencia_id: int | None = None,
-        solo_vacantes: bool = False,
-        direccion_general_id: int | None = None,
-        direccion_linea_id: int | None = None,
-        coordinacion_id: int | None = None,
-        codigo: str | None = None,
-    ) -> list[CargoAsignacion]:
+    @staticmethod
+    def _consulta_cargos(
+        tipo_nomina_id, dependencia_id, solo_vacantes,
+        direccion_general_id, direccion_linea_id, coordinacion_id, codigo,
+    ):
         qs = (
             AsigTrabajoModel.objects.select_related(
                 'denominacioncargoid',
@@ -116,7 +112,9 @@ class RepoCargosORM(RepoPrestamosCargoORM):
             # Gestión de personal activo: los puestos de pasivos (P_…, tipo de
             # personal PASIVO) se gestionan en el módulo de Pasivos.
             .exclude(Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO)
-            .order_by('-fecha_actualizacion')
+            # `-pk` desempata: sin él, filas con la misma fecha podrían repetirse
+            # o saltarse entre páginas.
+            .order_by('-fecha_actualizacion', '-pk')
         )
         if tipo_nomina_id is not None:
             qs = qs.filter(tiponominaid_id=tipo_nomina_id)
@@ -132,7 +130,42 @@ class RepoCargosORM(RepoPrestamosCargoORM):
             qs = qs.filter(codigo__icontains=codigo)
         if solo_vacantes:
             qs = qs.filter(employee__isnull=True)
+        return qs
+
+    def listar_cargos(
+        self,
+        tipo_nomina_id: int | None = None,
+        dependencia_id: int | None = None,
+        solo_vacantes: bool = False,
+        direccion_general_id: int | None = None,
+        direccion_linea_id: int | None = None,
+        coordinacion_id: int | None = None,
+        codigo: str | None = None,
+    ) -> list[CargoAsignacion]:
+        qs = self._consulta_cargos(
+            tipo_nomina_id, dependencia_id, solo_vacantes,
+            direccion_general_id, direccion_linea_id, coordinacion_id, codigo,
+        )
         return [cargo_asignacion_a_entidad(c) for c in qs]
+
+    def listar_cargos_paginado(
+        self,
+        paginacion: Paginacion,
+        tipo_nomina_id: int | None = None,
+        dependencia_id: int | None = None,
+        solo_vacantes: bool = False,
+        direccion_general_id: int | None = None,
+        direccion_linea_id: int | None = None,
+        coordinacion_id: int | None = None,
+        codigo: str | None = None,
+    ) -> tuple[list[CargoAsignacion], int]:
+        qs = self._consulta_cargos(
+            tipo_nomina_id, dependencia_id, solo_vacantes,
+            direccion_general_id, direccion_linea_id, coordinacion_id, codigo,
+        )
+        total = qs.count()
+        pagina = qs[paginacion.offset:paginacion.offset + paginacion.tamano]
+        return [cargo_asignacion_a_entidad(c) for c in pagina], total
 
     def obtener_cargo(self, cargo_id: int) -> CargoAsignacion | None:
         fila = (

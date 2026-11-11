@@ -1,10 +1,11 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const acciones = vi.hoisted(() => ({
   getEventoDetalleAction: vi.fn(),
   getPanelEventoAction: vi.fn(),
   getInvitadosEventoAction: vi.fn(),
+  getIdsInvitadosEventoAction: vi.fn(),
   getCategoriasEventoAction: vi.fn(),
   getZonasEventoAction: vi.fn(),
   emitirCredencialesLoteAction: vi.fn(),
@@ -65,7 +66,7 @@ describe("EventoDetallePanel - Hub Integral de Eventos", () => {
       ],
     });
 
-    acciones.getInvitadosEventoAction.mockResolvedValue([
+    const invitadosMock = [
       {
         id: "inv-1",
         evento_id: "ev-100",
@@ -97,7 +98,25 @@ describe("EventoDetallePanel - Hub Integral de Eventos", () => {
         fecha_ingreso: "2026-11-15T08:30:00Z",
         hora_ingreso_formateada: "08:30 AM",
       },
-    ]);
+    ];
+
+    // El servidor filtra y corta la página; el mock imita ese contrato.
+    acciones.getInvitadosEventoAction.mockImplementation(
+      async (_id: string, f?: { busqueda?: string; pagina?: number; page_size?: number }) => {
+        const q = (f?.busqueda ?? "").toLowerCase();
+        const filtrados = invitadosMock.filter((i) => i.nombre_completo.toLowerCase().includes(q));
+        const tamano = f?.page_size ?? 10;
+        const pagina = f?.pagina ?? 1;
+        return {
+          resultados: filtrados.slice((pagina - 1) * tamano, pagina * tamano),
+          total: filtrados.length,
+          pagina,
+          tamano,
+          total_paginas: Math.max(1, Math.ceil(filtrados.length / tamano)),
+        };
+      },
+    );
+    acciones.getIdsInvitadosEventoAction.mockResolvedValue(["inv-1", "inv-2"]);
 
     acciones.getCategoriasEventoAction.mockResolvedValue([
       { id: "cat-1", evento_id: "ev-100", nombre: "VIP / Autoridad", color_primario: "#004085", color_acento: "#cce5ff", orden: 1 },
@@ -150,8 +169,16 @@ describe("EventoDetallePanel - Hub Integral de Eventos", () => {
     const inputBusqueda = screen.getByPlaceholderText(/Buscar por nombre, documento/i);
     fireEvent.change(inputBusqueda, { target: { value: "RAMÍREZ" } });
 
+    // La búsqueda la resuelve el servidor (con una pequeña espera entre teclas).
+    await waitFor(() =>
+      expect(screen.queryByText("GONZÁLEZ PÉREZ, MARÍA ANDREÍNA")).not.toBeInTheDocument()
+    );
     expect(screen.getByText("RAMÍREZ SÁNCHEZ, CARLOS LUIS")).toBeInTheDocument();
-    expect(screen.queryByText("GONZÁLEZ PÉREZ, MARÍA ANDREÍNA")).not.toBeInTheDocument();
+    expect(acciones.getInvitadosEventoAction).toHaveBeenCalledWith(
+      "ev-100",
+      expect.objectContaining({ busqueda: "RAMÍREZ", pagina: 1, page_size: 10 })
+    );
+    expect(screen.getByText(/1 registro\(s\); página 1 de 1/)).toBeInTheDocument();
   });
 
   it("permite seleccionar todos los resultados del filtro en Nómina y procesar en Emisión", async () => {
@@ -170,7 +197,11 @@ describe("EventoDetallePanel - Hub Integral de Eventos", () => {
     const btnSeleccionarTodos = screen.getByText(/Seleccionar todos los resultados del filtro/i);
     fireEvent.click(btnSeleccionarTodos);
 
-    expect(screen.getByText(/Seleccionados:/i)).toBeInTheDocument();
+    // La selección abarca todo el filtro, no solo la página: los ids vienen del servidor.
+    await waitFor(() =>
+      expect(acciones.getIdsInvitadosEventoAction).toHaveBeenCalledWith("ev-100", expect.any(Object))
+    );
+    expect(await screen.findByText(/Seleccionados:/i)).toBeInTheDocument();
 
     // 3. Ir a Emisión de Gafetes
     const tabEmision = screen.getByRole("tab", { name: /Gafetes/i });
@@ -182,5 +213,20 @@ describe("EventoDetallePanel - Hub Integral de Eventos", () => {
     expect(screen.getByText(/2 asistente\(s\) seleccionado\(s\)/i)).toBeInTheDocument();
     expect(screen.getByText(/Emitir Credenciales en Lote/i)).toBeInTheDocument();
     expect(screen.getByText(/Descargar PDF Completo/i)).toBeInTheDocument();
+  });
+
+  it("pagina en el servidor: cambia de página y de filas con los controles", async () => {
+    render(<EventoDetallePanel eventoId="ev-100" />);
+    expect(await screen.findByText("Expo Fitelven 2026")).toBeInTheDocument();
+
+    const tabNomina = screen.getByRole("tab", { name: /Invitados/i });
+    fireEvent.pointerDown(tabNomina, { button: 0, pointerType: "mouse" });
+    fireEvent.click(tabNomina);
+    fireEvent.keyDown(tabNomina, { key: "Enter" });
+
+    expect(await screen.findByText(/2 registro\(s\); página 1 de 1/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Anterior" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Siguiente" })).toBeDisabled();
+    expect(screen.getByText("Filas")).toBeInTheDocument();
   });
 });

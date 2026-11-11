@@ -11,6 +11,8 @@ export const cargosFiltroSchema = z.object({
   coordinacionId: z.number().int().positive().optional().nullable(),
   codigo: z.string().trim().max(20, ERROR.MAX_LENGTH(20)).optional().nullable(),
   soloVacantes: z.boolean().optional(),
+  pagina: z.number().int().min(1).optional(),
+  pageSize: z.number().int().min(1).max(50).optional(),
 });
 
 /** Identificador de cargo (desasignar/trasladar/gestionar estatus) (zero-trust R7). */
