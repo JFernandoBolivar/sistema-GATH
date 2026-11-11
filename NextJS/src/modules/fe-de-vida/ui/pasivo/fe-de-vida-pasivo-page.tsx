@@ -34,7 +34,7 @@ export default function FeDeVidaPasivoPage() {
     const res = await obtenerVigenteAction();
     if (!res.ok) throw new Error(res.mensaje);
     return res.datos;
-  });
+  }, { revalidateOnFocus: false });
 
   const guiaAbierta = guiaManual || (Boolean(vigente.data) && !vigente.data?.guiaVista && !autoCerrada);
 
@@ -53,7 +53,7 @@ export default function FeDeVidaPasivoPage() {
     const res = await obtenerMiSolicitudAction(solicitudId as string);
     if (!res.ok) throw new Error(res.mensaje);
     return res.datos;
-  });
+  }, { revalidateOnFocus: false });
 
   const historial = (
     <Button asChild variant="outline" className="min-h-11">
@@ -77,12 +77,17 @@ export default function FeDeVidaPasivoPage() {
 
   function empezar() {
     iniciar(async () => {
-      const res = await iniciarSolicitudAction();
-      if (!res.ok) {
-        toast.error(res.mensaje);
-        return;
+      try {
+        const res = await iniciarSolicitudAction();
+        if (!res.ok) {
+          toast.error(res.mensaje);
+          return;
+        }
+        recargar();
+      } catch {
+        // F2-09: la acción rechaza si se cae la red; sin esto el error llegaba al boundary.
+        toast.error("No se pudo conectar con el servidor. Revise su conexión e intente de nuevo.");
       }
-      recargar();
     });
   }
 
@@ -91,7 +96,8 @@ export default function FeDeVidaPasivoPage() {
 
   if (vigente.isLoading) {
     cuerpo = <VistaCargando mensaje="Cargando el proceso de fe de vida…" onReintentar={() => vigente.mutate()} />;
-  } else if (vigente.error) {
+  } else if (vigente.error && !vigente.data) {
+    // F2-08: un fallo de revalidación no debe desmontar el formulario si ya había datos.
     cuerpo = <VistaError mensaje="No se pudo cargar el proceso de fe de vida." onReintentar={() => vigente.mutate()} />;
   } else if (!vigente.data) {
     cuerpo = (
@@ -125,8 +131,13 @@ export default function FeDeVidaPasivoPage() {
       );
     } else if (detalle.isLoading) {
       cuerpo = <VistaCargando mensaje="Cargando su solicitud…" onReintentar={() => detalle.mutate()} />;
-    } else if (detalle.error || !detalle.data) {
-      cuerpo = <VistaError mensaje="No se pudo cargar su solicitud." onReintentar={() => detalle.mutate()} />;
+    } else if (!detalle.data) {
+      // F2-08: solo se reemplaza el contenido por error si no hay datos con los que trabajar.
+      cuerpo = detalle.error ? (
+        <VistaError mensaje="No se pudo cargar su solicitud." onReintentar={() => detalle.mutate()} />
+      ) : (
+        <VistaCargando mensaje="Cargando su solicitud…" onReintentar={() => detalle.mutate()} />
+      );
     } else if (esEditablePorPasivo(solicitud) && puedeEnviar && (solicitud.estado === "BORRADOR" || corrigiendo)) {
       pasoGuoia = 2;
       cuerpo = (

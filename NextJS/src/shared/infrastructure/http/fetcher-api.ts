@@ -157,7 +157,10 @@ async function request<T>(
   }
 
   if (response.status === 403) {
-    throw new ApiHttpError("No tienes permiso para ejecutar esta acción", 403);
+    // F2-15: no se enmascara el mensaje del backend (la ficha pública del carnet
+    // explica si la credencial no es válida o si el dato está restringido).
+    const { message } = await extractError(response, "No tienes permiso para ejecutar esta acción");
+    throw new ApiHttpError(message, 403);
   }
 
   if (!response.ok) {

@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, Loader2, MapPin, Send, Shield, ShieldAlert, ShieldCheck, Users } from "lucide-react";
 import { reducirFoto } from "@/shared/components/captura-foto/reducir-foto";
+import { MAX_BYTES_FOTO } from "@/shared/components/captura-foto/validar-foto";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -49,7 +50,7 @@ import { PanelGuiaFeDeVida } from "./panel-guia-fe-de-vida";
 import { useRegistrarGuia } from "@/modules/autogestion/ui/guias/contexto-guia";
 import { PasoContacto } from "./paso-contacto";
 import { PasoFoto } from "./paso-foto";
-import { ejecutarConReintento } from "./subida-con-reintento";
+import { ejecutarConReintento, reintentarSoloSiEsTransporte } from "./subida-con-reintento";
 
 type Paso = "contacto" | "emergencia" | "hijos" | "foto" | "revisar";
 
@@ -258,21 +259,27 @@ export function FormularioFeDeVida({
   ) {
     const opts = opciones ?? (esPresencial ? opcionesPresencial : undefined);
     iniciarGuardado(async () => {
-      const res = esPresencial
-        ? await guardarBorradorPresencialAction(solicitud.id, aEntrada(nuevos), opts)
-        : await guardarBorradorAction(solicitud.id, aEntrada(nuevos));
-      if (!res.ok) {
-        toast.error(res.mensaje);
-        // Conservar lo editado en este paso aunque el servidor rechace otro dato.
+      try {
+        const res = esPresencial
+          ? await guardarBorradorPresencialAction(solicitud.id, aEntrada(nuevos), opts)
+          : await guardarBorradorAction(solicitud.id, aEntrada(nuevos));
+        if (!res.ok) {
+          toast.error(res.mensaje);
+          // Conservar lo editado en este paso aunque el servidor rechace otro dato.
+          setItems(nuevos);
+          // Si el error es de otra sección (p. ej. la fecha del familiar), llevar al
+          // paso que lo corrige en vez de dejar al usuario atrapado en el actual.
+          if (res.errores) irASeccionConError(res.errores);
+          return;
+        }
+        setErroresContacto(undefined);
         setItems(nuevos);
-        // Si el error es de otra sección (p. ej. la fecha del familiar), llevar al
-        // paso que lo corrige en vez de dejar al usuario atrapado en el actual.
-        if (res.errores) irASeccionConError(res.errores);
-        return;
+        setIndice(siguiente);
+      } catch {
+        // F2-09: fallo de transporte al llamar la Server Action; se conserva lo editado.
+        setItems(nuevos);
+        toast.error("No se pudo guardar: revise su conexión e intente de nuevo. Lo escrito se conserva en esta pantalla.");
       }
-      setErroresContacto(undefined);
-      setItems(nuevos);
-      setIndice(siguiente);
     });
   }
 
@@ -298,6 +305,15 @@ export function FormularioFeDeVida({
 
       setMensajeSubida("Subiendo foto con su cédula…");
       const archivoReducido = await reducirFoto(foto.archivo);
+      // F2-11: el límite se aplica a la foto ya reducida; una original grande que
+      // quepa tras reducirse es válida.
+      if (archivoReducido.size > MAX_BYTES_FOTO) {
+        setMensajeSubida(undefined);
+        toast.error(
+          `La foto sigue superando el tamaño máximo de ${MAX_BYTES_FOTO / (1024 * 1024)} MB después de reducirla. Tome una foto con menor resolución.`,
+        );
+        return;
+      }
       const accionEvidencia = esPresencial ? subirEvidenciaPresencialAction : subirEvidenciaAction;
 
       const res = await ejecutarConReintento(
@@ -308,15 +324,9 @@ export function FormularioFeDeVida({
           form.append("origen", foto.origen);
           return await accionEvidencia(form);
         },
-        (resOError) => {
-          if (!resOError) return true;
-          if (typeof resOError === "object" && "ok" in resOError) {
-            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-            const r = resOError as { ok: boolean };
-            return !r.ok;
-          }
-          return true;
-        },
+        // F2-10: solo se reintenta el fallo de transporte. Un 400/403 del servidor
+        // ya trae su causa y reintentarlo tres veces no la cambia.
+        reintentarSoloSiEsTransporte,
         {
           intentosMaximos: 3,
           demoraBaseMs: 1000,
@@ -330,8 +340,10 @@ export function FormularioFeDeVida({
       setMensajeSubida(undefined);
 
       if (!res.ok) {
+        // F2-10: mostrar la causa real del servidor; el texto de conexión solo si no hay.
         toast.error(
-          "No se pudo subir la foto por problemas de conexión. Su foto quedó guardada en este dispositivo; podrá reintentar al recuperar la conexión.",
+          res.mensaje ||
+            "No se pudo subir la foto por problemas de conexión. Su foto quedó guardada en este dispositivo; podrá reintentar al recuperar la conexión.",
         );
         return;
       }
@@ -355,30 +367,35 @@ export function FormularioFeDeVida({
       return;
     }
     iniciarEnvio(async () => {
-      const guardado = esPresencial
-        ? await guardarBorradorPresencialAction(solicitud.id, aEntrada(items), opcionesPresencial)
-        : await guardarBorradorAction(solicitud.id, aEntrada(items));
-      if (!guardado.ok) {
-        toast.error(guardado.mensaje);
-        if (guardado.errores) irASeccionConError(guardado.errores);
-        return;
-      }
-      const accionEnviar = esPresencial ? enviarPresencialAction : enviarSolicitudAction;
-      const res = await accionEnviar(solicitud.id);
-      if (!res.ok) {
-        if (res.errores) {
-          aplicarErroresServidor(confirmacion, res.errores);
-          irASeccionConError(res.errores);
+      try {
+        const guardado = esPresencial
+          ? await guardarBorradorPresencialAction(solicitud.id, aEntrada(items), opcionesPresencial)
+          : await guardarBorradorAction(solicitud.id, aEntrada(items));
+        if (!guardado.ok) {
+          toast.error(guardado.mensaje);
+          if (guardado.errores) irASeccionConError(guardado.errores);
+          return;
         }
-        toast.error(res.mensaje);
-        return;
+        const accionEnviar = esPresencial ? enviarPresencialAction : enviarSolicitudAction;
+        const res = await accionEnviar(solicitud.id);
+        if (!res.ok) {
+          if (res.errores) {
+            aplicarErroresServidor(confirmacion, res.errores);
+            irASeccionConError(res.errores);
+          }
+          toast.error(res.mensaje);
+          return;
+        }
+        toast.success(
+          esPresencial
+            ? "Fe de vida presencial registrada y constancia emitida."
+            : "Fe de vida enviada. Su constancia está lista.",
+        );
+        onActualizar();
+      } catch {
+        // F2-09: fallo de transporte; los datos siguen en pantalla para reintentar.
+        toast.error("No se pudo enviar: revise su conexión e intente de nuevo.");
       }
-      toast.success(
-        esPresencial
-          ? "Fe de vida presencial registrada y constancia emitida."
-          : "Fe de vida enviada. Su constancia está lista.",
-      );
-      onActualizar();
     });
   }
 

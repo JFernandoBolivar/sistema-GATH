@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ejecutarConReintento } from "./subida-con-reintento";
+import { ejecutarConReintento, reintentarSoloSiEsTransporte } from "./subida-con-reintento";
 
 describe("subida-con-reintento (backoff exponencial)", () => {
   it("retorna el resultado de inmediato si la primera ejecución es exitosa", async () => {
@@ -66,5 +66,17 @@ describe("subida-con-reintento (backoff exponencial)", () => {
 
     expect(res).toEqual({ ok: false, error: "Servidor no responde" });
     expect(fn).toHaveBeenCalledTimes(3);
+  });
+
+  it("F2-10: no reintenta un 400/403 del servidor, sí un fallo de red", async () => {
+    expect(reintentarSoloSiEsTransporte({ ok: false, mensaje: "La foto no es válida" })).toBe(false);
+    expect(reintentarSoloSiEsTransporte(new Error("fetch failed"))).toBe(true);
+    expect(reintentarSoloSiEsTransporte(undefined)).toBe(true);
+
+    const fn = vi.fn().mockResolvedValue({ ok: false, mensaje: "Archivo inválido" });
+    const pausar = vi.fn().mockResolvedValue(undefined);
+    const res = await ejecutarConReintento(fn, reintentarSoloSiEsTransporte, { pausar });
+    expect(res).toEqual({ ok: false, mensaje: "Archivo inválido" });
+    expect(fn).toHaveBeenCalledTimes(1);
   });
 });

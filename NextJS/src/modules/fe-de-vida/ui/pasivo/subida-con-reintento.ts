@@ -9,6 +9,15 @@ export interface OpcionesReintento {
 const sleepPorDefecto = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /**
+ * F2-10: solo se reintenta el fallo de transporte (la llamada lanzó). Una
+ * respuesta del servidor, aunque venga con `ok: false` (400/403), ya trae su
+ * causa y reintentarla tres veces no la cambia.
+ */
+export function reintentarSoloSiEsTransporte(resOError: unknown): boolean {
+  return !(typeof resOError === "object" && resOError !== null && "ok" in resOError);
+}
+
+/**
  * Ejecuta una operación asíncrona reintentando si falla o si la condición `debeReintentar` se cumple.
  * Aplica backoff exponencial para evitar saturación en conexiones intermitentes.
  */
