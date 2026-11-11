@@ -6,3 +6,5 @@ allowBuilds:
   prisma: true
   sharp: true
   unrs-resolver: true
+overrides:
+  eslint-plugin-react-hooks: 7.0.1
