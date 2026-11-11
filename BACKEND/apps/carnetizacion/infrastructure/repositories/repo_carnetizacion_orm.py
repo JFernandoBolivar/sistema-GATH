@@ -4,12 +4,10 @@ Repositorio ORM de Carnetización (Reglas B4, B7, O44 - E3).
 import os
 import logging
 import hashlib
-import secrets
 import base64
 from datetime import timedelta
 from io import BytesIO
 from typing import Any
-from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.base import ContentFile
 from django.db import transaction
@@ -43,6 +41,7 @@ from apps.carnetizacion.domain.services.plantilla_defecto import (
     plantilla_defecto_trabajador,
 )
 from apps.carnetizacion.domain.services.validador_multimedia import validar_archivo_biblioteca
+from apps.carnetizacion.infrastructure.codigo_qr import codigo_qr_unico
 from apps.carnetizacion.infrastructure.mappers.mapper_carnetizacion import (
     campo_personalizado_a_entidad,
     carnet_a_entidad,
@@ -484,9 +483,7 @@ class RepoCarnetizacionORM:
         if not empleado:
             raise NotFoundError(f"Empleado con cédula {empleado_cedula} no encontrado")
 
-        now = timezone.now()
-        raw = f"{empleado_cedula}|{motivo_id}|{now.isoformat()}|{settings.SECRET_KEY}|{secrets.token_hex(16)}"
-        sec_hash = hashlib.sha256(raw.encode('utf-8')).hexdigest()
+        sec_hash = codigo_qr_unico()
 
         # Determinar versión de plantilla para conservación inmutable (O44 - E3)
         plantilla_obj = None

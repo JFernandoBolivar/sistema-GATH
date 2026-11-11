@@ -2,12 +2,9 @@
 Repositorio ORM de credenciales externas y temporales (O45-A).
 """
 import base64
-import hashlib
-import secrets
 from datetime import datetime
 from typing import Any
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
@@ -16,6 +13,7 @@ from apps.carnetizacion.domain.entities.credencial_externa import CredencialExte
 from apps.carnetizacion.domain.services.plantilla_defecto import (
     plantilla_defecto_trabajador,
 )
+from apps.carnetizacion.infrastructure.codigo_qr import codigo_qr_unico
 from apps.carnetizacion.infrastructure.mappers.mapper_carnetizacion import (
     credencial_externa_a_entidad,
 )
@@ -161,12 +159,7 @@ class RepoCredencialesExternasORM:
                 'empleado_cedula',
             )
 
-        now = timezone.now()
-        raw = (
-            f"{tipo_codigo}|{documento}|{now.isoformat()}|"
-            f"{settings.SECRET_KEY}|{secrets.token_hex(16)}"
-        )
-        security_hash = hashlib.sha256(raw.encode('utf-8')).hexdigest()
+        security_hash = codigo_qr_unico()
         creado_por_id = (
             getattr(creado_por, 'pk', None)
             if isinstance(creado_por, get_user_model())

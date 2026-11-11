@@ -63,6 +63,13 @@ SILOG debe usarse el QR del **reverso (16 × 16 mm)** o ampliarse el del anverso
    nuevo y se asuma el riesgo de exponer todos los hashes.
 7. **La integración no se implementa hoy.** Este documento deja el plan; la
    ejecución queda pendiente de aprobación.
+8. **Visitantes y externos de GATH en SILOG** (aprobada por el usuario el 11/11): si
+   el endpoint responde `valido:true` con `tipo_credencial` externo/visitante y la
+   cédula no existe en Employee ni en Apoyo, SILOG crea o actualiza automáticamente
+   el registro Apoyo (cédula, nombre, interno=False) y luego registra la asistencia.
+   Como GATH verifica el carnet en cada lectura, al vencer o anularse la credencial
+   SILOG la rechaza sin intervención manual. Si SILOG quiere restringir servicios por
+   tipo de credencial (p. ej. comedor sí, transporte no), lo decide con su propia regla.
 
 ---
 
@@ -691,8 +698,12 @@ solicitud.
 Entregable para el equipo de SILOG. Implementado el 2026-11-10; no incluye vigencia
 parametrizable, plantillas ni JWS (siguen pendientes).
 
-**URL:** `GET /api/v1/integraciones/carnet/verificar/?hash=<security_hash>`
-(`security_hash` = los 64 caracteres hexadecimales que van al final de la URL del QR).
+**URL:** `GET /api/v1/integraciones/carnet/verificar/?hash=<codigo>`
+
+**Formato del parámetro `hash`:** 22 caracteres base64url (`[A-Za-z0-9_-]`, distingue
+mayúsculas) en los carnets y credenciales NUEVOS, o 64 hexadecimales en los anteriores
+(ambos siguen vigentes). SILOG debe extraer el último segmento de la URL del QR,
+`/carnet/<codigo>`, y enviarlo sin cambiar mayúsculas ni minúsculas.
 
 **Autenticación:** cabecera `X-API-Key: <clave-de-silog>`. La clave la entrega GATH por un
 canal seguro; se rota cambiando la variable de entorno del servidor GATH:
@@ -729,7 +740,7 @@ Carnet vigente (trabajador, pasivo o credencial externa):
 ```
 
 Carnet no válido (`estado`: `ANULADO`, `VENCIDO` o `NO_REGISTRADO`; este último también
-para un hash mal formado):
+para un código con formato inválido):
 
 ```json
 {
@@ -749,6 +760,29 @@ Notas:
 - `fecha_vencimiento` es `null` para trabajadores mientras no se defina la vigencia; en
   credenciales externas trae la fecha de fin de vigencia.
 - La respuesta nunca incluye datos de salud, foto, contactos ni datos de vivienda.
-- Cada consulta queda auditada en GATH (sistema, resultado, 12 primeros caracteres del
-  hash e IP de origen).
-- Ejemplo: `curl -H "X-API-Key: $CLAVE" "https://<host-gath>/api/v1/integraciones/carnet/verificar/?hash=<64-hex>"`
+- Cada consulta queda auditada en GATH (sistema, resultado, 8 primeros caracteres del
+  código e IP de origen).
+- Ejemplo: `curl -H "X-API-Key: $CLAVE" "https://<host-gath>/api/v1/integraciones/carnet/verificar/?hash=<codigo>"`
+- Instrucción para SILOG: si la respuesta es `valido:true` con `tipo_credencial` externo o
+  visitante y la cédula no existe en Employee ni en Apoyo, crear o actualizar el registro
+  Apoyo (cédula, nombre, `interno=False`) y luego registrar la asistencia; GATH verifica en
+  cada lectura, así que una credencial vencida o anulada se rechaza sola. Restringir
+  servicios por tipo de credencial es regla propia de SILOG.
+
+---
+
+## 10. Propuestas futuras (no aprobadas)
+
+### Verificación sin conexión con QR firmado (JWS Ed25519)
+
+Propuesta, sin aprobación ni fecha. El QR llevaría un JWS compacto firmado con Ed25519
+(carga útil: cédula, código, `iat`, `exp`, `kid`, `v`); GATH conserva la clave privada y
+entrega a SILOG solo la clave pública, con la que verificaría la firma sin consultar a GATH.
+
+Limitaciones que habría que aceptar:
+
+- Requiere reimprimir todos los carnets: el JWS es mucho más largo que el código de 22
+  caracteres y el QR volvería a tener más módulos.
+- Un carnet anulado seguiría pareciendo válido sin conexión hasta que venza el JWS o SILOG
+  reciba una lista de revocación; la verificación en línea sigue siendo la fuente de verdad.
+- Exige gestión y rotación de claves (`kid`) y publicar el JWKS.

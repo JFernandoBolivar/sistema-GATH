@@ -67,12 +67,12 @@ class VerificarCarnetIntegracionView(APIView):
             '`INTEGRACION_CARNET_API_KEYS`). Responde 200 con `valido` y `estado` para que el '
             'sistema distinga "carnet no válido" de un error de red; 401 si la clave falta o es '
             'errónea, 503 si no hay claves configuradas y 429 al exceder el límite por sistema. '
-            'Un hash mal formado devuelve `NO_REGISTRADO`. No incluye datos de salud ni foto. '
+            'Un código con formato inválido devuelve `NO_REGISTRADO`. No incluye datos de salud ni foto. '
             'Cada consulta queda auditada (sistema, resultado, hash truncado, IP).'
         ),
         parameters=[
             OpenApiParameter('hash', OpenApiTypes.STR, OpenApiParameter.QUERY, required=True,
-                             description='`security_hash` del QR: 64 caracteres hexadecimales.'),
+                             description='Código del QR, último segmento de la URL `/carnet/<codigo>`: 22 caracteres base64url (carnets nuevos, distingue mayúsculas) o 64 hexadecimales (carnets anteriores).'),
             OpenApiParameter('X-API-Key', OpenApiTypes.STR, OpenApiParameter.HEADER, required=True,
                              description='Clave de API del sistema integrado.'),
         ],
@@ -81,10 +81,10 @@ class VerificarCarnetIntegracionView(APIView):
     def get(self, request):
         v = verificar_carnet_integracion_uc(RepoCarnetizacionORM(), request.query_params.get('hash'))
         sistema = request.auth
-        # Solo los primeros 12 hex: sirve para correlacionar y no basta para reconstruir el QR.
+        # Solo los primeros 8 caracteres: sirve para correlacionar y no basta para reconstruir el QR.
         # Un hash mal formado es dato del visitante sin validar: no se guarda.
         normalizado = normalizar_hash_carnet(request.query_params.get('hash'))
-        truncado = normalizado[:12] if normalizado else 'FORMATO_INVALIDO'
+        truncado = normalizado[:8] if normalizado else 'FORMATO_INVALIDO'
         registrar_auditoria(
             trace_id=getattr(request, 'trace_id', None) or uuid.uuid4().hex,
             actor_id=None,

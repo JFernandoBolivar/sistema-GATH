@@ -68,7 +68,7 @@ def datos_base(tablas_legadas):
     carnet = CarnetEmitidoModel.objects.create(
         employee=empleado,
         motivo=motivo,
-        security_hash="hash-api-o45fix",
+        security_hash="HashApiO45Fix_-abcdef0",
         activo=True,
     )
     for codigo, grupo, orden in (

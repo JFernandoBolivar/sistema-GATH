@@ -1,15 +1,14 @@
 """Resultado de la verificación de un carnet por un sistema externo autorizado (SILOG)."""
-import re
 from dataclasses import dataclass
 
+from apps.carnetizacion.domain.value_objects.security_hash import normalizar_codigo_qr
+
 VERSION_CONTRATO_INTEGRACION = 1
-_PATRON_HASH = re.compile(r'^[0-9a-f]{64}$')
 
 
 def normalizar_hash_carnet(valor: str | None) -> str | None:
-    """Devuelve el hash en minúsculas si tiene el formato de 64 hex; si no, None."""
-    candidato = (valor or '').strip().lower()
-    return candidato if _PATRON_HASH.match(candidato) else None
+    """Devuelve el código si es 22 base64url o 64 hex (en minúsculas); si no, None."""
+    return normalizar_codigo_qr(valor)
 
 
 @dataclass(frozen=True)

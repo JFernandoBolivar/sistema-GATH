@@ -143,7 +143,7 @@ def test_auditoria_registra_sistema_y_hash_truncado_sin_clave(cliente):
     _get(cliente, carnet.security_hash)
     reg = AuditoriaLog.objects.filter(accion='CARNET_VERIFICADO_INTEGRACION').latest('fecha_hora')
     assert reg.actor_rol == 'sistema:silog'
-    assert reg.recurso_id == carnet.security_hash[:12]
+    assert reg.recurso_id == carnet.security_hash[:8]
     assert reg.estado_nuevo['estado'] == 'VIGENTE'
     assert reg.ip_origen
     assert CLAVE not in str(reg.estado_nuevo) and carnet.security_hash not in str(reg.estado_nuevo)
@@ -168,3 +168,44 @@ def test_throttle_por_sistema(cliente, settings):
         assert _get(cliente, 'a' * 64).status_code == 429
     finally:
         IntegracionCarnetThrottle.THROTTLE_RATES = api_settings.DEFAULT_THROTTLE_RATES
+
+
+def test_codigo_corto_nuevo_se_verifica_y_respeta_mayusculas(cliente):
+    carnet = _carnet()
+    corto = 'AbCdEfGhIjKlMnOpQrSt-_'
+    CarnetEmitidoModel.objects.filter(pk=carnet.pk).update(security_hash=corto)
+    d = _get(cliente, corto).json()
+    assert d['valido'] is True and d['estado'] == 'VIGENTE'
+    # base64url distingue mayúsculas: la variante en minúsculas es otro código.
+    assert _get(cliente, corto.lower()).json()['estado'] == 'NO_REGISTRADO'
+
+
+def test_codigo_corto_de_credencial_externa(cliente):
+    tipo, _ = TipoCredencialModel.objects.get_or_create(
+        codigo='visitante',
+        defaults={'nombre': 'Visitante', 'descripcion': 'v', 'grupo': 'externo', 'ancho_mm': 54,
+                  'alto_mm': 85.6, 'orientacion': 'vertical', 'activo': True, 'orden': 99},
+    )
+    ahora = timezone.now()
+    fila = CredencialExternaModel.objects.create(
+        tipo_credencial=tipo, nombre='Luis Visita', documento='V12345678', motivo='Reunión',
+        vigencia_desde=ahora - timedelta(hours=1), vigencia_hasta=ahora + timedelta(days=1),
+        security_hash=secrets.token_urlsafe(16),
+    )
+    assert len(fila.security_hash) == 22
+    assert _get(cliente, fila.security_hash).json()['valido'] is True
+
+
+@pytest.mark.parametrize('valor', ['a' * 21, 'a' * 23, 'a' * 22 + '=', 'a' * 21 + '+', 'a' * 63])
+def test_longitud_o_alfabeto_invalido_no_registrado(cliente, valor):
+    assert _get(cliente, valor).json()['estado'] == 'NO_REGISTRADO'
+
+
+def test_ficha_publica_acepta_ambos_formatos_y_rechaza_invalidos(cliente):
+    carnet = _carnet()
+    assert cliente.get(f'/api/v1/carnetizacion/public/qr/{carnet.security_hash}/').status_code == 200
+    corto = secrets.token_urlsafe(16)
+    CarnetEmitidoModel.objects.filter(pk=carnet.pk).update(security_hash=corto)
+    assert cliente.get(f'/api/v1/carnetizacion/public/qr/{corto}/').status_code == 200
+    r = cliente.get('/api/v1/carnetizacion/public/qr/no-valido/')
+    assert r.json()['data']['estado'] == 'NO_REGISTRADO'
