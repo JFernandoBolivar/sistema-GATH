@@ -322,6 +322,10 @@ export default function PasivosPage() {
             if (!open) setDetalle(null);
           }}
           onGuardado={() => void recargarLista()}
+          onCedulaCorregida={(nueva) => {
+            setDetalle((actual) => (actual ? { ...actual, cedula: nueva } : actual));
+            void recargarLista();
+          }}
         />
       </div>
     </PageLayout>

@@ -32,13 +32,22 @@ interface DetallePasivoProps {
   onOpenChange: (open: boolean) => void;
   /** Tras guardar un cambio: la página recarga su listado (la fila se ve al instante). */
   onGuardado?: () => void;
+  /** Tras corregir la cédula (permiso `personal.corregir_cedula`): la página abre la nueva. */
+  onCedulaCorregida?: (cedulaNueva: string) => void;
 }
 
-export function DetallePasivo({ cedula, open, onOpenChange, onGuardado }: DetallePasivoProps) {
+export function DetallePasivo({
+  cedula,
+  open,
+  onOpenChange,
+  onGuardado,
+  onCedulaCorregida,
+}: DetallePasivoProps) {
   const { data: session } = useSession();
   const permisos = session?.user?.permisos;
   const puedeExportarPdf = tienePermiso(permisos, "pasivos.exportar_pdf");
   const puedeEditar = tienePermiso(permisos, "personal.editar_personales");
+  const puedeCorregirCedula = tienePermiso(permisos, "personal.corregir_cedula");
 
   const [catalogos, setCatalogos] = useState<CatalogosExpedienteDTO | null>(null);
   const [pasivo, setPasivo] = useState<PasivoDTO | null>(null);
@@ -130,6 +139,8 @@ export function DetallePasivo({ cedula, open, onOpenChange, onGuardado }: Detall
       exportandoPdf={exportandoPdf || cargando}
       puedeExportarPdf={puedeExportarPdf}
       puedeEditar={puedeEditar}
+      puedeCorregirCedula={puedeCorregirCedula}
+      onCedulaCorregida={onCedulaCorregida}
       revision={revision}
       permitirPais
     />
