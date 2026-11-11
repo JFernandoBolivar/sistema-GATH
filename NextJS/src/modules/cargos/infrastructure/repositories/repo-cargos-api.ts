@@ -50,6 +50,7 @@ export const repoCargosApi: RepoCargos = {
         direccion_linea_id: filtros.direccionLineaId,
         coordinacion_id: filtros.coordinacionId,
         codigo: filtros.codigo,
+        busqueda: filtros.busqueda,
         pagina: filtros.pagina,
         page_size: filtros.pageSize,
       },

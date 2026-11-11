@@ -160,7 +160,10 @@ def _listar_puestos(request, solo_vacantes: bool):
     repo = RepoCargosORM()
     if not Paginacion.solicitada(params):
         return ok(CargoAsignacionSerializer(listar_cargos(repo, **filtros), many=True).data)
-    pagina = listar_cargos_paginado(repo, Paginacion.desde_parametros(params.dict()), **filtros)
+    busqueda = (params.get('busqueda') or '').strip()[:100] or None
+    pagina = listar_cargos_paginado(
+        repo, Paginacion.desde_parametros(params.dict()), busqueda=busqueda, **filtros,
+    )
     return ok({
         'resultados': CargoAsignacionSerializer(pagina.resultados, many=True).data,
         'total': pagina.total,
@@ -176,7 +179,7 @@ class CargosListView(APIView):
     @extend_schema(
         tags=['Cargos'],
         summary='Listar puestos de trabajo con filtros',
-        description='Paginación opcional: ?pagina= y ?page_size= (10 por defecto, tope 50). Sin ellos devuelve la lista completa.',
+        description='Paginación opcional: ?pagina= y ?page_size= (10 por defecto, tope 50). Sin ellos devuelve la lista completa. Con paginación, ?busqueda= filtra por código, denominaciones, unidad y ocupante (sin mayúsculas ni acentos).',
         responses={200: CargoAsignacionSerializer(many=True)},
     )
     def get(self, request):

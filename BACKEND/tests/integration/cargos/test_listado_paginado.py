@@ -154,3 +154,63 @@ def test_vista_vacantes_paginada_y_completa(puestos):
 
 def test_vista_requiere_permiso(puestos):
     assert _cliente(permisos=()).get('/api/v1/cargos/', {'pagina': 1}).status_code == 403
+
+
+# --- Busqueda de texto libre ----------------------------------------------
+
+@pytest.fixture
+def puestos_busqueda(db):
+    from apps.catalogos.infrastructure.models.catalogo_models import NacionalidadModel, SexoModel
+    from apps.personal.infrastructure.models.personal_models import EmployeeModel
+
+    # Employee exige nacionalidad (FK con default 1): la base de pruebas parte vacía.
+    NacionalidadModel.objects.get_or_create(id=1, defaults={'codigo': 'V', 'nombre': 'VENEZOLANO'})
+    estatus = EstatusModel.objects.create(estatus='ACTIVO')
+    activo = TipoPersonalModel.objects.create(tipo_personal='ACTIVO')
+    nomina = TipoNominaModel.objects.create(nomina='EMPLEADO')
+    dc = DenominacionCargoModel.objects.create(cargo='ANALISTA')
+    dc2 = DenominacionCargoModel.objects.create(cargo='COORDINADOR')
+    dce = DenominacionCargoEspecificoModel.objects.create(cargo='GESTIÓN DE PERSONAL')
+    base = dict(denominacioncargoespecificoid=dce, tiponominaid=nomina, estatusid=estatus, Tipo_personal=activo)
+    AsigTrabajoModel.objects.create(codigo='ZZ-001', denominacioncargoid=dc, **base)
+    AsigTrabajoModel.objects.create(codigo='ZZ-002', denominacioncargoid=dc2, **base)
+    ocupante = EmployeeModel.objects.create(cedulaidentidad='12345678', nombres='José Ángel', apellidos='Pérez Núñez',
+        sexoid=SexoModel.objects.create(sexo='M'),
+    )
+    AsigTrabajoModel.objects.create(codigo='ZZ-003', denominacioncargoid=dc, employee=ocupante, **base)
+
+
+def _buscar(texto, **extra):
+    r = _cliente().get('/api/v1/cargos/', {'pagina': 1, 'busqueda': texto, **extra})
+    assert r.status_code == 200
+    return r.json()['data']
+
+
+def test_busqueda_por_codigo_sin_mayusculas(puestos_busqueda):
+    datos = _buscar('zz-00')
+    assert datos['total'] == 3
+    assert [c['codigo'] for c in _buscar('zz-002')['resultados']] == ['ZZ-002']
+
+
+def test_busqueda_por_denominacion_y_especifica_sin_acentos(puestos_busqueda):
+    assert _buscar('coordinador')['total'] == 1
+    assert _buscar('gestion de personal')['total'] == 3  # la especifica lleva tilde
+    assert _buscar('GESTIÓN')['total'] == 3
+
+
+def test_busqueda_por_ocupante_nombre_y_cedula(puestos_busqueda):
+    assert [c['codigo'] for c in _buscar('jose angel')['resultados']] == ['ZZ-003']
+    assert _buscar('nunez')['total'] == 1
+    assert _buscar('123456')['total'] == 1
+
+
+def test_busqueda_sin_resultados_y_vacia(puestos_busqueda):
+    assert _buscar('inexistente')['total'] == 0
+    assert _buscar('   ')['total'] == 3  # sin texto no filtra
+
+
+def test_busqueda_se_combina_con_filtros_y_paginacion(puestos_busqueda):
+    datos = _buscar('analista', solo_vacantes='true', page_size=1)
+    assert datos['total'] == 1
+    assert datos['resultados'][0]['codigo'] == 'ZZ-001'
+    assert _buscar('.*')['total'] == 0  # el texto se escapa: no es una expresion regular

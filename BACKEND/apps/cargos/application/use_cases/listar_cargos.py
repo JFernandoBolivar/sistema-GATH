@@ -75,6 +75,7 @@ def listar_cargos_paginado(
     direccion_linea_id: int | None = None,
     coordinacion_id: int | None = None,
     codigo: str | None = None,
+    busqueda: str | None = None,
 ) -> PaginaCargosDTO:
     entidades, total = repo.listar_cargos_paginado(
         paginacion,
@@ -85,6 +86,7 @@ def listar_cargos_paginado(
         direccion_linea_id=direccion_linea_id,
         coordinacion_id=coordinacion_id,
         codigo=codigo,
+        busqueda=busqueda,
     )
     return PaginaCargosDTO(
         resultados=[_a_dto(e) for e in entidades],

@@ -110,6 +110,7 @@ export async function getCargosPaginadoAction(filtros?: {
   direccionLineaId?: number | null;
   coordinacionId?: number | null;
   codigo?: string | null;
+  busqueda?: string;
   soloVacantes?: boolean;
   pagina?: number;
   pageSize?: number;
@@ -127,6 +128,7 @@ export async function getCargosPaginadoAction(filtros?: {
       direccionLineaId: f.direccionLineaId ?? undefined,
       coordinacionId: f.coordinacionId ?? undefined,
       codigo: f.codigo || undefined,
+      busqueda: f.busqueda || undefined,
       soloVacantes: f.soloVacantes,
       pagina: f.pagina ?? 1,
       pageSize: f.pageSize ?? 10,

@@ -89,6 +89,8 @@ export interface RepoCargos {
     direccionLineaId?: number;
     coordinacionId?: number;
     codigo?: string;
+    /** Texto libre: código, denominaciones, unidad u ocupante (sin mayúsculas ni acentos). */
+    busqueda?: string;
     soloVacantes?: boolean;
     pagina: number;
     pageSize: number;

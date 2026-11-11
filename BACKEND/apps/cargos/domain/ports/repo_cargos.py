@@ -57,6 +57,7 @@ class RepoCargos(Protocol):
         direccion_linea_id: int | None = None,
         coordinacion_id: int | None = None,
         codigo: str | None = None,
+        busqueda: str | None = None,
     ) -> tuple[list[CargoAsignacion], int]:
         """Una página de puestos y el total que cumple los filtros."""
         ...

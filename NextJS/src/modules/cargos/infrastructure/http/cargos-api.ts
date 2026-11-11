@@ -177,6 +177,7 @@ export const cargosApi = {
       direccion_linea_id?: number;
       coordinacion_id?: number;
       codigo?: string;
+      busqueda?: string;
       pagina: number;
       page_size: number;
     },

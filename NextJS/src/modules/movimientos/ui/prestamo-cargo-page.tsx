@@ -19,7 +19,6 @@ import { Input } from "@/shared/ui/components/input";
 import { Button } from "@/shared/ui/components/button";
 import { MotivoSelect } from "@/modules/cargos/ui/components/motivo-select";
 import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
-import { Combobox } from "@/shared/ui/components/combobox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -54,32 +53,22 @@ import { Loading } from "@/shared/ui/components/loading";
 import { ContratoInlineForm } from "@/shared/components/contrato-inline-form";
 import { EmployeeSearchForm } from "@/shared/components/employee-search-form";
 import { EmployeeInfoBanner } from "@/shared/components/employee-info-banner";
-import { CodeFilterForm } from "./components/code-filter-form";
+import { CargoBuscador } from "./components/cargo-buscador";
 import { ErrorCard } from "./components/error-card";
 
 import type { EmpleadoDTO } from "@/shared/types/employee-dto";
 import { getEmpleadoPorCedulaAction } from "@/shared/infrastructure/actions/employee-actions";
 import {
-  getCargosAction,
-  getDependenciasAction,
-  getDireccionesGeneralesAction,
-  getDireccionesLineaAction,
-  getCoordinacionesAction,
-  getTiposNominaAction,
   getPrestamosAction,
   registrarEncargaduriaAction,
   finalizarPrestamoAction,
 } from "@/modules/cargos/infrastructure/actions/cargos-actions";
 import type {
   CargoAsignacionDTO,
-  CatalogoCargoItemDTO,
   PrestamoCargoDTO,
-  UnidadOrganizativaCargoDTO,
 } from "@/modules/cargos/application/dtos/cargo-dto";
 import {
-  schemaFilterForm,
   schemaPrestamoCargo,
-  type SchemaFilterFormType,
   type PrestamoCargoFormType,
 } from "@/modules/cargos/ui/schema/schema-asignar-cargo";
 
@@ -96,39 +85,11 @@ export function PrestamoCargoPage() {
   const [hasSearched, setHasSearched] = useState(false);
   const [employeeError, setEmployeeError] = useState<string | null>(null);
   const [selectedCargo, setSelectedCargo] = useState<CargoAsignacionDTO | null>(null);
-  const [selectedCodeId, setSelectedCodeId] = useState<number>();
   const [finalizarOpen, setFinalizarOpen] = useState<number | null>(null);
   const [fechaFinEdit, setFechaFinEdit] = useState<Date>(new Date());
   const [filterCedula, setFilterCedula] = useState("");
   const [employeeReady, setEmployeeReady] = useState(false);
-  const [isLoadingCargos, setIsLoadingCargos] = useState(false);
-
-  // Catalogs
-  const [dependencias, setDependencias] = useState<UnidadOrganizativaCargoDTO[]>([]);
-  const [direccionesGenerales, setDireccionesGenerales] = useState<UnidadOrganizativaCargoDTO[]>([]);
-  const [direccionesLinea, setDireccionesLinea] = useState<UnidadOrganizativaCargoDTO[]>([]);
-  const [coordinaciones, setCoordinaciones] = useState<UnidadOrganizativaCargoDTO[]>([]);
-  const [tiposNomina, setTiposNomina] = useState<CatalogoCargoItemDTO[]>([]);
-  const [codeList, setCodeList] = useState<CargoAsignacionDTO[] | null>(null);
   const [prestamos, setPrestamos] = useState<PrestamoCargoDTO[]>([]);
-
-  const [isLoadingDependency, setIsLoadingDependency] = useState(true);
-  const [isLoadingDirectionGeneral, setIsLoadingDirectionGeneral] = useState(false);
-  const [isLoadingDirectionLine, setIsLoadingDirectionLine] = useState(false);
-  const [isLoadingCoordination, setIsLoadingCoordination] = useState(false);
-  const [isLoadingNomina, setIsLoadingNomina] = useState(true);
-
-  const filterForm = useForm<SchemaFilterFormType>({
-    resolver: zodResolver(schemaFilterForm),
-    defaultValues: {
-      tipo_nomina: 0,
-      dependencia_id: 0,
-      direccion_general_id: 0,
-      direccion_linea_id: 0,
-      coordinacion_id: 0,
-      codigo: "",
-    },
-  });
 
   const form = useForm<PrestamoCargoFormType>({
     resolver: zodResolver(schemaPrestamoCargo),
@@ -140,34 +101,6 @@ export function PrestamoCargoPage() {
       fecha_fin: new Date(),
     },
   });
-
-  const watchedDependencia = filterForm.watch("dependencia_id");
-  const watchedDireccionGeneral = filterForm.watch("direccion_general_id");
-  const watchedDireccionLinea = filterForm.watch("direccion_linea_id");
-
-  // Initial catalogs fetch
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const [deps, noms] = await Promise.all([
-          getDependenciasAction(),
-          getTiposNominaAction(),
-        ]);
-        if (!active) return;
-        setDependencias(deps);
-        setTiposNomina(noms);
-      } catch {
-        // Silencioso
-      } finally {
-        if (active) {
-          setIsLoadingDependency(false);
-          setIsLoadingNomina(false);
-        }
-      }
-    })();
-    return () => { active = false; };
-  }, []);
 
   // Fetch prestamos
   const loadPrestamos = useCallback(async (cedulaFiltro?: string) => {
@@ -182,66 +115,6 @@ export function PrestamoCargoPage() {
   useEffect(() => {
     loadPrestamos();
   }, [loadPrestamos]);
-
-  // Cascading: watchedDependencia -> direccionesGenerales
-  useEffect(() => {
-    if (!watchedDependencia || Number(watchedDependencia) === 0) {
-      setDireccionesGenerales([]);
-      filterForm.setValue("direccion_general_id", 0);
-      filterForm.setValue("direccion_linea_id", 0);
-      filterForm.setValue("coordinacion_id", 0);
-      return;
-    }
-    let active = true;
-    setIsLoadingDirectionGeneral(true);
-    getDireccionesGeneralesAction(Number(watchedDependencia))
-      .then((data) => {
-        if (active) setDireccionesGenerales(data);
-      })
-      .finally(() => {
-        if (active) setIsLoadingDirectionGeneral(false);
-      });
-    return () => { active = false; };
-  }, [watchedDependencia, filterForm]);
-
-  // Cascading: watchedDireccionGeneral -> direccionesLinea
-  useEffect(() => {
-    if (!watchedDireccionGeneral || Number(watchedDireccionGeneral) === 0) {
-      setDireccionesLinea([]);
-      filterForm.setValue("direccion_linea_id", 0);
-      filterForm.setValue("coordinacion_id", 0);
-      return;
-    }
-    let active = true;
-    setIsLoadingDirectionLine(true);
-    getDireccionesLineaAction(Number(watchedDireccionGeneral))
-      .then((data) => {
-        if (active) setDireccionesLinea(data);
-      })
-      .finally(() => {
-        if (active) setIsLoadingDirectionLine(false);
-      });
-    return () => { active = false; };
-  }, [watchedDireccionGeneral, filterForm]);
-
-  // Cascading: watchedDireccionLinea -> coordinaciones
-  useEffect(() => {
-    if (!watchedDireccionLinea || Number(watchedDireccionLinea) === 0) {
-      setCoordinaciones([]);
-      filterForm.setValue("coordinacion_id", 0);
-      return;
-    }
-    let active = true;
-    setIsLoadingCoordination(true);
-    getCoordinacionesAction(Number(watchedDireccionLinea))
-      .then((data) => {
-        if (active) setCoordinaciones(data);
-      })
-      .finally(() => {
-        if (active) setIsLoadingCoordination(false);
-      });
-    return () => { active = false; };
-  }, [watchedDireccionLinea, filterForm]);
 
   const handleSearchEmployee = async (cedula: string) => {
     const term = cedula.trim();
@@ -267,62 +140,9 @@ export function PrestamoCargoPage() {
     }
   };
 
-  const handleSearchCargo = (values: SchemaFilterFormType) => {
-    setIsLoadingCargos(true);
-    (async () => {
-      try {
-        const numOrUndefined = (val: unknown) => {
-          const n = Number(val);
-          return n > 0 ? n : undefined;
-        };
-
-        const results = await getCargosAction({
-          dependenciaId: numOrUndefined(values.dependencia_id),
-          tipoNominaId: numOrUndefined(values.tipo_nomina),
-          direccionGeneralId: numOrUndefined(values.direccion_general_id),
-          direccionLineaId: numOrUndefined(values.direccion_linea_id),
-          coordinacionId: numOrUndefined(values.coordinacion_id),
-          codigo: values.codigo?.trim() || undefined,
-          soloVacantes: false,
-        });
-        setCodeList(results);
-        setSelectedCodeId(undefined);
-        setSelectedCargo(null);
-        form.setValue("cargo_encargado", 0);
-        if (results.length === 0) {
-          toast.info("No se encontraron cargos con los criterios de búsqueda.");
-        }
-      } catch (err: unknown) {
-        toast.error(err instanceof Error ? err.message : "Error al buscar cargos");
-      } finally {
-        setIsLoadingCargos(false);
-      }
-    })();
-  };
-
-  const handleCleanFilters = () => {
-    filterForm.reset({
-      tipo_nomina: 0,
-      dependencia_id: 0,
-      direccion_general_id: 0,
-      direccion_linea_id: 0,
-      coordinacion_id: 0,
-      codigo: "",
-    });
-    setCodeList(null);
-    setSelectedCodeId(undefined);
-    setSelectedCargo(null);
-    form.setValue("cargo_encargado", 0);
-  };
-
-  const handleSelectCargo = (id: string) => {
-    const numId = Number(id);
-    setSelectedCodeId(numId);
-    const c = codeList?.find((item) => item.id === numId);
-    if (c) {
-      setSelectedCargo(c);
-      form.setValue("cargo_encargado", c.id);
-    }
+  const handleSelectCargo = (c: CargoAsignacionDTO | null) => {
+    setSelectedCargo(c);
+    form.setValue("cargo_encargado", c ? c.id : 0);
   };
 
   const handleSubmit = (values: PrestamoCargoFormType) => {
@@ -349,7 +169,6 @@ export function PrestamoCargoPage() {
         if (result.success) {
           toast.success(result.message);
           setSelectedCargo(null);
-          setSelectedCodeId(undefined);
           setEmployee(null);
           setHasSearched(false);
           setEmployeeError(null);
@@ -403,7 +222,7 @@ export function PrestamoCargoPage() {
     }
   };
 
-  const selectedCode = codeList?.find((v) => v.id === selectedCodeId);
+  const selectedCode = selectedCargo;
 
   if (isSubmitting) {
     return <Loading promiseMessage="Procesando Encargaduría..." />;
@@ -452,56 +271,15 @@ export function PrestamoCargoPage() {
 
           {employee && employeeReady && (
             <>
-              <CodeFilterForm
-                form={filterForm}
-                dependencyData={dependencias}
-                directionGeneralData={direccionesGenerales}
-                directionLineData={direccionesLinea}
-                coordinationData={coordinaciones}
-                nominaData={tiposNomina}
-                isLoadingDependency={isLoadingDependency}
-                isLoadingDirectionGeneral={isLoadingDirectionGeneral}
-                isLoadingDirectionLine={isLoadingDirectionLine}
-                isLoadingCoordination={isLoadingCoordination}
-                isLoadingNomina={isLoadingNomina}
-                onSearch={handleSearchCargo}
-                onClean={handleCleanFilters}
-              />
-
-              {codeList !== null && (
-                (() => {
-                  const availableCargos = codeList.filter(
-                    (c) => !employee || c.empleadoCedula !== employee.cedula
-                  );
-                  if (availableCargos.length === 0) {
-                    return (
-                      <div className="rounded-md border border-warning/40 bg-warning-soft p-3 text-sm text-warning">
-                        No se encontraron cargos disponibles para prestar con los filtros seleccionados.
-                      </div>
-                    );
-                  }
-                  return (
-                    <div>
-                      <Label>Código del Cargo</Label>
-                      <Combobox
-                        options={availableCargos.map((c) => ({
-                          value: c.id.toString(),
-                          label: `${c.codigo} - ${c.denominacionNombre} (${c.especificaNombre})${
-                            c.empleadoNombre
-                              ? ` — Titular: ${c.empleadoNombre}`
-                              : c.empleadoCedula
-                                ? ` — Titular: ${c.empleadoCedula}`
-                                : " — (Vacante)"
-                          }`,
-                        }))}
-                        onChange={handleSelectCargo}
-                        placeholder="Seleccione un cargo"
-                        searchPlaceholder="Buscar codigo o cargo..."
-                      />
-                    </div>
-                  );
-                })()
-              )}
+              <div>
+                <Label htmlFor="buscar-cargo">Cargo a encargar</Label>
+                <CargoBuscador
+                  id="buscar-cargo"
+                  value={selectedCargo}
+                  onSelect={handleSelectCargo}
+                  excluirCedula={employee?.cedula}
+                />
+              </div>
 
               {selectedCode && (
                 <div className="rounded-sm border-2 border-success/40 bg-success-soft p-4 flex flex-col gap-1 text-sm break-words">

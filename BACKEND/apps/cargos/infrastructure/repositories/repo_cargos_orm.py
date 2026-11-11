@@ -1,7 +1,11 @@
 """
 Repositorio ORM de Cargos (Reglas B4, B7, D-09).
 """
+import re
+import unicodedata
+
 from django.db import transaction
+from django.db.models import Q
 
 from core.domain.catalogos import (
     ESTATUS_ACTIVO,
@@ -53,6 +57,37 @@ from apps.organizacion.infrastructure.models.organizacion_models import (
 ESTATUS_PERMITIDOS_GESTION = (ESTATUS_SUSPENDIDO, ESTATUS_BLOQUEADO, ESTATUS_ACTIVO)
 
 
+# Campos de la busqueda de texto libre (`?busqueda=`).
+_CAMPOS_BUSQUEDA = (
+    'codigo',
+    'denominacioncargoid__cargo',
+    'denominacioncargoespecificoid__cargo',
+    'Dependencia__dependencia',
+    'DireccionGeneral__direccion_general',
+    'DireccionLinea__direccion_linea',
+    'Coordinacion__coordinacion',
+    'employee__cedulaidentidad',
+    'employee__nombres',
+    'employee__apellidos',
+)
+_VOCALES = {'a': 'aáàäâÁÀÄÂ', 'e': 'eéèëêÉÈËÊ', 'i': 'iíìïîÍÌÏÎ', 'o': 'oóòöôÓÒÖÔ', 'u': 'uúùüûÚÙÜÛ', 'n': 'nñÑ'}
+
+
+def _patron_sin_acentos(texto: str | None) -> str | None:
+    """Expresion regular que ignora mayusculas (con `iregex`) y acentos.
+
+    Postgres no trae `unaccent` activado en este proyecto: cada vocal (y la n)
+    del texto se vuelve una clase con sus variantes acentuadas.
+    """
+    base = unicodedata.normalize('NFD', (texto or '').strip())
+    base = ''.join(c for c in base if not unicodedata.combining(c))
+    if not base:
+        return None
+    return ''.join(
+        f'[{_VOCALES[c.lower()]}]' if c.lower() in _VOCALES else re.escape(c) for c in base
+    )
+
+
 class RepoCargosORM(RepoPrestamosCargoORM):
     def listar_denominaciones(self) -> list[DenominacionCargo]:
         qs = DenominacionCargoModel.objects.all().order_by('cargo')
@@ -94,6 +129,7 @@ class RepoCargosORM(RepoPrestamosCargoORM):
     def _consulta_cargos(
         tipo_nomina_id, dependencia_id, solo_vacantes,
         direccion_general_id, direccion_linea_id, coordinacion_id, codigo,
+        busqueda=None,
     ):
         qs = (
             AsigTrabajoModel.objects.select_related(
@@ -130,6 +166,14 @@ class RepoCargosORM(RepoPrestamosCargoORM):
             qs = qs.filter(codigo__icontains=codigo)
         if solo_vacantes:
             qs = qs.filter(employee__isnull=True)
+        # Cada palabra debe aparecer en algun campo ("juan perez" cruza nombre y apellido).
+        for palabra in (busqueda or '').split():
+            patron = _patron_sin_acentos(palabra)
+            if patron:
+                filtro = Q()
+                for campo in _CAMPOS_BUSQUEDA:
+                    filtro |= Q(**{f'{campo}__iregex': patron})
+                qs = qs.filter(filtro)
         return qs
 
     def listar_cargos(
@@ -158,10 +202,12 @@ class RepoCargosORM(RepoPrestamosCargoORM):
         direccion_linea_id: int | None = None,
         coordinacion_id: int | None = None,
         codigo: str | None = None,
+        busqueda: str | None = None,
     ) -> tuple[list[CargoAsignacion], int]:
         qs = self._consulta_cargos(
             tipo_nomina_id, dependencia_id, solo_vacantes,
             direccion_general_id, direccion_linea_id, coordinacion_id, codigo,
+            busqueda=busqueda,
         )
         total = qs.count()
         pagina = qs[paginacion.offset:paginacion.offset + paginacion.tamano]
