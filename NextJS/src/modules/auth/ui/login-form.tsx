@@ -51,8 +51,7 @@ export default function LoginForm() {
       // Un location.href fuerza una carga completa que re-ejecuta el
       // RootLayout con la sesion ya autenticada.
       const params = new URLSearchParams(window.location.search);
-      const callback = params.get("callbackUrl");
-      const destino = callback && callback.startsWith("/") ? callback : "/dashboard";
+      const destino = destinoPostLogin(params.get("callbackUrl"), window.location.origin);
       window.location.href = destino;
     });
   }
