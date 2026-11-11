@@ -52,6 +52,7 @@ class DatosCarnetPdf:
     nomina: str = "Funcionario"
     plantilla_path: str | None = None
     foto_bytes: bytes | None = None
+    vence: str = ''
 
 
 def _hex_seguro(valor: str | None, defecto: str = '#111827') -> HexColor:
@@ -157,6 +158,7 @@ def _extraer_valor_campo(campo: str, datos: DatosCarnetPdf | dict[str, Any]) -> 
             'oficina': datos.departamento,
             'nomina': datos.nomina,
             'tipo_personal': datos.nomina,
+            'vence': datos.vence,
         }
         return mapa.get(campo, '')
     if isinstance(datos, dict):
@@ -302,6 +304,7 @@ def generar_carnet_pdf_fiel(definicion: dict[str, Any], datos: DatosCarnetPdf | 
             'oficina': datos.departamento,
             'nomina': datos.nomina,
             'security_hash': datos.security_hash,
+            'vence': datos.vence,
         }
         foto_bytes = datos.foto_bytes
     else:

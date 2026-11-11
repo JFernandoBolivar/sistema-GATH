@@ -76,7 +76,7 @@ def test_vigente_devuelve_cedula_aunque_privacidad_la_oculte(cliente):
     assert d['cedula'] == 'V30799436'
     assert d['nombre'] == 'Ana Pérez'
     assert d['tipo_credencial'] == 'trabajador'
-    assert d['fecha_vencimiento'] is None
+    assert d['fecha_vencimiento']  # carnet anterior (NULL): se calcula en lectura
     assert d['version'] == 1
     assert d['fecha_emision']
 

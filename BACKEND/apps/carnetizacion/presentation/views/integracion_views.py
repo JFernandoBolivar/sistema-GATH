@@ -40,7 +40,10 @@ class VerificacionCarnetSerializer(serializers.Serializer):
 
 def _cuerpo(v) -> dict:
     if not v.valido:
-        return {'valido': False, 'estado': v.estado, 'cedula': None, 'mensaje': v.mensaje, 'version': v.version}
+        cuerpo = {'valido': False, 'estado': v.estado, 'cedula': None, 'mensaje': v.mensaje, 'version': v.version}
+        if v.fecha_vencimiento:
+            cuerpo['fecha_vencimiento'] = v.fecha_vencimiento  # no es un dato personal
+        return cuerpo
     return {
         'valido': True,
         'estado': v.estado,

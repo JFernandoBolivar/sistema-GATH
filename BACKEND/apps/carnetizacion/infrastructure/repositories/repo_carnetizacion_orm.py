@@ -5,7 +5,6 @@ import os
 import logging
 import hashlib
 import base64
-from datetime import timedelta
 from io import BytesIO
 from typing import Any
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -19,7 +18,14 @@ from core.domain.catalogos import (
     ESTATUS_ACTIVO,
     TIPO_PERSONAL_PASIVO,
 )
+from core.domain.configuracion import (
+    CLAVE_CARNETIZACION_VENCIMIENTO_MESES,
+    CLAVE_CARNETIZACION_VIGENCIA_EXTERNO_DIAS,
+    CLAVE_CARNETIZACION_VIGENCIA_PASIVO_MESES,
+    CLAVE_CARNETIZACION_VIGENCIA_TRABAJADOR_MESES,
+)
 from core.domain.exceptions import NotFoundError, ValidationError
+from core.infrastructure.providers import obtener_lector_configuracion
 from core.domain.validacion_personas import formatear_telefono
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
 from apps.carnetizacion.domain.entities.campo_credencial import (
@@ -39,6 +45,13 @@ from apps.carnetizacion.domain.entities.verificacion_integracion import Verifica
 from apps.carnetizacion.domain.services.plantilla_defecto import (
     plantilla_defecto_pasivo,
     plantilla_defecto_trabajador,
+)
+from apps.carnetizacion.domain.services.vigencia_carnet import (
+    TIPO_VIGENCIA_EXTERNO,
+    TIPO_VIGENCIA_PASIVO,
+    TIPO_VIGENCIA_TRABAJADOR,
+    VIGENCIA_RESPALDO_MESES,
+    calcular_vencimiento,
 )
 from apps.carnetizacion.domain.services.validador_multimedia import validar_archivo_biblioteca
 from apps.carnetizacion.infrastructure.codigo_qr import codigo_qr_unico
@@ -62,7 +75,6 @@ from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
     BitacoraAccesoQrModel,
 )
 from apps.carnetizacion.infrastructure.pdf.carnet_pdf import DatosCarnetPdf, generar_carnet_pdf
-from apps.configuracion.infrastructure.models.parametro_model import ParametroSistemaModel
 
 # Import entre módulos en infrastructure (apps.cargos y apps.personal): mismo patrón ya
 # establecido en `apps.reportes`/`apps.autogestion`/`apps.pasivos`.
@@ -76,6 +88,56 @@ from apps.personal.infrastructure.models.expediente_models import (
 )
 
 logger = logging.getLogger('gath.carnetizacion')
+
+
+_CLAVE_VIGENCIA_POR_TIPO = {
+    TIPO_VIGENCIA_TRABAJADOR: CLAVE_CARNETIZACION_VIGENCIA_TRABAJADOR_MESES,
+    TIPO_VIGENCIA_PASIVO: CLAVE_CARNETIZACION_VIGENCIA_PASIVO_MESES,
+    TIPO_VIGENCIA_EXTERNO: CLAVE_CARNETIZACION_VIGENCIA_EXTERNO_DIAS,
+}
+
+
+def _entero_configurado(clave: str, defecto: int) -> int:
+    lector = obtener_lector_configuracion()
+    if lector is None:
+        return defecto
+    try:
+        return int(lector.obtener_entero(clave))
+    except Exception:
+        logger.warning("No se pudo leer el parámetro %s; se usa %s.", clave, defecto, exc_info=True)
+        return defecto
+
+
+def vencimiento_segun_parametros(emision: Any, tipo: str) -> Any:
+    """Emisión + vigencia vigente del tipo (o el respaldo global si falta o vale 0)."""
+    return calcular_vencimiento(
+        emision,
+        tipo=tipo,
+        valor_tipo=_entero_configurado(_CLAVE_VIGENCIA_POR_TIPO[tipo], 0),
+        respaldo_meses=_entero_configurado(
+            CLAVE_CARNETIZACION_VENCIMIENTO_MESES, VIGENCIA_RESPALDO_MESES
+        ),
+    )
+
+
+def _es_pasivo(empleado: Any) -> bool:
+    return (
+        AsigTrabajoModel.objects.filter(
+            employee=empleado,
+            Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO,
+        ).exists()
+        or EmployeeEgresadoModel.objects.filter(employee=empleado).exists()
+    )
+
+
+def vencimiento_de_carnet(carnet: Any) -> Any:
+    """Fecha guardada al emitir; en carnets anteriores (NULL) se calcula con el parámetro vigente."""
+    if carnet.fecha_vencimiento:
+        return carnet.fecha_vencimiento
+    if not carnet.fecha_emision:
+        return None
+    tipo = TIPO_VIGENCIA_PASIVO if _es_pasivo(carnet.employee) else TIPO_VIGENCIA_TRABAJADOR
+    return vencimiento_segun_parametros(carnet.fecha_emision, tipo)
 
 
 class RepoCarnetizacionORM:
@@ -484,19 +546,16 @@ class RepoCarnetizacionORM:
             raise NotFoundError(f"Empleado con cédula {empleado_cedula} no encontrado")
 
         sec_hash = codigo_qr_unico()
+        emision = timezone.now()
+        tipo_vigencia = TIPO_VIGENCIA_PASIVO if _es_pasivo(empleado) else TIPO_VIGENCIA_TRABAJADOR
+        vence = vencimiento_segun_parametros(emision, tipo_vigencia)
 
         # Determinar versión de plantilla para conservación inmutable (O44 - E3)
         plantilla_obj = None
         if plantilla_id:
             plantilla_obj = PlantillaCarnetModel.objects.filter(pk=plantilla_id).first()
         if not plantilla_obj:
-            es_pasivo = (
-                AsigTrabajoModel.objects.filter(
-                    employee=empleado,
-                    Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO,
-                ).exists()
-                or EmployeeEgresadoModel.objects.filter(employee=empleado).exists()
-            )
+            es_pasivo = _es_pasivo(empleado)
             tipo_plantilla = 'pasivo' if es_pasivo else 'trabajador'
             plantilla_obj = (
                 PlantillaCarnetModel.objects.filter(
@@ -522,6 +581,7 @@ class RepoCarnetizacionORM:
                 plantilla_id=p_id,
                 plantilla_version=p_version,
                 plantilla_snapshot=p_snapshot,
+                fecha_vencimiento=vence,
             )
         return self.obtener_por_id(obj.pk)
 
@@ -710,6 +770,7 @@ class RepoCarnetizacionORM:
                 logger.warning("No se pudo resolver la ruta de la plantilla activa del carnet.", exc_info=True)
                 plantilla_path = None
 
+        vence = vencimiento_de_carnet(fila)
         nombre = nombre_override or (f"{empleado.nombres} {empleado.apellidos}".strip() if empleado else '')
 
         datos = DatosCarnetPdf(
@@ -720,6 +781,7 @@ class RepoCarnetizacionORM:
             security_hash=fila.security_hash,
             plantilla_path=plantilla_path,
             foto_bytes=foto_bytes,
+            vence=vence.strftime('%d/%m/%Y') if vence else '',
         )
         return generar_carnet_pdf(datos, definicion=definicion)
 
@@ -1074,31 +1136,26 @@ class RepoCarnetizacionORM:
                 security_hash=security_hash,
             )
 
-        # Verificar vencimiento opcional parametrizable
-        param_venc = ParametroSistemaModel.objects.filter(clave='carnetizacion.vencimiento_meses').first()
-        venc_meses = int(param_venc.valor) if (param_venc and param_venc.valor.isdigit()) else 0
-        fecha_venc_dt = None
-        fecha_venc_str = None
-        if venc_meses > 0 and carnet.fecha_emision:
-            fecha_venc_dt = carnet.fecha_emision + timedelta(days=venc_meses * 30)
-            fecha_venc_str = fecha_venc_dt.strftime('%d/%m/%Y')
-            if timezone.now() > fecha_venc_dt:
-                BitacoraAccesoQrModel.objects.create(
-                    security_hash=security_hash,
-                    carnet_id=carnet.id,
-                    accion='ESCANEO_VENCIDO',
-                    usuario_id=usuario_id,
-                    ip=ip,
-                    user_agent=user_agent,
-                )
-                return FichaQr(
-                    es_valido=False,
-                    estado='VENCIDO',
-                    mensaje='Este carnet ha vencido. Si lo encontró, entréguelo a la institución.',
-                    datos=None,
-                    security_hash=security_hash,
-                    fecha_vencimiento=fecha_venc_str,
-                )
+        # Vencimiento: fecha guardada al emitir (o calculada si el carnet es anterior).
+        fecha_venc_dt = vencimiento_de_carnet(carnet)
+        fecha_venc_str = fecha_venc_dt.strftime('%d/%m/%Y') if fecha_venc_dt else None
+        if fecha_venc_dt and timezone.now() > fecha_venc_dt:
+            BitacoraAccesoQrModel.objects.create(
+                security_hash=security_hash,
+                carnet_id=carnet.id,
+                accion='ESCANEO_VENCIDO',
+                usuario_id=usuario_id,
+                ip=ip,
+                user_agent=user_agent,
+            )
+            return FichaQr(
+                es_valido=False,
+                estado='VENCIDO',
+                mensaje='Este carnet ha vencido. Si lo encontró, entréguelo a la institución.',
+                datos=None,
+                security_hash=security_hash,
+                fecha_vencimiento=fecha_venc_str,
+            )
 
         # Nivel de acceso según sesión y permisos
         es_autenticado = bool(usuario_sesion and getattr(usuario_sesion, 'is_authenticated', False))
@@ -1274,7 +1331,12 @@ class RepoCarnetizacionORM:
                 )
             vence = externa.vigencia_hasta
             if externa.estado == CredencialExternaModel.Estado.ACTIVA and vence < timezone.now():
-                return VerificacionCarnet(valido=False, estado='VENCIDO', mensaje='Credencial vencida.')
+                return VerificacionCarnet(
+                    valido=False,
+                    estado='VENCIDO',
+                    mensaje='Credencial vencida.',
+                    fecha_vencimiento=vence.date().isoformat(),
+                )
             if externa.estado != CredencialExternaModel.Estado.ACTIVA:
                 estado = 'VENCIDO' if externa.estado == CredencialExternaModel.Estado.VENCIDA else 'ANULADO'
                 return VerificacionCarnet(valido=False, estado=estado, mensaje='Credencial no vigente.')
@@ -1291,13 +1353,14 @@ class RepoCarnetizacionORM:
         if not carnet.activo:
             return VerificacionCarnet(valido=False, estado='ANULADO', mensaje='Carnet anulado.')
 
-        param_venc = ParametroSistemaModel.objects.filter(clave='carnetizacion.vencimiento_meses').first()
-        venc_meses = int(param_venc.valor) if (param_venc and param_venc.valor.isdigit()) else 0
-        fecha_venc = None
-        if venc_meses > 0 and carnet.fecha_emision:
-            fecha_venc = carnet.fecha_emision + timedelta(days=venc_meses * 30)
-            if timezone.now() > fecha_venc:
-                return VerificacionCarnet(valido=False, estado='VENCIDO', mensaje='Carnet vencido.')
+        fecha_venc = vencimiento_de_carnet(carnet)
+        if fecha_venc and timezone.now() > fecha_venc:
+            return VerificacionCarnet(
+                valido=False,
+                estado='VENCIDO',
+                mensaje='Carnet vencido.',
+                fecha_vencimiento=fecha_venc.date().isoformat(),
+            )
 
         empleado = carnet.employee
         asig = (

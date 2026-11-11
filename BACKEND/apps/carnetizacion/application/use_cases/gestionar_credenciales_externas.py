@@ -29,7 +29,7 @@ def crear_credencial_externa(
     documento: str,
     motivo: str,
     vigencia_desde: datetime,
-    vigencia_hasta: datetime,
+    vigencia_hasta: datetime | None = None,
     correo: str = '',
     empresa: str = '',
     contrato: str = '',

@@ -13,6 +13,7 @@ from apps.carnetizacion.domain.entities.credencial_externa import CredencialExte
 from apps.carnetizacion.domain.services.plantilla_defecto import (
     plantilla_defecto_trabajador,
 )
+from apps.carnetizacion.domain.services.vigencia_carnet import TIPO_VIGENCIA_EXTERNO
 from apps.carnetizacion.infrastructure.codigo_qr import codigo_qr_unico
 from apps.carnetizacion.infrastructure.mappers.mapper_carnetizacion import (
     credencial_externa_a_entidad,
@@ -24,6 +25,9 @@ from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
 )
 from apps.carnetizacion.infrastructure.models.credencial_externa_model import (
     CredencialExternaModel,
+)
+from apps.carnetizacion.infrastructure.repositories.repo_carnetizacion_orm import (
+    vencimiento_segun_parametros,
 )
 from apps.carnetizacion.infrastructure.pdf.carnet_pdf import (
     DatosCarnetPdf,
@@ -120,7 +124,7 @@ class RepoCredencialesExternasORM:
         documento: str,
         motivo: str,
         vigencia_desde: datetime,
-        vigencia_hasta: datetime,
+        vigencia_hasta: datetime | None = None,
         correo: str = '',
         empresa: str = '',
         contrato: str = '',
@@ -137,6 +141,9 @@ class RepoCredencialesExternasORM:
                 'El tipo de credencial no pertenece a esta pantalla.',
                 'tipo_credencial',
             )
+        if vigencia_hasta is None:
+            # Sin fecha final: se aplica la vigencia por defecto (días) de Gestión del Sistema.
+            vigencia_hasta = vencimiento_segun_parametros(vigencia_desde, TIPO_VIGENCIA_EXTERNO)
         if vigencia_hasta <= vigencia_desde:
             raise ValidationError(
                 'La vigencia final debe ser posterior a la inicial.',
@@ -303,6 +310,7 @@ class RepoCredencialesExternasORM:
             'persona_visitada': fila.persona_visitada,
             'vigencia_desde': fila.vigencia_desde.isoformat(),
             'vigencia_hasta': fila.vigencia_hasta.isoformat(),
+            'vence': fila.vigencia_hasta.strftime('%d/%m/%Y'),
             'foto_bytes': foto_bytes,
         }
         return datos, definicion

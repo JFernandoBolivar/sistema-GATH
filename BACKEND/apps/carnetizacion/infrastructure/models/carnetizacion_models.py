@@ -127,6 +127,8 @@ class CarnetEmitidoModel(models.Model):
     plantilla_id = models.CharField(max_length=64, null=True, blank=True)
     plantilla_version = models.PositiveIntegerField(null=True, blank=True)
     plantilla_snapshot = models.JSONField(null=True, blank=True)
+    # Se fija al emitir (emisión + vigencia del tipo). NULL = carnet anterior: se calcula en lectura.
+    fecha_vencimiento = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         managed = False

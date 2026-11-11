@@ -46,6 +46,10 @@ CLAVE_RETENCION_OUTBOX_DIAS = 'retencion.outbox_dias'
 CLAVE_CARNETIZACION_MI_CARNET_ALCANCE = 'carnetizacion.mi_carnet_alcance'
 CLAVE_CARNETIZACION_MI_CARNET_USUARIOS = 'carnetizacion.mi_carnet_usuarios'
 CLAVE_CARNETIZACION_VENCIMIENTO_MESES = 'carnetizacion.vencimiento_meses'
+# Vigencia por tipo de carnet (la global de arriba es el respaldo si el del tipo falta o vale 0).
+CLAVE_CARNETIZACION_VIGENCIA_TRABAJADOR_MESES = 'carnetizacion.vigencia_trabajador_meses'
+CLAVE_CARNETIZACION_VIGENCIA_PASIVO_MESES = 'carnetizacion.vigencia_pasivo_meses'
+CLAVE_CARNETIZACION_VIGENCIA_EXTERNO_DIAS = 'carnetizacion.vigencia_externo_dias'
 # Tamaño mínimo (mm) del QR de una plantilla publicada para que SILOG lo lea con un teléfono.
 CLAVE_CARNETIZACION_QR_TAMANO_MINIMO_MM = 'carnetizacion.qr_tamano_minimo_mm'
 

@@ -27,6 +27,9 @@ from core.domain.configuracion import (
     CLAVE_CARNETIZACION_MI_CARNET_ALCANCE,
     CLAVE_CARNETIZACION_MI_CARNET_USUARIOS,
     CLAVE_CARNETIZACION_QR_TAMANO_MINIMO_MM,
+    CLAVE_CARNETIZACION_VIGENCIA_EXTERNO_DIAS,
+    CLAVE_CARNETIZACION_VIGENCIA_PASIVO_MESES,
+    CLAVE_CARNETIZACION_VIGENCIA_TRABAJADOR_MESES,
     CLAVE_CARNETIZACION_VENCIMIENTO_MESES,
     CLAVE_FE_DE_VIDA_ADMIN_REGISTRADORA_PUEDE_APROBAR,
     CLAVE_FE_DE_VIDA_RECORDATORIOS,
@@ -433,16 +436,55 @@ DEFINICIONES = (
     ),
     ParametroDefinicion(
         clave=CLAVE_CARNETIZACION_VENCIMIENTO_MESES,
-        etiqueta='Vigencia del carnet (meses)',
+        etiqueta='Vigencia general del carnet, respaldo (meses)',
         descripcion=(
-            'Meses de vigencia del carnet emitido antes de expirar. '
-            '0 = sin fecha de vencimiento (vigente mientras continúe activo en la institución).'
+            'Meses de vigencia que se aplican cuando la vigencia del tipo de carnet no está '
+            'definida. Se fija al emitir: cambiarla no altera los carnets ya emitidos.'
         ),
         grupo=GRUPO_CARNETIZACION,
         tipo=TIPO_ENTERO,
-        defecto='0',
-        minimo=0,
-        maximo=120,
+        defecto='12',
+        minimo=1,
+        maximo=60,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_CARNETIZACION_VIGENCIA_TRABAJADOR_MESES,
+        etiqueta='Vigencia del carnet de trabajador activo (meses)',
+        descripcion=(
+            'Meses de vigencia del carnet de un trabajador activo, contados desde su emisión. '
+            'Se fija al emitir: cambiarla no altera los carnets ya emitidos.'
+        ),
+        grupo=GRUPO_CARNETIZACION,
+        tipo=TIPO_ENTERO,
+        defecto='12',
+        minimo=1,
+        maximo=60,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_CARNETIZACION_VIGENCIA_PASIVO_MESES,
+        etiqueta='Vigencia del carnet de pasivo o jubilado (meses)',
+        descripcion=(
+            'Meses de vigencia del carnet de un pasivo o jubilado, contados desde su emisión. '
+            'Se fija al emitir: cambiarla no altera los carnets ya emitidos.'
+        ),
+        grupo=GRUPO_CARNETIZACION,
+        tipo=TIPO_ENTERO,
+        defecto='12',
+        minimo=1,
+        maximo=60,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_CARNETIZACION_VIGENCIA_EXTERNO_DIAS,
+        etiqueta='Vigencia de la credencial de externo, visitante o temporal (días)',
+        descripcion=(
+            'Días de vigencia por defecto de una credencial externa, visitante o temporal '
+            'cuando al crearla no se indica la fecha final.'
+        ),
+        grupo=GRUPO_CARNETIZACION,
+        tipo=TIPO_ENTERO,
+        defecto='30',
+        minimo=1,
+        maximo=365,
     ),
     ParametroDefinicion(
         clave=CLAVE_CARNETIZACION_QR_TAMANO_MINIMO_MM,
