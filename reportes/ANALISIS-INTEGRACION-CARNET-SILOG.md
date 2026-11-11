@@ -320,8 +320,7 @@ Opciones:
 ### 13. ¿El contenido tiene versión (`v`)?
 
 **No.** Es una URL sin versión. Cambiar el formato rompería a los lectores.
-Ajuste: agregar `?v=1` a la URL o un campo `v` en el futuro token firmado, y
-documentar el contrato.
+**Decisión final (11/11/2026): NO se agrega `?v=1` a la URL.** La URL queda `<FRONTEND_URL>/carnet/<código>` sin parámetros; la versión del contrato va en el campo `version` de la respuesta del endpoint. SILOG debe tomar el último segmento de la ruta e ignorar cualquier query string.
 
 ### 14. ¿Tiene propósito o ámbito (`aud`)?
 
@@ -729,12 +728,12 @@ Carnet vigente (trabajador, pasivo o credencial externa):
 {
   "valido": true,
   "estado": "VIGENTE",
-  "cedula": "V30799436",
+  "cedula": "30799436",
   "nombre": "JOSE FERNANDO BOLIVAR HURTADO",
   "tipo_credencial": "trabajador",
   "estado_laboral": "ACTIVO",
   "fecha_emision": "2026-11-10",
-  "fecha_vencimiento": null,
+  "fecha_vencimiento": "2027-11-10",
   "version": 1
 }
 ```
