@@ -16,6 +16,7 @@
  *   - Extras: "Expediente PDF" (ExportButton) y botón azul "Ver Detalles"
  */
 import { useState } from "react";
+import { ESTATUS_ACTIVO } from "@/shared/domain/catalogos";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { Badge } from "@/shared/ui/components/badge";
@@ -120,7 +121,7 @@ export function construirColumnasPersonal(
         const estatus = row.original.contratoActual?.estatusNombre?.toUpperCase();
         if (!estatus) return <span>N/A</span>;
         const color =
-          estatus === "ACTIVO"
+          estatus === ESTATUS_ACTIVO
             ? "bg-success"
             : estatus === "POR VENCER"
             ? "bg-warning"

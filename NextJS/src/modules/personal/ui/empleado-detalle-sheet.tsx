@@ -20,6 +20,7 @@
  * 10. Información de Salud (Ambulance + Tipo de sangre + tablas categorizadas de patologías, discapacidades, alergias).
  */
 import { useState } from "react";
+import { ESTATUS_ACTIVO } from "@/shared/domain/catalogos";
 import {
   Ambulance,
   ContactRound,
@@ -218,7 +219,7 @@ export default function EmpleadoDetalleSheet({
 
                           <div className="font-medium text-muted-foreground">Estatus:</div>
                           <div>
-                            <Badge variant={asig.estatus === "ACTIVO" ? "default" : "destructive"}>
+                            <Badge variant={asig.estatus === ESTATUS_ACTIVO ? "default" : "destructive"}>
                               {asig.estatus || "N/A"}
                             </Badge>
                           </div>
@@ -276,7 +277,7 @@ export default function EmpleadoDetalleSheet({
                             <TableCell>{enc.fechaInicio}</TableCell>
                             <TableCell>{enc.fechaFin}</TableCell>
                             <TableCell>
-                              <Badge variant={enc.estatus === "ACTIVO" ? "default" : "destructive"}>
+                              <Badge variant={enc.estatus === ESTATUS_ACTIVO ? "default" : "destructive"}>
                                 {enc.estatus}
                               </Badge>
                             </TableCell>

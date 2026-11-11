@@ -30,7 +30,7 @@ import {
   getPanelEvento,
   getZonasEvento,
   importarInvitados,
-} from "../../application/use-cases/gestionar-eventos";
+} from "../http/eventos-api";
 
 export async function getEventosAction(filtros?: {
   estado?: string;

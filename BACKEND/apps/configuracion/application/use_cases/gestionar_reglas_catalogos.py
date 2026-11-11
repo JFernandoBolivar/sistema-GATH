@@ -62,6 +62,13 @@ def obtener_todas_las_reglas(
     }
 
 
+def buscar_paises_paginado(
+    repo: RepoReglasCatalogos, *, texto: str = '', pagina: int = 1, tamano_pagina: int = 10,
+) -> tuple[Sequence, int]:
+    """Página de países para el buscador de la pantalla de configuración."""
+    return repo.buscar_paises(texto=texto, pagina=pagina, tamano_pagina=tamano_pagina)
+
+
 def actualizar_parentesco(
     repo: RepoReglasCatalogos,
     parentesco_id: int,

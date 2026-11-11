@@ -1,6 +1,7 @@
 """
 Repositorio ORM de Eventos, Categorías, Zonas e Invitados (Regla B2/B3, O45-B).
 """
+import logging
 import uuid
 from datetime import datetime
 from django.db import IntegrityError, transaction
@@ -25,6 +26,7 @@ from apps.carnetizacion.infrastructure.mappers.mapper_eventos import (
     a_entidad_zona,
 )
 from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
+
     EventoCategoriaModel,
     EventoInvitadoModel,
     EventoModel,
@@ -32,6 +34,7 @@ from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
     EventoZonaModel,
 )
 
+logger = logging.getLogger('gath.carnetizacion')
 
 class RepoEventosORM(RepoEventosPort):
 
@@ -366,5 +369,6 @@ class RepoEventosORM(RepoEventosPort):
             send_mail(asunto, mensaje, remitente, [invitado.correo], fail_silently=True)
             return True
         except Exception:
+            logger.warning('No se pudo enviar la invitación del evento.', exc_info=True)
             return False
 

@@ -38,8 +38,11 @@ from apps.identidad.infrastructure.repositories.repo_permisos_version_orm import
 )
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from core.infrastructure.models.bootstrap import BootstrapStateModel
+from django.conf import settings
 
-CEDULA_SUPERADMIN = '30799436'
+# A2-19: el titular del superadministrador se configura por entorno; el valor
+# histórico se conserva como respaldo para no cambiar el despliegue actual.
+CEDULA_SUPERADMIN = getattr(settings, 'SUPERADMIN_CEDULA', '30799436')
 CLAVE_BOOTSTRAP = 'produccion'
 DIAS_PASSWORD_INICIAL = 7
 
@@ -159,9 +162,12 @@ class Command(BaseCommand):
                 'el superadministrador. El despliegue se detiene.'
             )
 
-        rol = RolModel.objects.filter(pk=1).first()
+        rol = (
+            RolModel.objects.filter(nombre_rol__iexact='ADMINISTRADOR').first()
+            or RolModel.objects.filter(pk=1).first()
+        )
         if rol is None:
-            raise CommandError('No existe el rol 1 ADMINISTRADOR en USER_rol.')
+            raise CommandError('No existe el rol ADMINISTRADOR en USER_rol.')
 
         ahora = timezone.now()
         with transaction.atomic():
@@ -169,7 +175,7 @@ class Command(BaseCommand):
             if cuenta is None:
                 cuenta = CuentaModel.objects.create(
                     cedula_id=CEDULA_SUPERADMIN,
-                    rol_id=1,
+                    rol_id=rol.pk,
                     is_active=True,
                     password=make_password(CEDULA_SUPERADMIN),
                 )

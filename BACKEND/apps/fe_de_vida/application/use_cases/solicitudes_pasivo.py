@@ -4,6 +4,7 @@ propuestos), subir la foto con la cédula y enviar. Sin Django.
 """
 import hashlib
 import uuid
+from dataclasses import replace
 from datetime import datetime
 
 from apps.fe_de_vida.application.use_cases._comun import evento, obtener_proceso, obtener_solicitud_propia
@@ -11,6 +12,7 @@ from apps.fe_de_vida.application.use_cases.consultas import obtener_proceso_vige
 from apps.fe_de_vida.domain.entities.cambio_acta import CambioActa
 from apps.fe_de_vida.domain.entities.solicitud import SolicitudFeDeVida
 from apps.fe_de_vida.domain.constantes import (
+    MAX_JUSTIFICACION_SIN_CORREO,
     MENSAJE_CORREO_ALTERNATIVO,
     MENSAJE_JUSTIFICACION_SIN_CORREO,
     MIN_JUSTIFICACION_SIN_CORREO,
@@ -57,8 +59,14 @@ def iniciar_solicitud(
 def guardar_borrador(
     repo_proc: RepoProcesos, repo_sol: RepoSolicitudesFeDeVida, repo_cambios: RepoCambiosActa,
     validador: ValidadorCambiosActa, *, solicitud_id: str, cedula: str, cambios: list[CambioActa], ahora: datetime,
+    sin_correo_alternativo: bool | None = None, justificacion_sin_correo: str | None = None,
 ) -> list[CambioActa]:
-    """Reemplaza las respuestas del acta (cambios propuestos). Solo mientras es editable y hay plazo."""
+    """Reemplaza las respuestas del acta (cambios propuestos). Solo mientras es editable y hay plazo.
+
+    `sin_correo_alternativo`/`justificacion_sin_correo` se guardan en la solicitud
+    cuando llegan (el pasivo en línea y el registro presencial comparten la regla);
+    si no llegan, se conserva lo que ya tenía el borrador.
+    """
     solicitud = obtener_solicitud_propia(repo_sol, solicitud_id, cedula, bloquear=True)
     if not solicitud.editable:
         raise ValidationError(f"La solicitud está {solicitud.estado.value}: ya no admite cambios.")
@@ -78,6 +86,33 @@ def guardar_borrador(
     if callable(validador_conjunto):
         # Campos interdependientes de un mismo registro (parentesco + fecha del familiar).
         validador_conjunto(cedula, validados)
+
+    if sin_correo_alternativo is not None or justificacion_sin_correo is not None:
+        sin_correo = (
+            solicitud.sin_correo_alternativo
+            if sin_correo_alternativo is None else bool(sin_correo_alternativo)
+        )
+        justificacion = (
+            solicitud.justificacion_sin_correo
+            if justificacion_sin_correo is None else str(justificacion_sin_correo)
+        ).strip()
+        if sin_correo:
+            if len(justificacion) < MIN_JUSTIFICACION_SIN_CORREO:
+                raise ValidationError(
+                    MENSAJE_JUSTIFICACION_SIN_CORREO, campo='justificacion_sin_correo',
+                )
+            if len(justificacion) > MAX_JUSTIFICACION_SIN_CORREO:
+                raise ValidationError(
+                    f'La justificación no puede superar {MAX_JUSTIFICACION_SIN_CORREO} caracteres.',
+                    campo='justificacion_sin_correo',
+                )
+        else:
+            justificacion = ''
+        solicitud = replace(
+            solicitud, sin_correo_alternativo=sin_correo, justificacion_sin_correo=justificacion,
+        )
+        repo_sol.guardar(solicitud, solicitud.version)
+
     repo_cambios.reemplazar(solicitud.id, validados)
     return repo_cambios.listar(solicitud.id)
 
@@ -120,9 +155,8 @@ def exigir_correo_alternativo(
     lector_ficha: LectorFichaPasivo,
     *,
     solicitud: SolicitudFeDeVida,
-    presencial: bool,
 ) -> None:
-    """O39: correo alternativo obligatorio; «sin correo» solo en presencial y justificado."""
+    """O39: correo alternativo obligatorio; «sin correo» se admite justificado en ambos canales."""
     alternativo = ""
     for cambio in repo_cambios.listar(solicitud.id):
         if (
@@ -143,7 +177,7 @@ def exigir_correo_alternativo(
             raise ValidationError("El correo alternativo no es válido.", campo="correo_alternativo")
         return
 
-    if presencial and solicitud.sin_correo_alternativo:
+    if solicitud.sin_correo_alternativo:
         if len(solicitud.justificacion_sin_correo.strip()) < MIN_JUSTIFICACION_SIN_CORREO:
             raise ValidationError(
                 MENSAJE_JUSTIFICACION_SIN_CORREO, campo="justificacion_sin_correo",

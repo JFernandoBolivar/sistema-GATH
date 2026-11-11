@@ -1,0 +1,24 @@
+"""Puertos de persistencia de Punto de Cuenta (A2-01/A2-02). Sin Django."""
+from typing import Protocol
+
+from apps.puntocuenta.domain.entities.configuracion_punto_cuenta import ConfiguracionPuntoCuenta
+
+
+class RepoSecuenciaPuntoCuenta(Protocol):
+    def siguiente(self, anio: int) -> int:
+        """Incrementa atómicamente la secuencia del año y devuelve el nuevo número."""
+        ...
+
+
+class RepoConfiguracionPuntoCuenta(Protocol):
+    def actual(self) -> ConfiguracionPuntoCuenta | None:
+        """Configuración vigente (la de mayor versión) o ``None``."""
+        ...
+
+    def crear_version(self, campos: dict) -> ConfiguracionPuntoCuenta:
+        """Crea una nueva versión con los campos ya calculados por el caso de uso."""
+        ...
+
+    def guardar_generar(self, generar: bool, usuario_id: int | None) -> None:
+        """Actualiza el parámetro general ``puntocuenta.generar``."""
+        ...

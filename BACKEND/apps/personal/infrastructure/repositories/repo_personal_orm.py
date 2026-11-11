@@ -3,10 +3,12 @@ Repositorio ORM de Personal (Reglas B4, B7, D-09).
 """
 from datetime import date
 
-from django.db import transaction
+from django.core.exceptions import MultipleObjectsReturned
+from django.db import IntegrityError, transaction
 from django.db.models import Model, Q
 
-from core.domain.exceptions import NotFoundError, ValidationError
+from core.domain.catalogos import TIPO_PERSONAL_ACTIVO
+from core.domain.exceptions import ConflictError, NotFoundError, ValidationError
 from apps.personal.domain.entities.empleado import Empleado
 from apps.personal.infrastructure.mappers.mapper_personal import (
     apn_oficial,
@@ -88,7 +90,7 @@ class RepoPersonalORM:
         asig_qs = AsigTrabajoModel.objects.filter(
             employee__isnull=False,
         ).filter(
-            Q(Tipo_personal__tipo_personal__iexact='ACTIVO') | Q(Tipo_personal__isnull=True)
+            Q(Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_ACTIVO) | Q(Tipo_personal__isnull=True)
         )
         if codigo:
             asig_qs = asig_qs.filter(codigo__icontains=codigo)
@@ -459,13 +461,27 @@ class RepoPersonalORM:
     def _upsert_vivienda(self, empleado: EmployeeModel, data: dict | None) -> None:
         if not data:
             return
-        DatosViviendaModel.objects.update_or_create(
-            empleado=empleado,
-            defaults=self._normalizar_fks(
-                data,
-                ('estado', 'municipio', 'parroquia', 'condicion_vivienda', 'codigo_postal', 'pais'),
-            ),
-        )
+        # L2-16: una vivienda parcial sin fila previa reventaba con IntegrityError
+        # (500); con filas duplicadas, con MultipleObjectsReturned. Se convierten
+        # en 409 con un mensaje claro sin impedir las altas válidas.
+        try:
+            DatosViviendaModel.objects.update_or_create(
+                empleado=empleado,
+                defaults=self._normalizar_fks(
+                    data,
+                    ('estado', 'municipio', 'parroquia', 'condicion_vivienda', 'codigo_postal', 'pais'),
+                ),
+            )
+        except MultipleObjectsReturned as exc:
+            raise ConflictError(
+                'Hay más de una ficha de vivienda para el trabajador: '
+                'RR. HH. debe depurar los datos antes de aplicar el cambio.'
+            ) from exc
+        except IntegrityError as exc:
+            raise ConflictError(
+                'La ficha de vivienda quedaría incompleta (faltan datos obligatorios). '
+                'Registre la vivienda completa antes de aplicar.'
+            ) from exc
 
     def _upsert_salud(self, empleado: EmployeeModel, data: dict | None) -> None:
         if not data:

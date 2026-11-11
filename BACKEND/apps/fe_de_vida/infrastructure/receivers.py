@@ -52,21 +52,37 @@ def notificar_evento_fe_de_vida(sender, evento, **kwargs):
 
 @receiver(evento_fe_de_vida, dispatch_uid='fe_de_vida_emitir_constancia')
 def emitir_constancia_al_validar(sender, evento, **kwargs):
+    """Emite la constancia y después avisa, en dos transacciones independientes.
+
+    Si el aviso falla, la constancia ya emitida NO se revierte; y si la emisión
+    falla, la solicitud queda VALIDADA sin constancia, pero es recuperable con
+    `regenerar_constancia` o el comando `constancias_faltantes` (L2-02).
+    """
     if evento.tipo is not TipoEvento.VALIDADA:
         return
+    repo_proc = RepoProcesosORM()
+    lector = LectorPasivosORM()
+
     try:
         with transaction.atomic():
-            repo_proc = RepoProcesosORM()
-            lector = LectorPasivosORM()
-
-            # O39: validar la fe de vida NO cambia el correo de acceso. El login
-            # es el correo principal y solo se modifica desde Gestión del sistema.
-
             constancia = emitir_constancia(
-                repo_proc, RepoSolicitudesFeDeVidaORM(), RepoConstanciasORM(), lector, GeneradorConstanciaPDF(),
-                SeaweedFSStorage(), solicitud_id=evento.solicitud_id,
-                url_verificacion_base=settings.FE_DE_VIDA_URL_VERIFICACION, ahora=datetime.now(timezone.utc),
+                repo_proc, RepoSolicitudesFeDeVidaORM(), RepoConstanciasORM(), lector,
+                GeneradorConstanciaPDF(), SeaweedFSStorage(), solicitud_id=evento.solicitud_id,
+                url_verificacion_base=settings.FE_DE_VIDA_URL_VERIFICACION,
+                ahora=datetime.now(timezone.utc),
             )
+    except Exception:  # noqa: BLE001 - cualquier fallo deja la constancia pendiente de recuperar
+        logger.exception(
+            'no se pudo emitir la constancia de la solicitud %s; '
+            'se puede recuperar con regenerar_constancia o constancias_faltantes',
+            evento.solicitud_id,
+        )
+        return
+
+    # O39: validar la fe de vida NO cambia el correo de acceso. El login es el
+    # correo principal y solo se modifica desde Gestión del sistema.
+    try:
+        with transaction.atomic():
             notificador = obtener_notificador()
             if notificador is None:
                 logger.warning('sin Notificador registrado: la constancia %s no se avisa', constancia.numero)
@@ -78,5 +94,8 @@ def emitir_constancia_al_validar(sender, evento, **kwargs):
                 evento, numero=constancia.numero, proceso_nombre=proceso.nombre if proceso else '',
                 clave_pdf=constancia.clave_pdf, nombre_pdf=f'{constancia.numero}.pdf', correos_copia=copia,
             ))
-    except DomainError:
-        logger.exception('no se pudo emitir ni avisar la constancia de la solicitud %s', evento.solicitud_id)
+    except Exception:  # noqa: BLE001 - la constancia ya está emitida; el aviso no la revierte
+        logger.exception(
+            'constancia %s emitida, pero no se pudo avisar al pasivo de la solicitud %s',
+            constancia.numero, evento.solicitud_id,
+        )

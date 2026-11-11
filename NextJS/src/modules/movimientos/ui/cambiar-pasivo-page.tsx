@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
 import { Button } from "@/shared/ui/components/button";
+import { CONDICION_PASIVO } from "@/shared/domain/catalogos";
 import { Card, CardContent } from "@/shared/ui/components/card";
 import {
   Form,
@@ -163,7 +164,7 @@ export function CambiarPasivoPage() {
   });
 
   const selectedStatusItem = statusEmployee.find((v) => v.id === estatusId);
-  const validatePeace = selectedStatusItem?.nombre.toUpperCase() === "PASIVO";
+  const validatePeace = selectedStatusItem?.nombre.toUpperCase() === CONDICION_PASIVO;
 
   const onSubmit = (data: SchemaPasivoUIType) => {
     startTransition(async () => {

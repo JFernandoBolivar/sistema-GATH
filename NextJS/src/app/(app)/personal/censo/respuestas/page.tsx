@@ -59,7 +59,7 @@ import {
   getNominaGeneralAction,
 } from "@/modules/autogestion/infrastructure/actions/autogestion-actions";
 import { schemaCensoExcel } from "@/modules/autogestion/ui/schema/schema-autogestion-excel";
-import type { CensoEmpleadoItem } from "@/modules/autogestion/infrastructure/http/autogestion-api";
+import type { CensoEmpleado } from "@/modules/autogestion/domain/entities/censo";
 
 const schemaSearch = z.object({
   cedula: z.string().optional(),
@@ -84,7 +84,7 @@ function downloadBase64Excel(base64: string, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-function DetalleCenso({ empleado }: { empleado: CensoEmpleadoItem }) {
+function DetalleCenso({ empleado }: { empleado: CensoEmpleado }) {
   return (
     <div className="flex flex-col gap-5">
       <div className="bg-gray-50 rounded-lg p-4">
@@ -280,7 +280,7 @@ export default function ConsultarCensoPage() {
     () => getNominaGeneralAction(),
   );
 
-  const empleados: CensoEmpleadoItem[] = (data?.data as unknown as CensoEmpleadoItem[]) ?? [];
+  const empleados: CensoEmpleado[] = (data?.data as unknown as CensoEmpleado[]) ?? [];
 
   const onSearch = (values: z.infer<typeof schemaSearch>) => {
     setSearchCedula(values.cedula || "");

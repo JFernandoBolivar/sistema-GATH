@@ -2,7 +2,7 @@
 import type {
   PaginaCambiosDTO,
   ParametroDTO,
-} from "../../application/dtos/parametro-dto";
+} from "../entities/parametro";
 
 export interface RepoParametros {
   listar(): Promise<ParametroDTO[]>;

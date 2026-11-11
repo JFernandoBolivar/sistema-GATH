@@ -90,6 +90,7 @@ from core.domain.exceptions import DomainError
 from core.presentation.audit import origen_de_peticion
 from core.presentation.cookies import clear_jwt_cookies, set_jwt_cookies
 from core.presentation.envelope import fail, ok
+from core.presentation.ip_cliente import ip_del_cliente
 from core.presentation.schema import MensajeRespuestaSerializer
 
 logger = logging.getLogger('security_backend')
@@ -163,7 +164,7 @@ class LoginView(APIView):
         except DjangoValidationError:
             return fail('Ingrese su correo electrónico.', 400)
 
-        ip_cliente = request.META.get('REMOTE_ADDR')
+        ip_cliente = ip_del_cliente(request)
 
         repo_auth = RepoCuentaAuthORM()
         cedula_registro = repo_auth.obtener_cedula_por_email(identificador) or str(identificador)[:20]
@@ -211,9 +212,11 @@ class LoginView(APIView):
                 return fail('Credenciales inválidas.', 401)
 
         except Exception as e:
-            logger.error('Error en autenticación: %s', e)
-            anotar_intento_fallido(cedula_registro, ip_cliente)
-            return fail('Error procesando la solicitud de autenticación.', 401)
+            # A2-12: un fallo interno (BD, caché, bug) NO es una credencial mala:
+            # sube al handler (500) y no suma un intento fallido que podría
+            # bloquear a un usuario válido durante una caída.
+            logger.exception('login.error_interno: %s', e)
+            raise
 
         # Contraseña inicial (la cédula) vencida a los 7 días (D8). Se evalúa DESPUÉS de comprobar la
         # clave, para no revelar a quien no la conoce que la cuenta existe ni su estado.
@@ -223,6 +226,13 @@ class LoginView(APIView):
 
         limpiar_bloqueo(cedula_registro)
         limpiar_bloqueo(identificador)
+
+        # «Último acceso» del listado de usuarios: el login por JWT no pasa por
+        # `django.contrib.auth.login`, así que `last_login` nunca se actualizaba.
+        try:
+            type(cuenta).objects.filter(pk=cuenta.pk).update(last_login=timezone.now())
+        except Exception:  # noqa: BLE001 - registrar el acceso no debe impedir el ingreso
+            logger.exception('login: no se pudo registrar el último acceso')
 
         tokens = emitir_tokens_sesion(
             cuenta,

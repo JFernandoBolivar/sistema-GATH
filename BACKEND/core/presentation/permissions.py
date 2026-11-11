@@ -80,21 +80,6 @@ def HasPermission(codigo: str):
 
 
 def HasAnyPermission(*codigos: str):
-    """Permite el acceso si el usuario tiene al menos uno de los códigos."""
-
-    class _HasAnyPermission(BasePermission):
-        message = "No posee ninguno de los permisos requeridos."
-
-        def has_permission(self, request, view) -> bool:
-            return any(_usuario_tiene_permiso(request.user, c) for c in codigos)
-
-    _HasAnyPermission.__name__ = 'HasAnyPermission_' + '_'.join(
-        c.replace('.', '_') for c in codigos
-    )
-    return _HasAnyPermission
-
-
-def HasAnyPermission(*codigos: str):
     """Clase DRF que autoriza si el usuario tiene AL MENOS UNO de los códigos."""
     if not codigos:
         raise ValueError('HasAnyPermission requiere al menos un código.')

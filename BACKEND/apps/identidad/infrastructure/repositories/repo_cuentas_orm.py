@@ -15,6 +15,7 @@ autorización depende solo del rol y los permisos.
 from django.db import connection
 from django.db.models import Q
 
+from core.domain.catalogos import TIPO_PERSONAL_PASIVO
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 
 from apps.identidad.domain.entities.cuenta import Cuenta
@@ -83,7 +84,7 @@ class RepoCuentasORM:
                     PasswordInicialModel.objects.filter(cuenta_id=OuterRef('pk'))
                 ),
                 tiene_pasivo=Exists(
-                    asignaciones.filter(Tipo_personal__tipo_personal__iexact='PASIVO')
+                    asignaciones.filter(Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO)
                 ),
                 tiene_egresado=Exists(
                     EmployeeEgresadoModel.objects.filter(employee_id=OuterRef('cedula_id'))

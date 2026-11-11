@@ -7,6 +7,7 @@ momento del movimiento) y `apps.personal` (`EmployeeModel`) desde
 `apps.pasivos.infrastructure.repositories.repo_pasivos_orm` para el acceso
 entre módulos hermanos.
 """
+from core.domain.catalogos import TIPO_PERSONAL_ACTIVO
 from core.domain.exceptions import NotFoundError, ValidationError
 from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
 from apps.catalogos.infrastructure.models.catalogo_models import TipoPersonalModel
@@ -69,7 +70,7 @@ class RepoMovimientosORM:
         if tipo_personal_id is None:
             # Códigos de personal activo creados sin tipo de personal.
             tipo_personal_id = (
-                TipoPersonalModel.objects.filter(tipo_personal__iexact='ACTIVO')
+                TipoPersonalModel.objects.filter(tipo_personal__iexact=TIPO_PERSONAL_ACTIVO)
                 .values_list('pk', flat=True).first()
             )
         if tipo_personal_id is None:

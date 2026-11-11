@@ -231,8 +231,11 @@ class CarnetQrImagenView(APIView):
 
     @extend_schema(tags=['Carnetización'], summary='Imagen QR de una credencial')
     def get(self, request, security_hash: str):
+        from apps.carnetizacion.domain.value_objects.security_hash import normalizar_codigo_qr
         from apps.carnetizacion.infrastructure.qr_institucional import generar_qr_png
 
+        if normalizar_codigo_qr(security_hash) != security_hash:
+            return fail('Código de carnet inválido.', status=404)
         contenido = f'GATH-ID: {security_hash}\n'
         respuesta = HttpResponse(
             generar_qr_png(contenido, box_size=8, border=2, con_logo=True),

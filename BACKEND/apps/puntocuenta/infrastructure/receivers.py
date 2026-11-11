@@ -30,7 +30,11 @@ from apps.puntocuenta.application.use_cases.generar_punto_cuenta import (
     adjuntar_documento_punto_cuenta,
     generar_punto_cuenta,
 )
-from apps.puntocuenta.domain.services.correlativo_punto_cuenta import obtener_siguiente_correlativo
+from apps.puntocuenta.application.use_cases.correlativo_punto_cuenta import obtener_siguiente_correlativo
+from apps.puntocuenta.infrastructure.repositories.repo_punto_cuenta_config_orm import (
+    RepoConfiguracionPuntoCuentaORM,
+    RepoSecuenciaPuntoCuentaORM,
+)
 from apps.puntocuenta.domain.services.decision_punto_cuenta import evaluar_generacion_punto_cuenta
 from apps.puntocuenta.infrastructure.contexto import guardar_ultimo_punto_cuenta
 from apps.puntocuenta.infrastructure.repositories.repo_punto_cuenta_orm import RepoPuntoCuentaORM
@@ -59,12 +63,13 @@ def _generar_punto_cuenta_y_documento(
     proceso=None,
 ):
     if configuracion is None:
-        configuracion = obtener_configuracion_activa()
+        configuracion = obtener_configuracion_activa(RepoConfiguracionPuntoCuentaORM())
 
     anio_actual = datetime.now().year
     try:
-        secuencia, numero = obtener_siguiente_correlativo(anio_actual)
-    except Exception:
+        secuencia, numero = obtener_siguiente_correlativo(RepoSecuenciaPuntoCuentaORM(), anio_actual)
+    except Exception:  # noqa: BLE001 - sin secuencia se genera sin número
+        logger.warning('No se pudo reservar el correlativo del punto de cuenta.', exc_info=True)
         secuencia, numero = None, None
 
     repo = RepoPuntoCuentaORM()
@@ -119,7 +124,7 @@ def despachar_punto_cuenta_por_actualizacion(
     if not generacion_activa:
         return
 
-    configuracion = obtener_configuracion_activa()
+    configuracion = obtener_configuracion_activa(RepoConfiguracionPuntoCuentaORM())
     procesos = configuracion.get('procesos_habilitados')
 
     debe_generar = evaluar_generacion_punto_cuenta(
@@ -172,7 +177,7 @@ def despachar_punto_cuenta_por_traslado(sender, cargo_id, cedula, tipo_movimient
     division_nueva_id = kwargs.get('division_nueva_id')
     cargo_anterior_id = kwargs.get('cargo_anterior_id')
 
-    configuracion = obtener_configuracion_activa()
+    configuracion = obtener_configuracion_activa(RepoConfiguracionPuntoCuentaORM())
     procesos = configuracion.get('procesos_habilitados')
 
     debe_generar = evaluar_generacion_punto_cuenta(

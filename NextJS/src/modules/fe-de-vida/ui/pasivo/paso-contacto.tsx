@@ -88,7 +88,9 @@ export function PasoContacto({
         es_venezuela: vivienda.pais_es_venezuela ?? true,
       }
     : undefined);
-  const esVenezuela = paisResidencia?.es_venezuela !== false;
+  // F2-16: sin país resuelto no se asume Venezuela; solo un expediente sin vivienda
+  // usa el país por defecto del sistema.
+  const esVenezuela = paisResidencia ? paisResidencia.es_venezuela !== false : !vivienda;
   const paisTelefono = paisesTelefono().find(
     (p) => p.codigo === paisResidencia?.codigo,
   )?.codigo;

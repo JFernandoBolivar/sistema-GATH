@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { apiFetchBlob } from "@/lib/api-client";
+import { apiClient } from "@/shared/infrastructure/http/fetcher-api";
+import { estadoDeError, mensajeDeError } from "@/shared/infrastructure/http/respuesta-error";
 
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams.toString();
-    const query = searchParams ? `?${searchParams}` : "";
-    const blob = await apiFetchBlob(`/api/v1/carga-masiva/plantilla/${query}`);
+    const params = Object.fromEntries(request.nextUrl.searchParams.entries());
+    const blob = await apiClient.getBlob("/api/v1/carga-masiva/plantilla/", { params });
 
     return new NextResponse(blob, {
       status: 200,
@@ -17,8 +17,15 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error: unknown) {
-    const mensaje =
-      error instanceof Error ? error.message : "Error al descargar la plantilla";
-    return NextResponse.json({ ok: false, error: mensaje }, { status: 500 });
+    // F2-06: el error del backend se devuelve como error con su código real,
+    // no como un «.xlsx» con el JSON de error dentro.
+    return NextResponse.json(
+      {
+        ok: false,
+        status: "error",
+        message: mensajeDeError(error, "Error al descargar la plantilla"),
+      },
+      { status: estadoDeError(error) },
+    );
   }
 }

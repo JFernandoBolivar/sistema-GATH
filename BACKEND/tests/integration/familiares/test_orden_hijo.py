@@ -100,11 +100,13 @@ def test_registro_rechaza_orden_que_desborda_la_cedula(datos):
     assert not EmployeefamilyModel.objects.filter(employeecedula_id='99000320').exists()
 
 
-def test_el_lector_de_autogestion_expone_la_cedula_que_se_generara(datos):
+def test_el_lector_de_autogestion_devuelve_la_cedula_que_se_generara(datos):
+    """FIX hijo sin cédula: el lector devuelve la cédula y NO modifica el valor propuesto."""
     valores = _cuerpo(datos, orden=3)
     valores.pop('cedula_familiar', None)
-    LectorFichaORM().validar_familiar_alta('99000320', valores)
-    assert valores['cedula_generada'] == '99000320-3'
+    generada = LectorFichaORM().validar_familiar_alta('99000320', valores)
+    assert generada == '99000320-3'
+    assert 'cedula_generada' not in valores
 
 
 def test_el_lector_de_autogestion_exige_orden(datos):

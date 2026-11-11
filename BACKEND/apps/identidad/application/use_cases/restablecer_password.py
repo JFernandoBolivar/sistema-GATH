@@ -13,6 +13,7 @@ from typing import Callable
 
 from apps.identidad.domain.events import EventoIdentidad, MotivoCambioPassword, TipoEventoIdentidad
 from apps.identidad.domain.ports.repo_recuperacion_password import RepoRecuperacionPassword
+from apps.identidad.domain.services.huella_password import huella_password
 from core.domain.exceptions import ValidationError
 
 
@@ -39,7 +40,7 @@ def restablecer_password(
         raise ValidationError("La cuenta asociada al enlace no es válida o se encuentra inactiva.")
 
     # Protección anti-replay: si la contraseña ya fue cambiada, el hash no coincidirá
-    if cuenta.password_hash[:16] != hash_slice:
+    if huella_password(cuenta.password_hash) != hash_slice:
         raise ValidationError(
             "Este enlace de recuperación ya ha sido utilizado previamente o ha quedado invalidado."
         )

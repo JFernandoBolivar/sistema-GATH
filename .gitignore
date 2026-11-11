@@ -64,3 +64,11 @@ estado_*.txt
 **/.claude/
 **/.opencode/
 **/tmp-*.spec.ts
+
+# Evidencias locales de auditoría / pruebas que no se versionan
+BACKEND/_log2
+BACKEND/_log2/
+BACKEND/_muestras/
+plantillas_prueba/
+/docker
+NextJS/e2e/auditoria/

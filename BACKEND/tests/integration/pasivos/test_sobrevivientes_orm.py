@@ -22,6 +22,7 @@ from apps.catalogos.infrastructure.models.catalogo_models import (
 )
 from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
 from apps.identidad.infrastructure.models.cuenta_models import CuentaModel, RolModel
+from core.domain.exceptions import ConflictError
 from apps.organizacion.infrastructure.models.organizacion_models import (
     DependenciaModel,
     DireccionGeneralModel,
@@ -91,6 +92,17 @@ def test_crea_employee_asignacion_pasivo_y_copia_perfil_e_idempotente(escenario)
     assert res2[0].creado is False
     assert EmployeeModel.objects.filter(cedulaidentidad='V2000').count() == 1
     assert AsigTrabajoModel.objects.filter(employee=emp).count() == 1
+
+
+def test_cedula_correlativa_del_menor_se_rechaza(escenario):
+    """L2-14: `titular-N` es sintética; no puede ser la cédula de un empleado pasivo."""
+    familiar = escenario['fam']
+    familiar.cedulaFamiliar = 'V1000-2'
+    familiar.save(update_fields=['cedulaFamiliar'])
+
+    with pytest.raises(ConflictError):
+        ejecutar_creacion_sobrevivientes(RepoPasivosORM(), CrearSobrevivientesDTO(cedula_titular='V1000'))
+    assert not EmployeeModel.objects.filter(cedulaidentidad='V1000-2').exists()
 
 
 def test_titular_no_fallecido_se_rechaza(escenario):

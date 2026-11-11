@@ -69,7 +69,7 @@ def test_crear_visitante_y_devolver():
         persona_visitada='JEFE DE PRUEBA',
     )
     assert fila.estado == 'ACTIVA'
-    assert len(fila.security_hash) == 64
+    assert len(fila.security_hash) == 22
 
     devuelta = repo.devolver(fila.id)
     assert devuelta.estado == 'DEVUELTA'

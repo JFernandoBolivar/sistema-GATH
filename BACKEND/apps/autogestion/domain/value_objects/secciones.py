@@ -9,22 +9,7 @@ escriben al aprobar, a través del puerto `AplicadorCambios`.
 """
 from enum import Enum
 
-
-class Seccion(str, Enum):
-    IDENTIDAD = 'identidad'
-    FOTO = 'foto'
-    CONTACTO = 'contacto'
-    VIVIENDA = 'vivienda'
-    FORMACION = 'formacion'
-    COMPLEMENTARIA = 'complementaria'
-    FAMILIAR = 'familiar'
-    SALUD = 'salud'
-    ANTECEDENTES = 'antecedentes'
-
-
-# Catálogo de secciones en el orden del dominio: lo consume la configuración de
-# solicitudes por condición (O12) y la pantalla de Administración del sistema.
-CODIGOS_SECCIONES: tuple[str, ...] = tuple(seccion.value for seccion in Seccion)
+from core.domain.secciones import CODIGOS_SECCIONES, Seccion  # noqa: F401 (reexport)
 
 
 class Accion(str, Enum):

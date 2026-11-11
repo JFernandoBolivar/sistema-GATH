@@ -5,6 +5,7 @@ Sin Django.
 """
 from dataclasses import replace
 from datetime import datetime
+from uuid import uuid4
 
 from apps.fe_de_vida.application.use_cases._comun import obtener_proceso, obtener_solicitud
 from apps.fe_de_vida.domain.entities.constancia import Certificador, ConstanciaFeDeVida
@@ -119,9 +120,11 @@ def reenviar_constancia(
         clave_pdf=constancia.clave_pdf,
         nombre_pdf=f'{constancia.numero}.pdf',
         correos_copia=copia,
-        # Cada reenvío debe ser un hecho distinto: si no, el outbox lo
-        # deduplica por (tipo, ref_id, clave) y el correo nunca sale.
-        clave=f'reenvio-{conteo + 1}',
+        # Cada reenvío es un hecho distinto: la clave se deduplica por
+        # (tipo, ref_id, clave), así que lleva un identificador único de este
+        # reenvío y no el contador del día. Antes `reenvio-{conteo+1}` se
+        # repetía al día siguiente y el correo dejaba de salir (L2-01).
+        clave=f'reenvio-{uuid4().hex}',
     )
     notificador.notificar(notificacion)
     repo_const.registrar_reenvio(
@@ -157,13 +160,20 @@ def regenerar_constancia(
     """
     Regenera el PDF con el MISMO número y código de verificación, plantilla y URL de verificación vigentes.
     Actualiza la versión de plantilla de la constancia si es diferente a la activa.
+
+    Si la solicitud está VALIDADA pero no tiene constancia (o le falta el PDF porque
+    la emisión falló), la emite de nuevo: `emitir_constancia` es idempotente y
+    reutiliza el número ya reservado. Es el camino de recuperación de L2-02.
     """
     solicitud = obtener_solicitud(repo_sol, solicitud_id)
     if solicitud.estado is not EstadoSolicitud.VALIDADA:
         raise ConflictError("Solo una solicitud VALIDADA permite regenerar la constancia.")
     constancia = repo_const.obtener_de_solicitud(solicitud.id)
-    if constancia is None:
-        raise ConflictError("La constancia no existe para esta solicitud.")
+    if constancia is None or not constancia.clave_pdf:
+        return emitir_constancia(
+            repo_proc, repo_sol, repo_const, lector, generador, storage,
+            solicitud_id=solicitud_id, url_verificacion_base=url_verificacion_base, ahora=ahora,
+        )
     plantilla = repo_const.plantilla_activa()
     if plantilla is None:
         raise ConflictError("No hay una plantilla de constancia activa.")

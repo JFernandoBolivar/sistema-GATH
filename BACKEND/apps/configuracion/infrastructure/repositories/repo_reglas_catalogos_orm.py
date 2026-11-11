@@ -3,9 +3,11 @@ Implementación ORM de RepoReglasCatalogos (A5).
 """
 from __future__ import annotations
 
+import logging
 from typing import Sequence
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
+from django.db.models import ProtectedError
 
 from apps.catalogos.infrastructure.models.catalogo_models import (
     CategoriaMovimientoModel,
@@ -40,6 +42,8 @@ from core.domain.exceptions import NotFoundError, ValidationError
 from core.domain.tipos_soporte import ItemChecklistSoporte, SeccionSoporte
 from core.presentation.cache_catalogos import invalidar_catalogos
 
+logger = logging.getLogger('gath.configuracion')
+
 
 class RepoReglasCatalogosORM(RepoReglasCatalogos):
     @staticmethod
@@ -50,6 +54,19 @@ class RepoReglasCatalogosORM(RepoReglasCatalogos):
 
     def listar_paises(self) -> Sequence[ReglaPais]:
         return [self._pais_a_entidad(p) for p in PaisModel.objects.all().order_by('nombre')]
+
+    def buscar_paises(
+        self, *, texto: str = '', pagina: int = 1, tamano_pagina: int = 10,
+    ) -> tuple[Sequence[ReglaPais], int]:
+        from django.db.models import Q
+
+        qs = PaisModel.objects.all()
+        if texto:
+            qs = qs.filter(Q(nombre__icontains=texto) | Q(codigo__icontains=texto))
+        qs = qs.order_by('-es_venezuela', 'nombre')
+        total = qs.count()
+        inicio = (pagina - 1) * tamano_pagina
+        return [self._pais_a_entidad(p) for p in qs[inicio:inicio + tamano_pagina]], total
 
     def obtener_pais(self, pais_id: int) -> ReglaPais:
         try:
@@ -102,7 +119,7 @@ class RepoReglasCatalogosORM(RepoReglasCatalogos):
         resultado = self._pais_a_entidad(pais)
         try:
             pais.delete()
-        except Exception:
+        except (ProtectedError, IntegrityError):
             raise ValidationError(
                 'No es posible eliminar el país porque hay viviendas registradas en él.',
                 campo='nombre',
@@ -221,7 +238,7 @@ class RepoReglasCatalogosORM(RepoReglasCatalogos):
             with transaction.atomic():
                 ReglaParentescoModel.objects.filter(parentesco_id=parentesco_id).delete()
                 p.delete()
-        except Exception:
+        except (ProtectedError, IntegrityError):
             raise ValidationError(
                 'No es posible eliminar el parentesco porque está asignado a familiares registrados.',
                 campo='descripcion',
@@ -357,7 +374,10 @@ class RepoReglasCatalogosORM(RepoReglasCatalogos):
             if HistorialMovimiento.objects.filter(motivo_movimiento_id=motivo_id).exists():
                 return True
         except Exception:
-            pass
+            logger.warning(
+                'No se pudo verificar si el motivo %s está usado en movimientos.',
+                motivo_id, exc_info=True,
+            )
 
         # 2. Préstamos de cargo
         try:
@@ -365,7 +385,10 @@ class RepoReglasCatalogosORM(RepoReglasCatalogos):
             if PrestamoModel.objects.filter(motivo_prestamo_id=motivo_id).exists():
                 return True
         except Exception:
-            pass
+            logger.warning(
+                'No se pudo verificar si el motivo %s está usado en préstamos de cargo.',
+                motivo_id, exc_info=True,
+            )
 
         # 3. Egresados
         try:
@@ -373,7 +396,10 @@ class RepoReglasCatalogosORM(RepoReglasCatalogos):
             if EmployeeEgresadoModel.objects.filter(motivo_egreso_id=motivo_id).exists():
                 return True
         except Exception:
-            pass
+            logger.warning(
+                'No se pudo verificar si el motivo %s está usado en egresos.',
+                motivo_id, exc_info=True,
+            )
 
         return False
 
@@ -396,7 +422,7 @@ class RepoReglasCatalogosORM(RepoReglasCatalogos):
 
         try:
             m.delete()
-        except Exception:
+        except (ProtectedError, IntegrityError):
             raise ValidationError(
                 'No es posible eliminar el motivo porque tiene registros asociados. Puede desactivarlo en su lugar.',
                 campo='motivo',
@@ -532,7 +558,7 @@ class RepoReglasCatalogosORM(RepoReglasCatalogos):
         )
         try:
             n.delete()
-        except Exception:
+        except (ProtectedError, IntegrityError):
             raise ValidationError(
                 'No es posible eliminar la nómina porque está asignada a cargos o procesos.',
                 campo='nomina',
@@ -630,7 +656,7 @@ class RepoReglasCatalogosORM(RepoReglasCatalogos):
         resultado = self._tipo_soporte_a_entidad(t)
         try:
             t.delete()
-        except Exception:
+        except (ProtectedError, IntegrityError):
             raise ValidationError(
                 'No es posible eliminar el tipo de soporte porque está asignado a una sección.',
                 campo='codigo',

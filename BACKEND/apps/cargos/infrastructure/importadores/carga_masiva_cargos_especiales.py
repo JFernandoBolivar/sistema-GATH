@@ -21,6 +21,7 @@ Síncrono, no `202 Accepted` + Celery — misma decisión documentada que
 from django.db import transaction
 
 from core.domain.exceptions import ValidationError
+from core.domain.catalogos import ESTATUS_VACANTE
 from apps.cargos.domain.services.generacion_codigo import generar_prefijo_nomina, siguiente_codigo_especial
 from apps.cargos.infrastructure.models.cargo_models import (
     AsigTrabajoModel,
@@ -77,7 +78,10 @@ def importar_cargos_especiales(archivo, nombre_archivo: str) -> dict:
     df.columns = df.columns.str.strip().str.lower()
     cache = _construir_cache()
 
-    tipo_personal_default = TipoPersonalModel.objects.filter(pk=2).first()
+    tipo_personal_default = (
+        TipoPersonalModel.objects.filter(tipo_personal__iexact='ACTIVO').first()
+        or TipoPersonalModel.objects.filter(pk=2).first()
+    )
     dependencia_default = DependenciaModel.objects.filter(pk=1).first()
 
     errores: list[str] = []
@@ -94,7 +98,7 @@ def importar_cargos_especiales(archivo, nombre_archivo: str) -> dict:
                 cedula_raw = fila.get('cedula')
                 empleado = None
 
-                if estatus_val == 'VACANTE':
+                if estatus_val == ESTATUS_VACANTE:
                     if not pd.isna(cedula_raw) and str(cedula_raw).strip():
                         raise ValueError(f"El estatus es VACANTE, pero la cédula contiene datos: {cedula_raw}.")
                 else:

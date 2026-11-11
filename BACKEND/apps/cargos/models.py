@@ -7,8 +7,10 @@ from apps.cargos.infrastructure.models.cargo_models import (
     DenominacionCargoModel,
 )
 from apps.cargos.infrastructure.models.prestamo_models import PrestamoCargoModel
+from apps.cargos.infrastructure.models.suspension_models import PrestamoCargoSuspensionModel
 
 __all__ = [
+    'PrestamoCargoSuspensionModel',
     'DenominacionCargoModel',
     'DenominacionCargoEspecificoModel',
     'AsigTrabajoModel',

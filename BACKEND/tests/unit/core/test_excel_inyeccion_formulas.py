@@ -1,4 +1,4 @@
-"""M-01: un texto que empieza por '=' no se guarda como fórmula en los reportes Excel."""
+"""M-01 / S6-02: un texto que empieza por '=' no se guarda como fórmula en los reportes Excel."""
 from io import BytesIO
 
 from openpyxl import load_workbook
@@ -15,6 +15,7 @@ def test_texto_con_igual_queda_como_texto_literal():
     )
     ws = load_workbook(BytesIO(contenido)).active
     valores = {c.value: c.data_type for fila in ws.iter_rows() for c in fila if c.value is not None}
-    assert valores['=HYPERLINK("http://x","clic")'] == 's'
-    assert valores['=1+1'] == 's'
+    # S6-02: además de quedar como texto, se antepone el apóstrofo de Excel.
+    assert valores["'=HYPERLINK(\"http://x\",\"clic\")"] == 's'
+    assert valores["'=1+1"] == 's'
     assert valores[5] == 'n'

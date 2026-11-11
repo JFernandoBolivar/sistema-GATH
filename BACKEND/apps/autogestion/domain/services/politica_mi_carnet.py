@@ -12,6 +12,10 @@ Controlado por los parámetros del sistema en Gestión del sistema:
 
 Puro: sin Django ni dependencias de framework.
 """
+from core.domain.catalogos import (
+    CONDICION_ACTIVO,
+    CONDICION_PASIVO,
+)
 from core.domain.configuracion import (
     ALCANCE_CARNET_ACTIVOS,
     ALCANCE_CARNET_ESPECIFICOS,
@@ -53,9 +57,9 @@ def puede_acceder_mi_carnet(
         return True
     cond = (condicion or '').strip().upper()
     if alc in (ALCANCE_CARNET_ACTIVOS, 'solo_activos'):
-        return cond == 'ACTIVO'
+        return cond == CONDICION_ACTIVO
     if alc in (ALCANCE_CARNET_PASIVOS, 'solo_pasivos'):
-        return cond == 'PASIVO'
+        return cond == CONDICION_PASIVO
     if alc in (ALCANCE_CARNET_ESPECIFICOS, 'especificos'):
         ced_norm = normalizar_cedula(cedula)
         return bool(ced_norm and ced_norm in usuarios_especificos)

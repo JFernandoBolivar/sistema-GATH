@@ -23,6 +23,13 @@ from django.core.validators import validate_email
 from django.db import transaction
 from django.utils import timezone
 
+from core.domain.catalogos import (
+    CONDICION_ACTIVO,
+    CONDICION_PASIVO,
+    ESTATUS_ACTIVO,
+    TIPO_PERSONAL_PASIVO,
+)
+
 from apps.autogestion.infrastructure.models.actualizacion_models import (
     DatosComplementariosTrabajadorModel,
 )
@@ -182,7 +189,7 @@ class Command(BaseCommand):
                         'cedula': cedula,
                         'nombre': f'{nombres} {apellidos}'.strip(),
                         'condicion': condicion,
-                        'motivo': 'pasivos sin correo personal' if condicion == 'PASIVO' else 'sin correo institucional',
+                        'motivo': 'pasivos sin correo personal' if condicion == CONDICION_PASIVO else 'sin correo institucional',
                     })
                     continue
 
@@ -257,14 +264,14 @@ class Command(BaseCommand):
     def _condiciones(self) -> tuple[set[str], set[str]]:
         pasivos = set(
             AsigTrabajoModel.objects.filter(
-                Tipo_personal__tipo_personal__iexact='PASIVO', employee__isnull=False
+                Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO, employee__isnull=False
             ).values_list('employee_id', flat=True)
         ) | set(EmployeeEgresadoModel.objects.values_list('employee_id', flat=True))
         activos = set(
             AsigTrabajoModel.objects.filter(
-                estatusid__estatus__iexact='ACTIVO', employee__isnull=False
+                estatusid__estatus__iexact=ESTATUS_ACTIVO, employee__isnull=False
             )
-            .exclude(Tipo_personal__tipo_personal__iexact='PASIVO')
+            .exclude(Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO)
             .values_list('employee_id', flat=True)
         ) - pasivos
         return activos, pasivos
@@ -272,9 +279,9 @@ class Command(BaseCommand):
     @staticmethod
     def _condicion(cedula: str, activos: set[str], pasivos: set[str]) -> str | None:
         if cedula in pasivos:
-            return 'PASIVO'
+            return CONDICION_PASIVO
         if cedula in activos:
-            return 'ACTIVO'
+            return CONDICION_ACTIVO
         return None
 
     def _rol_autogestion_id(self) -> int:
@@ -367,7 +374,7 @@ class Command(BaseCommand):
                         'cedula': cedula,
                         'nombre': f'{nombres} {apellidos}'.strip(),
                         'condicion': condicion,
-                        'motivo': 'pasivo sin correo principal' if condicion == 'PASIVO' else 'sin correo institucional',
+                        'motivo': 'pasivo sin correo principal' if condicion == CONDICION_PASIVO else 'sin correo institucional',
                     }
                 )
 
