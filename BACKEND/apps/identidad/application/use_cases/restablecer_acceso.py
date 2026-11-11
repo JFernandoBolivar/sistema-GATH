@@ -35,6 +35,8 @@ def restablecer_acceso(
     repo_permisos: RepoPermisos,
     actor: ActorSesionDTO,
     limpiar_bloqueo: Callable[[str], None] | None = None,
+    publicar_correo: bool = True,
+    verificar_politica: bool = True,
 ) -> Cuenta:
     cuenta = repo_cuentas.obtener_por_id(cuenta_id)
     if cuenta is None:
@@ -42,12 +44,13 @@ def restablecer_acceso(
     if not cuenta.is_active:
         raise ValidationError('La cuenta está desactivada: actívela antes de restablecer su acceso.')
 
-    objetivo = repo_permisos.obtener_permisos_usuario(cuenta.cedula)
-    validar_operacion_sobre_cuenta_administrativa(
-        politica_actor=resolver_politica_actor(repo_permisos, actor),
-        politica_objetivo=objetivo.politica_efectiva if objetivo else PoliticaAcceso(),
-        operacion='restablecer el acceso de',
-    )
+    if verificar_politica:
+        objetivo = repo_permisos.obtener_permisos_usuario(cuenta.cedula)
+        validar_operacion_sobre_cuenta_administrativa(
+            politica_actor=resolver_politica_actor(repo_permisos, actor),
+            politica_objetivo=objetivo.politica_efectiva if objetivo else PoliticaAcceso(),
+            operacion='restablecer el acceso de',
+        )
 
     repo_cuentas.establecer_password(cuenta.id, cuenta.cedula)
     repo_password_inicial.emitir(cuenta.id, vencimiento_desde(ahora, dias_vigencia))
@@ -58,8 +61,9 @@ def restablecer_acceso(
             limpiar_bloqueo(str(clave))
     # `establecer_password` ya incrementa `permisos_version` (M2), lo que revoca
     # las sesiones abiertas. No hace falta un segundo incremento aquí.
-    publicar(EventoIdentidad(
-        tipo=TipoEventoIdentidad.PASSWORD_CAMBIADA, cedula=cuenta.cedula,
-        motivo=MotivoCambioPassword.RESTABLECIDO_RRHH.value, dias_vigencia=dias_vigencia,
-    ))
+    if publicar_correo:
+        publicar(EventoIdentidad(
+            tipo=TipoEventoIdentidad.PASSWORD_CAMBIADA, cedula=cuenta.cedula,
+            motivo=MotivoCambioPassword.RESTABLECIDO_RRHH.value, dias_vigencia=dias_vigencia,
+        ))
     return cuenta

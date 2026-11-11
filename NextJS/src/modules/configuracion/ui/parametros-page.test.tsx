@@ -95,6 +95,12 @@ vi.mock("../infrastructure/actions/parametros-actions", () => ({
   buscarTrabajadoresParametroAction: vi.fn(async () => []),
 }));
 
+vi.mock("../infrastructure/actions/restablecimiento-bloque-actions", () => ({
+  calcularRestablecimientoBloqueAction: vi.fn(),
+  ejecutarRestablecimientoBloqueAction: vi.fn(),
+  estadoRestablecimientoBloqueAction: vi.fn(),
+}));
+
 describe("ParametrosPage", () => {
   it("oculta el parámetro dependiente cuando el padre no coincide con el valor esperado", () => {
     render(<ParametrosPage />);

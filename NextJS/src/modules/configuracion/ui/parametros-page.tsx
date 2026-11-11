@@ -55,6 +55,7 @@ import {
 } from "../domain/value-objects/claves-parametros";
 import Link from "next/link";
 import { SelectorTrabajadoresParametro } from "./components/selector-trabajadores-parametro";
+import { TarjetaRestablecimientoBloque } from "./components/tarjeta-restablecimiento-bloque";
 
 import type { ParametroDTO, PaginaCambiosDTO } from "../application/dtos/parametro-dto";
 import {
@@ -342,6 +343,7 @@ export function ParametrosPage() {
               </Card>
             );
           })}
+          {puedeEditar && <TarjetaRestablecimientoBloque />}
         </div>
       )}
 
