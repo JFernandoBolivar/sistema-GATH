@@ -162,7 +162,7 @@ def guardar_configuracion(
     plantillas = dict(
         datos.get('plantillas_procesos')
         if 'plantillas_procesos' in datos
-        else (getattr(cfg_actual, 'plantillas_procesos', None) or {})
+        else ((cfg_actual.plantillas_procesos if cfg_actual else None) or {})
     )
 
     gen_actual = plantillas.get('general', {})

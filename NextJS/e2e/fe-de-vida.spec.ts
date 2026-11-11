@@ -58,7 +58,10 @@ test.use({
 });
 
 async function recorrerHastaLaFoto(page: Page): Promise<void> {
-  await page.goto("/autogestion/fe-de-vida");
+  // La página mantiene recursos largos (imágenes de la guía en SeaweedFS); `load`
+  // puede no dispararse en el entorno local, así que se espera el DOM y luego
+  // los elementos concretos.
+  await page.goto("/autogestion/fe-de-vida", { waitUntil: "domcontentloaded" });
   await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => {});
   const comenzar = page.getByRole("button", { name: /comenzar mi fe de vida|corregir y reenviar/i });
   // Si ya hay un borrador no aparece el botón: se espera un instante a que la página decida cuál mostrar.
@@ -149,7 +152,7 @@ test.describe("Revisión de Bienestar", () => {
     await abrir.click();
     await expect(page.getByRole("heading", { name: /foto con la cédula/i })).toBeVisible();
     await expect(page.getByRole("button", { name: /ver completa/i })).toBeVisible();
-    await expect(page.getByRole("heading", { name: /datos propuestos por el pasivo/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /datos personales/i })).toBeVisible();
     await expect(page.getByRole("button", { name: /devolver para corrección/i })).toBeVisible();
     await expect(page.getByRole("button", { name: /rechazar/i })).toBeVisible();
 

@@ -1,124 +1,134 @@
 import { test, expect, type Page } from "@playwright/test";
 
 import { iniciarSesionE2E } from "./credenciales";
-const ARTIFACT_DIR = "/home/jbolivar@conatel.gob.ve/.gemini/antigravity-cli/brain/63266b19-0e09-4246-a71d-be18a1b72637/scratch";
+
+/**
+ * Carnetización: armazón, Consola de Emisión (búsqueda y parámetros), plantillas
+ * y estadísticas.
+ *
+ * Las pantallas se unificaron en la Consola de Emisión (O51): `/carnetizacion`
+ * redirige a `/carnetizacion/emision`, y `/carnetizacion/buscar` y
+ * `/carnetizacion/generar` renderizan la misma consola. La spec comprueba esa
+ * interfaz; no emite carnets para no alterar datos de la base local.
+ */
+const CEDULA = "30540767";
+const NOMBRE = "HITLER MOISES MACHADO CORRO";
 
 async function login(page: Page) {
   await iniciarSesionE2E(page);
 }
 
-test.describe("Carnetización UI - Paridad 100% con referencia", () => {
+test.describe("Carnetización UI - Consola de emisión, plantillas y estadísticas", () => {
   test.beforeEach(async ({ page }) => {
-    page.on("console", (msg) => console.log("PAGE LOG:", msg.type(), msg.text()));
-    page.on("pageerror", (err) => console.log("PAGE ERROR:", err.message));
     await login(page);
   });
 
-  test("1. /carnetizacion muestra HeaderLayout, AppSidebarCarnetizacion y bienvenida idéntica", async ({ page }) => {
-    await page.goto("/carnetizacion");
-    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
+  test("1. /carnetizacion abre la Consola de Emisión con su armazón y sidebar", async ({ page }) => {
+    // La consola mantiene peticiones largas abiertas; `load` no llega a dispararse
+    // de forma fiable en el entorno local.
+    await page.goto("/carnetizacion", { waitUntil: "domcontentloaded" });
+    await expect(page).toHaveURL(/\/carnetizacion\/emision/);
 
-    // HeaderLayout
-    await expect(page.locator("header").getByRole("heading", { name: "Sistema de Carnetización" })).toBeVisible();
-    await expect(page.getByText("Generación y Gestión de Carnets del Personal - CONATEL")).toBeVisible();
-
-    // AppSidebarCarnetizacion
+    // Armazón
+    await expect(
+      page.locator("header").getByRole("heading", { name: "Sistema de Carnetización" }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Generación y Gestión de Carnets del Personal - CONATEL"),
+    ).toBeVisible();
     await expect(page.locator("img[alt='Logo CONATEL']")).toBeVisible();
-    await expect(page.getByText("Inicio")).toBeVisible();
+
+    // Sidebar
+    await expect(page.getByRole("link", { name: "Inicio" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Carnets" })).toBeVisible();
-    await expect(page.getByText("Buscar Personal")).toBeVisible();
-    await expect(page.getByText("Estadísticas")).toBeVisible();
-    await expect(page.getByText("Plantillas")).toBeVisible();
-    await expect(page.getByText("Autogestión")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Consola de Emisión" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Estadísticas" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Plantillas" })).toBeVisible();
 
-    // Welcome title & content
-    await expect(page.locator("h1.text-8xl")).toBeVisible();
-    await expect(page.getByText("Generación y gestión de carnets del personal de CONATEL")).toBeVisible();
-
-    await page.screenshot({ path: `${ARTIFACT_DIR}/1_carnetizacion_welcome.png` });
+    // Consola
+    await expect(
+      page.getByRole("heading", { name: "Consola de Emisión de Credenciales" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("searchbox", { name: /buscar personal para emisión de carnet/i }),
+    ).toBeVisible();
   });
 
-  test("2. /carnetizacion/buscar muestra formulario y búsqueda de personal", async ({ page }) => {
-    await page.goto("/carnetizacion/buscar");
-    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
+  test("2. la consola busca por cédula y muestra los parámetros de emisión del titular", async ({
+    page,
+  }) => {
+    await page.goto("/carnetizacion/emision");
 
-    await expect(page.getByRole("heading", { name: "Buscar Personal" })).toBeVisible();
-    await expect(page.getByText("Busca un trabajador por cédula o nombre para generar su carnet")).toBeVisible();
-    await expect(page.getByPlaceholder("Ingrese cédula o nombre del trabajador...")).toBeVisible();
+    const buscador = page.getByRole("searchbox", {
+      name: /buscar personal para emisión de carnet/i,
+    });
+    await buscador.fill(CEDULA);
 
-    // Buscar por cédula
-    await page.getByPlaceholder("Ingrese cédula o nombre del trabajador...").fill("30540767");
-    await page.getByRole("button", { name: /buscar/i }).click();
+    const resultado = page.getByRole("button").filter({ hasText: NOMBRE }).first();
+    await expect(resultado).toBeVisible({ timeout: 20_000 });
+    await resultado.click();
 
-    // Esperar resultado
-    await expect(page.getByText("HITLER MOISES MACHADO CORRO")).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText("C.I: 30540767")).toBeVisible();
-    await expect(page.getByText("ASISTENTE ADMINISTRATIVO")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Generar Carnet" })).toBeVisible();
-
-    await page.screenshot({ path: `${ARTIFACT_DIR}/2_carnetizacion_buscar.png` });
+    await expect(page.getByRole("heading", { level: 3, name: NOMBRE })).toBeVisible();
+    await expect(page.getByText(`C.I. V-${CEDULA}`).first()).toBeVisible();
+    await expect(page.getByText("Parámetros de Emisión Oficial")).toBeVisible();
+    await expect(page.getByRole("combobox", { name: /motivo de emisión/i })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /emitir y descargar pdf/i }),
+    ).toBeVisible();
+    // La vista previa puede ser una imagen o una tarjeta dibujada en el DOM
+    // según la plantilla; el nombre del titular dentro de la vista previa es el
+    // ancla estable.
+    await expect(page.getByText("Vista Previa Oficial")).toBeVisible();
+    await expect(page.getByRole("heading", { level: 4, name: NOMBRE })).toBeVisible({
+      timeout: 20_000,
+    });
   });
 
-  test("3. /carnetizacion/generar muestra datos del trabajador y vista previa del carnet", async ({ page }) => {
-    await page.goto("/carnetizacion/generar?cedula=30540767");
-    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
-
-    await expect(page.getByRole("heading", { name: "Generar Carnet" })).toBeVisible();
-    await expect(page.getByText("Datos del Personal")).toBeVisible();
-    await expect(page.getByText("Vista Previa del Carnet")).toBeVisible();
-
-    // Verificar inputs con datos cargados
-    const inputCedula = page.locator("#input-cedula");
-    await expect(inputCedula).toBeVisible();
-    await expect(inputCedula).toHaveValue("30540767");
-    await expect(inputCedula).toBeDisabled();
-
-    await expect(page.getByLabel("Nombre completo")).toBeVisible();
-
-    const inputCodigo = page.locator("#input-codigo");
-    await expect(inputCodigo).toBeVisible();
-    await expect(inputCodigo).toHaveValue("10010105");
-    await expect(inputCodigo).toBeDisabled();
-
-    const inputCargo = page.locator("#input-cargo");
-    await expect(inputCargo).toBeVisible();
-    await expect(inputCargo).toHaveValue("ASISTENTE ADMINISTRATIVO");
-    await expect(inputCargo).toBeDisabled();
-
-    // Botones de acción
-    await expect(page.getByRole("button", { name: /subir foto/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: /generar carnet/i })).toBeVisible();
-
-    // Vista previa
-    await expect(page.locator("img[alt='Vista previa del carnet']")).toBeVisible({ timeout: 10_000 });
-
-    await page.screenshot({ path: `${ARTIFACT_DIR}/3_carnetizacion_generar.png` });
+  test("3. /carnetizacion/buscar y /carnetizacion/generar abren la misma consola", async ({
+    page,
+  }) => {
+    for (const ruta of ["/carnetizacion/buscar", `/carnetizacion/generar?cedula=${CEDULA}`]) {
+      await page.goto(ruta);
+      await expect(
+        page.getByRole("heading", { name: "Consola de Emisión de Credenciales" }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("searchbox", { name: /buscar personal para emisión de carnet/i }),
+      ).toBeVisible();
+    }
   });
 
-  test("4. /carnetizacion/plantillas muestra formulario de subida y lista de plantillas", async ({ page }) => {
+  test("4. /carnetizacion/plantillas muestra el motor de plantillas y sus pestañas", async ({
+    page,
+  }) => {
     await page.goto("/carnetizacion/plantillas");
-    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
 
     await expect(page.getByRole("heading", { name: "Plantillas de Carnet" })).toBeVisible();
-    await expect(page.getByText("Administra las plantillas de fondo para los carnets")).toBeVisible();
-    await expect(page.getByText("Subir Nueva Plantilla")).toBeVisible();
-    await expect(page.getByLabel("Nombre")).toBeVisible();
-    await expect(page.getByRole("button", { name: /seleccionar imagen/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: /subir plantilla/i })).toBeVisible();
+    await expect(
+      page.getByText(/motor institucional de plantillas de carnet/i),
+    ).toBeVisible();
+    await expect(page.getByRole("tab", { name: /plantillas por capas/i })).toBeVisible();
+    await expect(page.getByRole("tab", { name: /fondos fijos/i })).toBeVisible();
+    await expect(page.getByRole("tab", { name: /biblioteca de medios/i })).toBeVisible();
+    await expect(page.getByRole("tab", { name: /registro de campos/i })).toBeVisible();
 
-    // Verificar plantilla existente
-    await expect(page.getByText("PLANTILLA OFICIAL")).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText("Activa", { exact: true }).first()).toBeVisible();
-
-    await page.screenshot({ path: `${ARTIFACT_DIR}/4_carnetizacion_plantillas.png` });
+    // Existe al menos una plantilla con su acción de edición.
+    await expect(page.getByRole("link", { name: /^editar$/i }).first()).toBeVisible({
+      timeout: 20_000,
+    });
   });
 
-  test("5. /carnetizacion/estadisticas muestra tarjetas de métricas y tabla de últimos carnets", async ({ page }) => {
+  test("5. /carnetizacion/estadisticas muestra tarjetas de métricas y tabla de últimos carnets", async ({
+    page,
+  }) => {
     await page.goto("/carnetizacion/estadisticas");
-    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
 
-    await expect(page.getByRole("heading", { name: "Estadísticas de Carnetización" })).toBeVisible();
-    await expect(page.getByText("Resumen de carnets generados y uso del sistema")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Estadísticas de Carnetización" }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Resumen de carnets generados y métricas de uso del sistema"),
+    ).toBeVisible();
 
     // Tarjetas métricas
     await expect(page.getByText("Total Carnets")).toBeVisible();
@@ -128,7 +138,5 @@ test.describe("Carnetización UI - Paridad 100% con referencia", () => {
 
     // Tabla
     await expect(page.getByText("Últimos Carnets Generados")).toBeVisible();
-
-    await page.screenshot({ path: `${ARTIFACT_DIR}/5_carnetizacion_estadisticas.png` });
   });
 });

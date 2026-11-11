@@ -49,6 +49,13 @@ Resultado: **103 contratos, 0 rotos**.
 - `lint-imports`: **103 contratos, 0 rotos**.
 - `makemigrations --check`: sin cambios.
 
+## Actualización posterior (AUD3 PASO 1)
+
+El puerto `RepoConfiguracionPuntoCuenta` devolvía el modelo ORM. En la revisión
+app por app se añadió la entidad `ConfiguracionPuntoCuenta`
+(`apps/puntocuenta/domain/entities/`) y el adaptador la construye; `application`
+ya no lee atributos del modelo. Ver `AUD3-PASO1.md` (01-02).
+
 ## Pendiente anotado (decisión)
 
 - **A2-05**: los casos de uso de identidad importan `rest_framework_simplejwt`.

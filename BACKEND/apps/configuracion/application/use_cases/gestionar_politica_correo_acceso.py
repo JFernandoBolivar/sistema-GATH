@@ -39,7 +39,7 @@ def actualizar_politica_correo_acceso(
 
 
 def obtener_vista_previa_masiva(
-    repo: RepoPoliticaCorreoAccesoORM,
+    repo: RepoPoliticaCorreoAcceso,
     grupo: str,
     incluir_excepciones: bool = False,
 ) -> ResumenVistaPrevia:
@@ -51,7 +51,7 @@ def obtener_vista_previa_masiva(
 
 
 def aplicar_politica_masiva(
-    repo: RepoPoliticaCorreoAccesoORM,
+    repo: RepoPoliticaCorreoAcceso,
     grupo: str,
     motivo: str,
     incluir_excepciones: bool = False,

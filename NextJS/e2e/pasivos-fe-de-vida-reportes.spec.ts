@@ -36,17 +36,26 @@ test("Familiares de pasivos se consultan dentro del módulo de pasivos", async (
 });
 
 test("Reportes de pasivos descarga PDF como en activos", async ({ page }) => {
+  // El reporte de pasivos se genera en Celery y con la base local tarda ~90 s.
+  test.setTimeout(300_000);
   await iniciarSesionComo(page, BIEN_EMAIL, BIEN_PASSWORD);
   await page.goto("/pasivos/reportes");
 
-  // La pantalla de reportes de pasivos ya no usa pestañas: es el reporte con
-  // su propio título y los botones de descarga.
+  // La pantalla de reportes de pasivos ya no usa pestañas ni botón Excel: es el
+  // mismo reporte de activos con su título. El PDF se consulta y luego se
+  // descarga desde el enlace que aparece con el resultado.
   await expect(page.getByRole("heading", { name: /reporte de pasivos/i })).toBeVisible();
-  await expect(page.getByRole("button", { name: /^excel$/i })).toBeVisible();
+  const consultar = page.getByRole("button", { name: /consultar reporte general/i });
+  await expect(consultar).toBeVisible();
+  await expect(consultar).toBeEnabled();
+
+  await consultar.click();
+  const descargar = page.getByRole("link", { name: /descargar reporte/i });
+  await expect(descargar).toBeVisible({ timeout: 240_000 });
 
   const [descarga] = await Promise.all([
     page.waitForEvent("download"),
-    page.getByRole("button", { name: /^pdf$/i }).click(),
+    descargar.click(),
   ]);
   expect(descarga.suggestedFilename()).toMatch(/\.pdf$/);
 });

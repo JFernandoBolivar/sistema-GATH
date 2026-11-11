@@ -1,10 +1,29 @@
-"""Adaptadores ORM de la secuencia y la configuración de Punto de Cuenta."""
+"""Adaptadores ORM de la secuencia y la configuración de Punto de Cuenta.
+
+Devuelven entidades de dominio (`ConfiguracionPuntoCuenta`), nunca el modelo: la
+capa de aplicación no debe conocer el ORM.
+"""
 from django.db import transaction
 
+from apps.puntocuenta.domain.entities.configuracion_punto_cuenta import ConfiguracionPuntoCuenta
 from apps.puntocuenta.infrastructure.models.configuracion_punto_cuenta_model import (
     ConfiguracionPuntoCuentaModel,
     SecuenciaPuntoCuentaModel,
 )
+
+
+def _a_entidad(fila: ConfiguracionPuntoCuentaModel) -> ConfiguracionPuntoCuenta:
+    return ConfiguracionPuntoCuenta(
+        procesos_habilitados=dict(fila.procesos_habilitados or {}),
+        titulo=fila.titulo,
+        encabezado=fila.encabezado,
+        cuerpo=fila.cuerpo,
+        firmas=list(fila.firmas or []),
+        mostrar_nivel=bool(fila.mostrar_nivel),
+        plantillas_procesos=dict(fila.plantillas_procesos or {}),
+        version=fila.version,
+        actualizado_por_id=fila.actualizado_por_id,
+    )
 
 
 class RepoSecuenciaPuntoCuentaORM:
@@ -19,12 +38,14 @@ class RepoSecuenciaPuntoCuentaORM:
 
 
 class RepoConfiguracionPuntoCuentaORM:
-    def actual(self):
-        return ConfiguracionPuntoCuentaModel.objects.first()
+    def actual(self) -> ConfiguracionPuntoCuenta | None:
+        fila = ConfiguracionPuntoCuentaModel.objects.first()
+        return None if fila is None else _a_entidad(fila)
 
-    def crear_version(self, campos: dict):
+    def crear_version(self, campos: dict) -> ConfiguracionPuntoCuenta:
         with transaction.atomic():
-            return ConfiguracionPuntoCuentaModel.objects.create(**campos)
+            fila = ConfiguracionPuntoCuentaModel.objects.create(**campos)
+            return _a_entidad(fila)
 
     def guardar_generar(self, generar: bool, usuario_id: int | None) -> None:
         # Import entre módulos en infrastructure (patrón B16 del proyecto).
