@@ -25,27 +25,29 @@ def _empleado(cedula: str) -> EmployeeModel:
     )
 
 
-def test_con_clave_inicial_usa_la_fila_y_solo_comprueba_las_que_no_la_tienen():
-    ahora = timezone.now()
-    # Con fila: entra sin comparar el hash (la fila se borra al cambiar la clave).
-    con_fila = CuentaModel.objects.create_user(cedula=_empleado('10000001'), password='OtraClave*1')
+def _fila(cuenta, ahora):
     PasswordInicialModel.objects.create(
-        cuenta_id=con_fila.pk, emitida_en=ahora, vence_en=ahora + timedelta(days=7),
+        cuenta_id=cuenta.pk, emitida_en=ahora, vence_en=ahora + timedelta(days=7),
     )
-    # Sin fila y clave = cédula: entra por `check_password`.
-    inicial = CuentaModel.objects.create_user(cedula=_empleado('10000002'), password='10000002')
-    # Sin fila y clave cambiada: no entra.
-    cambiada = CuentaModel.objects.create_user(cedula=_empleado('10000003'), password='Clave*Segura1')
-    # Sin fila y hash inutilizable: no entra.
-    inutil = CuentaModel.objects.create_user(cedula=_empleado('10000004'))
-    inutil.set_unusable_password()
-    inutil.save(update_fields=['password'])
+
+
+def test_con_clave_inicial_usa_solo_la_fila_sin_comparar_hashes():
+    ahora = timezone.now()
+    # Con fila: entra (la fila se borra al cambiar la clave).
+    con_fila = CuentaModel.objects.create_user(cedula=_empleado('10000001'), password='10000001')
+    _fila(con_fila, ahora)
+    # Sin fila: no entra aunque la clave sea la cédula (no vence, puede ingresar).
+    sin_fila = CuentaModel.objects.create_user(cedula=_empleado('10000002'), password='10000002')
+    # Con fila pero desactivada: no entra.
+    inactiva = CuentaModel.objects.create_user(cedula=_empleado('10000003'), password='10000003')
+    _fila(inactiva, ahora)
+    inactiva.is_active = False
+    inactiva.save(update_fields=['is_active'])
 
     ids = {c.cuenta_id for c in RepoCuentasClaveInicialORM().con_clave_inicial()}
     assert con_fila.pk in ids
-    assert inicial.pk in ids
-    assert cambiada.pk not in ids
-    assert inutil.pk not in ids
+    assert sin_fila.pk not in ids
+    assert inactiva.pk not in ids
 
 
 def test_la_vista_previa_cachea_la_lista_de_ids():
@@ -59,6 +61,8 @@ def test_la_vista_previa_cachea_la_lista_de_ids():
 
     primera = CuentaModel.objects.create_user(cedula=_empleado('10000011'), password='10000011')
     segunda = CuentaModel.objects.create_user(cedula=_empleado('10000012'), password='10000012')
+    _fila(primera, timezone.now())
+    _fila(segunda, timezone.now())
     actor = {'cuenta_id': 77, 'rol_id': None, 'cedula': '30799436'}
 
     resultado = restablecimiento_bloque_preview_tarea.apply(

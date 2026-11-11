@@ -80,7 +80,8 @@ export function TarjetaRestablecimientoBloque() {
   const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activo = useRef(true);
   const consultarRef = useRef<
-    ((id: string, n: number, m: "calculo" | "ejecucion", s?: SolicitudBloque) => Promise<void>) | null
+    | ((id: string, n: number, m: "calculo" | "ejecucion", s?: SolicitudBloque) => Promise<void>)
+    | null
   >(null);
 
   useEffect(() => {
@@ -114,7 +115,12 @@ export function TarjetaRestablecimientoBloque() {
   };
 
   const consultar = useCallback(
-    async (taskId: string, intento: number, modo: "calculo" | "ejecucion", solicitud?: SolicitudBloque) => {
+    async (
+      taskId: string,
+      intento: number,
+      modo: "calculo" | "ejecucion",
+      solicitud?: SolicitudBloque,
+    ) => {
       if (!activo.current) return;
       const terminarConError = (mensaje: string) => {
         if (modo === "calculo") setCalculando(false);
@@ -129,30 +135,35 @@ export function TarjetaRestablecimientoBloque() {
             setSinPermiso(true);
             return;
           }
-          return terminarConError(respuesta.error);
-        }
-        const est = respuesta as EstadoBloque;
-        if (modo === "ejecucion") setEstado(est);
-        if (est.estado !== "EN_PROCESO") {
-          if (modo === "ejecucion") {
-            setEjecutando(false);
+          // Un corte de red o un 5xx mientras se espera no termina el cálculo: se
+          // reintenta en el próximo ciclo. Solo los rechazos (4xx) son definitivos.
+          if (respuesta.status !== undefined && respuesta.status >= 400 && respuesta.status < 500) {
+            return terminarConError(respuesta.error);
+          }
+        } else {
+          const est = respuesta as EstadoBloque;
+          if (modo === "ejecucion") setEstado(est);
+          if (est.estado !== "EN_PROCESO") {
+            if (modo === "ejecucion") {
+              setEjecutando(false);
+              return;
+            }
+            setCalculando(false);
+            if (est.estado === "LISTO" && est.resultado && solicitud) {
+              const r = est.resultado;
+              setVistaPrevia({
+                revisadas: r.revisadas,
+                activos: r.activos,
+                pasivos: r.pasivos,
+                total: r.total,
+                omitidasAdministrativas: r.omitidas,
+              });
+              setSolicitudCalculada(solicitud);
+            } else {
+              setError(est.mensaje ?? "No se pudo calcular la vista previa. Intente de nuevo.");
+            }
             return;
           }
-          setCalculando(false);
-          if (est.estado === "LISTO" && est.resultado && solicitud) {
-            const r = est.resultado;
-            setVistaPrevia({
-              revisadas: r.revisadas,
-              activos: r.activos,
-              pasivos: r.pasivos,
-              total: r.total,
-              omitidasAdministrativas: r.omitidas,
-            });
-            setSolicitudCalculada(solicitud);
-          } else {
-            setError(est.mensaje ?? "No se pudo calcular la vista previa. Intente de nuevo.");
-          }
-          return;
         }
       } catch (e) {
         unstable_rethrow(e);
@@ -190,10 +201,7 @@ export function TarjetaRestablecimientoBloque() {
         return manejarError(respuesta);
       }
       const { taskId } = respuesta as EstadoBloque;
-      temporizador.current = setTimeout(
-        () => void consultar(taskId, 1, "calculo", valida.data),
-        0,
-      );
+      temporizador.current = setTimeout(() => void consultar(taskId, 1, "calculo", valida.data), 0);
     } catch (e) {
       unstable_rethrow(e);
       setCalculando(false);
@@ -333,19 +341,30 @@ export function TarjetaRestablecimientoBloque() {
         </div>
 
         {error && (
-          <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+          <p
+            role="alert"
+            className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+          >
             {error}
           </p>
         )}
 
         <div>
-          <Button type="button" variant="outline" onClick={calcular} disabled={calculando || enCurso}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={calcular}
+            disabled={calculando || enCurso}
+          >
             {calculando ? "Calculando… puede tardar unos minutos" : "Calcular"}
           </Button>
         </div>
 
         {vistaPrevia && (
-          <div className="flex flex-col gap-3 rounded-md border p-3" data-testid="vista-previa-bloque">
+          <div
+            className="flex flex-col gap-3 rounded-md border p-3"
+            data-testid="vista-previa-bloque"
+          >
             <p className="text-sm">
               Se restablecerá la clave de <strong>{vistaPrevia.total}</strong> cuentas:{" "}
               {vistaPrevia.activos} activos y {vistaPrevia.pasivos} pasivos.{" "}
@@ -368,7 +387,9 @@ export function TarjetaRestablecimientoBloque() {
 
         {estado && (
           <div role="status" className="rounded-md border p-3 text-sm" data-testid="estado-bloque">
-            {estado.estado === "EN_PROCESO" && <p>Restablecimiento en curso… puede tardar unos minutos.</p>}
+            {estado.estado === "EN_PROCESO" && (
+              <p>Restablecimiento en curso… puede tardar unos minutos.</p>
+            )}
             {estado.estado === "ERROR" && (
               <p className="text-destructive">{estado.mensaje ?? "El restablecimiento falló."}</p>
             )}
@@ -385,7 +406,10 @@ export function TarjetaRestablecimientoBloque() {
         )}
       </CardContent>
 
-      <Dialog open={dialogoAbierto} onOpenChange={(abierto) => !ejecutando && setDialogoAbierto(abierto)}>
+      <Dialog
+        open={dialogoAbierto}
+        onOpenChange={(abierto) => !ejecutando && setDialogoAbierto(abierto)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirmar restablecimiento en bloque</DialogTitle>
@@ -395,7 +419,10 @@ export function TarjetaRestablecimientoBloque() {
             </DialogDescription>
           </DialogHeader>
           {solicitudCalculada?.alcance === "TODOS" && (
-            <p role="alert" className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+            <p
+              role="alert"
+              className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+            >
               <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               {ADVERTENCIA_TODOS}.
             </p>
@@ -411,7 +438,12 @@ export function TarjetaRestablecimientoBloque() {
             />
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" disabled={ejecutando} onClick={() => setDialogoAbierto(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={ejecutando}
+              onClick={() => setDialogoAbierto(false)}
+            >
               Cancelar
             </Button>
             <Button type="button" disabled={!coincide || ejecutando} onClick={ejecutar}>
