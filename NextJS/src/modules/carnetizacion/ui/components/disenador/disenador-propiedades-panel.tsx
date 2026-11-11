@@ -7,12 +7,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { CampoCredencial } from "../../../domain/entities/carnet";
-import type { ElementoKonva, PosicionAlineacion } from "../../../domain/entities/disenador";
+import {
+  ladoQrMasGrandeMm,
+  QR_MINIMO_MM_DEFECTO,
+  qrInsuficiente,
+  type ElementoKonva,
+  type PosicionAlineacion,
+} from "../../../domain/entities/disenador";
 import { DisenadorPropiedadesGeometria } from "./disenador-propiedades-geometria";
 import { DisenadorPropiedadesEstilo } from "./disenador-propiedades-estilo";
 
 interface DisenadorPropiedadesPanelProps {
   elementoSeleccionado: ElementoKonva | null;
+  /** Todos los elementos de la plantilla (ambas caras), para el aviso del QR legible. */
+  elementos: readonly ElementoKonva[];
   campoSeleccionadoMeta: CampoCredencial | null;
   onActualizarElemento: (id: string, cambios: Partial<ElementoKonva>) => void;
   onDuplicarElemento: () => void;
@@ -22,6 +30,7 @@ interface DisenadorPropiedadesPanelProps {
 
 export function DisenadorPropiedadesPanel({
   elementoSeleccionado,
+  elementos,
   campoSeleccionadoMeta,
   onActualizarElemento,
   onDuplicarElemento,
@@ -76,6 +85,18 @@ export function DisenadorPropiedadesPanel({
             <p className="text-[11px] leading-tight">
               <span className="font-semibold">Dato sensible:</span> {campoSeleccionadoMeta.etiqueta}{" "}
               quedará impreso y legible a simple vista.
+            </p>
+          </div>
+        )}
+
+        {/* Aviso: ningún QR alcanza el tamaño legible con teléfono (SILOG) */}
+        {el.t === "qr" && qrInsuficiente(elementos) && (
+          <div className="p-2 rounded bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-300 flex items-start gap-1.5">
+            <AlertTriangle className="size-4 shrink-0 text-amber-600 mt-0.5" />
+            <p className="text-[11px] leading-tight">
+              Ningún QR mide {QR_MINIMO_MM_DEFECTO} × {QR_MINIMO_MM_DEFECTO} mm o más (el más grande mide{" "}
+              {Math.round(ladoQrMasGrandeMm(elementos) * 10) / 10} mm). Sin eso no se podrá publicar la
+              plantilla: SILOG no podría leerlo con un teléfono.
             </p>
           </div>
         )}

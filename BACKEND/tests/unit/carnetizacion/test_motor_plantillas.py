@@ -26,6 +26,16 @@ from apps.carnetizacion.domain.services.plantilla_defecto import (
 from core.domain.exceptions import NotFoundError, ValidationError
 
 
+class _LectorQrMinimo:
+    """Mínimo de QR legible bajo, para publicar las plantillas por defecto (QR de 16 mm)."""
+
+    def obtener_entero(self, clave: str) -> int:
+        return 10
+
+
+_LECTOR_QR_MINIMO = _LectorQrMinimo()
+
+
 class RepoMotorPlantillasMemoria:
     """Implementación en memoria del puerto RepoCarnetizacion para pruebas puras."""
 
@@ -388,13 +398,13 @@ def test_publicar_plantilla_y_versionado():
     )
 
     # 2. Publicar primera versión
-    v1 = publicar_plantilla(repo=repo, plantilla_id=borrador.id, activar=True)
+    v1 = publicar_plantilla(repo=repo, plantilla_id=borrador.id, activar=True, lector=_LECTOR_QR_MINIMO)
     assert v1.estado == "publicada"
     assert v1.activa is True
     assert v1.version == 1
 
     # 3. Publicar segunda versión sobre la misma raíz
-    v2 = publicar_plantilla(repo=repo, plantilla_id=v1.id, activar=True)
+    v2 = publicar_plantilla(repo=repo, plantilla_id=v1.id, activar=True, lector=_LECTOR_QR_MINIMO)
     assert v2.version == 2
     assert v2.activa is True
     assert v2.plantilla_raiz_id == v1.id
@@ -414,8 +424,8 @@ def test_activar_y_reactivar_version_previa():
     def_trabajador = plantilla_defecto_trabajador()
 
     borrador = crear_plantilla_borrador(repo=repo, nombre="T", codigo_tipo="trabajador", definicion=def_trabajador)
-    v1 = publicar_plantilla(repo=repo, plantilla_id=borrador.id, activar=True)
-    v2 = publicar_plantilla(repo=repo, plantilla_id=v1.id, activar=True)
+    v1 = publicar_plantilla(repo=repo, plantilla_id=borrador.id, activar=True, lector=_LECTOR_QR_MINIMO)
+    v2 = publicar_plantilla(repo=repo, plantilla_id=v1.id, activar=True, lector=_LECTOR_QR_MINIMO)
 
     assert v2.activa is True
     assert obtener_plantilla_detalle(repo=repo, plantilla_id=v1.id).activa is False
@@ -434,7 +444,7 @@ def test_carnet_emitido_conserva_version_de_plantilla():
     def_trabajador = plantilla_defecto_trabajador()
 
     borrador = crear_plantilla_borrador(repo=repo, nombre="Oficial", codigo_tipo="trabajador", definicion=def_trabajador)
-    v1 = publicar_plantilla(repo=repo, plantilla_id=borrador.id, activar=True)
+    v1 = publicar_plantilla(repo=repo, plantilla_id=borrador.id, activar=True, lector=_LECTOR_QR_MINIMO)
 
     # Emitir carnet bajo v1
     carnet_v1 = repo.emitir_carnet("11223344", motivo_id=1, plantilla_id=v1.id)
@@ -443,7 +453,7 @@ def test_carnet_emitido_conserva_version_de_plantilla():
     assert carnet_v1.plantilla_snapshot is not None
 
     # Publicar v2 y activarla
-    v2 = publicar_plantilla(repo=repo, plantilla_id=v1.id, activar=True)
+    v2 = publicar_plantilla(repo=repo, plantilla_id=v1.id, activar=True, lector=_LECTOR_QR_MINIMO)
 
     # Emitir carnet bajo v2
     carnet_v2 = repo.emitir_carnet("99887766", motivo_id=1, plantilla_id=v2.id)

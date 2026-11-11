@@ -237,6 +237,7 @@ export function DisenadorView({ plantillaId }: Props) {
           ) : (
             <DisenadorPropiedadesPanel
               elementoSeleccionado={editor.elementoSeleccionado}
+              elementos={editor.elementos}
               campoSeleccionadoMeta={campoSeleccionadoMeta}
               onActualizarElemento={editor.handleActualizarElemento}
               onDuplicarElemento={editor.duplicarElemento}

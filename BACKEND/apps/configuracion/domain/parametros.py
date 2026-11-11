@@ -26,6 +26,7 @@ from core.domain.configuracion import (
     CLAVE_CARGA_MASIVA_APROBACION,
     CLAVE_CARNETIZACION_MI_CARNET_ALCANCE,
     CLAVE_CARNETIZACION_MI_CARNET_USUARIOS,
+    CLAVE_CARNETIZACION_QR_TAMANO_MINIMO_MM,
     CLAVE_CARNETIZACION_VENCIMIENTO_MESES,
     CLAVE_FE_DE_VIDA_ADMIN_REGISTRADORA_PUEDE_APROBAR,
     CLAVE_FE_DE_VIDA_RECORDATORIOS,
@@ -442,6 +443,19 @@ DEFINICIONES = (
         defecto='0',
         minimo=0,
         maximo=120,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_CARNETIZACION_QR_TAMANO_MINIMO_MM,
+        etiqueta='Tamaño mínimo del QR legible (mm)',
+        descripcion=(
+            'Al publicar una plantilla de carnet, al menos un código QR debe medir como mínimo '
+            'este tamaño (ancho y alto, en mm) para que pueda leerse con un teléfono (SILOG).'
+        ),
+        grupo=GRUPO_CARNETIZACION,
+        tipo=TIPO_ENTERO,
+        defecto='20',
+        minimo=10,
+        maximo=60,
     ),
 )
 

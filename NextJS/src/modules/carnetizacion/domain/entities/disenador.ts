@@ -247,3 +247,25 @@ export function moverCapaKonva(
   return elementos;
 }
 
+
+/** Tamaño mínimo (mm) de QR legible con teléfono (SILOG); el backend manda con su parámetro. */
+export const QR_MINIMO_MM_DEFECTO = 20;
+
+/**
+ * Lado útil (el menor de ancho y alto, en mm) del QR más grande de la plantilla,
+ * contando ambas caras; 0 si no hay ningún QR.
+ */
+export function ladoQrMasGrandeMm(elementos: readonly ElementoKonva[]): number {
+  return elementos.reduce(
+    (mayor, e) => (e.t === "qr" ? Math.max(mayor, Math.min(e.w, e.h)) : mayor),
+    0,
+  );
+}
+
+/** True si ningún QR de la plantilla alcanza el mínimo legible. */
+export function qrInsuficiente(
+  elementos: readonly ElementoKonva[],
+  minimoMm: number = QR_MINIMO_MM_DEFECTO,
+): boolean {
+  return ladoQrMasGrandeMm(elementos) < minimoMm;
+}
