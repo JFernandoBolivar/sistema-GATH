@@ -9,6 +9,7 @@ from apps.carnetizacion.domain.entities.elemento_biblioteca import ElementoBibli
 from apps.carnetizacion.domain.entities.plantilla import PlantillaCarnet
 from apps.carnetizacion.domain.entities.privacidad import FichaQr
 from apps.carnetizacion.domain.entities.tipo_credencial import TipoCredencial
+from apps.carnetizacion.domain.entities.verificacion_integracion import VerificacionCarnet
 
 
 class RepoCarnetizacion(Protocol):
@@ -212,6 +213,10 @@ class RepoCarnetizacion(Protocol):
         Aplica los filtros de privacidad por dato y el nivel de acceso (público, con sesión, administrador).
         Registra la bitácora de escaneos y aperturas médicas.
         """
+        ...
+
+    def verificar_carnet_integracion(self, security_hash: str) -> VerificacionCarnet:
+        """Resuelve un hash (carnet de personal o credencial externa) para un sistema integrado, sin privacidad por dato ni salud."""
         ...
 
     def obtener_preferencia_privacidad(self, employee_id: int) -> dict[str, str]:

@@ -37,6 +37,7 @@ from apps.carnetizacion.domain.entities.privacidad import (
     PRIVACIDAD_POR_DEFECTO,
     validar_preferencias_privacidad,
 )
+from apps.carnetizacion.domain.entities.verificacion_integracion import VerificacionCarnet
 from apps.carnetizacion.domain.services.plantilla_defecto import (
     plantilla_defecto_pasivo,
     plantilla_defecto_trabajador,
@@ -1253,8 +1254,76 @@ class RepoCarnetizacionORM:
             fecha_vencimiento=fecha_venc_str,
         )
 
+    def verificar_carnet_integracion(self, security_hash: str) -> VerificacionCarnet:
+        """Verificación para sistemas integrados: cédula siempre (canal autenticado), nunca salud ni foto."""
+        from apps.carnetizacion.infrastructure.models.credencial_externa_model import (
+            CredencialExternaModel,
+        )
+
+        carnet = (
+            CarnetEmitidoModel.objects.select_related('employee')
+            .filter(security_hash=security_hash)
+            .first()
+        )
+        if carnet is None:
+            externa = (
+                CredencialExternaModel.objects.select_related('tipo_credencial')
+                .filter(security_hash=security_hash)
+                .first()
+            )
+            if externa is None:
+                return VerificacionCarnet(
+                    valido=False, estado='NO_REGISTRADO', mensaje='Carnet no encontrado en el sistema.'
+                )
+            vence = externa.vigencia_hasta
+            if externa.estado == CredencialExternaModel.Estado.ACTIVA and vence < timezone.now():
+                return VerificacionCarnet(valido=False, estado='VENCIDO', mensaje='Credencial vencida.')
+            if externa.estado != CredencialExternaModel.Estado.ACTIVA:
+                estado = 'VENCIDO' if externa.estado == CredencialExternaModel.Estado.VENCIDA else 'ANULADO'
+                return VerificacionCarnet(valido=False, estado=estado, mensaje='Credencial no vigente.')
+            return VerificacionCarnet(
+                valido=True,
+                estado='VIGENTE',
+                cedula=externa.documento,
+                nombre=externa.nombre,
+                tipo_credencial=str(externa.tipo_credencial_id),
+                fecha_emision=externa.vigencia_desde.date().isoformat(),
+                fecha_vencimiento=vence.date().isoformat(),
+            )
+
+        if not carnet.activo:
+            return VerificacionCarnet(valido=False, estado='ANULADO', mensaje='Carnet anulado.')
+
+        param_venc = ParametroSistemaModel.objects.filter(clave='carnetizacion.vencimiento_meses').first()
+        venc_meses = int(param_venc.valor) if (param_venc and param_venc.valor.isdigit()) else 0
+        fecha_venc = None
+        if venc_meses > 0 and carnet.fecha_emision:
+            fecha_venc = carnet.fecha_emision + timedelta(days=venc_meses * 30)
+            if timezone.now() > fecha_venc:
+                return VerificacionCarnet(valido=False, estado='VENCIDO', mensaje='Carnet vencido.')
+
+        empleado = carnet.employee
+        asig = (
+            AsigTrabajoModel.objects.select_related('estatusid')
+            .filter(employee=empleado)
+            .order_by('-pk')
+            .first()
+        )
+        estatus = ((asig.estatusid.estatus or '').upper() if asig and asig.estatusid else '') or None
+        es_pasivo = estatus != ESTATUS_ACTIVO and EmployeeEgresadoModel.objects.filter(employee=empleado).exists()
+        return VerificacionCarnet(
+            valido=True,
+            estado='VIGENTE',
+            cedula=empleado.cedulaidentidad,
+            nombre=f"{empleado.nombres} {empleado.apellidos}".strip(),
+            tipo_credencial='pasivo' if es_pasivo else 'trabajador',
+            estado_laboral='PASIVO' if es_pasivo else estatus,
+            fecha_emision=carnet.fecha_emision.date().isoformat() if carnet.fecha_emision else None,
+            fecha_vencimiento=fecha_venc.date().isoformat() if fecha_venc else None,
+        )
+
     def obtener_preferencia_privacidad(self, employee_id: int) -> dict[str, str]:
-        obj = PreferenciaPrivacidadCarnetModel.objects.filter(employee_id=employee_id).first()
+        obj =PreferenciaPrivacidadCarnetModel.objects.filter(employee_id=employee_id).first()
         if obj and obj.preferencias:
             return validar_preferencias_privacidad(obj.preferencias)
         return dict(PRIVACIDAD_POR_DEFECTO)

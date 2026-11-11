@@ -682,3 +682,73 @@ solicitud.
 - API key inválida → 401/403; clave válida → cédula correcta; rate limit.
 - Escaneo real con el QR del reverso, carnet plastificado y teléfono de gama
   media.
+
+
+---
+
+## 9. Contrato implementado (fase 4, endpoint de verificación)
+
+Entregable para el equipo de SILOG. Implementado el 2026-11-10; no incluye vigencia
+parametrizable, plantillas ni JWS (siguen pendientes).
+
+**URL:** `GET /api/v1/integraciones/carnet/verificar/?hash=<security_hash>`
+(`security_hash` = los 64 caracteres hexadecimales que van al final de la URL del QR).
+
+**Autenticación:** cabecera `X-API-Key: <clave-de-silog>`. La clave la entrega GATH por un
+canal seguro; se rota cambiando la variable de entorno del servidor GATH:
+
+```
+INTEGRACION_CARNET_API_KEYS="silog:<clave-de-al-menos-16-caracteres>"
+```
+
+Varios sistemas se separan por coma (`silog:...,otro:...`). Sin variable (o vacía) el
+endpoint responde 503. La clave se compara en tiempo constante y no se registra en logs.
+
+**Límite de uso:** 600 peticiones por minuto por sistema (`INTEGRACION_CARNET_THROTTLE_RATE`).
+Al excederlo, 429.
+
+**Códigos HTTP:** `200` siempre que la clave sea válida (incluso si el carnet no vale);
+`401` clave ausente o errónea; `429` límite excedido; `503` integración sin claves
+configuradas. La respuesta lleva `Cache-Control: no-store`. El JSON es plano (sin sobre
+`status/message/data`).
+
+Carnet vigente (trabajador, pasivo o credencial externa):
+
+```json
+{
+  "valido": true,
+  "estado": "VIGENTE",
+  "cedula": "V30799436",
+  "nombre": "JOSE FERNANDO BOLIVAR HURTADO",
+  "tipo_credencial": "trabajador",
+  "estado_laboral": "ACTIVO",
+  "fecha_emision": "2026-11-10",
+  "fecha_vencimiento": null,
+  "version": 1
+}
+```
+
+Carnet no válido (`estado`: `ANULADO`, `VENCIDO` o `NO_REGISTRADO`; este último también
+para un hash mal formado):
+
+```json
+{
+  "valido": false,
+  "estado": "ANULADO",
+  "cedula": null,
+  "mensaje": "Carnet anulado.",
+  "version": 1
+}
+```
+
+Notas:
+
+- `tipo_credencial` es `trabajador`, `pasivo` o el código del tipo de credencial externa
+  (p. ej. `visitante`); en externas, `cedula` es el documento registrado y
+  `estado_laboral` es `null`.
+- `fecha_vencimiento` es `null` para trabajadores mientras no se defina la vigencia; en
+  credenciales externas trae la fecha de fin de vigencia.
+- La respuesta nunca incluye datos de salud, foto, contactos ni datos de vivienda.
+- Cada consulta queda auditada en GATH (sistema, resultado, 12 primeros caracteres del
+  hash e IP de origen).
+- Ejemplo: `curl -H "X-API-Key: $CLAVE" "https://<host-gath>/api/v1/integraciones/carnet/verificar/?hash=<64-hex>"`

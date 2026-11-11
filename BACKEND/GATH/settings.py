@@ -241,7 +241,9 @@ if not DEBUG and FRONTEND_URL == 'http://localhost:3001':
 
 # Configuración del sistema de carnetización
 # Sin default propio: por omisión apunta a la ruta pública /validar del frontend.
-CARNET_VALIDATOR_URL = config('CARNET_VALIDATOR_URL', default=f"{FRONTEND_URL.rstrip('/')}/validar")
+# Integración SILOG: claves de API por sistema, "sistema:clave" separadas por coma. Vacío = endpoint cerrado (503).
+INTEGRACION_CARNET_API_KEYS = config('INTEGRACION_CARNET_API_KEYS', default='')
+CARNET_VALIDATOR_URL =config('CARNET_VALIDATOR_URL', default=f"{FRONTEND_URL.rstrip('/')}/validar")
 # Vacío = pdf2image usa el poppler del PATH (Linux/Docker). En Windows, definir POPPLER_PATH.
 POPPLER_PATH = os.getenv('POPPLER_PATH') or None
 
@@ -433,6 +435,8 @@ REST_FRAMEWORK = {
         'password_reset': config('PASSWORD_RESET_THROTTLE_RATE', default='10/minute'),
         # Fe de vida: verificación pública de constancias (QR), por IP.
         'fe_de_vida_verificacion_publica': config('FE_DE_VIDA_VERIFICACION_PUBLICA_THROTTLE_RATE', default='30/minute'),
+        # Integración SILOG: verificación del QR del carnet, por sistema (clave de API).
+        'integracion_carnet': config('INTEGRACION_CARNET_THROTTLE_RATE', default='600/minute'),
         'upload': config('UPLOAD_THROTTLE_RATE', default='20/minute'),
         'export': config('EXPORT_THROTTLE_RATE', default='60/minute'),
         'refresh': config('REFRESH_THROTTLE_RATE', default='60/minute'),
