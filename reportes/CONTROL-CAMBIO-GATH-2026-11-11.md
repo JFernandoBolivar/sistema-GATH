@@ -17,7 +17,7 @@ Detalle de los activos de información y componentes que serán modificados en e
 | Tabla a Intervenir | `fe_de_vida_solicitud` (marca «sin correo alternativo» y su justificación).<br>`USER_cuenta` (contraseña de las cuentas restablecidas).<br>`identidad_cuenta_password_inicial` (vencimiento nuevo de la contraseña inicial).<br>`auditoria_log` (registro de cada restablecimiento en bloque). |
 | Campo(s) | `fe_de_vida_solicitud.sin_correo_alternativo` y `fe_de_vida_solicitud.justificacion_sin_correo` (ya existen; ahora también se llenan desde la fe de vida en línea).<br>`USER_cuenta.password` (vuelve a ser la cédula, solo en las cuentas que se restablezcan).<br>`identidad_cuenta_password_inicial.vence_en` (nuevo plazo, según el parámetro `plazos.password_inicial_dias`). |
 | Tipo de Acción | Actualización de código mediante GitLab (merge request a la rama de producción). **Sin cambios de esquema ni migraciones.** |
-| Cantidad de archivos | [completar] archivos únicos |
+| Cantidad de archivos | 40 archivos únicos (13 de la fe de vida y 27 del restablecimiento en bloque) |
 
 ## 3. Descripción de la Modificación
 **1. Fe de vida en línea: «No tiene correo alternativo» para el pasivo.**
