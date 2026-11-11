@@ -191,7 +191,9 @@ export default function FormBasicUpdateDialog({
           telefonoMovil: data.telefonoMovil || null,
           telefonoHabitacion: data.telefonoHabitacion || null,
           // El código del carnet solo viaja si cambió (el del legado puede no cumplir el formato nuevo).
-          ...(data.carnetPatria !== carnetOriginal ? { carnetPatria: data.carnetPatria || null } : {}),
+          ...(data.carnetPatria !== carnetOriginal
+            ? { carnetPatria: data.carnetPatria || null }
+            : {}),
           carnetPatriaSerial: data.carnetPatriaSerial || null,
           estadoCivilId: data.estadoCivilId ? Number(data.estadoCivilId) : null,
           ...(data.nacionalidadId ? { nacionalidadId: Number(data.nacionalidadId) } : {}),
@@ -251,42 +253,17 @@ export default function FormBasicUpdateDialog({
               <span className="font-semibold text-foreground">
                 {empleado.nombres} {empleado.apellidos}
               </span>
-              <span className="text-muted-foreground/60" aria-hidden="true">·</span>
+              {!puedeCorregirCedula && (
+                <span className="text-muted-foreground/60" aria-hidden="true">
+                  ·
+                </span>
+              )}
               {!puedeCorregirCedula && (
                 <span className="font-mono bg-muted text-foreground px-2 py-0.5 rounded text-xs">
                   Cédula {empleado.cedula}
                 </span>
               )}
             </p>
-            {puedeCorregirCedula && (
-              <div className="mt-2 flex max-w-xs flex-col gap-1.5">
-                <label htmlFor="cedula-editable" className="text-xs font-medium">
-                  Cédula
-                </label>
-                <Input
-                  id="cedula-editable"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  maxLength={9}
-                  value={cedulaEditada}
-                  aria-invalid={!!errorCedula || undefined}
-                  onChange={(e) => {
-                    setCedulaEditada(e.target.value);
-                    setErrorCedula(null);
-                  }}
-                />
-                {cedulaCambiada && !errorCedula && (
-                  <p className="text-xs text-muted-foreground">
-                    Al guardar se corregirá la cédula del trabajador (se pedirá confirmación).
-                  </p>
-                )}
-                {errorCedula && (
-                  <p role="alert" className="text-xs text-destructive">
-                    {errorCedula}
-                  </p>
-                )}
-              </div>
-            )}
           </CardHeader>
 
           <CardContent className="pt-4">
@@ -312,8 +289,38 @@ export default function FormBasicUpdateDialog({
                     <h3 className="text-sm font-semibold text-muted-foreground">
                       Datos personales
                     </h3>
+                    {puedeCorregirCedula && (
+                      <CampoDialogo
+                        id="cedula-editable"
+                        label="Cédula"
+                        error={errorCedula ?? undefined}
+                      >
+                        <Input
+                          id="cedula-editable"
+                          inputMode="numeric"
+                          autoComplete="off"
+                          maxLength={9}
+                          value={cedulaEditada}
+                          aria-invalid={!!errorCedula || undefined}
+                          onChange={(e) => {
+                            setCedulaEditada(e.target.value);
+                            setErrorCedula(null);
+                          }}
+                        />
+                        {cedulaCambiada && !errorCedula && (
+                          <p className="text-xs text-muted-foreground">
+                            Al guardar se corregirá la cédula del trabajador (se pedirá
+                            confirmación).
+                          </p>
+                        )}
+                      </CampoDialogo>
+                    )}
                     <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2">
-                      <CampoDialogo id="nombres" label="Nombres *" error={mensajeDe(errores.nombres)}>
+                      <CampoDialogo
+                        id="nombres"
+                        label="Nombres *"
+                        error={mensajeDe(errores.nombres)}
+                      >
                         <Input
                           id="nombres"
                           placeholder="Juan Bernardo"
@@ -322,7 +329,11 @@ export default function FormBasicUpdateDialog({
                           {...register("nombres")}
                         />
                       </CampoDialogo>
-                      <CampoDialogo id="apellidos" label="Apellidos *" error={mensajeDe(errores.apellidos)}>
+                      <CampoDialogo
+                        id="apellidos"
+                        label="Apellidos *"
+                        error={mensajeDe(errores.apellidos)}
+                      >
                         <Input
                           id="apellidos"
                           placeholder="Perez Gutierrez"
@@ -375,7 +386,9 @@ export default function FormBasicUpdateDialog({
                       <CampoDialogo id="sexoId" label="Sexo *" error={mensajeDe(errores.sexoId)}>
                         <Select
                           value={String(watch("sexoId") || "")}
-                          onValueChange={(v) => setValue("sexoId", Number(v), { shouldValidate: true })}
+                          onValueChange={(v) =>
+                            setValue("sexoId", Number(v), { shouldValidate: true })
+                          }
                         >
                           <SelectTrigger
                             id="sexoId"
@@ -428,7 +441,11 @@ export default function FormBasicUpdateDialog({
                   <section className="flex flex-col gap-4">
                     <h3 className="text-sm font-semibold text-muted-foreground">Contacto</h3>
                     <div className="grid grid-cols-1 gap-x-4 gap-y-5">
-                      <CampoDialogo id="correo" label="Correo institucional" error={mensajeDe(errores.correo)}>
+                      <CampoDialogo
+                        id="correo"
+                        label="Correo institucional"
+                        error={mensajeDe(errores.correo)}
+                      >
                         <Input
                           id="correo"
                           type="email"
@@ -517,7 +534,9 @@ export default function FormBasicUpdateDialog({
 
                 <div className="flex gap-3 justify-end pt-8">
                   <Button className="w-full" disabled={isPending || ejecutandoCedula}>
-                    {(isPending || ejecutandoCedula) &&<Loader2 className="size-4 animate-spin mr-1" />}
+                    {(isPending || ejecutandoCedula) && (
+                      <Loader2 className="size-4 animate-spin mr-1" />
+                    )}
                     Guardar
                   </Button>
                 </div>
