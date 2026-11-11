@@ -55,8 +55,10 @@ def _invalidar(instance) -> None:
         from apps.configuracion.infrastructure.models.parametro_model import ParametroSistemaModel
         if isinstance(instance, ParametroSistemaModel):
             if instance.clave.startswith('carnetizacion.mi_carnet'):
-                from django.core.cache import cache
-                cache.clear()
+                # L2-17: la política de «Mi carnet» se lee en cada petición
+                # (``repo_portal_trabajador_orm.puede_ver_carnet``), así que no hay
+                # nada cacheado que borrar. Antes se hacía ``cache.clear()``, que
+                # vaciaba también los contadores de throttling (login, QR...).
                 return
         invalidar_mi_expediente(_cedula_de(instance))
     except Exception:  # noqa: BLE001 - una caché no debe tumbar la escritura

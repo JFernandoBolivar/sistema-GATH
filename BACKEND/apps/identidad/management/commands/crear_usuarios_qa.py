@@ -19,6 +19,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
@@ -93,6 +94,11 @@ class Command(BaseCommand):
             help='Fuerza el modo simulación aunque se indique --aplicar.',
         )
         parser.add_argument(
+            '--forzar',
+            action='store_true',
+            help='Permite escribir fuera de un entorno de prueba (DEBUG=False).',
+        )
+        parser.add_argument(
             '--respaldo-dir',
             default='logs/qa_usuarios',
             help='Carpeta donde se guarda el respaldo JSON (por defecto logs/qa_usuarios).',
@@ -102,6 +108,14 @@ class Command(BaseCommand):
         if not opciones['aplicar'] or opciones['dry_run']:
             self._mostrar_plan()
             return
+
+        # A2-20: los datos QA son reales (cédulas y correos de personas). El
+        # comando solo puede escribir fuera de producción salvo petición explícita.
+        if not settings.DEBUG and not opciones['forzar']:
+            raise CommandError(
+                'crear_usuarios_qa escribe datos de prueba con cédulas y correos reales. '
+                'Solo se ejecuta con DEBUG=True o con --forzar en un entorno controlado.'
+            )
 
         respaldo = self._respaldar(Path(opciones['respaldo_dir']))
         self.stdout.write(f'Respaldo previo: {respaldo}')

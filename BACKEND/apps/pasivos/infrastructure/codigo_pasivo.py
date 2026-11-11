@@ -9,7 +9,13 @@ from core.domain.exceptions import ConflictError
 
 
 def generar_codigo_pasivo(tipo_nomina: TipoNominaModel) -> str:
-    prefijo = generar_prefijo_nomina(tipo_nomina.nomina)
+    try:
+        prefijo = generar_prefijo_nomina(tipo_nomina.nomina)
+    except ValueError as exc:
+        # L2-15: un nombre de nómina vacío producía un 500 al generar el prefijo.
+        raise ConflictError(
+            f'No se puede generar el código del pasivo: {exc}'
+        ) from exc
     ultimo = (
         AsigTrabajoModel.objects.filter(codigo__startswith=prefijo)
         .order_by('-codigo')

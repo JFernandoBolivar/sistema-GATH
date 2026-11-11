@@ -106,7 +106,10 @@ class PuntoCuentaDocumentoArchivoView(APIView):
                 SeaweedFSStorage().subir(clave, pdf_bytes, 'application/pdf')
                 dto = adjuntar_documento_punto_cuenta(RepoPuntoCuentaORM(), dto.id, clave)
             except Exception:
-                raise NotFoundError("El documento del punto de cuenta no está disponible.")
+                # A2-14: un fallo del generador o del almacén no es «no existe» (404);
+                # se registra y sube al handler como error de servidor.
+                logger.exception('No se pudo generar o guardar el PDF del punto de cuenta %s', dto.id)
+                raise
         return respuesta_archivo(SeaweedFSStorage(), dto.documento_pdf_clave, cache='private, no-store')
 
 

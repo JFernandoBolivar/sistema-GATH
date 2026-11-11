@@ -544,9 +544,19 @@ class RepoCarnetizacionORM:
         observaciones: str | None = None,
         plantilla_id: str | int | None = None,
     ) -> Carnet:
-        empleado = EmployeeModel.objects.filter(cedulaidentidad=empleado_cedula).first()
+        # L2-18: bloquear al empleado para que dos emisiones simultáneas no dejen
+        # dos carnets activos, y validar el motivo antes de tocar nada.
+        empleado = (
+            EmployeeModel.objects.select_for_update()
+            .filter(cedulaidentidad=empleado_cedula)
+            .first()
+        )
         if not empleado:
             raise NotFoundError(f"Empleado con cédula {empleado_cedula} no encontrado")
+        if not MotivosEmisionModel.objects.filter(pk=motivo_id).exists():
+            raise ValidationError(
+                'El motivo de emisión seleccionado no existe.', campo='motivo_id',
+            )
 
         sec_hash = codigo_qr_unico()
         emision = timezone.now()

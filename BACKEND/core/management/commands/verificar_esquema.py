@@ -17,12 +17,14 @@ Códigos de salida:
 import json
 import sys
 
+from django.conf import settings
+
 from django.core.management.base import BaseCommand
 from django.db import connection
 from django.db.migrations.exceptions import InconsistentMigrationHistory
 from django.db.migrations.loader import MigrationLoader
 
-SUPERADMIN = "30799436"
+SUPERADMIN = getattr(settings, "SUPERADMIN_CEDULA", "30799436")
 
 ROLES_ESPERADOS = (
     "ADMINISTRADOR",

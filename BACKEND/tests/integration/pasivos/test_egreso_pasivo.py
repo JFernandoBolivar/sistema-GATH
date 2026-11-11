@@ -26,7 +26,9 @@ from apps.organizacion.infrastructure.models.organizacion_models import (
     DireccionGeneralModel,
 )
 from apps.pasivos.infrastructure.models.pasivo_models import EmployeeEgresadoModel
+from apps.pasivos.infrastructure.repositories.repo_pasivos_orm import RepoPasivosORM
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
+from core.domain.exceptions import ConflictError
 
 pytestmark = pytest.mark.django_db
 
@@ -133,6 +135,19 @@ def test_egreso_pasivo_por_fallecimiento_y_sobreviviente(escenario):
     asignacion_familiar = AsigTrabajoModel.objects.get(employee=familiar)
     assert asignacion_familiar.Tipo_personal.tipo_personal == 'PASIVO'
     assert asignacion_familiar.tiponominaid.nomina == 'PENSIONADO SOBREVIVIENTE'
+
+
+def test_pase_a_pasivo_rechaza_a_quien_ya_es_pasivo(escenario):
+    """L2-15: repetir el pase duplicaba asignaciones y egresos; ahora es 409."""
+    with pytest.raises(ConflictError):
+        RepoPasivosORM().procesar_egreso_a_pasivo(
+            cedula='V-5000',
+            motivo_movimiento_id=escenario['renuncia'].pk,
+            tipo_nomina_id=escenario['nomina'].pk,
+            liberar_activos=False,
+        )
+    assert AsigTrabajoModel.objects.filter(employee=escenario['pasivo']).count() == 1
+    assert EmployeeEgresadoModel.objects.filter(employee=escenario['pasivo']).count() == 0
 
 
 def test_rechaza_motivo_de_activo(escenario):

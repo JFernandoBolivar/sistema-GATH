@@ -211,9 +211,11 @@ class LoginView(APIView):
                 return fail('Credenciales inválidas.', 401)
 
         except Exception as e:
-            logger.error('Error en autenticación: %s', e)
-            anotar_intento_fallido(cedula_registro, ip_cliente)
-            return fail('Error procesando la solicitud de autenticación.', 401)
+            # A2-12: un fallo interno (BD, caché, bug) NO es una credencial mala:
+            # sube al handler (500) y no suma un intento fallido que podría
+            # bloquear a un usuario válido durante una caída.
+            logger.exception('login.error_interno: %s', e)
+            raise
 
         # Contraseña inicial (la cédula) vencida a los 7 días (D8). Se evalúa DESPUÉS de comprobar la
         # clave, para no revelar a quien no la conoce que la cuenta existe ni su estado.

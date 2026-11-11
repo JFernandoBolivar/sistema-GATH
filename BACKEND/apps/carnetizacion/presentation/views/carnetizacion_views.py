@@ -2,6 +2,7 @@
 Vistas delgadas de Carnetización (Reglas B4, B7, O44 - E3).
 Con Envelope unificado `ok()` / `fail()` y permisos PBAC.
 """
+from django.db import transaction
 from django.http import HttpResponse
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -10,6 +11,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
+from core.domain.exceptions import ValidationError
 from core.infrastructure.storage.validacion_archivo import MAX_BYTES_IMAGEN, TIPOS_IMAGEN, clave_segura, validar_archivo
 from core.presentation.envelope import fail, ok
 from core.presentation.permissions import HasPermission
@@ -583,14 +585,24 @@ class CarnetGenerarView(APIView):
         datos_editados = request.data.get('datos_editados', {})
         nombre_override = datos_editados.get('nombre') if isinstance(datos_editados, dict) else None
 
-        pdf_bytes = emitir_carnet_y_pdf(
-            RepoCarnetizacionORM(),
-            empleado_cedula=cedula,
-            motivo_id=int(motivo_id) if motivo_id else 1,
-            observaciones=observaciones,
-            plantilla_id=plantilla_id,
-            nombre_override=nombre_override,
-        )
+        try:
+            motivo = int(motivo_id) if motivo_id else 1
+        except (TypeError, ValueError):
+            raise ValidationError(
+                'El motivo de emisión no es válido.', campo='motivo_id',
+            ) from None
+
+        # L2-18: emisión y PDF en la misma transacción: si el PDF falla no queda
+        # un carnet nuevo con el anterior ya anulado.
+        with transaction.atomic():
+            pdf_bytes = emitir_carnet_y_pdf(
+                RepoCarnetizacionORM(),
+                empleado_cedula=cedula,
+                motivo_id=motivo,
+                observaciones=observaciones,
+                plantilla_id=plantilla_id,
+                nombre_override=nombre_override,
+            )
         # O46-A: el endpoint debe devolver el PDF binario, no un sobre JSON en base64.
         response = HttpResponse(pdf_bytes, content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="carnet_{cedula}.pdf"'

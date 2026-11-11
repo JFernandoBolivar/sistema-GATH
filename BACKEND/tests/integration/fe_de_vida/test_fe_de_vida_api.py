@@ -783,7 +783,11 @@ def test_verificacion_publica_404_generico_si_no_existe_o_esta_mal_formado(datos
     respuestas = [cliente.get(f'{BASE}/constancias/publica/{c}/') for c in ('inexistente', 'f' * 64)]
     assert [r.status_code for r in respuestas] == [404, 404]
     assert respuestas[0].json() == respuestas[1].json() and respuestas[0].json()['status'] == 'error'
-    assert AuditoriaLog.objects.filter(accion='CONSTANCIA_VERIFICADA_PUBLICA', resultado='FAILED').count() == 2
+    # L2-20: las consultas fallidas del endpoint público no se auditan (cada
+    # escritura toma un bloqueo asesor global y un bot podía serializar el sistema).
+    assert not AuditoriaLog.objects.filter(
+        accion='CONSTANCIA_VERIFICADA_PUBLICA', resultado='FAILED',
+    ).exists()
 
 
 def test_verificacion_publica_404_si_la_solicitud_no_esta_validada(pasivo, administradora):

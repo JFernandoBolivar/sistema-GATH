@@ -78,7 +78,10 @@ def importar_cargos_especiales(archivo, nombre_archivo: str) -> dict:
     df.columns = df.columns.str.strip().str.lower()
     cache = _construir_cache()
 
-    tipo_personal_default = TipoPersonalModel.objects.filter(pk=2).first()
+    tipo_personal_default = (
+        TipoPersonalModel.objects.filter(tipo_personal__iexact='ACTIVO').first()
+        or TipoPersonalModel.objects.filter(pk=2).first()
+    )
     dependencia_default = DependenciaModel.objects.filter(pk=1).first()
 
     errores: list[str] = []

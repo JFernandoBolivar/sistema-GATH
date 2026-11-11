@@ -3,7 +3,8 @@ Repositorio ORM de Personal (Reglas B4, B7, D-09).
 """
 from datetime import date
 
-from django.db import transaction
+from django.core.exceptions import MultipleObjectsReturned
+from django.db import IntegrityError, transaction
 from django.db.models import Model, Q
 
 from core.domain.catalogos import TIPO_PERSONAL_ACTIVO
@@ -461,32 +462,26 @@ class RepoPersonalORM:
         if not data:
             return
         # L2-16: una vivienda parcial sin fila previa reventaba con IntegrityError
-        # (500) al aplicar el acta; con filas duplicadas, con MultipleObjectsReturned.
-        existentes = list(DatosViviendaModel.objects.filter(empleado=empleado)[:2])
-        if len(existentes) > 1:
+        # (500); con filas duplicadas, con MultipleObjectsReturned. Se convierten
+        # en 409 con un mensaje claro sin impedir las altas válidas.
+        try:
+            DatosViviendaModel.objects.update_or_create(
+                empleado=empleado,
+                defaults=self._normalizar_fks(
+                    data,
+                    ('estado', 'municipio', 'parroquia', 'condicion_vivienda', 'codigo_postal', 'pais'),
+                ),
+            )
+        except MultipleObjectsReturned as exc:
             raise ConflictError(
                 'Hay más de una ficha de vivienda para el trabajador: '
                 'RR. HH. debe depurar los datos antes de aplicar el cambio.'
-            )
-        if not existentes:
-            faltan = [
-                etiqueta for campo, etiqueta in (
-                    ('condicion_vivienda_id', 'la condición de la vivienda'),
-                    ('direccion_exacta', 'la dirección exacta'),
-                ) if not data.get(campo)
-            ]
-            if faltan:
-                raise ConflictError(
-                    'El trabajador no tiene ficha de vivienda y faltan datos obligatorios: '
-                    + ' y '.join(faltan) + '. Registre la vivienda completa antes de aplicar.'
-                )
-        DatosViviendaModel.objects.update_or_create(
-            empleado=empleado,
-            defaults=self._normalizar_fks(
-                data,
-                ('estado', 'municipio', 'parroquia', 'condicion_vivienda', 'codigo_postal', 'pais'),
-            ),
-        )
+            ) from exc
+        except IntegrityError as exc:
+            raise ConflictError(
+                'La ficha de vivienda quedaría incompleta (faltan datos obligatorios). '
+                'Registre la vivienda completa antes de aplicar.'
+            ) from exc
 
     def _upsert_salud(self, empleado: EmployeeModel, data: dict | None) -> None:
         if not data:

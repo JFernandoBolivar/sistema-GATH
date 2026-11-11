@@ -291,6 +291,9 @@ FE_DE_VIDA_URL_VERIFICACION = config(
 )
 # Dominio que se completa cuando el usuario inicia sesión con su correo sin dominio (usuario -> usuario@dominio).
 DOMINIO_CORREO_INSTITUCIONAL = config('DOMINIO_CORREO_INSTITUCIONAL', default='conatel.gob.ve')
+# A2-19: titular de la cuenta superadministrador que garantiza `preparar_produccion`.
+# Configurable para no depender de una cédula fija (el valor histórico es el respaldo).
+SUPERADMIN_CEDULA = config('SUPERADMIN_CEDULA', default='30799436')
 
 # ─── Celery (Etapa A1, D-02) ─────────────────────────────────────────────────
 # Broker RabbitMQ (vhost `gath`): compose.yml arma CELERY_BROKER_URL desde

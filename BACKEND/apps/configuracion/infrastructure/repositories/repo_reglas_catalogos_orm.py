@@ -6,7 +6,8 @@ from __future__ import annotations
 import logging
 from typing import Sequence
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
+from django.db.models import ProtectedError
 
 from apps.catalogos.infrastructure.models.catalogo_models import (
     CategoriaMovimientoModel,
@@ -118,7 +119,7 @@ class RepoReglasCatalogosORM(RepoReglasCatalogos):
         resultado = self._pais_a_entidad(pais)
         try:
             pais.delete()
-        except Exception:
+        except (ProtectedError, IntegrityError):
             raise ValidationError(
                 'No es posible eliminar el país porque hay viviendas registradas en él.',
                 campo='nombre',
@@ -237,7 +238,7 @@ class RepoReglasCatalogosORM(RepoReglasCatalogos):
             with transaction.atomic():
                 ReglaParentescoModel.objects.filter(parentesco_id=parentesco_id).delete()
                 p.delete()
-        except Exception:
+        except (ProtectedError, IntegrityError):
             raise ValidationError(
                 'No es posible eliminar el parentesco porque está asignado a familiares registrados.',
                 campo='descripcion',
@@ -421,7 +422,7 @@ class RepoReglasCatalogosORM(RepoReglasCatalogos):
 
         try:
             m.delete()
-        except Exception:
+        except (ProtectedError, IntegrityError):
             raise ValidationError(
                 'No es posible eliminar el motivo porque tiene registros asociados. Puede desactivarlo en su lugar.',
                 campo='motivo',
@@ -557,7 +558,7 @@ class RepoReglasCatalogosORM(RepoReglasCatalogos):
         )
         try:
             n.delete()
-        except Exception:
+        except (ProtectedError, IntegrityError):
             raise ValidationError(
                 'No es posible eliminar la nómina porque está asignada a cargos o procesos.',
                 campo='nomina',
@@ -655,7 +656,7 @@ class RepoReglasCatalogosORM(RepoReglasCatalogos):
         resultado = self._tipo_soporte_a_entidad(t)
         try:
             t.delete()
-        except Exception:
+        except (ProtectedError, IntegrityError):
             raise ValidationError(
                 'No es posible eliminar el tipo de soporte porque está asignado a una sección.',
                 campo='codigo',

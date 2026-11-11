@@ -1,6 +1,7 @@
 """
 Repositorio ORM de credenciales externas y temporales (O45-A).
 """
+import logging
 import base64
 from datetime import datetime
 from typing import Any
@@ -42,9 +43,11 @@ from apps.notificaciones.infrastructure.planificador_envio_celery import (
 from apps.notificaciones.infrastructure.repositories.repo_outbox_orm import RepoOutboxORM
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
+
 from core.domain.exceptions import NotFoundError, ValidationError
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
 
+logger = logging.getLogger('gath.carnetizacion')
 
 class RepoCredencialesExternasORM:
     def __init__(self, almacen: Any = None) -> None:
@@ -290,6 +293,9 @@ class RepoCredencialesExternasORM:
                 try:
                     foto_bytes = self._almacen.descargar(emp.profile) or None
                 except Exception:
+                    logger.warning(
+                        'No se pudo leer la foto de la credencial externa.', exc_info=True,
+                    )
                     foto_bytes = None
         else:
             nombre = fila.nombre

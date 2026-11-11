@@ -486,9 +486,19 @@ class RepoPasivosORM(RepoSobrevivientesORM):
         usuario_id: int | None = None,
         fecha_egreso=None,
     ) -> Pasivo:
-        empleado = EmployeeModel.objects.filter(cedulaidentidad=cedula).first()
+        # L2-15: bloquear al empleado (y comprobar que no sea ya pasivo) para que
+        # dos pases simultáneos no creen dos asignaciones y dos egresos.
+        empleado = (
+            EmployeeModel.objects.select_for_update()
+            .filter(cedulaidentidad=cedula)
+            .first()
+        )
         if not empleado:
             raise NotFoundError(f"Empleado con cédula {cedula} no encontrado.")
+        if AsigTrabajoModel.objects.filter(
+            employee=empleado, Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO,
+        ).exists():
+            raise ConflictError(f'La cédula {cedula} ya está registrada como pasivo.')
 
         motivo = obtener_motivo_de_operacion(
             motivo_movimiento_id, Operacion.PASE_A_PASIVO, campo='motivo_movimiento_id',
