@@ -79,12 +79,15 @@ export function DataTable<TData, TValue>({
   const [rowSelection, setRowSelection] = useState({});
 
   const manual = pagination !== undefined;
+  // Con `hidePagination` quien pagina es la página (en el servidor): la tabla muestra
+  // todas las filas que recibe. Antes seguía cortando en 10 filas aunque llegaran 50.
+  const paginaEnCliente = !manual && !hidePagination;
 
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    ...(manual ? {} : { getPaginationRowModel: getPaginationRowModel() }),
+    ...(paginaEnCliente ? { getPaginationRowModel: getPaginationRowModel() } : {}),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
     onColumnFiltersChange: setColumnFilters,
