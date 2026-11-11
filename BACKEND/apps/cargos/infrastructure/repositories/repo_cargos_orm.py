@@ -156,7 +156,8 @@ class RepoCargosORM(RepoPrestamosCargoORM):
     def asignar_cargo_a_empleado(
         self, cargo_id: int, cedula: str, motivo_id: int | None = None, usuario_id: int | None = None
     ) -> CargoAsignacion:
-        fila = AsigTrabajoModel.objects.filter(pk=cargo_id).first()
+        # L2-19: bloqueo de fila; dos asignaciones simultaneas se serializan.
+        fila = AsigTrabajoModel.objects.select_for_update().filter(pk=cargo_id).first()
         if not fila:
             raise NotFoundError(f"Cargo con id {cargo_id} no encontrado")
         if fila.employee_id is not None:

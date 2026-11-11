@@ -323,6 +323,11 @@ CELERY_BROKER_CONNECTION_MAX_RETRIES = 1
 from celery.schedules import crontab  # noqa: E402
 
 CELERY_BEAT_SCHEDULE = {
+    # Cargos (L2-06/L2-08): inicia, marca POR VENCER y finaliza los prestamos de cargo por fecha (idempotente).
+    'cargos-procesar-vencimientos-prestamos': {
+        'task': 'cargos.procesar_vencimientos_prestamos',
+        'schedule': crontab(hour=0, minute=10),
+    },
     # Autogestión (B3): marca EXPIRADA toda ventana de actualización vencida (idempotente).
     'autogestion-expirar-ventanas': {
         'task': 'autogestion.expirar_ventanas',

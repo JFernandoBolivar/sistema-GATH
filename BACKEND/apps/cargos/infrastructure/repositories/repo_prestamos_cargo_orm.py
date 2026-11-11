@@ -8,6 +8,7 @@ Réplica funcional de `RAC/services/prestamo_cargo_services.py` y del modelo
 `RAC/models/historial_personal_models.py::PrestamoCargo`.
 """
 import datetime
+import logging
 from django.db import transaction
 from django.utils import timezone
 
@@ -26,10 +27,14 @@ from apps.cargos.domain.value_objects.estado_prestamo import (
 from apps.cargos.infrastructure.mappers.mapper_cargos import prestamo_a_entidad
 from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
 from apps.cargos.infrastructure.models.prestamo_models import PrestamoCargoModel
+from apps.cargos.infrastructure.models.suspension_models import PrestamoCargoSuspensionModel
 from apps.catalogos.infrastructure.models.catalogo_models import EstatusModel
 from apps.catalogos.infrastructure.repositories.motivos_por_categoria import obtener_motivo_de_operacion
 from core.domain.categorias_motivo import Operacion
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
+
+
+logger = logging.getLogger('gath.cargos')
 
 
 class RepoPrestamosCargoORM:
@@ -44,7 +49,7 @@ class RepoPrestamosCargoORM:
     def _calcular_estatus_prestamo(self, fecha_fin, hoy) -> EstatusModel:
         f_fin = self._normalizar_fecha(fecha_fin)
         f_hoy = self._normalizar_fecha(hoy)
-        if f_fin <= f_hoy:
+        if f_fin < f_hoy:  # el ultimo dia (fin inclusivo) sigue vigente
             nombre = PRESTAMO_FINALIZADA
         elif (f_fin - f_hoy).days <= 5:
             nombre = PRESTAMO_POR_VENCER
@@ -53,27 +58,63 @@ class RepoPrestamosCargoORM:
         estatus, _ = EstatusModel.objects.get_or_create(estatus__iexact=nombre, defaults={'estatus': nombre})
         return estatus
 
-    def _sincronizar_estatus_cargos(self, prestamo: PrestamoCargoModel) -> None:
-        activo, _ = EstatusModel.objects.get_or_create(estatus__iexact=ESTATUS_ACTIVO, defaults={'estatus': ESTATUS_ACTIVO})
-        suspendido, _ = EstatusModel.objects.get_or_create(estatus__iexact=ESTATUS_SUSPENDIDO, defaults={'estatus': ESTATUS_SUSPENDIDO})
-        estatus_prestamo = prestamo.estatus.estatus.upper()
+    def _suspender_cargo(self, cargo: AsigTrabajoModel, prestamo_id: int, suspendido) -> None:
+        """Suspende el cargo y guarda su estatus previo (L2-06)."""
+        _, creada = PrestamoCargoSuspensionModel.objects.get_or_create(
+            prestamo_id=prestamo_id, asig_trabajo_id=cargo.pk,
+            defaults={'estatus_previo_id': cargo.estatusid_id},
+        )
+        if creada:
+            cargo.estatusid = suspendido
+            cargo.save(update_fields=['estatusid', 'fecha_actualizacion'])
 
-        if estatus_prestamo in (PRESTAMO_ACTIVO, PRESTAMO_POR_VENCER):
-            AsigTrabajoModel.objects.filter(
-                employee_id=prestamo.empleado_encargado_id, estatusid__estatus__iexact=ESTATUS_ACTIVO
-            ).update(estatusid=suspendido)
-            cargo = prestamo.cargo_encargado
-            if cargo:
-                cargo.estatusid = suspendido
+    def _aplicar_prestamo(self, prestamo: PrestamoCargoModel) -> None:
+        """Suspende los cargos ACTIVO del encargado y el cargo encargado."""
+        suspendido, _ = EstatusModel.objects.get_or_create(
+            estatus__iexact=ESTATUS_SUSPENDIDO, defaults={'estatus': ESTATUS_SUSPENDIDO})
+        propios = AsigTrabajoModel.objects.select_for_update().filter(
+            employee_id=prestamo.empleado_encargado_id, estatusid__estatus__iexact=ESTATUS_ACTIVO
+        ).exclude(pk=prestamo.cargo_encargado_id)
+        for fila in propios:
+            self._suspender_cargo(fila, prestamo.pk, suspendido)
+        cargo = AsigTrabajoModel.objects.select_for_update().filter(pk=prestamo.cargo_encargado_id).first()
+        if cargo:
+            self._suspender_cargo(cargo, prestamo.pk, suspendido)
+
+    def _restaurar_prestamo(self, prestamo: PrestamoCargoModel, hoy) -> None:
+        """Restaura solo lo que suspendio este prestamo."""
+        suspendido, _ = EstatusModel.objects.get_or_create(
+            estatus__iexact=ESTATUS_SUSPENDIDO, defaults={'estatus': ESTATUS_SUSPENDIDO})
+        filas = list(PrestamoCargoSuspensionModel.objects.filter(prestamo_id=prestamo.pk))
+        for fila in filas:
+            cargo = AsigTrabajoModel.objects.select_for_update().filter(pk=fila.asig_trabajo_id).first()
+            # Si otro proceso ya cambio el estatus del cargo, no se pisa.
+            if cargo and cargo.estatusid_id == suspendido.pk:
+                cargo.estatusid_id = fila.estatus_previo_id
                 cargo.save(update_fields=['estatusid', 'fecha_actualizacion'])
-        elif estatus_prestamo == PRESTAMO_FINALIZADA:
-            AsigTrabajoModel.objects.filter(
-                employee_id=prestamo.empleado_encargado_id, estatusid__estatus__iexact=ESTATUS_SUSPENDIDO
-            ).update(estatusid=activo)
-            cargo = prestamo.cargo_encargado
+        if filas:
+            PrestamoCargoSuspensionModel.objects.filter(prestamo_id=prestamo.pk).delete()
+        elif self._normalizar_fecha(prestamo.fecha_inicio) <= self._normalizar_fecha(hoy):
+            # Prestamo anterior a esta tabla: solo el cargo encargado (el
+            # unico que se sabe suspendido por el) vuelve a ACTIVO.
+            activo, _ = EstatusModel.objects.get_or_create(
+                estatus__iexact=ESTATUS_ACTIVO, defaults={'estatus': ESTATUS_ACTIVO})
+            cargo = AsigTrabajoModel.objects.filter(
+                pk=prestamo.cargo_encargado_id, estatusid=suspendido).first()
             if cargo:
                 cargo.estatusid = activo
                 cargo.save(update_fields=['estatusid', 'fecha_actualizacion'])
+
+    def _sincronizar_estatus_cargos(self, prestamo: PrestamoCargoModel) -> None:
+        hoy = timezone.localdate()
+        estatus_prestamo = prestamo.estatus.estatus.upper()
+        if estatus_prestamo in (PRESTAMO_ACTIVO, PRESTAMO_POR_VENCER):
+            # Inicio inclusivo: con inicio futuro no se suspende nada hoy;
+            # la tarea diaria lo aplica el dia de inicio (L2-08).
+            if self._normalizar_fecha(prestamo.fecha_inicio) <= hoy:
+                self._aplicar_prestamo(prestamo)
+        elif estatus_prestamo == PRESTAMO_FINALIZADA:
+            self._restaurar_prestamo(prestamo, hoy)
 
     def _obtener_prestamo(self, prestamo_id: int) -> PrestamoCargo | None:
         fila = (
@@ -190,3 +231,44 @@ class RepoPrestamosCargoORM:
         self._sincronizar_estatus_cargos(prestamo)
 
         return self._obtener_prestamo(prestamo.pk)
+
+    def procesar_vencimientos(self, hoy=None) -> dict:
+        """Tarea diaria idempotente (L2-06/L2-08): suspende los cargos de los
+        prestamos cuyo inicio llego, ajusta POR VENCER y finaliza los que ya
+        pasaron su ultimo dia (fin inclusivo), restaurando solo lo suyo."""
+        hoy = self._normalizar_fecha(hoy) if hoy else timezone.localdate()
+        resumen = {'iniciados': 0, 'por_vencer': 0, 'finalizados': 0, 'errores': 0}
+        ids = list(
+            PrestamoCargoModel.objects.exclude(estatus__estatus__iexact=PRESTAMO_FINALIZADA)
+            .values_list('pk', flat=True)
+        )
+        for pid in ids:
+            try:
+                with transaction.atomic():
+                    p = PrestamoCargoModel.objects.select_for_update().select_related('estatus').get(pk=pid)
+                    actual = p.estatus.estatus.upper()
+                    if actual == PRESTAMO_FINALIZADA:
+                        continue
+                    nuevo = self._calcular_estatus_prestamo(p.fecha_fin, hoy)
+                    nombre = nuevo.estatus.upper()
+                    if nombre == PRESTAMO_FINALIZADA:
+                        p.estatus = nuevo
+                        p.save(update_fields=['estatus'])
+                        self._restaurar_prestamo(p, hoy)
+                        resumen['finalizados'] += 1
+                        continue
+                    if nombre != actual:
+                        p.estatus = nuevo
+                        p.save(update_fields=['estatus'])
+                        resumen['por_vencer'] += 1
+                    if (
+                        self._normalizar_fecha(p.fecha_inicio) <= hoy
+                        and self._normalizar_fecha(p.fecha_inicio) > timezone.localtime(p.fecha_creacion).date()
+                        and not PrestamoCargoSuspensionModel.objects.filter(prestamo_id=p.pk).exists()
+                    ):
+                        self._aplicar_prestamo(p)
+                        resumen['iniciados'] += 1
+            except Exception:  # un prestamo defectuoso no frena a los demas
+                logger.exception('Fallo al procesar el vencimiento del prestamo %s', pid)
+                resumen['errores'] += 1
+        return resumen
