@@ -5,6 +5,7 @@ Puro: la regla es una función de cadena, sin Django ni base de datos.
 import pytest
 
 from core.infrastructure.pdf.excel_seguro import (
+    es_numero,
     neutralizar_fila_valores,
     neutralizar_valor,
 )
@@ -45,6 +46,19 @@ def test_el_valor_original_queda_como_texto_literal(texto):
 ])
 def test_numeros_reales_no_se_tocan(numero):
     assert neutralizar_valor(numero) == numero
+
+
+@pytest.mark.parametrize('valor', [
+    '-Infinity', 'Infinity', '-NaN', 'NaN', '-nan', '-sNaN',
+])
+def test_infinitos_y_nan_no_cuentan_como_numero(valor):
+    """`Decimal('-Infinity')` parsea, pero no es un número: se neutraliza."""
+    assert es_numero(valor) is False
+
+
+@pytest.mark.parametrize('valor', ['-Infinity', '-NaN', '-nan', '-sNaN'])
+def test_infinitos_y_nan_con_signo_se_neutralizan(valor):
+    assert neutralizar_valor(valor) == "'" + valor
 
 
 @pytest.mark.parametrize('valor', [

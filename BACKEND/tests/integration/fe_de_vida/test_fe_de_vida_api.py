@@ -13,6 +13,7 @@ from PIL import Image
 from rest_framework.test import APIClient
 
 from apps.autogestion.infrastructure.models.actualizacion_models import DatosComplementariosTrabajadorModel
+from apps.autogestion.infrastructure.repositories.lector_ficha_orm import LectorFichaORM
 from apps.cargos.infrastructure.models.cargo_models import (
     AsigTrabajoModel,
     DenominacionCargoEspecificoModel,
@@ -492,7 +493,10 @@ def test_validar_acta_familiar_reutiliza_la_regla_de_cedula_de_familiares(datos)
         PASIVO, CambioActa('familiar', 'CREAR', 'familiar', '*', dict(base, parentesco_id=1)),
     )
     assert menor is not None and 'cedula_familiar' not in menor.valor_propuesto
-    assert menor.valor_propuesto['cedula_generada'] == f'{PASIVO}-2'
+    # FIX hijo sin cédula: no se escribe en el valor propuesto (trababa el borrador);
+    # la cédula que se generará la muestra la revisión y la resuelve la aprobación.
+    assert 'cedula_generada' not in menor.valor_propuesto
+    assert LectorFichaORM().validar_familiar_alta(PASIVO, dict(base, parentesco_id=1)) == f'{PASIVO}-2'
 
     with pytest.raises(ValidationError) as error:
         validador.validar(

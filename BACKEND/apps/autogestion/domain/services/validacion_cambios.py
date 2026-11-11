@@ -29,6 +29,9 @@ from core.domain.validacion_personas import (
     validar_telefono,
 )
 
+# Campo derivado que la revisión muestra pero nunca se guarda en el valor propuesto.
+CAMPO_CEDULA_GENERADA = 'cedula_generada'
+
 ETIQUETAS_CAMPOS = {
     'codigo_postal_id': 'Código postal',
     'estado_id': 'Estado',
@@ -263,6 +266,11 @@ def validar_registro_nuevo(
     """Valida el dict de un CREAR: solo campos de la lista blanca y todos los requeridos."""
     if not isinstance(valores, dict) or not valores:
         raise ValidationError("El registro nuevo debe indicar sus campos.")
+    # Los borradores guardados antes del fix del hijo sin cédula traen
+    # `cedula_generada` dentro del valor propuesto (la escribe la revisión al
+    # mostrarla). Se descarta: no es un campo editable y no debe rechazar el
+    # borrador que el trabajador vuelve a guardar.
+    valores = {k: v for k, v in valores.items() if k != CAMPO_CEDULA_GENERADA}
     permitidos = campos_permitidos(seccion, entidad)
     ajenos = sorted(set(valores) - permitidos)
     if ajenos:

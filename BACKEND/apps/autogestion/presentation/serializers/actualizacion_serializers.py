@@ -5,6 +5,7 @@ La salida se arma con las funciones `a_dict_*` (convierten enums a texto) y se p
 serializer correspondiente, que fija formato de fechas y documenta el contrato OpenAPI.
 """
 from core.domain.limites_texto import MOTIVO_MIN, MOTIVO_MAX, mensajes_texto
+from core.presentation.valores_propuestos import con_cedula_generada
 from rest_framework import serializers
 
 from apps.autogestion.application.dtos.actualizacion_dtos import DetalleSolicitudDTO
@@ -231,12 +232,17 @@ def a_dict_solicitud(s) -> dict:
     }
 
 
-def a_dict_cambio(item) -> dict:
+def a_dict_cambio(item, cedula_titular: str = '') -> dict:
     c = item.cambio
+    valor_propuesto = c.valor_propuesto
+    if c.entidad_destino == 'familiar':
+        # Un alta de hijo sin cédula muestra la que se generará al aprobar; el
+        # helper solo actúa sobre dicts de registro nuevo sin cédula propia.
+        valor_propuesto = con_cedula_generada(valor_propuesto, cedula_titular)
     return {
         'id': c.id, 'seccion': c.seccion, 'accion': c.accion, 'entidad_destino': c.entidad_destino,
         'entidad_id': c.entidad_id, 'campo': c.campo, 'valor_anterior': c.valor_anterior,
-        'valor_propuesto': c.valor_propuesto, 'referencia': c.referencia,
+        'valor_propuesto': valor_propuesto, 'referencia': c.referencia,
         'valor_actual': item.valor_actual, 'conflicto': item.conflicto,
         'decision': c.decision.value, 'motivo_decision': c.motivo_decision, 'decidido_por': c.decidido_por,
         'fecha_decision': c.fecha_decision,
@@ -254,7 +260,7 @@ def a_dict_soporte(s) -> dict:
 
 def serializar_detalle(dto: DetalleSolicitudDTO) -> dict:
     datos = a_dict_solicitud(dto.solicitud)
-    datos['cambios'] = [a_dict_cambio(i) for i in dto.cambios]
+    datos['cambios'] = [a_dict_cambio(i, dto.solicitud.cedula) for i in dto.cambios]
     datos['soportes'] = [a_dict_soporte(s) for s in dto.soportes]
     datos['prorrogas'] = [
         {'id': p.id, 'fecha_fin_anterior': p.fecha_fin_anterior, 'fecha_fin_nueva': p.fecha_fin_nueva,

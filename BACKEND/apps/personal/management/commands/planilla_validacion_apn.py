@@ -18,6 +18,7 @@ from openpyxl.styles import Font
 from apps.personal.infrastructure.models.expediente_models import ContratoModel
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from apps.personal.shared.domain.services.tiempo_servicio import calcular_total_apn
+from core.infrastructure.pdf.excel_seguro import neutralizar_fila_valores
 
 
 def _texto(valor: dict | None) -> str:
@@ -103,7 +104,7 @@ class Command(BaseCommand):
                 '',
                 'Fecha de ingreso pendiente' if fila['incompleto'] else '',
             ]
-            hoja.append(valores)
+            hoja.append(neutralizar_fila_valores(valores))
 
         for columna in hoja.columns:
             hoja.column_dimensions[columna[0].column_letter].width = 20

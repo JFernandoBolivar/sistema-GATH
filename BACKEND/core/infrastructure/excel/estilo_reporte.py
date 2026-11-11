@@ -135,7 +135,8 @@ def escribir_tabla(
     auto_filtro: bool = True, congelar: bool = True,
 ) -> int:
     for indice, columna in enumerate(columnas, start=1):
-        celda = ws.cell(row=fila, column=indice, value=columna)
+        # Las cabeceras también pueden venir de datos del usuario.
+        celda = ws.cell(row=fila, column=indice, value=neutralizar_valor(columna))
         celda.font = _fuente(bold=True, color=_hex(HEX_BLANCO), size=TAMANO_TEXTO)
         celda.fill = PatternFill('solid', start_color=AZUL)
         celda.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)

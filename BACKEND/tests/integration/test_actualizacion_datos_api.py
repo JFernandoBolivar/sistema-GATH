@@ -659,13 +659,71 @@ def test_hijo_menor_de_9_sin_cedula_se_acepta_y_con_cedula_del_titular_se_rechaz
     assert sin_cedula.status_code == 200, sin_cedula.content
     guardado = CambioPropuestoModel.objects.get(origen_id=sid)
     assert 'cedula_familiar' not in guardado.valor_propuesto
-    assert guardado.valor_propuesto['cedula_generada'] == f'{TRABAJADOR}-1'
+    # FIX hijo sin cédula: la cédula generada NO se persiste en el valor propuesto;
+    # la muestra la revisión, calculada por el serializer.
+    assert 'cedula_generada' not in guardado.valor_propuesto
+    detalle = data(trabajador.get(f'{BASE}/solicitudes/{sid}/'))
+    assert detalle['cambios'][0]['valor_propuesto']['cedula_generada'] == f'{TRABAJADOR}-1'
 
     # La cédula del familiar no puede repetir la del titular.
     con_cedula_titular = dict(base, valor=dict(base['valor'], cedula_familiar=TRABAJADOR))
     r = trabajador.put(f'{BASE}/solicitudes/{sid}/borrador/', {'cambios': [con_cedula_titular]}, format='json')
     assert r.status_code == 400, r.content
     assert 'cedula_familiar' in data(r)['errores']
+
+
+def test_borrador_de_hijo_sin_cedula_se_reguarda_con_el_valor_que_devuelve_la_revision(trabajador, analista, datos):
+    """Regresión: alta de hijo menor sin cédula, guardar, reconstruir con lo guardado y volver a guardar.
+
+    Antes la validación escribía `cedula_generada` dentro del valor propuesto; al
+    reabrir el borrador el frontend la reenviaba y el guardado fallaba con
+    «Campos no autogestionables en familiar: cedula_generada», trabando el paso 1.
+    """
+    sid = solicitar(trabajador, ('familiar',))
+    habilitar(analista, sid)
+    base = {
+        'seccion': 'familiar', 'entidad': 'familiar', 'accion': 'CREAR', 'campo': '*', 'valor': {
+            'primer_nombre': 'LUCIA', 'primer_apellido': 'PRUEBA', 'parentesco_id': 1, 'orden_hijo': 1,
+            'fecha_nacimiento': (timezone.now().date() - timedelta(days=365 * 4)).isoformat(), 'sexo_id': 1,
+        },
+    }
+    primero = trabajador.put(f'{BASE}/solicitudes/{sid}/borrador/', {'cambios': [base]}, format='json')
+    assert primero.status_code == 200, primero.content
+
+    # Lo que devuelve la API (lo que el frontend reenvía al reabrir el borrador).
+    devuelto = data(trabajador.get(f'{BASE}/solicitudes/{sid}/'))['cambios'][0]
+    assert devuelto['valor_propuesto']['cedula_generada'] == f'{TRABAJADOR}-1'
+    reconstruido = {
+        'seccion': devuelto['seccion'],
+        'entidad': devuelto['entidad_destino'],
+        'accion': devuelto['accion'],
+        'campo': devuelto['campo'],
+        'valor': devuelto['valor_propuesto'],
+    }
+
+    segundo = trabajador.put(f'{BASE}/solicitudes/{sid}/borrador/', {'cambios': [reconstruido]}, format='json')
+    assert segundo.status_code == 200, segundo.content
+
+    guardado = CambioPropuestoModel.objects.get(origen_id=sid)
+    assert 'cedula_familiar' not in guardado.valor_propuesto
+    assert 'cedula_generada' not in guardado.valor_propuesto
+
+
+def test_borrador_legado_con_cedula_generada_guardada_se_puede_guardar(trabajador, analista, datos):
+    """Los borradores ya guardados en QA/producción con el campo se descartan al validar."""
+    sid = solicitar(trabajador, ('familiar',))
+    habilitar(analista, sid)
+    legado = {
+        'seccion': 'familiar', 'entidad': 'familiar', 'accion': 'CREAR', 'campo': '*', 'valor': {
+            'primer_nombre': 'LUCIA', 'primer_apellido': 'PRUEBA', 'parentesco_id': 1, 'orden_hijo': 2,
+            'fecha_nacimiento': (timezone.now().date() - timedelta(days=365 * 4)).isoformat(), 'sexo_id': 1,
+            'cedula_generada': f'{TRABAJADOR}-2',
+        },
+    }
+    r = trabajador.put(f'{BASE}/solicitudes/{sid}/borrador/', {'cambios': [legado]}, format='json')
+    assert r.status_code == 200, r.content
+    guardado = CambioPropuestoModel.objects.get(origen_id=sid)
+    assert 'cedula_generada' not in guardado.valor_propuesto
 
 
 def test_acciones_solicitadas_en_seccion_de_lista(trabajador, analista, datos):

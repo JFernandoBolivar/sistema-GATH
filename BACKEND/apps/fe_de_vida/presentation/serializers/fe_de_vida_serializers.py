@@ -3,6 +3,7 @@ Serializers de la fe de vida: toda entrada (cuerpo y parámetros de consulta) se
 se arma con las funciones `a_dict_*` (enums a texto, sin rutas de archivos) para fijar el contrato OpenAPI.
 """
 from core.domain.limites_texto import MOTIVO_MIN, MOTIVO_MAX, mensajes_texto
+from core.presentation.valores_propuestos import con_cedula_generada
 from rest_framework import serializers
 
 from apps.fe_de_vida.application.dtos.fe_de_vida_dtos import (
@@ -508,21 +509,32 @@ def a_dict_solicitud(s: SolicitudFeDeVida, nombre: str | None = None, nombres_ac
     return datos
 
 
-def a_dict_cambio(c: CambioActa) -> dict:
+def a_dict_cambio(c: CambioActa, cedula_titular: str = '') -> dict:
+    valor_propuesto = c.valor_propuesto
+    if c.entidad_destino == 'familiar':
+        # Un alta de hijo sin cédula muestra la que se generará al aprobar; el
+        # helper solo actúa sobre dicts de registro nuevo sin cédula propia.
+        valor_propuesto = con_cedula_generada(valor_propuesto, cedula_titular)
     return {
         'id': c.id, 'seccion': c.seccion, 'accion': c.accion, 'entidad': c.entidad_destino, 'entidad_id': c.entidad_id,
-        'campo': c.campo, 'valor_anterior': c.valor_anterior, 'valor_propuesto': c.valor_propuesto,
+        'campo': c.campo, 'valor_anterior': c.valor_anterior, 'valor_propuesto': valor_propuesto,
     }
 
 
 def a_dict_detalle(d: DetalleSolicitud) -> dict:
-    return {'solicitud': a_dict_solicitud(d.solicitud), 'cambios': [a_dict_cambio(c) for c in d.cambios]}
+    return {
+        'solicitud': a_dict_solicitud(d.solicitud),
+        'cambios': [a_dict_cambio(c, d.solicitud.cedula) for c in d.cambios],
+    }
 
 
 def a_dict_revision(d: DetalleRevision) -> dict:
     return {
         'solicitud': a_dict_solicitud(d.solicitud, d.nombre_pasivo, d.nombres_actores),
-        'cambios': [{**a_dict_cambio(c.cambio), 'valor_actual': c.valor_actual, 'conflicto': c.conflicto} for c in d.cambios],
+        'cambios': [
+            {**a_dict_cambio(c.cambio, d.solicitud.cedula), 'valor_actual': c.valor_actual, 'conflicto': c.conflicto}
+            for c in d.cambios
+        ],
         'proceso_nombre': d.proceso_nombre, 'ficha': d.ficha, 'acciones_disponibles': list(d.acciones),
     }
 

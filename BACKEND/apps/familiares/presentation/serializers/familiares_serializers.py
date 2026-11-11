@@ -10,10 +10,10 @@ from core.presentation.validadores_personas import validar_cedula, validar_drf, 
 
 from apps.familiares.application.use_cases.contexto_validacion_familiar import (
     cedulas_del_familiar,
-    empleado_del_familiar,
     heredero_existente,
     parentesco_y_regla,
     sexo_del_familiar,
+    titular_del_familiar,
 )
 from apps.familiares.application.use_cases.validaciones_familiar import (
     ORDEN_HIJO_MAX,
@@ -234,10 +234,10 @@ class RegistrarFamiliarInputSerializer(serializers.Serializer):
     def validate(self, attrs):
         lector = LectorValidacionFamiliarORM()
         empleado_cedula = attrs.get('empleado_cedula') or self.context.get('empleado_cedula')
-        existe_empleado, fecha_nacimiento_titular = empleado_del_familiar(lector, empleado_cedula)
-        if not existe_empleado:
+        titular = titular_del_familiar(lector, empleado_cedula)
+        if titular is None:
             raise serializers.ValidationError({'empleado_cedula': 'Empleado no encontrado.'})
-        cedula_empleado = str(empleado_cedula)
+        cedula_empleado = titular.cedula
 
         excluir_id = self.instance.pk if self.instance else None
         cedula_familiar = (attrs.get('cedula_familiar') or '').strip() or None
@@ -272,7 +272,7 @@ class RegistrarFamiliarInputSerializer(serializers.Serializer):
                 validar_reglas_familiar(
                     regla=regla,
                     fecha_nacimiento=fecha_nacimiento,
-                    fecha_nacimiento_titular=fecha_nacimiento_titular,
+                    fecha_nacimiento_titular=titular.fecha_nacimiento,
                     sexo=sexo_nombre,
                 )
             except ValueError as e:

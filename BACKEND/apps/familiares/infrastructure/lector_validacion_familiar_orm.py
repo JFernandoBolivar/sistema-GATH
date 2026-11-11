@@ -3,13 +3,14 @@ Implementación ORM del lector de validación de familiares (S5-01).
 
 Mismas consultas que hacía el serializer de entrada, ahora en infrastructure.
 """
-from datetime import date
-
 from apps.familiares.application.use_cases.validaciones_familiar import (
     ReglaParentescoFamiliar,
     regla_por_defecto,
 )
-from apps.familiares.domain.ports.lector_validacion_familiar import ParentescoDeFamiliar
+from apps.familiares.domain.ports.lector_validacion_familiar import (
+    ParentescoDeFamiliar,
+    TitularDeFamiliar,
+)
 from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
 from apps.familiares.infrastructure.modelos_externos import (
     EmployeeModel,
@@ -22,12 +23,14 @@ from apps.familiares.infrastructure.modelos_externos import (
 class LectorValidacionFamiliarORM:
     """Implementa el puerto `LectorValidacionFamiliar`."""
 
-    def empleado_existe(self, empleado_cedula: str) -> bool:
-        return EmployeeModel.objects.filter(cedulaidentidad=empleado_cedula).exists()
-
-    def fecha_nacimiento_titular(self, empleado_cedula: str) -> date | None:
+    def titular(self, empleado_cedula: str) -> TitularDeFamiliar | None:
         empleado = EmployeeModel.objects.filter(cedulaidentidad=empleado_cedula).first()
-        return empleado.fecha_nacimiento if empleado else None
+        if empleado is None:
+            return None
+        return TitularDeFamiliar(
+            cedula=str(empleado.cedulaidentidad),
+            fecha_nacimiento=empleado.fecha_nacimiento,
+        )
 
     def parentesco(self, parentesco_id: int) -> ParentescoDeFamiliar | None:
         fila = ParentescoModel.objects.filter(pk=parentesco_id).first()

@@ -25,12 +25,16 @@ PREFIJO_TEXTO = "'"
 
 
 def es_numero(valor: str) -> bool:
-    """`True` si `valor` es un número real (incluye signo, decimales y exponente)."""
+    """`True` si `valor` es un número real finito (signo, decimales, exponente).
+
+    `-Infinity`, `Infinity` y las variantes de NaN se parsean como `Decimal`
+    pero no son números: se tratan como texto y se neutralizan.
+    """
     try:
-        Decimal(valor)
+        numero = Decimal(valor)
     except (InvalidOperation, ValueError):
         return False
-    return True
+    return numero.is_finite()
 
 
 def neutralizar_valor(valor):

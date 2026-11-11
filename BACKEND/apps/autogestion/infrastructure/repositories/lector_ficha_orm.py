@@ -230,13 +230,17 @@ class LectorFichaORM:
     def es_parentesco_hijo(self, parentesco_id) -> bool:
         return self._regla_familiar(parentesco_id).es_hijo
 
-    def validar_familiar_alta(self, cedula: str, valores: dict) -> None:
+    def validar_familiar_alta(self, cedula: str, valores: dict) -> str | None:
         """Alta de familiar: reutiliza `resolver_cedula_familiar` del módulo de familiares.
 
         La cédula es obligatoria salvo para un(a) hijo(a) menor de 9 años, a quien se le
         genera `<cédula del titular>-<orden elegido>`. El orden es obligatorio y aquí se
-        valida también el duplicado; la cédula resultante se expone en
-        `cedula_generada` para que la revisión la muestre antes de aplicar.
+        valida también el duplicado.
+
+        Devuelve la cédula que se generará al aprobar (o `None` si el familiar trae la
+        suya) y **no modifica `valores`**: la revisión la calcula para mostrarla y la
+        aprobación la vuelve a resolver. Escribirla en el valor propuesto dejaba el
+        borrador trabado, porque al reenviarlo se rechazaba como campo no editable.
         """
         from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
 
@@ -285,8 +289,9 @@ class LectorFichaORM:
         except ValueError as exc:
             campo = 'orden_hijo' if 'orden' in str(exc).lower() else 'cedula_familiar'
             raise ValidationError(str(exc), campo=campo) from None
-        if not (valores.get('cedula_familiar') or '').strip():
-            valores['cedula_generada'] = resuelta
+        if (valores.get('cedula_familiar') or '').strip():
+            return None
+        return resuelta
 
     def validar_familiar_cambio(self, cedula: str, entidad_id: str, valores: dict) -> None:
         """FIX-FAM2: valida el estado final del familiar al editar campos sensibles."""

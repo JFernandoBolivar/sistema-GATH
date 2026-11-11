@@ -25,7 +25,9 @@ class ExportadorResultadosCargaORM:
         libro = Workbook()
         hoja = libro.active
         hoja.title = 'Resultados'
-        hoja.append(columnas)
+        # Las claves salen del archivo que sube el usuario: la cabecera también
+        # se neutraliza (S6-02) o abriría una fórmula al pulsar la celda.
+        hoja.append(neutralizar_fila_valores(columnas))
         for fila in filas:
             hoja.append(neutralizar_fila_valores([
                 carga.poblacion, carga.archivo_nombre, fila.tipo, fila.numero_fila, fila.estado,

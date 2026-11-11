@@ -6,22 +6,21 @@ estos datos a la infraestructura a través del puerto
 `LectorValidacionFamiliar`. Las reglas puras siguen en
 `validaciones_familiar.py`.
 """
-from datetime import date
-
 from apps.familiares.application.use_cases.validaciones_familiar import (
     ReglaParentescoFamiliar,
 )
 from apps.familiares.domain.ports.lector_validacion_familiar import (
     LectorValidacionFamiliar,
     ParentescoDeFamiliar,
+    TitularDeFamiliar,
 )
 
 
-def empleado_del_familiar(
+def titular_del_familiar(
     lector: LectorValidacionFamiliar, empleado_cedula: str,
-) -> tuple[bool, date | None]:
-    """`(existe, fecha de nacimiento del titular)`."""
-    return lector.empleado_existe(empleado_cedula), lector.fecha_nacimiento_titular(empleado_cedula)
+) -> TitularDeFamiliar | None:
+    """Titular del familiar (existencia + fecha de nacimiento) con una sola consulta."""
+    return lector.titular(empleado_cedula)
 
 
 def parentesco_y_regla(

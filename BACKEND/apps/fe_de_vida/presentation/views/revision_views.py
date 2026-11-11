@@ -75,9 +75,9 @@ from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
 from core.presentation.archivos import respuesta_archivo
 from core.presentation.envelope import ok
 from core.presentation.permissions import usuario_tiene_permiso
+from core.presentation.schema import MensajeRespuestaSerializer
 
 logger = logging.getLogger('gath.fe_de_vida')
-from core.presentation.schema import MensajeRespuestaSerializer
 
 TAG = ['Fe de vida · Bienestar']
 ERRORES = {400: MensajeRespuestaSerializer, 403: MensajeRespuestaSerializer, 404: MensajeRespuestaSerializer,

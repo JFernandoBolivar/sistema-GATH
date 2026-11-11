@@ -366,9 +366,59 @@ cambio. El hallazgo se cierra como verificado.
 
 ---
 
+## Ajustes tras revisión
+
+Seis correcciones pedidas en la revisión del coordinador sobre `66692eb9`. No
+cambian la interfaz ni las respuestas de la API: son cobertura de la
+neutralización de fórmulas y limpieza del código de las fases B/C/E.
+
+1. **Cabecera del Excel de resultados de carga masiva**
+   (`apps/carga_masiva/infrastructure/exportacion_resultados.py`): las claves
+   de columna salen del `.xlsx` que sube el usuario, así que la fila de
+   cabeceras se pasa por `neutralizar_fila_valores` igual que los datos.
+2. **Dos exportaciones de RRHH**: `planilla_validacion_apn.py` (fila de datos)
+   y `trabajadores_sin_fecha_ingreso.py` (fila por trabajador) neutralizan sus
+   filas antes de escribir la celda.
+3. **`excel_seguro.es_numero`**: solo cuenta como número un `Decimal` finito.
+   `Infinity`, `-Infinity`, `NaN`, `-NaN`, `-nan` y `-sNaN` parsean como
+   `Decimal` pero ya no se tratan como número, así que se neutralizan.
+4. **Cabeceras del motor común** (`core/infrastructure/excel/estilo_reporte.py`,
+   `escribir_tabla`): la celda de cabecera también se neutraliza.
+5. **`revision_views.py`**: `logger = logging.getLogger(...)` pasa a estar
+   después de **todos** los imports (estaba entre `core.presentation.permissions`
+   y `core.presentation.schema`).
+6. **Validación de familiares**
+   (`apps/familiares/application/use_cases/contexto_validacion_familiar.py`):
+   el titular se lee con **una** consulta. El puerto expone
+   `titular(cedula) -> TitularDeFamiliar | None` (cédula + fecha de nacimiento)
+   en lugar de `empleado_existe()` + `fecha_nacimiento_titular()`; el serializer
+   usa `titular.cedula` y `titular.fecha_nacimiento`. Se retiró el
+   `ContextoValidacionFamiliar` que había quedado sin uso.
+
+### Pruebas nuevas
+
+- `tests/unit/carga_masiva/test_exportacion_resultados.py` (3 casos): una clave
+  `=HYPERLINK(...)` y otra `@SUM(1+1)` en la cabecera quedan como texto;
+  las columnas fijas y las normales no se tocan; los datos siguen escribiéndose
+  bien. Usa un doble de `carga` (sin base de datos).
+- `tests/unit/core/test_neutralizacion_formulas.py`: `es_numero` da `False` para
+  `-Infinity`, `Infinity`, `-NaN`, `NaN`, `-nan` y `-sNaN`, y los que empiezan
+  por signo se neutralizan con `'`.
+
+### Verificación
+
+- `pytest` de los módulos tocados: **898 passed** (unit core/carga
+  masiva/familiares/personal/fe de vida + integración de los mismos), más
+  **101 passed** en el pase corto posterior al último ajuste.
+- `lint-imports`: **91 contratos, 0 rotos**.
+- `npx eslint src --quiet`: **0 errores**; `npx tsc --noEmit`: **0 errores**.
+
+---
+
 ## Cierre
 
-Las cinco fases quedaron aplicadas y verificadas. Estado final del árbol:
+Las cinco fases quedaron aplicadas y verificadas. Estado tras la Fase E
+(antes de los ajustes de revisión):
 
 - `pytest --create-db`: **2070 passed, 1 skipped** (~13 min)
 - `lint-imports`: **91 contratos, 0 rotos**
@@ -376,6 +426,10 @@ Las cinco fases quedaron aplicadas y verificadas. Estado final del árbol:
 - `npx tsc --noEmit`: **0 errores**
 - `npx vitest run`: **207 archivos / 1098 pruebas**
 - `npx eslint src --quiet`: **0 errores**
+
+Los ajustes de revisión (arriba) se verificaron con `pytest` de los módulos
+tocados, `lint-imports`, `tsc` y `eslint`, todos en verde; no se repitió la
+batería completa de 2070.
 
 Sin commit: los cambios quedan en el árbol de trabajo de
 `feature/fe-de-vida-pasivos` para revisión.
