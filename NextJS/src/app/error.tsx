@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { AlertTriangle } from "lucide-react";
 
 import { limpiarCookiesAuthAction } from "@/modules/auth/infrastructure/actions/auth-actions";
+import { recargarSiVersionDesfasada } from "@/shared/lib/version-desfasada";
 
 export default function Error({
   error,
@@ -13,6 +14,8 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
+    // Pestaña abierta durante un despliegue: recargar trae el build nuevo.
+    if (recargarSiVersionDesfasada(error)) return;
     if (
       error.name === "AuthSessionExpiredError" ||
       error.message?.includes("Sesión expirada")
