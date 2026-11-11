@@ -129,3 +129,30 @@ _(se irán agregando aquí a medida que avancen las tareas)_
   `redis`, `rabbitmq`) y Django/Next publican puertos al host. El plan excluye
   tocar Docker/compose: aplicar en el servidor (usuario sin privilegios,
   límites, solo el proxy publicado, digest fijo).
+
+## Pendiente para el próximo despliegue: el build tarda unas 2 horas (anotado el 11/11/2026)
+El usuario lo pidió anotar para validarlo con calma después de la urgencia. **No está aplicado.**
+
+**Síntoma:** el build de Docker en producción del 10/11 tardó unas 2 horas.
+
+**Causas probables** según `BACKEND/django.dockerfile` y `NextJS/nextjs.dockerfile`, de más a menos lenta. Ninguna está confirmada todavía:
+1. **Las fuentes Arial** (`ttf-mscorefonts-installer`) se descargan de SourceForge durante el build. A través del proxy institucional pueden tardar mucho o reintentar hasta agotar el tiempo.
+2. **Python 3.14 con `psycopg2`, `mysqlclient` y `build-essential`.** Si no hay paquetes ya compilados para esa versión, pip los compila desde el código fuente.
+3. **`pnpm install` y `next build` del frontend.** Descargan cientos de paquetes y la compilación consume mucha CPU y RAM.
+
+Además: `compose.yml` declara `build:` con la misma imagen `gath-backend:latest` en 4 servicios (bootstrap, django, celery_worker y celery_beat).
+
+**Cómo confirmarlo, en QA y sin tocar producción:**
+```bash
+cd /opt/gath
+docker compose -p gath build --progress=plain 2>&1 | tee build.log
+```
+El log trae la duración de cada paso: hay que mirar los que pasan de 1 minuto.
+
+**Opciones para reducirlo, cuando se decida:**
+- Incluir las fuentes en el repositorio, por ejemplo en `BACKEND/fonts/`, y copiarlas en la imagen en vez de descargarlas.
+- Usar `psycopg2-binary` o fijar una versión de Python que tenga paquetes ya compilados.
+- Construir la imagen del backend una sola vez: `build:` en un solo servicio y `image:` en los demás.
+- No usar `--no-cache` en cada despliegue, para aprovechar la caché de capas: si solo cambia el código, las capas de dependencias se reutilizan.
+
+**Decisión pendiente del usuario.** Son cambios de Docker y de compose.
