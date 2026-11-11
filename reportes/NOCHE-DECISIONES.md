@@ -59,3 +59,22 @@ _(se irán agregando aquí a medida que avancen las tareas)_
   `configuracion` que barre modelos de otras apps. Ninguno afecta el
   comportamiento; recomendación: tarea de limpieza con pruebas de censo y
   retención congeladas.
+
+- **Frontera de importación del frontend (AUD3-02-01)**: `eslint.config.mjs` no
+  tiene `import/no-restricted-paths` ni existe el test de invariantes, así que
+  la frontera Onion no se vigila. Añadirla requiere `eslint-plugin-import` y
+  declarar las zonas de los 19 módulos; tras las correcciones del PASO 2 el
+  árbol ya cumple las dos reglas principales. Recomendación: tarea dedicada con
+  el plugin y `pnpm lint` en CI.
+
+- **Unificación de `src/components` y `src/shared/ui` (AUD3-02-02/03)**:
+  conviven 76 archivos en `src/components` (612 imports) con 80 en
+  `src/shared/ui/components` (677), y `src/lib` (10) con `src/shared/lib` (19).
+  Además `src/app/types/types.ts` lo importan módulos. Es el `MED-10`/`F2.9` del
+  plan del proyecto; unificar es masivo y sin cambio funcional: tarea aparte con
+  la batería completa.
+
+- **Acciones que lanzan en eventos (AUD3-02-08)**: `eventos-actions.ts` no
+  devuelve `Resultado<T>` en sus escrituras (20 `throw`). Convertirlo exige sus
+  pruebas de eventos; los `throw` de las acciones de lectura son intencionales
+  para SWR.

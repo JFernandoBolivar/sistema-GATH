@@ -15,6 +15,12 @@ import type {
   BarChartItem,
 } from "@/app/types/types";
 import type { MiExpedienteDTO } from "../../application/dtos/mi-expediente-dto";
+import type {
+  CargoCenso,
+  CensoEmpleado,
+  DatosViviendaCenso,
+  ViviendaCenso,
+} from "../../domain/entities/censo";
 
 /**
  * Los catálogos de /api/v1/organizacion/ y /api/v1/catalogos/tipos-nomina/ usan
@@ -98,16 +104,9 @@ export interface MetricasCensoApiItem {
 }
 
 /** Cargo que devuelve /censo/consultar/ (relaciones anidadas del backend). */
-export interface CensoCargoApiItem {
-  codigo?: string;
-  denominacioncargo?: { cargo?: string } | null;
-  Dependencia?: { dependencia: string } | null;
-  DireccionGeneral?: { direccion_general: string } | null;
-  DireccionLinea?: { direccion_linea: string } | null;
-  Coordinacion?: { coordinacion: string } | null;
-}
+export type CensoCargoApiItem = CargoCenso;
 
-export type DatosViviendaPayload = NonNullable<SubmitPayload["datos_vivienda"]>;
+export type DatosViviendaPayload = DatosViviendaCenso;
 
 /** Respuesta cruda de /censo/metricas/ (solo los campos que se consumen). */
 export interface MetricasCensoResponse {
@@ -124,30 +123,9 @@ export type OpcionCensoCompat = Pick<OpcionPreguntaApiItem, "id"> &
   Partial<Omit<OpcionPreguntaApiItem, "id">> & { tipo_opcion?: string };
 
 /** Vivienda tal como la devuelve /censo/consultar/ (código postal expandido). */
-export type CensoViviendaApiItem = DatosViviendaPayload & {
-  codigo_postal?: { codigo?: string } | null;
-};
+export type CensoViviendaApiItem = ViviendaCenso;
 
-export interface CensoEmpleadoItem {
-  id: number;
-  cedula: string;
-  nombres: string;
-  apellidos: string;
-  fecha_nacimiento: string | null;
-  carnet_patria: string | null;
-  carnet_patria_serial: string | null;
-  cargos: CensoCargoApiItem[];
-  datos_vivienda: CensoViviendaApiItem | null;
-  total_apn: { years: number; months: number; days: number };
-  fecha_ingreso_organismo: string | null;
-  preguntas: {
-    id: number;
-    pregunta: string;
-    tipo: string;
-    opcion: { id: number; opcion: string } | null;
-    respuesta: string;
-  }[];
-}
+export type CensoEmpleadoItem = CensoEmpleado;
 
 export interface SubmitPayload {
   carnet_patria: string;

@@ -5,7 +5,7 @@ import {
   crearEvento,
   getEventos,
   importarInvitados,
-} from "./gestionar-eventos";
+} from "./eventos-api";
 
 vi.mock("@/shared/infrastructure/http/fetcher-api", () => ({
   apiClient: {

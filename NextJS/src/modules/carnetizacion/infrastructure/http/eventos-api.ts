@@ -1,5 +1,9 @@
 /**
- * Casos de uso y cliente de API para Eventos, Invitados y Control de Entrada (O45-B).
+ * Cliente HTTP de Eventos, Invitados y Control de Entrada (O45-B).
+ *
+ * Vive en `infrastructure/http` (no en `application`): la capa de aplicación no
+ * puede depender del transporte. Las Server Actions de `eventos-actions.ts` son
+ * quienes lo consumen.
  */
 import { apiClient } from "@/shared/infrastructure/http/fetcher-api";
 import type { ApiResponse } from "@/shared/types/api-response";

@@ -32,7 +32,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Opcion, Pregunta } from "@/app/types/types";
-import type { DatosViviendaPayload } from "@/modules/autogestion/infrastructure/http/autogestion-api";
+import type { DatosViviendaCenso } from "@/modules/autogestion/domain/entities/censo";
 import {
   getSessionCedulaAction,
   consultarCensoEmpleadoAction,
@@ -173,7 +173,7 @@ export default function AutogestionPage() {
         };
       });
 
-      const vivienda = values["datos_vivienda"] as DatosViviendaPayload | undefined;
+      const vivienda = values["datos_vivienda"] as DatosViviendaCenso | undefined;
 
       const response = await enviarAutogestionAction(carnetPatria, vivienda, respuestas);
       if (response.success) {
