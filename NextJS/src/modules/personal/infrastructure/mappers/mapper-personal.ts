@@ -187,6 +187,7 @@ export function empleadoApiAEntidad(raw: EmpleadoApiItem): Empleado {
     sexoNombre: raw.sexo_nombre,
     correo: raw.correo,
     correoAlternativo: raw.correo_alternativo ?? null,
+    tieneHijos: raw.tiene_hijos ?? null,
     telefonoMovil: raw.telefono_movil,
     telefonoHabitacion: raw.telefono_habitacion,
     fechaNacimiento: raw.fecha_nacimiento,

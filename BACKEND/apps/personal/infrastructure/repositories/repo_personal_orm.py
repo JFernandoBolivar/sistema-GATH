@@ -231,7 +231,16 @@ class RepoPersonalORM:
         )
         respaldo = date.fromisoformat(ingreso_respaldo) if ingreso_respaldo else None
         apn = apn_oficial(antecedentes, fecha_ingreso_respaldo=respaldo)
-        expediente['correo_alternativo'] = self._correo_alternativo_de(fila.cedulaidentidad)
+        # Una sola lectura de los datos complementarios (correo alternativo y ¿tiene hijos?).
+        from apps.autogestion.infrastructure.repositories.repo_secciones_complementarios_orm import (
+            RepoDatosComplementariosORM,
+        )
+
+        complementarios = RepoDatosComplementariosORM().obtener(str(fila.cedulaidentidad).strip())
+        expediente['correo_alternativo'] = (
+            ((complementarios.correo_alternativo or '').strip() or None) if complementarios else None
+        )
+        expediente['tiene_hijos'] = complementarios.tiene_hijos if complementarios else None
         return empleado_a_entidad(fila, antecedentes, expediente=expediente, apn=apn)
 
     @staticmethod

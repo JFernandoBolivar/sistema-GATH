@@ -53,6 +53,7 @@ class EmpleadoSerializer(serializers.Serializer):
     sexo_nombre = serializers.CharField(read_only=True)
     correo = serializers.EmailField(read_only=True, allow_null=True)
     correo_alternativo = serializers.CharField(read_only=True, allow_null=True, required=False)
+    tiene_hijos = serializers.BooleanField(read_only=True, allow_null=True, required=False)
     telefono_movil = serializers.CharField(read_only=True, allow_null=True)
     telefono_habitacion = serializers.CharField(read_only=True, allow_null=True)
     fecha_nacimiento = serializers.CharField(read_only=True, allow_null=True)
@@ -86,3 +87,9 @@ class EmpleadoSerializer(serializers.Serializer):
     contratos = serializers.ListField(child=serializers.DictField(), read_only=True, required=False)
     asignaciones = serializers.ListField(child=serializers.DictField(), read_only=True, required=False)
     encargadurias = serializers.ListField(child=serializers.DictField(), read_only=True, required=False)
+
+
+class TieneHijosEntradaSerializer(serializers.Serializer):
+    """Cuerpo del PATCH de datos complementarios: «¿tiene hijos?» (null = sin dato)."""
+
+    tiene_hijos = serializers.BooleanField(allow_null=True)

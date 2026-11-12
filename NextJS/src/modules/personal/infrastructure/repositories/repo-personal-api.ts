@@ -220,6 +220,11 @@ export const repoPersonalApi: RepoPersonal = {
     return empleadoApiAEntidad(raw);
   },
 
+  async actualizarTieneHijos(cedula, tieneHijos) {
+    const raw = await personalApi.actualizarTieneHijos(cedula, tieneHijos);
+    return raw.tiene_hijos ?? null;
+  },
+
   async listarCatalogosExpediente() {
     // Los catálogos pesados y dependientes de un padre NO se piden aquí:
     // menciones (6327 filas), carreras, tallas, códigos postales, municipios y

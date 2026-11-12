@@ -5,6 +5,7 @@ from apps.personal.presentation.views.carga_masiva_views import (
     ImportarExpedienteCompletoView,
 )
 from apps.personal.presentation.views.personal_views import (
+    DatosComplementariosView,
     EmpleadoDetailView,
     EmpleadoDetallePdfView,
     EmpleadoFotoView,
@@ -104,5 +105,6 @@ urlpatterns = [
     # Detalle de empleado y foto
     path('<str:cedula>/', EmpleadoDetailView.as_view(), name='empleado-detail'),
     path('<str:cedula>/pdf/', EmpleadoDetallePdfView.as_view(), name='empleado-detail-pdf'),
+    path('<str:cedula>/datos-complementarios/', DatosComplementariosView.as_view(), name='empleado-datos-complementarios'),
     path('<str:cedula>/foto/', EmpleadoFotoView.as_view(), name='empleado-foto'),
 ]

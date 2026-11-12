@@ -15,6 +15,7 @@ function aDTO(e: Awaited<ReturnType<RepoPersonal["crearEmpleado"]>>): EmpleadoDT
     sexoNombre: e.sexoNombre,
     correo: e.correo,
     correoAlternativo: e.correoAlternativo ?? null,
+    tieneHijos: e.tieneHijos ?? null,
     telefonoMovil: e.telefonoMovil,
     telefonoHabitacion: e.telefonoHabitacion,
     fechaNacimiento: e.fechaNacimiento,
@@ -104,4 +105,12 @@ export async function actualizarEmpleado(
     contrato: data.contrato,
   });
   return aDTO(e);
+}
+
+export async function actualizarTieneHijos(
+  repo: RepoPersonal,
+  cedula: string,
+  tieneHijos: boolean | null,
+): Promise<boolean | null> {
+  return repo.actualizarTieneHijos(cedula, tieneHijos);
 }

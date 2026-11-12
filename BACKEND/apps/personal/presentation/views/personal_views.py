@@ -2,6 +2,9 @@
 Vistas delgadas de Personal (Reglas B4, B7).
 Con Envelope unificado `ok()` / `fail()` y permisos PBAC.
 """
+import uuid
+
+from django.db import transaction
 from django.http import HttpResponse
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.views import APIView
@@ -16,6 +19,7 @@ from core.infrastructure.storage.validacion_archivo import (
     validar_archivo,
 )
 from core.presentation.archivos import respuesta_archivo
+from core.presentation.audit import origen_de_peticion, registrar_auditoria
 from core.presentation.envelope import fail, ok
 from core.presentation.permissions import HasPermission, usuario_tiene_permiso
 from apps.personal.application.use_cases.gestionar_personal import (
@@ -24,12 +28,14 @@ from apps.personal.application.use_cases.gestionar_personal import (
     guardar_foto,
     obtener_clave_foto,
 )
+from apps.personal.application.use_cases.actualizar_tiene_hijos import actualizar_tiene_hijos
 from apps.personal.application.use_cases.listar_personal import listar_personal_paginado
 from apps.personal.application.use_cases.obtener_personal import obtener_personal_por_cedula
 from apps.personal.infrastructure.mappers.mapper_personal import ruta_foto
 from apps.personal.infrastructure.pdf_empleado import construir_pdf_expediente_empleado
 from apps.personal.infrastructure.repositories.consultas_historial_cargos import historial_cargos_de
 from apps.personal.infrastructure.repositories.repo_personal_orm import RepoPersonalORM
+from apps.personal.infrastructure.repositories.repo_tiene_hijos_orm import RepoTieneHijosORM
 from apps.personal.infrastructure.serializers.empleado_escritura_serializers import (
     EmpleadoActualizarSerializer,
     EmpleadoCrearSerializer,
@@ -43,6 +49,7 @@ from apps.personal.presentation.serializers.personal_serializers import (
     EmpleadoListadoSerializer,
     EmpleadoSerializer,
     ListadoEmpleadosPaginadoSerializer,
+    TieneHijosEntradaSerializer,
 )
 
 
@@ -151,6 +158,45 @@ class EmpleadoDetailView(APIView):
     # esta acción por PATCH; se replica el verbo aquí además de PUT para no
     # forzar al frontend a elegir uno solo mientras dura la migración.
     patch = put
+
+
+class DatosComplementariosView(APIView):
+    """RR. HH. corrige «¿tiene hijos?» en la ficha de un trabajador activo o pasivo."""
+
+    class _PuedeEditarFicha(BasePermission):
+        message = "No posee permiso para editar los datos del trabajador."
+
+        def has_permission(self, request, view) -> bool:
+            return any(usuario_tiene_permiso(request.user, c) for c in ('personal.editar_personales', 'pasivos.editar'))
+
+    permission_classes = [IsAuthenticated, _PuedeEditarFicha]
+
+    @extend_schema(
+        tags=['Personal'], summary='Actualizar «¿tiene hijos?» del trabajador',
+        request=TieneHijosEntradaSerializer,
+    )
+    def patch(self, request, cedula: str):
+        entrada = TieneHijosEntradaSerializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        actor = str(getattr(request.user, 'cedula_id', '') or '')
+        with transaction.atomic():
+            cambio = actualizar_tiene_hijos(
+                RepoTieneHijosORM(), cedula=cedula,
+                tiene_hijos=entrada.validated_data['tiene_hijos'], actor_cedula=actor,
+            )
+            registrar_auditoria(
+                trace_id=getattr(request, 'trace_id', None) or uuid.uuid4().hex,
+                actor_id=getattr(request.user, 'pk', None),
+                actor_cedula=actor,
+                actor_rol=getattr(getattr(request.user, 'rol', None), 'nombre_rol', '') or '',
+                accion='personal.tiene_hijos_actualizado', modulo='personal',
+                recurso_tipo='Employee', recurso_id=cedula,
+                estado_previo={'tiene_hijos': cambio.previo}, estado_nuevo={'tiene_hijos': cambio.nuevo},
+                **origen_de_peticion(request),
+            )
+        return ok({'tiene_hijos': cambio.nuevo}, 'Dato actualizado correctamente.')
+
+    put = patch
 
 
 def _quien_genera(usuario) -> str:

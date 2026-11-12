@@ -97,6 +97,8 @@ export interface RepoPersonal {
   obtenerPorCedula(cedula: string): Promise<Empleado>;
   crearEmpleado(data: GuardarEmpleadoDatos): Promise<Empleado>;
   actualizarEmpleado(cedula: string, data: Partial<GuardarEmpleadoDatos>): Promise<Empleado>;
+  /** RR. HH. corrige «¿tiene hijos?» (datos complementarios); devuelve el valor guardado. */
+  actualizarTieneHijos(cedula: string, tieneHijos: boolean | null): Promise<boolean | null>;
   listarCatalogosExpediente(): Promise<CatalogosExpediente>;
   /** PDF del expediente generado en backend (ReportLab), reemplaza el render client-side con @react-pdf/renderer. */
   descargarPdf(cedula: string): Promise<Blob>;

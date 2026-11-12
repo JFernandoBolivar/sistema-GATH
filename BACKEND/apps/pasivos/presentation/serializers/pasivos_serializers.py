@@ -64,6 +64,7 @@ class PasivoSerializer(serializers.Serializer):
     observaciones = serializers.CharField(read_only=True, allow_null=True)
     correo = serializers.CharField(read_only=True, allow_null=True)
     correo_alternativo = serializers.CharField(read_only=True, allow_null=True)
+    tiene_hijos = serializers.BooleanField(read_only=True, allow_null=True, required=False)
     telefono_movil = serializers.CharField(read_only=True, allow_null=True)
     telefono_habitacion = serializers.CharField(read_only=True, allow_null=True)
     carnet_patria = serializers.CharField(read_only=True, allow_null=True)

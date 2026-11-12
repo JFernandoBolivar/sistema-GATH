@@ -104,6 +104,7 @@ export interface EmpleadoDTO {
   sexoNombre: string;
   correo: string | null;
   correoAlternativo?: string | null;
+  tieneHijos?: boolean | null;
   telefonoMovil: string | null;
   telefonoHabitacion: string | null;
   fechaNacimiento: string | null;

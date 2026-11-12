@@ -21,6 +21,7 @@ class PasivoDTO:
     observaciones: str | None = None
     correo: str | None = None
     correo_alternativo: str | None = None
+    tiene_hijos: bool | None = None
     telefono_movil: str | None = None
     telefono_habitacion: str | None = None
     carnet_patria: str | None = None

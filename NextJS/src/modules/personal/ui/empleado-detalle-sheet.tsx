@@ -16,6 +16,7 @@
  * 6. Formaciones Académicas (GraduationCap + botón Actualizar).
  * 7. Formación Complementaria (tabla con horas, fechas, institución + botón Actualizar).
  * 8. Contacto de Emergencia (mejora documentada en el Sheet).
+ * 8b. Grupo Familiar (¿Tiene hijos? + botón Actualizar).
  * 9. Información de Vestimenta (Shirt + botón Actualizar).
  * 10. Información de Salud (Ambulance + Tipo de sangre + tablas categorizadas de patologías, discapacidades, alergias).
  */
@@ -30,6 +31,7 @@ import {
   Loader2,
   PhoneCall,
   Shirt,
+  Users,
 } from "lucide-react";
 
 import { Badge } from "@/shared/ui/components/badge";
@@ -58,6 +60,7 @@ import FormDwellingUpdateDialog from "./dialogs/form-dwelling-update-dialog";
 import FormEmergencyContactsUpdateDialog from "./dialogs/form-emergency-contacts-update-dialog";
 import FormHealthProfileUpdateDialog from "./dialogs/form-health-profile-update-dialog";
 import FormPhysicalProfileUpdateDialog from "./dialogs/form-physical-profile-update-dialog";
+import FormTieneHijosUpdateDialog from "./dialogs/form-tiene-hijos-update-dialog";
 import FormSupplementaryTrainingUpdateDialog from "./dialogs/form-supplementary-training-update-dialog";
 import type { DetalleExpedienteViewModel } from "./expediente-detalle-view-model";
 
@@ -704,6 +707,38 @@ export default function EmpleadoDetalleSheet({
                     </Table>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+
+            {/* 8b. Grupo Familiar: ¿tiene hijos? (dato complementario de la ficha) */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+                  <div className="flex flex-row items-center gap-2">
+                    Grupo Familiar <Users className="size-5" />
+                  </div>
+                  {puedeEditar && (
+                    <FormTieneHijosUpdateDialog
+                      cedula={empleado.cedula}
+                      tieneHijos={empleado.tieneHijos}
+                      onGuardado={onGuardado}
+                      triggerLabel="Actualizar"
+                      triggerClassName="w-full sm:w-auto cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm"
+                    />
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 place-content-center gap-y-2 text-sm">
+                  <div className="font-medium text-muted-foreground">¿Tiene Hijos?:</div>
+                  <div>
+                    {empleado.tieneHijos === true
+                      ? "Sí"
+                      : empleado.tieneHijos === false
+                        ? "No"
+                        : "Sin dato"}
+                  </div>
+                </div>
               </CardContent>
             </Card>
 

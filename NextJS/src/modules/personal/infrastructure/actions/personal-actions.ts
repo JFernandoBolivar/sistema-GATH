@@ -18,6 +18,7 @@ import type { FiltrosListadoEmpleado } from "../../domain/ports/repo-personal";
 import type { GuardarEmpleadoInputDTO } from "../../application/dtos/empleado-dto";
 import {
   actualizarEmpleado,
+  actualizarTieneHijos,
   registrarEmpleado,
 } from "../../application/use-cases/gestionar-empleado";
 import {
@@ -155,6 +156,25 @@ export async function actualizarEmpleadoAction(
     await logAudit({ traceId, action: "actualizarEmpleadoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return errorDeAccion(error, "Error al actualizar empleado");
+  }
+}
+
+export async function actualizarTieneHijosAction(cedula: string, tieneHijos: boolean | null) {
+  const cedulaValida = empleadoCedulaSchema.safeParse({ cedula });
+  if (!cedulaValida.success || (tieneHijos !== null && typeof tieneHijos !== "boolean")) {
+    return { error: "Datos inválidos. Revise la información ingresada." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await actualizarTieneHijos(repoPersonalApi, cedulaValida.data.cedula, tieneHijos);
+    await logAudit({ traceId, action: "actualizarTieneHijosAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { tieneHijos: result };
+  } catch (error) {
+    await logAudit({ traceId, action: "actualizarTieneHijosAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return errorDeAccion(error, "No fue posible actualizar el dato.");
   }
 }
 
