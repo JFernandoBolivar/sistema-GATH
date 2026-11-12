@@ -195,7 +195,7 @@ export function PlantillasMotorGrid({
             return (
               <Card
                 key={p.id}
-                className={`flex flex-col justify-between border shadow-none transition-all ${
+                className={`flex min-w-0 flex-col justify-between border shadow-none transition-all ${
                   esActiva ? "border-primary/40 ring-2 ring-primary/20" : ""
                 }`}
               >
@@ -299,8 +299,8 @@ export function PlantillasMotorGrid({
                   </div>
                 </CardContent>
 
-                <div className="mt-auto flex items-center justify-between gap-2 border-t border-border p-4 pt-3">
-                  <div className="flex items-center gap-1.5">
+                <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-border p-4 pt-3">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <Button size="sm" variant="default" className="min-h-9 gap-1.5" asChild>
                       <Link href={`/carnetizacion/disenador?plantilla=${p.id}`}>
                         <Palette className="size-3.5" aria-hidden />
@@ -344,7 +344,7 @@ export function PlantillasMotorGrid({
                     </Button>
                   </div>
 
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     {esBorrador && (
                       <Button
                         size="sm"

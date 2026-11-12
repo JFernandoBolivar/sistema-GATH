@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   alinearElementoKonva,
+  aplicarColoresAValores,
+  quitarTodosLosValores,
+  cambiarCriterioColor,
+  CRITERIOS_COLOR_SOPORTADOS,
+  sugerenciasCriterio,
   duplicarElementoKonva,
   moverCapaKonva,
   normalizarClaveColor,
@@ -132,3 +137,59 @@ describe("Reglas de Color de Carnetización (O44 - E7)", () => {
   });
 });
 
+
+describe("Cambio de criterio de color", () => {
+  it("al cambiar el criterio cambian las opciones y se recuperan al volver", () => {
+    const nomina = REGLAS_COLOR_DEFECTO;
+    expect(Object.keys(nomina.valores)).toContain("Funcionario");
+
+    const porCargo = cambiarCriterioColor(nomina, "cargo");
+    expect(porCargo.criterio).toBe("cargo");
+    expect(Object.keys(porCargo.valores)).toEqual([]);
+
+    const conCargo = {
+      ...porCargo,
+      valores: { Analista: { primario: "#111111", acento: "#222222", texto: "#ffffff" } },
+    };
+    const aNomina = cambiarCriterioColor(conCargo, "nomina");
+    expect(Object.keys(aNomina.valores)).toContain("Funcionario");
+    expect(Object.keys(cambiarCriterioColor(aNomina, "cargo").valores)).toEqual(["Analista"]);
+
+    expect(sugerenciasCriterio("nomina")).toContain("Pasante");
+    expect(sugerenciasCriterio("cargo")).toEqual([]);
+    expect(CRITERIOS_COLOR_SOPORTADOS).not.toContain("nivel");
+  });
+});
+
+describe("Aplicar colores en bloque a los valores de una regla", () => {
+  const base: ReglasColorConfig = {
+    criterio: "cargo",
+    respaldo: REGLAS_COLOR_DEFECTO.respaldo,
+    valores: {
+      A: { primario: "#000001", acento: "#000002", texto: "#ffffff" },
+      B: { primario: "#000003", acento: "#000004", texto: "#ffffff" },
+      C: { primario: "#000005", acento: "#000006", texto: "#ffffff" },
+    },
+  };
+  const nuevo = { primario: "#abcdef", acento: "#fedcba" };
+
+  it("Aplicar a todos pone la combinación en todos", () => {
+    const r = aplicarColoresAValores(base, nuevo);
+    for (const v of Object.values(r.valores)) {
+      expect(v.primario).toBe("#abcdef");
+      expect(v.acento).toBe("#fedcba");
+      expect(v.texto).toBe("#ffffff");
+    }
+  });
+
+  it("Aplicar a seleccionados solo cambia los marcados", () => {
+    const r = aplicarColoresAValores(base, nuevo, ["B"]);
+    expect(r.valores.B.primario).toBe("#abcdef");
+    expect(r.valores.A).toEqual(base.valores.A);
+    expect(r.valores.C).toEqual(base.valores.C);
+  });
+
+  it("Quitar todos deja los valores sin regla", () => {
+    expect(quitarTodosLosValores(base).valores).toEqual({});
+  });
+});

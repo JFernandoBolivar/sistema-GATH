@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Layer, Line, Rect, Stage, Transformer } from "react-konva";
-import type Konva from "konva";
+import Konva from "konva";
 
 import type { ElementoKonva, PersonaMuestra } from "../../../domain/entities/disenador";
 import { KonvaElementoItem } from "./konva-elemento-item";
@@ -13,8 +13,9 @@ interface Props {
   escala: number;
   elementos: ElementoKonva[];
   caraActual: "anverso" | "reverso";
-  elementoSeleccionadoId: string | null;
-  onSeleccionarElemento: (id: string | null) => void;
+  seleccionIds: string[];
+  onSeleccionarElemento: (id: string | null, aditivo?: boolean) => void;
+  onSeleccionarVarios: (ids: string[]) => void;
   onActualizarElemento: (id: string, cambios: Partial<ElementoKonva>) => void;
   datosPersona: PersonaMuestra;
   coloresRegla?: { primario: string; acento: string; texto: string };
@@ -27,8 +28,9 @@ export function KonvaCanvasStage({
   escala,
   elementos,
   caraActual,
-  elementoSeleccionadoId,
+  seleccionIds,
   onSeleccionarElemento,
+  onSeleccionarVarios,
   onActualizarElemento,
   datosPersona,
   coloresRegla = { primario: "#16264a", acento: "#d9121f", texto: "#ffffff" },
@@ -37,6 +39,8 @@ export function KonvaCanvasStage({
   const stageRef = useRef<Konva.Stage>(null);
   const trRef = useRef<Konva.Transformer>(null);
   const [imagenesCargadas, setImagenesCargadas] = useState<Record<string, HTMLImageElement>>({});
+  const [marco, setMarco] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
+  const marcoRef = useRef<typeof marco>(null);
   const [guiasActivas, setGuiasActivas] = useState<{ x?: number; y?: number }>({});
 
   const anchoPx = anchoMm * escala;
@@ -59,27 +63,61 @@ export function KonvaCanvasStage({
     });
   }, [elementosCara, imagenesCargadas]);
 
-  // Actualizar el Transformer de Konva cuando cambia la selección
+  // El Transformer muestra todos los nodos seleccionados (uno o varios)
   useEffect(() => {
     if (!trRef.current || !stageRef.current) return;
-    if (!elementoSeleccionadoId) {
-      trRef.current.nodes([]);
-      trRef.current.getLayer()?.batchDraw();
+    const stage = stageRef.current;
+    const nodos = seleccionIds
+      .map((id) => stage.findOne(`#node-${id}`))
+      .filter((n): n is Konva.Node => !!n);
+    trRef.current.nodes(nodos);
+    trRef.current.getLayer()?.batchDraw();
+  }, [seleccionIds, elementosCara]);
+
+  const esFondo = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) =>
+    e.target === stageRef.current || e.target.name() === "canvas-background";
+
+  const posicion = () => stageRef.current?.getPointerPosition() ?? null;
+
+  const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+    if (!esFondo(e)) return;
+    const p = posicion();
+    if (!p) return;
+    marcoRef.current = { x1: p.x, y1: p.y, x2: p.x, y2: p.y };
+    setMarco(marcoRef.current);
+  };
+
+  const handleMouseMove = () => {
+    if (!marcoRef.current) return;
+    const p = posicion();
+    if (!p) return;
+    marcoRef.current = { ...marcoRef.current, x2: p.x, y2: p.y };
+    setMarco(marcoRef.current);
+  };
+
+  const handleMouseUp = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+    const m = marcoRef.current;
+    marcoRef.current = null;
+    setMarco(null);
+    if (!m || !stageRef.current) return;
+    const caja = {
+      x: Math.min(m.x1, m.x2),
+      y: Math.min(m.y1, m.y2),
+      width: Math.abs(m.x2 - m.x1),
+      height: Math.abs(m.y2 - m.y1),
+    };
+    // Un simple clic en el fondo (sin arrastrar) limpia la selección
+    if (caja.width < 3 && caja.height < 3) {
+      if (esFondo(e)) onSeleccionarElemento(null);
       return;
     }
-    const node = stageRef.current.findOne(`#node-${elementoSeleccionadoId}`);
-    if (node) {
-      trRef.current.nodes([node]);
-      trRef.current.getLayer()?.batchDraw();
-    } else {
-      trRef.current.nodes([]);
-    }
-  }, [elementoSeleccionadoId, elementosCara]);
-
-  const handleStageClick = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
-    if (e.target === stageRef.current || e.target.name() === "canvas-background") {
-      onSeleccionarElemento(null);
-    }
+    const ids = elementosCara
+      .filter((el) => {
+        const nodo = stageRef.current?.findOne(`#node-${el.id}`);
+        return !!nodo && Konva.Util.haveIntersection(caja, nodo.getClientRect());
+      })
+      .map((el) => el.id);
+    onSeleccionarVarios(ids);
   };
 
   return (
@@ -87,8 +125,12 @@ export function KonvaCanvasStage({
       ref={stageRef}
       width={anchoPx}
       height={altoPx}
-      onClick={handleStageClick}
-      onTap={handleStageClick}
+      onMouseDown={handleMouseDown}
+      onTouchStart={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onTouchMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onTouchEnd={handleMouseUp}
       className="shadow-2xl rounded-sm overflow-hidden border border-border/80"
     >
       <Layer>
@@ -137,6 +179,19 @@ export function KonvaCanvasStage({
             onActualizarGuias={setGuiasActivas}
           />
         ))}
+
+        {marco && (
+          <Rect
+            x={Math.min(marco.x1, marco.x2)}
+            y={Math.min(marco.y1, marco.y2)}
+            width={Math.abs(marco.x2 - marco.x1)}
+            height={Math.abs(marco.y2 - marco.y1)}
+            fill="rgba(37,99,235,0.12)"
+            stroke="#2563eb"
+            strokeWidth={1}
+            listening={false}
+          />
+        )}
 
         {/* Transformer interactivo para mover, rotar y escalar */}
         <Transformer

@@ -1,16 +1,28 @@
 "use client";
 
-import { Loader2, RotateCw, Search, Undo2, ZoomIn, ZoomOut } from "lucide-react";
+import { Eraser, Loader2, RotateCw, Search, Undo2, ZoomIn, ZoomOut } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { PersonaMuestra } from "../../../domain/entities/disenador";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import type { AlcanceLimpieza, PersonaMuestra } from "../../../domain/entities/disenador";
 
 interface DisenadorToolbarProps {
   caraActual: "anverso" | "reverso";
   onCambiarCara: (cara: "anverso" | "reverso") => void;
   onDeshacer: () => void;
   onRehacer: () => void;
+  onLimpiar: (alcance: AlcanceLimpieza) => void;
   puedeDeshacer: boolean;
   puedeRehacer: boolean;
   escala: number;
@@ -29,6 +41,7 @@ export function DisenadorToolbar({
   onCambiarCara,
   onDeshacer,
   onRehacer,
+  onLimpiar,
   puedeDeshacer,
   puedeRehacer,
   escala,
@@ -84,6 +97,36 @@ export function DisenadorToolbar({
         >
           <RotateCw className="size-4" />
         </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-1 h-8 gap-1.5 text-xs"
+              title="Limpiar diseño"
+            >
+              <Eraser className="size-3.5" aria-hidden />
+              Limpiar diseño
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Limpiar el diseño?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Se quitarán los elementos de la cara elegida; las dimensiones, la orientación y el
+                tipo de la plantilla no cambian. Podrá deshacerlo; no se guarda hasta pulsar
+                Guardar Borrador.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={() => onLimpiar("cara-actual")}>
+                Solo esta cara ({caraActual})
+              </AlertDialogAction>
+              <AlertDialogAction onClick={() => onLimpiar("ambas")}>Ambas caras</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       {/* Zoom y Escala */}

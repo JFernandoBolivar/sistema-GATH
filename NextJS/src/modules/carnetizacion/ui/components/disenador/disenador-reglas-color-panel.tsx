@@ -1,10 +1,22 @@
 "use client";
 
-import { Palette, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { Palette, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +28,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { CriterioColor, ReglasColorConfig } from "../../../domain/entities/disenador";
-import { REGLAS_COLOR_DEFECTO } from "../../../domain/entities/disenador";
+import {
+  aplicarColoresAValores,
+  cambiarCriterioColor,
+  quitarTodosLosValores,
+  CRITERIOS_COLOR_SOPORTADOS,
+  ETIQUETA_VALORES_CRITERIO,
+  REGLAS_COLOR_DEFECTO,
+  sugerenciasCriterio,
+} from "../../../domain/entities/disenador";
 
 interface DisenadorReglasColorPanelProps {
   reglasColor: ReglasColorConfig;
@@ -33,6 +53,47 @@ export function DisenadorReglasColorPanel({
   nuevoValorNombre,
   onCambiarNuevoValorNombre,
 }: DisenadorReglasColorPanelProps) {
+  const [busquedaValor, setBusquedaValor] = useState("");
+  const [colorMasivo, setColorMasivo] = useState({ primario: "#1f3a5f", acento: "#1273bd" });
+  const [marcados, setMarcados] = useState<string[]>([]);
+  const [confirmacion, setConfirmacion] = useState<"todos" | "seleccionados" | "quitar" | null>(
+    null,
+  );
+  const criterio = reglasColor.criterio;
+  const entradas = Object.entries(reglasColor.valores);
+  const filtradas = busquedaValor.trim()
+    ? entradas.filter(([k]) => k.toLowerCase().includes(busquedaValor.trim().toLowerCase()))
+    : entradas;
+  const sugerencias = sugerenciasCriterio(criterio).filter((v) => !(v in reglasColor.valores));
+  const soportado = (c: string) => (CRITERIOS_COLOR_SOPORTADOS as readonly string[]).includes(c);
+
+  const marcadosVigentes = marcados.filter((k) => k in reglasColor.valores);
+  const todosFiltradosMarcados =
+    filtradas.length > 0 && filtradas.every(([k]) => marcadosVigentes.includes(k));
+  const alternarMarcado = (clave: string) =>
+    setMarcados((prev) =>
+      prev.includes(clave) ? prev.filter((k) => k !== clave) : [...prev, clave],
+    );
+  const alternarFiltrados = () =>
+    setMarcados(todosFiltradosMarcados ? [] : filtradas.map(([k]) => k));
+
+  // El editor no guarda historial de reglas: las acciones en bloque piden confirmación.
+  const ejecutarConfirmacion = () => {
+    if (confirmacion === "todos") {
+      onActualizarReglasColor((prev) => aplicarColoresAValores(prev, colorMasivo));
+      toast.success("Colores aplicados a todos los valores.");
+    } else if (confirmacion === "seleccionados") {
+      const claves = marcadosVigentes;
+      onActualizarReglasColor((prev) => aplicarColoresAValores(prev, colorMasivo, claves));
+      toast.success(`Colores aplicados a ${claves.length} valores.`);
+    } else if (confirmacion === "quitar") {
+      onActualizarReglasColor((prev) => quitarTodosLosValores(prev));
+      setMarcados([]);
+      toast.success("Valores quitados: se usará el color de respaldo.");
+    }
+    setConfirmacion(null);
+  };
+
   const handleAnadirValor = () => {
     if (!nuevoValorNombre.trim()) return;
     onActualizarReglasColor((prev) => ({
@@ -76,7 +137,7 @@ export function DisenadorReglasColorPanel({
           <Select
             value={reglasColor.criterio}
             onValueChange={(val: CriterioColor) =>
-              onActualizarReglasColor((prev) => ({ ...prev, criterio: val }))
+              onActualizarReglasColor((prev) => cambiarCriterioColor(prev, val))
             }
           >
             <SelectTrigger className="h-8 text-xs">
@@ -87,8 +148,12 @@ export function DisenadorReglasColorPanel({
               <SelectItem value="nomina">Por Tipo de Nómina</SelectItem>
               <SelectItem value="cargo">Por Cargo del Titular</SelectItem>
               <SelectItem value="oficina">Por Oficina / Dependencia</SelectItem>
-              <SelectItem value="nivel">Por Nivel Jerárquico</SelectItem>
-              <SelectItem value="otro">Otro Catálogo Personalizado</SelectItem>
+              <SelectItem value="nivel" disabled={!soportado("nivel") && criterio !== "nivel"}>
+                Por Nivel Jerárquico (no disponible en el PDF)
+              </SelectItem>
+              <SelectItem value="otro" disabled={!soportado("otro") && criterio !== "otro"}>
+                Otro Catálogo Personalizado (no disponible en el PDF)
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -161,27 +226,128 @@ export function DisenadorReglasColorPanel({
           </div>
         </div>
 
+        {!soportado(criterio) && (
+          <p className="rounded border border-amber-300 bg-amber-50 p-2 text-[11px] text-amber-900">
+            El PDF aún no aplica este criterio: todos los carnets usarán el color de respaldo.
+          </p>
+        )}
+
         {/* Tabla de Valores según el Criterio */}
         {reglasColor.criterio !== "unico" && (
           <div className="space-y-2 pt-2 border-t">
             <div className="flex justify-between items-center">
               <Label className="text-[11px] font-semibold">
-                Valores tabulados ({reglasColor.criterio})
+                {ETIQUETA_VALORES_CRITERIO[criterio]}
               </Label>
               <span className="text-[10px] text-muted-foreground">
                 {Object.keys(reglasColor.valores).length} configurados
               </span>
             </div>
 
+            {entradas.length > 0 && (
+              <div className="space-y-2 rounded-lg border bg-muted/10 p-2.5">
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="flex items-center gap-1.5 text-xs font-medium">
+                    Primario
+                    <input
+                      type="color"
+                      aria-label="Color primario para aplicar"
+                      className="size-6 cursor-pointer rounded border p-0"
+                      value={colorMasivo.primario}
+                      onChange={(e) => setColorMasivo((c) => ({ ...c, primario: e.target.value }))}
+                    />
+                  </label>
+                  <label className="flex items-center gap-1.5 text-xs font-medium">
+                    Acento
+                    <input
+                      type="color"
+                      aria-label="Color de acento para aplicar"
+                      className="size-6 cursor-pointer rounded border p-0"
+                      value={colorMasivo.acento}
+                      onChange={(e) => setColorMasivo((c) => ({ ...c, acento: e.target.value }))}
+                    />
+                  </label>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-9 text-xs"
+                    onClick={() => setConfirmacion("todos")}
+                  >
+                    Aplicar a todos
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-9 text-xs"
+                    disabled={marcadosVigentes.length === 0}
+                    onClick={() => setConfirmacion("seleccionados")}
+                  >
+                    Aplicar a seleccionados ({marcadosVigentes.length})
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {entradas.length > 0 && (
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 size-3 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar…"
+                  aria-label="Buscar valor"
+                  className="h-9 pl-7 text-xs"
+                  value={busquedaValor}
+                  onChange={(e) => setBusquedaValor(e.target.value)}
+                />
+              </div>
+            )}
+
+            {filtradas.length > 0 && (
+              <div className="flex items-center justify-between gap-2">
+                <label className="flex items-center gap-1.5 text-xs font-medium">
+                  <Checkbox
+                    checked={todosFiltradosMarcados}
+                    onCheckedChange={alternarFiltrados}
+                    aria-label="Seleccionar todos los filtrados"
+                  />
+                  Seleccionar todos los filtrados
+                </label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs text-destructive hover:text-destructive"
+                  onClick={() => setConfirmacion("quitar")}
+                >
+                  Quitar todos
+                </Button>
+              </div>
+            )}
+
+            {entradas.length === 0 && (
+              <p className="text-[11px] text-muted-foreground">
+                Aún no hay valores para este criterio; añada abajo los que necesite.
+              </p>
+            )}
+
             <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
-              {Object.entries(reglasColor.valores).map(([clave, cols]) => (
+              {filtradas.map(([clave, cols]) => (
                 <div
                   key={clave}
                   className="p-1.5 rounded border bg-card flex items-center justify-between gap-1 text-[11px]"
                 >
-                  <span className="font-medium truncate max-w-[120px]" title={clave}>
-                    {clave}
-                  </span>
+                  <label className="flex min-w-0 items-center gap-1.5">
+                    <Checkbox
+                      checked={marcadosVigentes.includes(clave)}
+                      onCheckedChange={() => alternarMarcado(clave)}
+                      aria-label={`Seleccionar ${clave}`}
+                    />
+                    <span className="max-w-[110px] truncate font-medium" title={clave}>
+                      {clave}
+                    </span>
+                  </label>
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1" title="Color Primario">
                       <input
@@ -235,11 +401,17 @@ export function DisenadorReglasColorPanel({
             {/* Agregar nuevo valor de regla */}
             <div className="flex items-center gap-1 pt-1">
               <Input
-                placeholder="Nuevo valor (ej. Pasante)"
+                placeholder={criterio === "nomina" ? "Nuevo valor (ej. Pasante)" : "Nuevo valor (ej. Analista)"}
+                list="sugerencias-criterio-color"
                 className="h-7 text-xs"
                 value={nuevoValorNombre}
                 onChange={(e) => onCambiarNuevoValorNombre(e.target.value)}
               />
+              <datalist id="sugerencias-criterio-color">
+                {sugerencias.map((v) => (
+                  <option key={v} value={v} />
+                ))}
+              </datalist>
               <Button
                 type="button"
                 variant="secondary"
@@ -269,6 +441,32 @@ export function DisenadorReglasColorPanel({
             Restablecer reglas iniciales
           </Button>
         </div>
+        <AlertDialog
+          open={confirmacion !== null}
+          onOpenChange={(abierto) => !abierto && setConfirmacion(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {confirmacion === "quitar"
+                  ? "¿Quitar todos los valores?"
+                  : "¿Aplicar esta combinación?"}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {confirmacion === "quitar"
+                  ? "Los valores quedarán sin regla y se usará el color de respaldo."
+                  : confirmacion === "seleccionados"
+                    ? `Se cambiarán los colores primario y de acento de ${marcadosVigentes.length} valores.`
+                    : `Se cambiarán los colores primario y de acento de los ${entradas.length} valores.`}{" "}
+                No se guarda hasta pulsar Guardar Borrador.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={ejecutarConfirmacion}>Confirmar</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </CardContent>
     </Card>
   );

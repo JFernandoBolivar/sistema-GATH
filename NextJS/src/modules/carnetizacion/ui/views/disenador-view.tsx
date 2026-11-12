@@ -22,6 +22,7 @@ import { DisenadorToolbar } from "../components/disenador/disenador-toolbar";
 import { DisenadorHerramientasPanel } from "../components/disenador/disenador-herramientas-panel";
 import { DisenadorCapasPanel } from "../components/disenador/disenador-capas-panel";
 import { DisenadorPropiedadesPanel } from "../components/disenador/disenador-propiedades-panel";
+import { DisenadorSeleccionMultiple } from "../components/disenador/disenador-seleccion-multiple";
 import { DisenadorReglasColorPanel } from "../components/disenador/disenador-reglas-color-panel";
 import { DisenadorBibliotecaDialog } from "../components/disenador/disenador-biblioteca-dialog";
 
@@ -146,6 +147,7 @@ export function DisenadorView({ plantillaId }: Props) {
         }}
         onDeshacer={editor.handleDeshacer}
         onRehacer={editor.handleRehacer}
+        onLimpiar={editor.limpiarDiseno}
         puedeDeshacer={editor.historialIndex > 0}
         puedeRehacer={editor.historialIndex < editor.historial.length - 1}
         escala={editor.escala}
@@ -189,8 +191,9 @@ export function DisenadorView({ plantillaId }: Props) {
               escala={editor.escala}
               elementos={editor.elementos}
               caraActual={editor.caraActual}
-              elementoSeleccionadoId={editor.elementoSeleccionadoId}
-              onSeleccionarElemento={editor.setElementoSeleccionadoId}
+              seleccionIds={editor.seleccionIds}
+              onSeleccionarElemento={editor.seleccionarElemento}
+              onSeleccionarVarios={editor.seleccionarVarios}
               onActualizarElemento={editor.handleActualizarElemento}
               datosPersona={editor.datosPersona}
               coloresRegla={editor.coloresResueltos}
@@ -233,6 +236,12 @@ export function DisenadorView({ plantillaId }: Props) {
               onActualizarReglasColor={editor.setReglasColor}
               nuevoValorNombre={editor.nuevoValorNombre}
               onCambiarNuevoValorNombre={editor.setNuevoValorNombre}
+            />
+          ) : editor.seleccionIds.length > 1 ? (
+            <DisenadorSeleccionMultiple
+              cantidad={editor.seleccionIds.length}
+              onEliminar={editor.eliminarElemento}
+              onAlinear={editor.alinearSeleccion}
             />
           ) : (
             <DisenadorPropiedadesPanel

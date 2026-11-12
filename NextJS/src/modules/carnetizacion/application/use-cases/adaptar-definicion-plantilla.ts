@@ -69,6 +69,9 @@ const ASSETS_PUBLICOS: Record<string, string> = {
   "cintillo2.png": "/cintillo2.png",
 };
 
+/** Color que usa el PDF para textos sin color propio (carnet_pdf.py). */
+const COLOR_TEXTO_DEFECTO = "#1f3a5f";
+
 function numero(valor: unknown, defecto = 0): number {
   const n = Number(valor);
   return Number.isFinite(n) ? n : defecto;
@@ -93,7 +96,7 @@ function elementoDesdePlantilla(elemento: Json, cara: "anverso" | "reverso"): El
   const fill = esLinea
     ? String(props.fill ?? color ?? "#111827")
     : t === "field" || t === "text"
-      ? String(color ?? props.fill ?? "rule:texto")
+      ? String(color ?? props.fill ?? COLOR_TEXTO_DEFECTO)
       : String(props.fill ?? color ?? "#e2e8f0");
   const asset = typeof props.asset === "string" ? props.asset : undefined;
 
@@ -125,6 +128,8 @@ function elementoDesdePlantilla(elemento: Json, cara: "anverso" | "reverso"): El
         : "left",
     src: asset ? ASSETS_PUBLICOS[asset] : undefined,
     biblioteca_id: asset,
+    etiqueta: typeof props.label === "string" ? props.label : undefined,
+    diagr: tipoOriginal === "diagr",
     path:
       typeof elemento.path === "string"
         ? elemento.path

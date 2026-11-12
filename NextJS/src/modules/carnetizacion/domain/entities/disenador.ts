@@ -44,6 +44,10 @@ export interface ElementoKonva {
   // Propiedades de Imagen / Biblioteca
   src?: string;
   biblioteca_id?: string;
+  // Etiqueta de marcador para imágenes sin asset (FIRMA, LOGO)
+  etiqueta?: string;
+  // diag: variante 'diagr' (acento diagonal opuesto) del PDF
+  diagr?: boolean;
   // Formas personalizadas (SVG path normalizado 0..100)
   path?: string;
   // Organización
@@ -64,6 +68,77 @@ export interface ReglasColorConfig {
   criterio: CriterioColor;
   respaldo: ReglaColorValores;
   valores: Record<string, ReglaColorValores>;
+  /**
+   * Solo del editor (no se guarda): valores de cada criterio que se dejó al cambiar de
+   * criterio, para recuperarlos si se vuelve a él. El motor usa únicamente `valores`.
+   */
+  valoresPorCriterio?: Partial<Record<CriterioColor, Record<string, ReglaColorValores>>>;
+}
+
+/**
+ * Criterios que el PDF (resolver_color.py + datos de carnet_pdf.py) sabe aplicar: nómina, cargo
+ * y oficina salen del titular. `nivel` y `otro` no existen en los datos del PDF y caen al
+ * color de respaldo, por eso no se ofrecen.
+ */
+export const CRITERIOS_COLOR_SOPORTADOS: readonly CriterioColor[] = [
+  "unico",
+  "nomina",
+  "cargo",
+  "oficina",
+];
+
+export const ETIQUETA_VALORES_CRITERIO: Record<CriterioColor, string> = {
+  unico: "Valor único",
+  nomina: "Tipos de nómina",
+  cargo: "Cargos",
+  oficina: "Oficinas / dependencias",
+  nivel: "Niveles",
+  otro: "Valores",
+};
+
+/** Valores sugeridos de un criterio (solo la nómina tiene catálogo propio en el editor). */
+export function sugerenciasCriterio(criterio: CriterioColor): string[] {
+  return criterio === "nomina" ? Object.keys(REGLAS_COLOR_DEFECTO.valores) : [];
+}
+
+/**
+ * Pone la combinación primario/acento a todos los valores del criterio (`claves` omitido)
+ * o solo a los indicados. Conserva el color de texto de cada valor.
+ */
+export function aplicarColoresAValores(
+  reglas: ReglasColorConfig,
+  colores: { primario: string; acento: string },
+  claves?: readonly string[],
+): ReglasColorConfig {
+  const objetivo = claves ? new Set(claves) : null;
+  const valores: Record<string, ReglaColorValores> = {};
+  for (const [clave, val] of Object.entries(reglas.valores)) {
+    valores[clave] =
+      !objetivo || objetivo.has(clave)
+        ? { ...val, primario: colores.primario, acento: colores.acento }
+        : val;
+  }
+  return { ...reglas, valores };
+}
+
+/** Deja los valores sin regla: todos usarán el color de respaldo. */
+export function quitarTodosLosValores(reglas: ReglasColorConfig): ReglasColorConfig {
+  return { ...reglas, valores: {} };
+}
+
+/**
+ * Cambia el criterio de color: guarda los valores del criterio actual y carga los del nuevo
+ * (los de nómina arrancan con los institucionales; el resto, vacíos).
+ */
+export function cambiarCriterioColor(
+  reglas: ReglasColorConfig,
+  nuevo: CriterioColor,
+): ReglasColorConfig {
+  if (nuevo === reglas.criterio) return reglas;
+  const guardados = { ...(reglas.valoresPorCriterio ?? {}), [reglas.criterio]: reglas.valores };
+  const valores =
+    guardados[nuevo] ?? (nuevo === "nomina" ? { ...REGLAS_COLOR_DEFECTO.valores } : {});
+  return { ...reglas, criterio: nuevo, valores, valoresPorCriterio: guardados };
 }
 
 export const REGLAS_COLOR_DEFECTO: ReglasColorConfig = {
@@ -247,6 +322,61 @@ export function moverCapaKonva(
   return elementos;
 }
 
+
+/** Shift/Ctrl+clic: agrega el id a la selección o lo quita si ya estaba. */
+export function alternarSeleccionKonva(seleccion: readonly string[], id: string): string[] {
+  return seleccion.includes(id) ? seleccion.filter((s) => s !== id) : [...seleccion, id];
+}
+
+/** Ctrl+A: ids de todos los elementos visibles y de la cara indicada. */
+export function idsDeCaraKonva(
+  elementos: readonly ElementoKonva[],
+  cara: "anverso" | "reverso",
+): string[] {
+  return elementos.filter((e) => e.cara === cara && !e.oculto).map((e) => e.id);
+}
+
+/** Quita varios elementos de una sola vez (una sola entrada de historial). */
+export function eliminarElementosKonva(
+  elementos: readonly ElementoKonva[],
+  ids: readonly string[],
+): ElementoKonva[] {
+  const quitar = new Set(ids);
+  return elementos.filter((e) => !quitar.has(e.id));
+}
+
+/** Alinea varios elementos respecto al recuadro que los contiene. */
+export function alinearVariosKonva(
+  elementos: readonly ElementoKonva[],
+  ids: readonly string[],
+  pos: "left" | "center-h" | "right",
+): ElementoKonva[] {
+  const sel = elementos.filter((e) => ids.includes(e.id));
+  if (sel.length < 2) return [...elementos];
+  const minX = Math.min(...sel.map((e) => e.x));
+  const maxX = Math.max(...sel.map((e) => e.x + e.w));
+  return elementos.map((e) => {
+    if (!ids.includes(e.id)) return e;
+    const x =
+      pos === "left" ? minX : pos === "right" ? maxX - e.w : (minX + maxX) / 2 - e.w / 2;
+    return { ...e, x: Number(x.toFixed(2)) };
+  });
+}
+
+export type AlcanceLimpieza ="cara-actual" | "ambas";
+
+/**
+ * Quita los elementos de la cara indicada (o de ambas). No toca dimensiones,
+ * orientación ni tipo: solo devuelve la lista de elementos restante.
+ */
+export function limpiarElementosKonva(
+  elementos: readonly ElementoKonva[],
+  alcance: AlcanceLimpieza,
+  cara: "anverso" | "reverso",
+): ElementoKonva[] {
+  if (alcance === "ambas") return [];
+  return elementos.filter((e) => e.cara !== cara);
+}
 
 /** Tamaño mínimo (mm) de QR legible con teléfono (SILOG); el backend manda con su parámetro. */
 export const QR_MINIMO_MM_DEFECTO = 20;
