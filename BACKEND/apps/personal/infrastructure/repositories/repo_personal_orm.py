@@ -644,10 +644,20 @@ class RepoPersonalORM:
         fila.fecha_culminacion = datos['fecha_culminacion']
         fila.politica_id = politica.pk if hasattr(politica, 'pk') else politica
         fila.es_fijo = datos['es_fijo']
-        fila.estatus = EstatusModel.objects.get(estatus__iexact=datos['clave_estatus'].value)
+        # El enum usa claves con guion bajo ('por_vencer'); el catalogo guarda
+        # 'POR VENCER'. Se normaliza antes de buscar.
+        clave = getattr(datos['clave_estatus'], 'value', datos['clave_estatus'])
+        nombre_estatus = str(clave).replace('_', ' ').strip()
+        estatus = EstatusModel.objects.filter(estatus__iexact=nombre_estatus).first()
+        if estatus is None:
+            raise ValidationError(
+                f"No existe el estatus de contrato '{nombre_estatus.upper()}' en el catalogo. "
+                'Contacte al administrador.'
+            )
+        fila.estatus = estatus
         fila.save()
 
-        if datos['clave_estatus'].value == 'vencido' and fila.antecedente_id:
+        if clave == 'vencido' and fila.antecedente_id:
             ant = fila.antecedente
             if not ant.fecha_egreso:
                 ant.fecha_egreso = date.today()

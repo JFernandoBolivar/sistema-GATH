@@ -122,6 +122,8 @@ export function PrestamoCargoPage() {
     setIsLoadingSearch(true);
     setHasSearched(true);
     setEmployeeError(null);
+    setEmployeeReady(false);
+    setSelectedCargo(null);
     try {
       const res = await getEmpleadoPorCedulaAction(term);
       if (res && "cedula" in res) {
@@ -269,16 +271,20 @@ export function PrestamoCargoPage() {
             onSuccess={() => setEmployeeReady(true)}
           />
 
-          {employee && employeeReady && (
+          {employee && (
             <>
               <div>
-                <Label htmlFor="buscar-cargo">Cargo a encargar</Label>
+                <Label htmlFor="buscar-cargo">Cargo a encargar *</Label>
                 <CargoBuscador
                   id="buscar-cargo"
                   value={selectedCargo}
                   onSelect={handleSelectCargo}
-                  excluirCedula={employee?.cedula}
+                  excluirCedula={employee.cedula}
+                  disabled={!employeeReady}
                 />
+                {!employeeReady && (
+                  <p className="mt-1 text-sm text-muted-foreground">Registre primero el contrato</p>
+                )}
               </div>
 
               {selectedCode && (
@@ -295,7 +301,7 @@ export function PrestamoCargoPage() {
                 </div>
               )}
 
-              {selectedCargo && (
+              {selectedCargo && employeeReady && (
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col gap-4">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
@@ -304,7 +310,7 @@ export function PrestamoCargoPage() {
                         name="motivo"
                         render={({ field }) => (
                           <FormItem className="w-full sm:w-96">
-                            <FormLabel>Motivo de la encargaduría</FormLabel>
+                            <FormLabel>Motivo de la encargaduría *</FormLabel>
                             <FormControl>
                               <MotivoSelect
                                 operacion="prestamo_cargo"
@@ -325,7 +331,7 @@ export function PrestamoCargoPage() {
                         name="fecha_inicio"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Fecha Inicio</FormLabel>
+                            <FormLabel>Fecha Inicio *</FormLabel>
                             <Popover>
                               <PopoverTrigger asChild>
                                 <FormControl>
@@ -349,7 +355,7 @@ export function PrestamoCargoPage() {
                         name="fecha_fin"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Fecha Fin</FormLabel>
+                            <FormLabel>Fecha Fin *</FormLabel>
                             <Popover>
                               <PopoverTrigger asChild>
                                 <FormControl>

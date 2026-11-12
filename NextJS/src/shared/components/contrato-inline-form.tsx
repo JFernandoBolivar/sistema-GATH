@@ -248,7 +248,7 @@ export function ContratoInlineForm({
           />
         </div>
         <div>
-          <Label>Tipo de Política</Label>
+          <Label>Tipo de Política *</Label>
           <Select
             onValueChange={(v) => {
               const politicaId = Number(v);
@@ -273,7 +273,7 @@ export function ContratoInlineForm({
           </Select>
         </div>
         <div>
-          <Label>Fecha de Ingreso</Label>
+          <Label>Fecha de Ingreso *</Label>
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" className="w-full justify-between font-normal">

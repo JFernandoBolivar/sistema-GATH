@@ -400,7 +400,7 @@ export function CambiarCargoPage() {
                             name="code_old"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Listado De Cargos Del Empleado</FormLabel>
+                                <FormLabel>Listado De Cargos Del Empleado *</FormLabel>
                                 <Select
                                   onValueChange={(values) => {
                                     field.onChange(Number.parseInt(values));
@@ -433,7 +433,7 @@ export function CambiarCargoPage() {
                                 name="nuevo_cargo_id"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel>Listado De Codigos Disponibles</FormLabel>
+                                    <FormLabel>Listado De Codigos Disponibles *</FormLabel>
                                     <FormControl>
                                       <Combobox
                                         options={codeList.map((codes) => ({
@@ -460,7 +460,7 @@ export function CambiarCargoPage() {
                                 name="motivo"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel>Motivo De Cambio De Cargo</FormLabel>
+                                    <FormLabel>Motivo De Cambio De Cargo *</FormLabel>
                                     <FormControl>
                                       <MotivoSelect
                                         operacion="cambiar_cargo"

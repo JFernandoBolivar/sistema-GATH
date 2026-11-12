@@ -359,7 +359,7 @@ export function AsignarCargoPage() {
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel>
-                                  Listado De Codigos Disponibles
+                                  Listado De Codigos Disponibles *
                                 </FormLabel>
                                 <FormControl>
                                   <Combobox
