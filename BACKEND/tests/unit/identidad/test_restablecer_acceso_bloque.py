@@ -69,8 +69,12 @@ class RepoCondicionFake:
 
 
 class RepoClaveInicialFake:
-    def __init__(self, con_clave, activas):
+    def __init__(self, con_clave, activas, vencidas=()):
         self._con_clave, self._activas = list(con_clave), list(activas)
+        self._vencidas = list(vencidas)
+
+    def vencidas(self, ahora):
+        return self._vencidas
 
     def con_clave_inicial(self):
         return self._con_clave
@@ -108,7 +112,7 @@ def mundo():
         'version': RepoVersionFake(),
         'permisos': permisos,
         'condicion': RepoCondicionFake({'10000001', '10000003', '30799436'}, {'10000002'}),
-        'clave': RepoClaveInicialFake(con_clave, activas),
+        'clave': RepoClaveInicialFake(con_clave, activas, vencidas=[con_clave[1]]),
         'eventos': [],
     }
 
@@ -209,3 +213,34 @@ def test_idempotente_dos_pasadas_dejan_el_mismo_estado(mundo):
     _ejecutar(mundo, clasificacion='ACTIVOS', confirmacion=1)
     assert mundo['cuentas'].passwords == primera
     assert [c for c, _ in mundo['password'].emitidos] == [1, 1]
+
+
+def test_alcance_vencida_solo_trae_las_cuentas_vencidas(mundo):
+    resultado = _ejecutar(mundo, alcance='VENCIDA', dry_run=True)
+    assert resultado.total == 1 and resultado.pasivos == 1  # solo la cuenta 2
+    sin_primer_ingreso = _ejecutar(mundo, alcance='SIN_PRIMER_INGRESO', dry_run=True)
+    assert sin_primer_ingreso.total == 2
+
+
+def test_vencida_no_rehashea_y_renueva_el_plazo(mundo):
+    resultado = _ejecutar(mundo, alcance='VENCIDA', confirmacion=1)
+    assert resultado.restablecidas == 1
+    assert mundo['cuentas'].passwords == {}
+    assert [cuenta for cuenta, _ in mundo['password'].emitidos] == [2]
+
+
+def test_armar_filas_trae_nombre_condicion_y_orden():
+    from apps.identidad.application.use_cases.restablecer_acceso_en_bloque import armar_filas
+    from apps.identidad.domain.entities.restablecimiento_bloque import DetalleCuentaBloque
+
+    class Detalle:
+        def detalle(self, ids):
+            return [
+                DetalleCuentaBloque(1, '10000001', 'PEREZ ANA', 'a@x.com', None),
+                DetalleCuentaBloque(2, '10000002', 'ALVAREZ LUIS', 'l@x.com', AHORA),
+            ]
+
+    filas = armar_filas(Detalle(), RepoCondicionFake({'10000001'}, {'10000002'}), [1, 2])
+    assert [(f.nombre, f.condicion) for f in filas] == [
+        ('ALVAREZ LUIS', 'PASIVO'), ('PEREZ ANA', 'ACTIVO'),
+    ]

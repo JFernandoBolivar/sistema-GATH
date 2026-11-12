@@ -2,10 +2,10 @@
 Caso de uso U2: restablecer el acceso (contraseña inicial = cédula) en bloque.
 
 La **selección** (qué cuentas entran) se hace una sola vez en la vista previa
-asíncrona y se reutiliza en la ejecución por la lista de `cuenta_id`, para no
-repetir el `check_password` (lento con Argon2). La ejecución con alcance
-`SIN_PRIMER_INGRESO` no rehashea: la clave ya es la cédula, solo renueva el
-vencimiento y limpia bloqueos; `TODOS` sí usa `restablecer_acceso` completo.
+(síncrona: solo consultas) y se reutiliza en la ejecución por la lista de
+`cuenta_id`. La ejecución con alcance `VENCIDA` o `SIN_PRIMER_INGRESO` no
+rehashea: la clave ya es la cédula, solo renueva el vencimiento y limpia
+bloqueos; `TODOS` sí usa `restablecer_acceso` completo.
 
 Puro (B4): repositorios, publicación de eventos y limpieza de bloqueos se
 inyectan.
@@ -20,7 +20,7 @@ from apps.identidad.application.use_cases.restablecer_acceso import restablecer_
 from apps.identidad.application.use_cases.resolver_permisos import resolver_politica_actor
 from apps.identidad.domain.entities.politica_acceso import PoliticaAcceso
 from apps.identidad.domain.entities.restablecimiento_bloque import (
-    CuentaClaveInicial,
+    FilaBloque,
     ResultadoRestablecimientoBloque,
 )
 from apps.identidad.domain.events import (
@@ -31,6 +31,7 @@ from apps.identidad.domain.events import (
 from apps.identidad.domain.ports.repo_condicion_trabajador import RepoCondicionTrabajador
 from apps.identidad.domain.ports.repo_cuentas import RepoCuentas
 from apps.identidad.domain.ports.repo_cuentas_clave_inicial import RepoCuentasClaveInicial
+from apps.identidad.domain.ports.repo_detalle_cuentas_bloque import RepoDetalleCuentasBloque
 from apps.identidad.domain.ports.repo_password_inicial import RepoPasswordInicial
 from apps.identidad.domain.ports.repo_permisos import RepoPermisos
 from apps.identidad.domain.ports.repo_permisos_version import RepoPermisosVersion
@@ -66,18 +67,20 @@ def seleccionar_cuentas(
     actor: ActorSesionDTO,
     clasificacion: Clasificacion,
     alcance: Alcance,
+    ahora: datetime,
 ) -> SeleccionBloque:
     """Cuentas que entran al lote, separadas por condición y sin administrativas.
 
-    `SIN_PRIMER_INGRESO` incluye las cuentas con fila de contraseña inicial y las
-    activas sin fila cuya clave sigue siendo la cédula (esa comprobación la hace
-    el adaptador, solo para las que no tienen fila).
+    `VENCIDA`: con fila de contraseña inicial y `vence_en <= ahora`.
+    `SIN_PRIMER_INGRESO`: con fila de contraseña inicial, vigente o vencida.
+    `TODOS`: todas las activas.
     """
-    candidatas = list(
-        repo_clave_inicial.con_clave_inicial()
-        if alcance is Alcance.SIN_PRIMER_INGRESO
-        else repo_clave_inicial.activas()
-    )
+    if alcance is Alcance.VENCIDA:
+        candidatas = list(repo_clave_inicial.vencidas(ahora))
+    elif alcance is Alcance.SIN_PRIMER_INGRESO:
+        candidatas = list(repo_clave_inicial.con_clave_inicial())
+    else:
+        candidatas = list(repo_clave_inicial.activas())
     activos = repo_condicion.cedulas_por_condicion(CondicionTrabajador.ACTIVO.value)
     pasivos = repo_condicion.cedulas_por_condicion(CondicionTrabajador.PASIVO.value)
     politica_actor = resolver_politica_actor(repo_permisos, actor)
@@ -130,6 +133,30 @@ def seleccionar_cuentas(
         omitidas=omitidas,
         cuenta_ids=tuple(elegidas),
     )
+
+
+def armar_filas(
+    repo_detalle: RepoDetalleCuentasBloque,
+    repo_condicion: RepoCondicionTrabajador,
+    cuenta_ids: Sequence[int],
+) -> list[FilaBloque]:
+    """Filas (cédula, nombre, condición, correo, vencimiento) ordenadas por nombre."""
+    pasivos = repo_condicion.cedulas_por_condicion(CondicionTrabajador.PASIVO.value)
+    activos = repo_condicion.cedulas_por_condicion(CondicionTrabajador.ACTIVO.value)
+    filas = []
+    for detalle in repo_detalle.detalle(cuenta_ids):
+        if detalle.cedula in pasivos:
+            condicion = CondicionTrabajador.PASIVO.value
+        elif detalle.cedula in activos:
+            condicion = CondicionTrabajador.ACTIVO.value
+        else:
+            condicion = CondicionTrabajador.SIN_ASIGNACION.value
+        filas.append(FilaBloque(
+            cuenta_id=detalle.cuenta_id, cedula=detalle.cedula, nombre=detalle.nombre,
+            condicion=condicion, correo=detalle.correo, vence_en=detalle.vence_en,
+        ))
+    filas.sort(key=lambda fila: (fila.nombre.upper(), fila.cedula))
+    return filas
 
 
 def _renovar_vencimiento_sin_rehash(
@@ -203,7 +230,7 @@ def restablecer_acceso_en_bloque(
     if cuenta_ids is None:
         seleccion = seleccionar_cuentas(
             repo_condicion, repo_permisos, repo_clave_inicial, actor,
-            clasificacion_enum, alcance_enum,
+            clasificacion_enum, alcance_enum, ahora,
         )
         ids = list(seleccion.cuenta_ids)
     else:
@@ -231,7 +258,7 @@ def restablecer_acceso_en_bloque(
     errores = 0
     for cuenta_id in ids:
         try:
-            if alcance_enum is Alcance.SIN_PRIMER_INGRESO:
+            if alcance_enum is not Alcance.TODOS:
                 _renovar_vencimiento_sin_rehash(
                     repo_cuentas,
                     repo_password_inicial,

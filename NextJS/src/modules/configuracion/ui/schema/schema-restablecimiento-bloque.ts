@@ -8,7 +8,7 @@ export const ADVERTENCIA_TODOS =
 
 export const solicitudBloqueSchema = z.object({
   clasificacion: z.enum(["ACTIVOS", "PASIVOS", "AMBOS"]),
-  alcance: z.enum(["SIN_PRIMER_INGRESO", "TODOS"]),
+  alcance: z.enum(["VENCIDA", "SIN_PRIMER_INGRESO", "TODOS"]),
   enviarCorreo: z.boolean(),
   motivo: z
     .string()

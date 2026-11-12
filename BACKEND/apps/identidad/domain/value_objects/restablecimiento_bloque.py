@@ -13,5 +13,6 @@ class Clasificacion(str, Enum):
 class Alcance(str, Enum):
     """Qué cuentas se tocan dentro de la clasificación."""
 
-    SIN_PRIMER_INGRESO = 'SIN_PRIMER_INGRESO'
+    VENCIDA = 'VENCIDA'  # contraseña inicial vencida (valor por defecto)
+    SIN_PRIMER_INGRESO = 'SIN_PRIMER_INGRESO'  # fila de clave inicial, vigente o vencida
     TODOS = 'TODOS'

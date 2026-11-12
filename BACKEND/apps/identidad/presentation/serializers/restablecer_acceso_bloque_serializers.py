@@ -12,7 +12,7 @@ class RestablecerAccesoBloqueSerializer(serializers.Serializer):
         choices=[c.value for c in Clasificacion], default=Clasificacion.AMBOS.value,
     )
     alcance = serializers.ChoiceField(
-        choices=[a.value for a in Alcance], default=Alcance.SIN_PRIMER_INGRESO.value,
+        choices=[a.value for a in Alcance], default=Alcance.VENCIDA.value,
     )
     enviar_correo = serializers.BooleanField(default=True)
     motivo = serializers.CharField(min_length=MOTIVO_MIN, max_length=MOTIVO_MAX, trim_whitespace=True)
@@ -39,3 +39,12 @@ class EstadoRestablecimientoBloqueSerializer(serializers.Serializer):
     estado = serializers.CharField()
     resultado = serializers.DictField(required=False)
     mensaje = serializers.CharField(required=False)
+
+
+class FiltrosExcelBloqueSerializer(serializers.Serializer):
+    clasificacion = serializers.ChoiceField(
+        choices=[c.value for c in Clasificacion], default=Clasificacion.AMBOS.value,
+    )
+    alcance = serializers.ChoiceField(
+        choices=[a.value for a in Alcance], default=Alcance.VENCIDA.value,
+    )

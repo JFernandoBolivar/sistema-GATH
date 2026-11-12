@@ -11,26 +11,43 @@ export interface SolicitudBloqueApi {
   motivo: string;
 }
 
+export interface MuestraBloqueApi {
+  cuenta_id: number;
+  cedula: string;
+  nombre: string;
+  condicion: string;
+  vence_en: string | null;
+}
+
 export interface VistaPreviaBloqueApi {
-  revisadas: number;
+  total: number;
   activos: number;
   pasivos: number;
-  total: number;
   omitidas_administrativas: number;
+  revisadas: number;
+  muestra: MuestraBloqueApi[];
+  vence_en_nuevo: string | null;
+}
+
+export interface ResultadoBloqueApi {
+  revisadas?: number;
   restablecidas?: number;
+  omitidas_administrativas?: number;
+  omitidas?: number;
   errores?: number;
+  vence_en_nuevo?: string | null;
 }
 
 export interface EstadoBloqueApi {
-  task_id: string;
+  task_id?: string;
   estado: string;
-  resultado?: (Partial<VistaPreviaBloqueApi> & { omitidas?: number }) | null;
+  resultado?: ResultadoBloqueApi | null;
   mensaje?: string;
 }
 
 export const restablecimientoBloqueApi = {
   vistaPrevia: (cuerpo: SolicitudBloqueApi) =>
-    apiClient.post<ApiResponse<EstadoBloqueApi>>(
+    apiClient.post<ApiResponse<VistaPreviaBloqueApi>>(
       `${BASE}preview/`,
       cuerpo as unknown as Record<string, unknown>,
     ),
@@ -40,4 +57,9 @@ export const restablecimientoBloqueApi = {
 
   estado: (taskId: string) =>
     apiClient.get<ApiResponse<EstadoBloqueApi>>(`${BASE}${encodeURIComponent(taskId)}/`),
+
+  excel: (clasificacion: string, alcance: string) =>
+    apiClient.getBlob(
+      `${BASE}preview/excel/?clasificacion=${encodeURIComponent(clasificacion)}&alcance=${encodeURIComponent(alcance)}`,
+    ),
 };

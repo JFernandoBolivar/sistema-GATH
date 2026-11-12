@@ -35,6 +35,7 @@ from apps.identidad.presentation.views.rol_catalogo_views import (
     RolListCrearView,
 )
 from apps.identidad.presentation.views.restablecer_acceso_bloque_views import (
+    RestablecerAccesoBloquePreviewExcelView,
     RestablecerAccesoBloqueEjecutarView,
     RestablecerAccesoBloqueEstadoView,
     RestablecerAccesoBloquePreviewView,
@@ -90,6 +91,11 @@ urlpatterns = [
         'usuarios/restablecer-acceso-bloque/preview/',
         RestablecerAccesoBloquePreviewView.as_view(),
         name='restablecer-acceso-bloque-preview',
+    ),
+    path(
+        'usuarios/restablecer-acceso-bloque/preview/excel/',
+        RestablecerAccesoBloquePreviewExcelView.as_view(),
+        name='restablecer-acceso-bloque-preview-excel',
     ),
     path(
         'usuarios/restablecer-acceso-bloque/',
