@@ -8,6 +8,7 @@ import {
   Filter,
   ImagePlus,
   Loader2,
+  ImageOff,
   PlusCircle,
   Trash2,
   Upload,
@@ -64,7 +65,10 @@ export function BibliotecaMediosTab() {
   const [subirDescripcion, setSubirDescripcion] = useState("");
   const [subirArchivo, setSubirArchivo] = useState<File | null>(null);
   const [previewSubida, setPreviewSubida] = useState<string | null>(null);
-  const [dimensionesArchivo, setDimensionesArchivo] = useState<{ ancho: number; alto: number } | null>(null);
+  const [dimensionesArchivo, setDimensionesArchivo] = useState<{
+    ancho: number;
+    alto: number;
+  } | null>(null);
 
   // Estados de eliminación
   const [elementoAEliminar, setElementoAEliminar] = useState<ElementoBiblioteca | null>(null);
@@ -77,10 +81,7 @@ export function BibliotecaMediosTab() {
     data: respuestaBiblioteca,
     isLoading,
     mutate,
-  } = useSWR(
-    ["biblioteca-medios", categoriaParam],
-    () => getBibliotecaAction(categoriaParam),
-  );
+  } = useSWR(["biblioteca-medios", categoriaParam], () => getBibliotecaAction(categoriaParam));
 
   const elementos: ElementoBiblioteca[] =
     respuestaBiblioteca && respuestaBiblioteca.success ? respuestaBiblioteca.data : [];
@@ -195,11 +196,7 @@ export function BibliotecaMediosTab() {
           ))}
         </div>
 
-        <Button
-          onClick={() => setModalSubirOpen(true)}
-          className="gap-2 shrink-0"
-          size="sm"
-        >
+        <Button onClick={() => setModalSubirOpen(true)} className="gap-2 shrink-0" size="sm">
           <PlusCircle className="size-4" />
           Subir Medio
         </Button>
@@ -218,7 +215,8 @@ export function BibliotecaMediosTab() {
               No hay medios registrados
             </h3>
             <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-              Sube logos institucionales, firmas autorizadas o sellos que podrán ser incrustados en los carnets.
+              Sube logos institucionales, firmas autorizadas o sellos que podrán ser incrustados en
+              los carnets.
             </p>
             <Button
               onClick={() => setModalSubirOpen(true)}
@@ -249,13 +247,7 @@ export function BibliotecaMediosTab() {
                     backgroundPosition: "0 0, 0 8px, 8px -8px, -8px 0px",
                   }}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={item.archivo_url}
-                    alt={item.nombre}
-                    className="max-h-full max-w-full object-contain drop-shadow-xs"
-                    loading="lazy"
-                  />
+                  <MiniaturaMedio src={item.archivo_url} nombre={item.nombre} />
                   <Badge
                     variant="secondary"
                     className="absolute top-2 right-2 text-[10px] font-mono capitalize backdrop-blur-xs bg-white/80 dark:bg-black/80"
@@ -266,19 +258,27 @@ export function BibliotecaMediosTab() {
 
                 <div className="p-3.5 space-y-2">
                   <div className="flex items-start justify-between gap-1">
-                    <h4 className="font-semibold text-sm leading-tight text-foreground truncate" title={item.nombre}>
+                    <h4
+                      className="font-semibold text-sm leading-tight text-foreground truncate"
+                      title={item.nombre}
+                    >
                       {item.nombre}
                     </h4>
                   </div>
                   {item.descripcion && (
-                    <p className="text-xs text-muted-foreground line-clamp-1" title={item.descripcion}>
+                    <p
+                      className="text-xs text-muted-foreground line-clamp-1"
+                      title={item.descripcion}
+                    >
                       {item.descripcion}
                     </p>
                   )}
 
                   <div className="grid grid-cols-2 gap-1 text-[11px] text-muted-foreground pt-1 border-t">
                     <span>
-                      {item.ancho_px && item.alto_px ? `${item.ancho_px} × ${item.alto_px} px` : "Vectorial SVG"}
+                      {item.ancho_px && item.alto_px
+                        ? `${item.ancho_px} × ${item.alto_px} px`
+                        : "Vectorial SVG"}
                     </span>
                     <span className="text-right">{formatearBytes(item.tamano_bytes)}</span>
                   </div>
@@ -376,14 +376,17 @@ export function BibliotecaMediosTab() {
                       </div>
                       <p className="text-xs text-muted-foreground font-mono">
                         {subirArchivo?.name} ({subirArchivo && formatearBytes(subirArchivo.size)})
-                        {dimensionesArchivo && ` • ${dimensionesArchivo.ancho} × ${dimensionesArchivo.alto} px`}
+                        {dimensionesArchivo &&
+                          ` • ${dimensionesArchivo.ancho} × ${dimensionesArchivo.alto} px`}
                       </p>
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          const input = document.getElementById(fileInputId) as HTMLInputElement | null;
+                          const input = document.getElementById(
+                            fileInputId,
+                          ) as HTMLInputElement | null;
                           if (input) input.click();
                         }}
                       >
@@ -436,12 +439,18 @@ export function BibliotecaMediosTab() {
       </Dialog>
 
       {/* --- MODAL CONFIRMACIÓN DE ELIMINACIÓN --- */}
-      <Dialog open={!!elementoAEliminar} onOpenChange={(open) => !open && setElementoAEliminar(null)}>
+      <Dialog
+        open={!!elementoAEliminar}
+        onOpenChange={(open) => !open && setElementoAEliminar(null)}
+      >
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>¿Eliminar elemento?</DialogTitle>
             <DialogDescription>
-              Se eliminará <span className="font-semibold text-foreground">{elementoAEliminar?.nombre}</span> de la biblioteca. Las plantillas que ya utilicen este recurso podrían dejar de visualizarlo si se vuelve a renderizar.
+              Se eliminará{" "}
+              <span className="font-semibold text-foreground">{elementoAEliminar?.nombre}</span> de
+              la biblioteca. Las plantillas que ya utilicen este recurso podrían dejar de
+              visualizarlo si se vuelve a renderizar.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
@@ -465,5 +474,28 @@ export function BibliotecaMediosTab() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/** Miniatura de un medio; si el archivo no se puede leer, un aviso en vez de la imagen rota. */
+function MiniaturaMedio({ src, nombre }: { src: string; nombre: string }) {
+  const [falla, setFalla] = useState(false);
+  if (falla) {
+    return (
+      <div className="flex flex-col items-center gap-1 text-center text-muted-foreground">
+        <ImageOff className="size-6" aria-hidden="true" />
+        <span className="text-xs">Archivo no disponible</span>
+      </div>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={nombre}
+      className="max-h-full max-w-full object-contain drop-shadow-xs"
+      loading="lazy"
+      onError={() => setFalla(true)}
+    />
   );
 }
