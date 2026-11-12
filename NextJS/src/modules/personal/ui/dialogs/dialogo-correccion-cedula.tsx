@@ -121,7 +121,9 @@ export function DialogoCorreccionCedula({
             autoComplete="off"
             value={confirmacion}
             disabled={ejecutando}
-            onChange={(e) => setConfirmacion(e.target.value)}
+            maxLength={9}
+            pattern="[0-9]*"
+            onChange={(e) => setConfirmacion(e.target.value.replace(/\D/g, ""))}
           />
         </div>
         {error && (

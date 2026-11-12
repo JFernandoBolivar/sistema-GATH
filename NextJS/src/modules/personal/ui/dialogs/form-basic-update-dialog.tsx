@@ -303,7 +303,7 @@ export default function FormBasicUpdateDialog({
                           value={cedulaEditada}
                           aria-invalid={!!errorCedula || undefined}
                           onChange={(e) => {
-                            setCedulaEditada(e.target.value);
+                            setCedulaEditada(e.target.value.replace(/\D/g, ""));
                             setErrorCedula(null);
                           }}
                         />
