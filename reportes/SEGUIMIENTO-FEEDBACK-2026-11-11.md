@@ -71,7 +71,7 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 | 76 | Movimientos (contrato con error 500, buscador de cargo, asteriscos, código especial) | ✅ | Ver los puntos 65 a 68 | `4b7ff4fb` |
 | 77 | ¿La regla «familiar con la misma cédula del titular» afecta a los hijos menores con cédula «titular-n»? | ❓ | No: solo bloquea cuando las cédulas son exactamente iguales. «5132733-1» sigue permitida y se agregó una prueba | — |
 | 78 | Autogestión: la vivienda como un solo bloque «Actualizar mi vivienda», respetando la cascada país → estado → municipio → parroquia | ✅ | Una casilla abre el formulario completo con la cascada; además ahora se valida la coherencia en los cambios de un solo campo | `97d1e7ca` |
-| 79 | «Mi carnet» en autogestión muestra un diseño fijo, no la plantilla configurada | ⏳ | Se mostrará la imagen real del carnet con la plantilla vigente y el QR verdadero. En cola | — |
+| 79 | «Mi carnet» en autogestión muestra un diseño fijo, no la plantilla configurada | ✅ | «Mi carnet» muestra la imagen real del carnet vigente con su plantilla y QR | `a8f04393` |
 | 30 | Familiares: grupo sanguíneo obligatorio, errores que no se marcan, error en el flujo de registro y actualización, documentos en la actualización | ✅ | Grupo sanguíneo obligatorio, errores marcados en cada campo, flujo de registro y actualización corregido, documentos en la actualización | `f16df37a` |
 
 ## Carnetización
@@ -90,7 +90,7 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 | 40 | Colores distintos para los visitantes | ✅ | Visitante, Contratista y Temporal dentro de las categorías | `8a2f465c` |
 | 41 | Biblioteca de Medios: imágenes rotas | ✅ | En la base local faltan los archivos; ahora se muestra «Archivo no disponible» | `c4a649d5` |
 | 42 | Formas de la propuesta (diagonales y esquinas curvas) | ✅ | 6 «Formas institucionales» calcadas de la propuesta | `0188cf46` |
-| 43 | Poder construir formas uno mismo (redondear una esquina, mover puntos) | ✅ | 4 radios por rectángulo y «Editar puntos». **Pendiente:** que el PDF lea la edición por puntos | `0188cf46` |
+| 43 | Poder construir formas uno mismo (redondear una esquina, mover puntos) | ✅ | 4 radios por rectángulo y «Editar puntos». El PDF ya lee la edición por puntos (`a8f04393`) | `0188cf46` |
 | 44 | ¿Para qué sirve el recuadro «Forma SVG»? Se ve anticuado | ❓ | Es el código de dibujo de la figura. Ahora queda en «Avanzado», con validación y miniatura | `0188cf46` |
 | 45 | Texto que se desborda al imprimir por lotes | ✅ | Reduce el tamaño, parte en dos líneas o recorta; nunca sale de la tarjeta | `8a2f465c` |
 | 46 | Visitantes: mensaje «No se encontraron» con el buscador vacío, ícono del calendario, correo ambiguo | ✅ | Mensajes correctos, calendario a la derecha y «Correo del visitante» | `e0d15ed2` |
@@ -101,9 +101,9 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 | 51 | Agregar invitados sin escribir: buscar y seleccionar (todos, activos, pasivos, por dependencia, externos) | ✅ | Diálogo con búsqueda: personal (todos, activos, pasivos o por dependencia) y externos registrados | `71cb939a` |
 | 52 | «PDF Gafetes» da error y abre una página en blanco; zonas y categorías; utilidad de «Importar lista» | ✅ | «Descargar gafetes (PDF)», pestaña «Zonas y categorías» e «Importar externos (Excel)» en «Más opciones» | `71cb939a` |
 | 53 | Fondos Fijos (Clásico): ¿qué es?, mejorar el diseño, paginar plantillas, fondos y biblioteca | ✅ | Fondos Fijos es un respaldo (se usa solo si no hay plantilla por capas); rediseño y paginación de plantillas, fondos y biblioteca | `71cb939a` |
-| 54 | Eventos: ¿los trabajadores entran con su carnet o con un gafete del evento? | ⏳ | Decidido: con su carnet institucional. En cola | — |
-| 55 | Campos personalizados: no tienen de dónde sacar el dato | ⏳ | Hoy salen vacíos. Decidido: a) elegir el origen del dato del expediente, con un permiso propio asignable por rol. En cola | — |
-| 56 | ¿Se puede emitir el carnet cuantas veces se quiera? | ⏳ | Hoy sí, y cada emisión anula la anterior. Decidido: aviso «ya tiene carnet vigente», motivo obligatorio y registro en la bitácora. En cola | — |
+| 54 | Eventos: ¿los trabajadores entran con su carnet o con un gafete del evento? | ✅ | Los trabajadores invitados entran con el QR de su carnet institucional; los externos, con su gafete | `a8f04393` |
+| 55 | Campos personalizados: no tienen de dónde sacar el dato | ✅ | Cada campo elige su dato del expediente; permiso propio `carnetizacion.campos_personalizados` asignable por rol | `a8f04393` |
+| 56 | ¿Se puede emitir el carnet cuantas veces se quiera? | ✅ | Si ya tiene carnet vigente: aviso, motivo obligatorio (pérdida/robo, deterioro, cambio de datos, cambio de cargo u otro con detalle) y registro en la bitácora | `a8f04393` |
 | 57 | ¿Autogestión muestra el carnet nuevo? | ❓ | Sí, siempre muestra el vigente | — |
 
 ## Cierre: auditoría final (pedida por el usuario)
