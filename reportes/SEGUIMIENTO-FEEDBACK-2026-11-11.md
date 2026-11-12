@@ -14,8 +14,8 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 |---|---|
 | ✅ Completado | 39 |
 | ⏳ En proceso | 16 |
-| ❓ Respondida | 7 |
-| 🟡 Espera tu decisión | 5 |
+| ❓ Respondida | 8 |
+| 🟡 Espera tu decisión | 4 |
 
 ## Cambios urgentes y administración
 
@@ -33,7 +33,7 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 | 10 | Corregir la cédula de un trabajador | ✅ | Va en «Actualizar Información Básica» con el permiso «Corregir cédula del trabajador» (grupo Personal Activo) | `f4df9c68` `9d51cb21` |
 | 11 | La corrección de cédula no salía en pasivos | ✅ | Ya sale en la ficha del pasivo | `00d2c66e` |
 | 12 | Confirmación de la cédula con demasiada información | ✅ | Ahora muestra un resumen claro y el detalle queda plegado | `5c37ccfe` |
-| 13 | Caso Odalis (10510831 → 10510821) | 🟡 | La 10510821 ya existe (es ella) y la 10510831 no existe. Falta confirmar en qué dirección va el cambio | — |
+| 13 | Caso Odalis (10510831 → 10510821) | ❓ | Se hará desde el sistema con «Corregir cédula». La vista previa muestra los datos antes de confirmar y no se permite cambiar a una cédula que ya existe | — |
 | 14 | ¿Cómo se llama el permiso y a qué grupo pertenece? | ❓ | «Corregir cédula del trabajador» (`personal.corregir_cedula`), grupo Personal Activo; el Administrador lo tiene | — |
 | 15 | Control de cambio del pase | ✅ | `reportes/CONTROL-CAMBIO-GATH-2026-11-11.md` (40 archivos) | `d54c08c5` |
 | 16 | Pantalla «No pudimos cargar la página» después de un despliegue | ✅ | Recarga sola una vez si la versión está desfasada | `4a6dded7` |
