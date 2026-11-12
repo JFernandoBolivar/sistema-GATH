@@ -25,7 +25,7 @@ from apps.pasivos.application.use_cases.egresar_pasivo import (
     listar_motivos_egreso_pasivo,
 )
 from apps.pasivos.application.use_cases.crear_sobrevivientes import ejecutar_creacion_sobrevivientes
-from apps.pasivos.application.use_cases.listar_pasivos import listar_pasivos, listar_pasivos_paginados
+from apps.pasivos.application.use_cases.listar_pasivos import listar_pasivos_paginados
 from apps.pasivos.application.use_cases.obtener_pasivo import obtener_pasivo_por_cedula
 from apps.pasivos.application.use_cases.procesar_egreso import procesar_egreso
 from apps.pasivos.application.use_cases.registrar_pasivo_directo import registrar_pasivo_directo

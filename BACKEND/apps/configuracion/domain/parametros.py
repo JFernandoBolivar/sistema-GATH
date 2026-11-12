@@ -9,8 +9,6 @@ from dataclasses import dataclass
 
 from core.domain.secciones import CODIGOS_SECCIONES
 from core.domain.configuracion import (
-    ALCANCES_CARNET,
-    ALCANCE_CARNET_NADIE,
     CLAVE_AUTOGESTION_ACTIVOS_HABILITADO,
     CLAVE_AUTOGESTION_ACTIVOS_SECCIONES,
     CLAVE_AUTOGESTION_AVISO_DIAS,

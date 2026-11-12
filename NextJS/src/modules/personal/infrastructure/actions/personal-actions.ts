@@ -11,6 +11,7 @@
  * (`PLAN_REPARACION_GATH.md`). No se expone una acción para eso aquí hasta
  * que ese flujo exista, para no llamar una ruta inexistente.
  */
+import { unstable_rethrow } from "next/navigation";
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
@@ -49,6 +50,7 @@ export async function getEmpleadosAction(
     await logAudit({ traceId, action: "getEmpleadosAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "getEmpleadosAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
@@ -82,6 +84,7 @@ export async function getInicioPersonalAction(
     });
     return { empleados, nominas };
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "getInicioPersonalAction",
@@ -106,6 +109,7 @@ export async function getEmpleadoPorCedulaAction(cedula: string) {
     await logAudit({ traceId, action: "getEmpleadoPorCedulaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "getEmpleadoPorCedulaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     const mensaje = error instanceof Error && error.message ? error.message : "Empleado no encontrado";
@@ -127,6 +131,7 @@ export async function registrarEmpleadoAction(input: GuardarEmpleadoInputDTO) {
     await logAudit({ traceId, action: "registrarEmpleadoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "registrarEmpleadoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     // Se devuelve (no se relanza) para que el wizard muestre en el toast el
@@ -153,6 +158,7 @@ export async function actualizarEmpleadoAction(
     await logAudit({ traceId, action: "actualizarEmpleadoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "actualizarEmpleadoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return errorDeAccion(error, "Error al actualizar empleado");
@@ -172,6 +178,7 @@ export async function actualizarTieneHijosAction(cedula: string, tieneHijos: boo
     await logAudit({ traceId, action: "actualizarTieneHijosAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return { tieneHijos: result };
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "actualizarTieneHijosAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return errorDeAccion(error, "No fue posible actualizar el dato.");
@@ -202,6 +209,7 @@ export async function subirFotoEmpleadoAction(cedula: string, formData: FormData
     await logAudit({ traceId, action: "subirFotoEmpleadoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "subirFotoEmpleadoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return errorDeAccion(error, "No fue posible subir la foto.");
@@ -216,6 +224,7 @@ export async function getCatalogosExpedienteAction() {
     await logAudit({ traceId, action: "getCatalogosExpedienteAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "getCatalogosExpedienteAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
@@ -230,6 +239,7 @@ export async function getTiposNominaAction() {
     await logAudit({ traceId, action: "getTiposNominaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "getTiposNominaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
@@ -250,6 +260,7 @@ export async function descargarEmpleadoPdfAction(cedula: string) {
     await logAudit({ traceId, action: "descargarEmpleadoPdfAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return resultado;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "descargarEmpleadoPdfAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
@@ -269,6 +280,7 @@ export async function crearReporteErrorLaboralAction(dato: string, descripcion: 
     });
     return { success: true, data: res };
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "crearReporteErrorLaboralAction",
@@ -300,6 +312,7 @@ export async function getReportesErrorLaboralAction(params?: {
     });
     return res;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "getReportesErrorLaboralAction",
@@ -324,6 +337,7 @@ export async function atenderReporteErrorLaboralAction(id: string, observaciones
     });
     return { success: true, data: res };
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "atenderReporteErrorLaboralAction",

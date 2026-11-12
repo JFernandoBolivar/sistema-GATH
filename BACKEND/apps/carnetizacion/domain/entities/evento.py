@@ -4,7 +4,6 @@ Entidades de dominio para Eventos, Invitados y Control de Entrada (Regla B1, O45
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any
 
 
 class EstadoEvento(str, Enum):

@@ -3,14 +3,12 @@ Casos de uso para la administración de la Política de Correo de Acceso y Aplic
 """
 from __future__ import annotations
 
-from typing import Callable, Sequence
+from typing import Callable
 
 from apps.configuracion.domain.correo_acceso import (
-    GrupoTrabajadores,
     PoliticaCorreoAcceso,
     ResumenVistaPrevia,
     generar_vista_previa_masiva,
-    resolver_correo_para_trabajador,
 )
 from apps.configuracion.domain.ports.repo_politica_correo_acceso import (
     RepoPoliticaCorreoAcceso,

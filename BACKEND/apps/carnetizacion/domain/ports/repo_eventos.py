@@ -2,7 +2,6 @@
 Puerto del Repositorio de Eventos, Categorías, Zonas e Invitados (Regla B1, O45-B).
 """
 from abc import ABC, abstractmethod
-from typing import Any
 
 from apps.carnetizacion.domain.entities.persona_origen import PersonaOrigen
 from apps.carnetizacion.domain.entities.evento import (

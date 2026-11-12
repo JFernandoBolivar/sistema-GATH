@@ -1,5 +1,6 @@
 "use server";
 
+import { unstable_rethrow } from "next/navigation";
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
@@ -66,6 +67,7 @@ export async function getEventosAction(filtros?: {
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "getEventosAction",
@@ -90,6 +92,7 @@ export async function getEventosPaginadoAction(filtros: {
     await logAudit({ traceId, action: "getEventosPaginadoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "getEventosPaginadoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
@@ -109,6 +112,7 @@ export async function getEventoDetalleAction(id: string): Promise<Evento | null>
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "getEventoDetalleAction",
@@ -151,6 +155,7 @@ export async function crearEventoAction(datos: {
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "crearEventoAction",
@@ -178,6 +183,7 @@ export async function actualizarEventoAction(
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "actualizarEventoAction",
@@ -204,6 +210,7 @@ export async function getCategoriasEventoAction(
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "getCategoriasEventoAction",
@@ -236,6 +243,7 @@ export async function crearCategoriaEventoAction(
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "crearCategoriaEventoAction",
@@ -262,6 +270,7 @@ export async function getZonasEventoAction(
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "getZonasEventoAction",
@@ -293,6 +302,7 @@ export async function crearZonaEventoAction(
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "crearZonaEventoAction",
@@ -320,6 +330,7 @@ export async function getInvitadosEventoAction(
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "getInvitadosEventoAction",
@@ -348,6 +359,7 @@ export async function getIdsInvitadosEventoAction(
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "getIdsInvitadosEventoAction",
@@ -387,6 +399,7 @@ export async function crearInvitadoAction(
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "crearInvitadoAction",
@@ -414,6 +427,7 @@ export async function actualizarInvitadoAction(
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "actualizarInvitadoAction",
@@ -440,6 +454,7 @@ export async function eliminarInvitadoAction(
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "eliminarInvitadoAction",
@@ -472,6 +487,7 @@ export async function importarInvitadosAction(
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "importarInvitadosAction",
@@ -499,6 +515,7 @@ export async function emitirCredencialesLoteAction(
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "emitirCredencialesLoteAction",
@@ -526,6 +543,7 @@ export async function enviarCredencialesCorreoAction(
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "enviarCredencialesCorreoAction",
@@ -552,6 +570,7 @@ export async function getPanelEventoAction(
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "getPanelEventoAction",
@@ -580,6 +599,7 @@ export async function checkInAccesoAction(datos: {
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "checkInAccesoAction",
@@ -600,6 +620,7 @@ async function conTraza<T>(accion: string, fn: () => Promise<T>): Promise<T> {
     await logAudit({ traceId, action: accion, status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: accion, status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;

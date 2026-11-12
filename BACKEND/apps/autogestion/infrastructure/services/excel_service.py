@@ -13,7 +13,6 @@ from apps.personal.infrastructure.models.expediente_models import DatosViviendaM
 
 def generar_excel_censo(filtros: dict | None = None) -> io.BytesIO:
     from openpyxl import Workbook
-    from openpyxl.utils import get_column_letter
 
     if filtros is None:
         filtros = {}

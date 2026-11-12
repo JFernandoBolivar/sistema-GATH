@@ -19,7 +19,6 @@ from enum import Enum
 from typing import Sequence
 
 from core.domain.catalogos import CONDICION_PASIVO
-from core.domain.exceptions import ValidationError
 
 MODULO_AUDITORIA_CONFIGURACION = 'configuracion'
 RECURSO_POLITICA_CORREO_ACCESO = 'politica_correo_acceso'

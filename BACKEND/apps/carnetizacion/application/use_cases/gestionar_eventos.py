@@ -2,7 +2,6 @@
 Casos de Uso para Gestión de Eventos, Categorías y Zonas (Regla B4, O45-B).
 """
 import uuid
-from datetime import datetime
 
 from apps.carnetizacion.application.dtos.evento_dtos import (
     EventoCategoriaDTO,

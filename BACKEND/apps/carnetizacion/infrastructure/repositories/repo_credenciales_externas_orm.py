@@ -31,7 +31,6 @@ from apps.carnetizacion.infrastructure.repositories.repo_carnetizacion_orm impor
     vencimiento_segun_parametros,
 )
 from apps.carnetizacion.infrastructure.pdf.carnet_pdf import (
-    DatosCarnetPdf,
     generar_carnet_pdf_fiel,
 )
 from apps.carnetizacion.infrastructure.pdf.carnet_pdf_lote import generar_pdf_lote

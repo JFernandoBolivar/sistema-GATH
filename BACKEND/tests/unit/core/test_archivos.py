@@ -26,6 +26,17 @@ JPEG = b"\xff\xd8\xff\xe0" + b"0" * 32
 PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 32
 
 
+def _png_real() -> bytes:
+    """PNG decodificable (con alfa, para que siga siendo PNG tras reducir_foto_perfil)."""
+    from io import BytesIO
+
+    from PIL import Image
+
+    salida = BytesIO()
+    Image.new("RGBA", (4, 4), (0, 0, 0, 0)).save(salida, format="PNG")
+    return salida.getvalue()
+
+
 def _subido(nombre, contenido, tipo="image/jpeg"):
     return SimpleUploadedFile(nombre, contenido, content_type=tipo)
 
@@ -127,7 +138,7 @@ def test_foto_empleado_post_rechaza_archivo_que_no_es_imagen():
 
 
 def test_foto_empleado_post_guarda_con_clave_uuid_y_devuelve_ruta_de_la_api():
-    view, request = _post_foto(_subido("../../etc/passwd.png", PNG, "image/png"))
+    view, request = _post_foto(_subido("../../etc/passwd.png", _png_real(), "image/png"))
     with patch("apps.personal.presentation.views.personal_views.SeaweedFSStorage") as storage, \
             patch("apps.personal.presentation.views.personal_views.guardar_foto") as guardar:
         resp = view.post(request, cedula="123")

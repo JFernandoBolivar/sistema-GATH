@@ -6,11 +6,10 @@ import secrets
 import uuid
 from datetime import datetime
 from django.db import IntegrityError, transaction
-from django.db.models import Count, Q
+from django.db.models import Q
 from django.utils import timezone
 
 from apps.carnetizacion.domain.entities.evento import (
-    EstadoEvento,
     EstadoInvitado,
     Evento,
     EventoCategoria,

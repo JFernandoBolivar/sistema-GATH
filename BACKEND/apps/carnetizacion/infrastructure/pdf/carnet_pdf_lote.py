@@ -9,7 +9,6 @@ from io import BytesIO
 from typing import Any
 
 from reportlab.lib.colors import HexColor
-from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 
@@ -46,7 +45,6 @@ def _dibujar_cara(
     alto_pt: float,
 ) -> None:
     dims = definicion.get('dimensiones', {})
-    ancho_mm = float(definicion.get('ancho_mm') or dims.get('ancho_mm') or 54.0)
     alto_mm = float(definicion.get('alto_mm') or dims.get('alto_mm') or 85.6)
     colores = resolver_color_carnet(definicion, datos)
 

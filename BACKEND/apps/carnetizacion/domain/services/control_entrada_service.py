@@ -6,13 +6,9 @@ Procesa credenciales escaneadas o códigos de invitado y emite una de las tres r
 3. No válida (anulada, vencida, otro evento o zona no autorizada)
 """
 from datetime import datetime
-from typing import Any
 
 from apps.carnetizacion.domain.entities.evento import (
-    EstadoEvento,
     EstadoInvitado,
-    Evento,
-    EventoInvitado,
     RegistroAccesoEvento,
     ResolucionCarnetInstitucional,
     ResultadoCheckIn,
@@ -199,7 +195,7 @@ def validar_y_registrar_entrada_evento(
         )
 
     # 7. Acceso permitido: Registrar ingreso
-    invitado_actualizado = repo.registrar_ingreso(invitado.id, registrado_por_id, zona_id)
+    repo.registrar_ingreso(invitado.id, registrado_por_id, zona_id)
     hora_txt = momento.strftime("%I:%M %p").lstrip("0")
 
     repo.registrar_bitacora_acceso(

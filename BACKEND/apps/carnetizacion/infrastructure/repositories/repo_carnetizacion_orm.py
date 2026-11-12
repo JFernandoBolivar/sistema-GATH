@@ -9,7 +9,6 @@ from io import BytesIO
 from typing import Any
 from django.core.cache import cache
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Count, Max, Q
 from django.utils import timezone
@@ -27,7 +26,6 @@ from core.domain.configuracion import (
 )
 from core.domain.exceptions import NotFoundError, ValidationError
 from core.infrastructure.providers import obtener_lector_configuracion
-from core.domain.validacion_personas import formatear_telefono
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
 from apps.carnetizacion.domain.entities.campo_credencial import (
     CAMPOS_AUTORIZADOS_EXPEDIENTE,

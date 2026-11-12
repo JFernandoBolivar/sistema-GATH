@@ -9,7 +9,6 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 
-from io import BytesIO
 
 from core.presentation.envelope import fail, ok
 from core.presentation.permissions import HasAnyPermission, HasPermission

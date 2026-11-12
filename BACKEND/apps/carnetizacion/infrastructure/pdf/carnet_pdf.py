@@ -836,7 +836,6 @@ def generar_carnet_pdf(datos: DatosCarnetPdf, definicion: dict[str, Any] | None 
         _dibujar_foto(c, datos.foto_bytes, x_foto, y_foto, photo_width, photo_height)
 
         center_x = CARNET_WIDTH / 2
-        max_text_width = CARNET_WIDTH - 0.80 * cm
         text_start_y = y_foto - 0.3 * cm
         c.setFont(FUENTE_NEGRITA, 7)
         c.drawCentredString(center_x, text_start_y, datos.nombre_completo.upper()[:30])

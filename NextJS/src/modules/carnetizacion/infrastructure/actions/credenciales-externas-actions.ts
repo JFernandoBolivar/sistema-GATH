@@ -1,5 +1,6 @@
 "use server";
 
+import { unstable_rethrow } from "next/navigation";
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
@@ -20,6 +21,7 @@ export async function getCredencialesExternasAction(grupo: GrupoCredencial, filt
     await logAudit({ traceId, action: "getCredencialesExternasAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "getCredencialesExternasAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return errorDeAccion(error, "No fue posible cargar las credenciales.");
@@ -37,6 +39,7 @@ export async function crearCredencialExternaAction(
     await logAudit({ traceId, action: "crearCredencialExternaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "crearCredencialExternaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     const r = errorDeAccion(error, "No fue posible emitir la credencial.");
@@ -52,6 +55,7 @@ export async function devolverCredencialExternaAction(id: string) {
     await logAudit({ traceId, action: "devolverCredencialExternaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "devolverCredencialExternaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return errorDeAccion(error, "No fue posible registrar la devolución.");
@@ -66,6 +70,7 @@ export async function anularCredencialExternaAction(id: string) {
     await logAudit({ traceId, action: "anularCredencialExternaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "anularCredencialExternaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return errorDeAccion(error, "No fue posible anular la credencial.");
@@ -80,6 +85,7 @@ export async function descargarCredencialPdfAction(id: string) {
     await logAudit({ traceId, action: "descargarCredencialPdfAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "descargarCredencialPdfAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return errorDeAccion(error, "No fue posible generar el PDF.");
@@ -94,6 +100,7 @@ export async function generarLoteCredencialesPdfAction(ids: string[]) {
     await logAudit({ traceId, action: "generarLoteCredencialesPdfAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "generarLoteCredencialesPdfAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return errorDeAccion(error, "No fue posible generar el lote.");
@@ -108,6 +115,7 @@ export async function enviarCredencialExternaAction(id: string, destinatario?: s
     await logAudit({ traceId, action: "enviarCredencialExternaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "enviarCredencialExternaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return errorDeAccion(error, "No fue posible encolar el correo.");

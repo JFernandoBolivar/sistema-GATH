@@ -10,7 +10,6 @@ FIX-FAM2: las reglas viven en el catálogo de parentescos (Gestión del sistema)
 y llegan aquí como `ReglaParentescoFamiliar`. El dominio no consulta Django.
 """
 import re
-from dataclasses import dataclass
 from datetime import date
 
 from apps.familiares.domain.entities.familiar import CEDULA_FAMILIAR_MAX

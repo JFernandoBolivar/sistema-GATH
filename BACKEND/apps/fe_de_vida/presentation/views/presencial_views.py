@@ -11,13 +11,12 @@ from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.views import APIView
 
-from apps.fe_de_vida.application.use_cases._comun import evento, obtener_solicitud
+from apps.fe_de_vida.application.use_cases._comun import evento
 from apps.fe_de_vida.application.use_cases.consultas import buscar_pasivos_presencial, obtener_proceso_vigente
 from apps.fe_de_vida.application.use_cases.solicitudes_pasivo import (
     exigir_celular,
     exigir_correo_alternativo,
     guardar_borrador,
-    iniciar_solicitud_vigente,
     subir_evidencia,
 )
 from apps.fe_de_vida.domain.entities.solicitud import SolicitudFeDeVida
@@ -26,12 +25,11 @@ from apps.fe_de_vida.domain.constantes import (
     MENSAJE_JUSTIFICACION_SIN_CORREO,
     MIN_JUSTIFICACION_SIN_CORREO,
 )
-from apps.fe_de_vida.domain.events import PublicadorNulo, TipoEvento
+from apps.fe_de_vida.domain.events import TipoEvento
 from apps.fe_de_vida.domain.services.reglas_proceso import exigir_puede_enviar
-from apps.fe_de_vida.domain.value_objects.estados import CONDICION_PASIVO, EstadoSolicitud, validar_transicion_solicitud
+from apps.fe_de_vida.domain.value_objects.estados import EstadoSolicitud, validar_transicion_solicitud
 from apps.fe_de_vida.infrastructure.adaptadores_autogestion import RepoCambiosActaORM, ValidadorCambiosActaORM
 from apps.fe_de_vida.infrastructure.imagen_evidencia import sanear_imagen
-from apps.fe_de_vida.infrastructure.models.solicitud_models import SolicitudFeDeVidaModel
 from apps.fe_de_vida.infrastructure.repositories.buscador_pasivos_presencial_orm import BuscadorPasivosPresencialORM
 from apps.fe_de_vida.infrastructure.repositories.lector_alcance_orm import LectorAlcanceORM
 from apps.fe_de_vida.infrastructure.repositories.lector_ficha_pasivo_orm import LectorFichaPasivoORM
@@ -52,14 +50,11 @@ from apps.fe_de_vida.presentation.serializers.fe_de_vida_serializers import (
     a_cambio_acta,
     a_dict_cambio,
     a_dict_item_presencial,
-    a_dict_proceso,
     a_dict_solicitud,
 )
 from apps.fe_de_vida.presentation.views._comun import (
     ahora,
     auditar,
-    cedula_de_sesion,
-    nombres_de_tipos,
     parametros_pagina,
     respuesta_pagina,
     resumen,

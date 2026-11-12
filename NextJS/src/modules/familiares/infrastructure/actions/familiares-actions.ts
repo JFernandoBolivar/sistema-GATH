@@ -6,6 +6,7 @@
  * caso de uso. Captura errores y llama `handleSessionExpired` (R7) y registra
  * la auditoría en `logs/frontend/audit_frontend.txt` (D-04/C-5).
  */
+import { unstable_rethrow } from "next/navigation";
 import { z } from "zod";
 
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
@@ -44,6 +45,7 @@ export async function getFamiliaresPorEmpleadoAction(cedula: string) {
     await logAudit({ traceId, action: "getFamiliaresPorEmpleadoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "getFamiliaresPorEmpleadoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
@@ -63,6 +65,7 @@ export async function crearFamiliarAction(input: GuardarFamiliarInputDTO) {
     await logAudit({ traceId, action: "crearFamiliarAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "crearFamiliarAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return errorDeAccion(error, "No fue posible registrar al familiar.");
@@ -86,6 +89,7 @@ export async function actualizarFamiliarAction(
     await logAudit({ traceId, action: "actualizarFamiliarAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "actualizarFamiliarAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return errorDeAccion(error, "No fue posible actualizar al familiar.");
@@ -105,6 +109,7 @@ export async function eliminarFamiliarAction(id: number) {
     await logAudit({ traceId, action: "eliminarFamiliarAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return { success: true };
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "eliminarFamiliarAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
@@ -119,6 +124,7 @@ export async function getCatalogosFamiliarAction() {
     await logAudit({ traceId, action: "getCatalogosFamiliarAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "getCatalogosFamiliarAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
@@ -149,6 +155,7 @@ export async function getCatalogoDependienteFamiliarAction(
     await logAudit({ traceId, action: "getCatalogoDependienteFamiliarAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "getCatalogoDependienteFamiliarAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
@@ -184,6 +191,7 @@ export async function resolverAltasInlineFamiliarAction(solicitudes: z.infer<typ
     await logAudit({ traceId, action: "resolverAltasInlineFamiliarAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return { ok: result };
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "resolverAltasInlineFamiliarAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return { error: error instanceof Error && error.message ? error.message : "No fue posible registrar la opción \"Otra\"." };
@@ -203,6 +211,7 @@ export async function getDocumentosFamiliarAction(familiarId: number) {
     await logAudit({ traceId, action: "getDocumentosFamiliarAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "getDocumentosFamiliarAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
@@ -236,6 +245,7 @@ export async function subirDocumentoFamiliarAction(familiarId: number, tipoDocum
     await logAudit({ traceId, action: "subirDocumentoFamiliarAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "subirDocumentoFamiliarAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return { error: error instanceof Error && error.message ? error.message : "No fue posible subir el documento." };
@@ -267,6 +277,7 @@ export async function reemplazarDocumentoFamiliarAction(familiarId: number, docu
     await logAudit({ traceId, action: "reemplazarDocumentoFamiliarAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "reemplazarDocumentoFamiliarAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return { error: error instanceof Error && error.message ? error.message : "No fue posible reemplazar el documento." };

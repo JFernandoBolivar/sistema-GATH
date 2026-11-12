@@ -1,12 +1,10 @@
 """
 Modelos ORM de Carnetización (Regla B26, O44 - E3).
 """
-import hashlib
 from django.conf import settings
 from django.db import models
 
 from core.infrastructure.models.base import BaseModel
-from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
 
 
 class MotivosEmisionModel(models.Model):

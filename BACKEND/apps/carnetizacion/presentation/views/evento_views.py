@@ -2,10 +2,9 @@
 import csv
 import io
 import json
-from datetime import datetime
+import logging
 
 from django.http import HttpResponse
-from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.parsers import FormParser, MultiPartParser, JSONParser
 from rest_framework.permissions import IsAuthenticated
@@ -64,7 +63,6 @@ from apps.carnetizacion.presentation.serializers.evento_serializers import (
     EventoInvitadoSerializer,
     EventoSerializer,
     EventoZonaSerializer,
-    ImportarInvitadosRequestSerializer,
     InvitadoCrearSerializer,
     PanelEventoSerializer,
     ResumenImportacionSerializer,
@@ -404,16 +402,28 @@ class EventoInvitadosImportarView(APIView):
                             if idx_c < len(claves) and claves[idx_c]:
                                 fila_dict[claves[idx_c]] = str(val if val is not None else "").strip()
                         filas_crudas.append(fila_dict)
-                except Exception as e:
-                    return fail(f"Error procesando archivo Excel: {str(e)}", status=400)
+                except Exception:
+                    logging.getLogger('security_backend').exception(
+                        'No se pudo leer el archivo Excel de invitados',
+                    )
+                    return fail(
+                        'No se pudo leer el archivo Excel. Verifique el formato e intente de nuevo.',
+                        status=400,
+                    )
             else:
                 try:
                     contenido = archivo.read().decode("utf-8-sig")
                     lector = csv.DictReader(io.StringIO(contenido))
                     for row in lector:
                         filas_crudas.append(row)
-                except Exception as e:
-                    return fail(f"Error procesando archivo CSV: {str(e)}", status=400)
+                except Exception:
+                    logging.getLogger('security_backend').exception(
+                        'No se pudo leer el archivo CSV de invitados',
+                    )
+                    return fail(
+                        'No se pudo leer el archivo CSV. Verifique el formato e intente de nuevo.',
+                        status=400,
+                    )
         elif "filas" in request.data:
             filas_crudas = request.data.get("filas", [])
             if isinstance(filas_crudas, str):

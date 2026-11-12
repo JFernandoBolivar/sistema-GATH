@@ -6,7 +6,6 @@ from __future__ import annotations
 from typing import Sequence
 
 from django.conf import settings
-from django.db import transaction
 
 from core.domain.catalogos import (
     CONDICION_ACTIVO,

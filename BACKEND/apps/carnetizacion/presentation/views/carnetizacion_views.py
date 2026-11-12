@@ -61,7 +61,7 @@ from apps.carnetizacion.application.use_cases.gestionar_plantillas import (
     obtener_plantilla_detalle,
     publicar_plantilla,
 )
-from apps.carnetizacion.application.use_cases.listar_carnets import emitir_carnet, listar_carnets
+from apps.carnetizacion.application.use_cases.listar_carnets import listar_carnets
 from apps.carnetizacion.application.use_cases.revocar_carnet import revocar_carnet
 from apps.carnetizacion.application.use_cases.validar_carnet import (
     validar_carnet_por_hash,

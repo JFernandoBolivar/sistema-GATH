@@ -49,4 +49,6 @@ class EsSuperadministrador(BasePermission):
         cedula = getattr(user, 'cedula_id', None) or getattr(user, 'cedula', None)
         if not cedula:
             return False
-        return str(cedula) == str(getattr(django_settings, 'SUPERADMIN_CEDULA', '30799436'))
+        # Sin `SUPERADMIN_CEDULA` configurada no hay superadministrador: fallo cerrado.
+        esperada = str(getattr(django_settings, 'SUPERADMIN_CEDULA', '') or '')
+        return bool(esperada) and str(cedula) == esperada

@@ -7,7 +7,6 @@ from typing import Sequence
 
 from apps.configuracion.domain.ports.repo_reglas_catalogos import RepoReglasCatalogos
 from apps.configuracion.domain.reglas_catalogos import (
-    CategoriaMotivoItem,
     ReglaChecklistSoporte,
     ReglaMotivo,
     ReglaNomina,

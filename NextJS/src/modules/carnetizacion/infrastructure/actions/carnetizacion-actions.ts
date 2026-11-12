@@ -6,6 +6,7 @@
  * caso de uso. Captura errores y llama `handleSessionExpired` (R7) y registra
  * la auditoría en `logs/frontend/audit_frontend.txt` (D-04/C-5).
  */
+import { unstable_rethrow } from "next/navigation";
 import type { ZodError } from "zod";
 
 import { ApiHttpError } from "@/shared/infrastructure/http/errors";
@@ -75,6 +76,7 @@ export async function getCarnetsAction(cedula?: string) {
     await logAudit({ traceId, action: "getCarnetsAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "getCarnetsAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
@@ -97,6 +99,7 @@ export async function emitirCarnetAction(empleadoCedula: string, motivoId: numbe
     await logAudit({ traceId, action: "emitirCarnetAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "emitirCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return errorDeAccion(error, "No fue posible emitir el carnet.");
@@ -119,6 +122,7 @@ export async function validarCarnetPorHashAction(securityHash: string) {
     await logAudit({ traceId, action: "validarCarnetPorHashAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "validarCarnetPorHashAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return errorDeAccion(error, "No fue posible validar el carnet.");
@@ -138,6 +142,7 @@ export async function validarCarnetPorIdAction(carnetId: number) {
     await logAudit({ traceId, action: "validarCarnetPorIdAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "validarCarnetPorIdAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return errorDeAccion(error, "No fue posible validar el carnet.");
@@ -152,6 +157,7 @@ export async function getPlantillasCarnetAction() {
     await logAudit({ traceId, action: "getPlantillasCarnetAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "getPlantillasCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
@@ -173,6 +179,7 @@ export async function subirPlantillaCarnetAction(nombre: string, imagen: File, a
     await logAudit({ traceId, action: "subirPlantillaCarnetAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "subirPlantillaCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return errorDeAccion(error, "No fue posible subir la plantilla.");
@@ -192,6 +199,7 @@ export async function activarPlantillaCarnetAction(plantillaId: number) {
     await logAudit({ traceId, action: "activarPlantillaCarnetAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "activarPlantillaCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return errorDeAccion(error, "No fue posible activar la plantilla.");
@@ -211,6 +219,7 @@ export async function descargarPdfCarnetAction(carnetId: number) {
     await logAudit({ traceId, action: "descargarPdfCarnetAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "descargarPdfCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return errorDeAccion(error, "No fue posible descargar el carnet.");
@@ -230,6 +239,7 @@ export async function revocarCarnetAction(carnetId: number) {
     await logAudit({ traceId, action: "revocarCarnetAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "revocarCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return errorDeAccion(error, "No fue posible revocar el carnet.");
@@ -244,6 +254,7 @@ export async function getEstadisticasCarnetsAction() {
     await logAudit({ traceId, action: "getEstadisticasCarnetsAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "getEstadisticasCarnetsAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
@@ -269,6 +280,7 @@ export async function buscarEmpleadoParaCarnetAction(cedula: string) {
     }
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "buscarEmpleadoParaCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return errorDeAccion(error, "No fue posible consultar los datos del trabajador.");
@@ -284,6 +296,7 @@ export async function buscarPersonalCarnetAction(query: string) {
     await logAudit({ traceId, action: "buscarPersonalCarnetAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "buscarPersonalCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
@@ -299,6 +312,7 @@ export async function getMotivosCarnetAction() {
     await logAudit({ traceId, action: "getMotivosCarnetAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "getMotivosCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
@@ -314,6 +328,7 @@ export async function actualizarVistaPreviaAction(cedula: string, nombre: string
     await logAudit({ traceId, action: "actualizarVistaPreviaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "actualizarVistaPreviaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return { success: false as const, message: "Error al actualizar vista previa", vista_previa: "" };
@@ -329,6 +344,7 @@ export async function subirFotoCarnetAction(cedula: string, nombre: string, foto
     await logAudit({ traceId, action: "subirFotoCarnetAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "subirFotoCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return { success: false as const, message: "Error al subir la foto", vista_previa: "" };
@@ -354,6 +370,7 @@ export async function generarCarnetPdfAction(
     await logAudit({ traceId, action: "generarCarnetPdfAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return { success: true as const, message: "Carnet generado exitosamente", data: base64 };
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "generarCarnetPdfAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return {
@@ -375,6 +392,7 @@ export async function vistaPreviaQrAction(qrEstilo: unknown) {
     const base64 = Buffer.from(await blob.arrayBuffer()).toString("base64");
     return { success: true as const, data: `data:image/png;base64,${base64}` };
   } catch (error) {
+    unstable_rethrow(error);
     handleSessionExpired(error);
     return { success: false as const, data: null };
   }
@@ -388,6 +406,7 @@ export async function getTiposCredencialAction(grupo?: string) {
     await logAudit({ traceId, action: "getTiposCredencialAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "getTiposCredencialAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return [];
@@ -402,6 +421,7 @@ export async function getPlantillasMotorAction(tipo?: string, estado?: string, a
     await logAudit({ traceId, action: "getPlantillasMotorAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "getPlantillasMotorAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return [];
@@ -417,6 +437,7 @@ export async function getPlantillasMotorPaginaAction(tipo: string | undefined, p
     await logAudit({ traceId, action: "getPlantillasMotorPaginaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return { success: true as const, data: result };
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "getPlantillasMotorPaginaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return { success: false as const, error: "No fue posible listar las plantillas." };
@@ -432,6 +453,7 @@ export async function getFondosFijosAction(params: ParamsPagina) {
     await logAudit({ traceId, action: "getFondosFijosAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return { success: true as const, data: result };
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "getFondosFijosAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return { success: false as const, error: "No fue posible listar los fondos fijos." };
@@ -447,6 +469,7 @@ export async function eliminarFondoFijoAction(id: number | string) {
     await logAudit({ traceId, action: "eliminarFondoFijoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return { success: true as const };
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "eliminarFondoFijoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return { success: false as const, ...errorDeAccion(error, "No fue posible eliminar el fondo fijo.") };
@@ -461,6 +484,7 @@ export async function activarPlantillaMotorAction(plantillaId: string) {
     await logAudit({ traceId, action: "activarPlantillaMotorAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return { success: true as const, data: result };
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "activarPlantillaMotorAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return { success: false as const, error: "No fue posible activar la plantilla." };
@@ -475,6 +499,7 @@ export async function publicarPlantillaMotorAction(plantillaId: string, activar:
     await logAudit({ traceId, action: "publicarPlantillaMotorAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return { success: true as const, data: result };
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "publicarPlantillaMotorAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return { success: false as const, error: "No fue posible publicar la versión de la plantilla." };
@@ -489,6 +514,7 @@ export async function eliminarPlantillaMotorAction(plantillaId: string) {
     await logAudit({ traceId, action: "eliminarPlantillaMotorAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return { success: true as const };
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "eliminarPlantillaMotorAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return {
@@ -524,6 +550,7 @@ export async function crearPlantillaBorradorAction(data: {
     await logAudit({ traceId, action: "crearPlantillaBorradorAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return { success: true as const, data: result };
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "crearPlantillaBorradorAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     const mensaje = error instanceof Error ? error.message : "No fue posible crear el borrador de plantilla.";
@@ -539,6 +566,7 @@ export async function getVersionesPlantillaAction(raizId: string) {
     await logAudit({ traceId, action: "getVersionesPlantillaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "getVersionesPlantillaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return [];
@@ -553,6 +581,7 @@ export async function getPlantillaMotorAction(id: string) {
     await logAudit({ traceId, action: "getPlantillaMotorAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return { success: true as const, data: result };
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "getPlantillaMotorAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return { success: false as const, error: "No se encontró la plantilla." };
@@ -579,6 +608,7 @@ export async function actualizarPlantillaBorradorAction(
     await logAudit({ traceId, action: "actualizarPlantillaBorradorAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return { success: true as const, data: result };
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "actualizarPlantillaBorradorAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     const mensaje = error instanceof Error ? error.message : "No fue posible actualizar el borrador.";
@@ -598,6 +628,7 @@ export async function getBibliotecaAction(categoria?: string) {
     await logAudit({ traceId, action: "getBibliotecaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return { success: true as const, data: result };
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "getBibliotecaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return { success: false as const, error: "No fue posible listar la biblioteca de medios." };
@@ -617,6 +648,7 @@ export async function getBibliotecaPaginaAction(categoria: string | undefined, p
     await logAudit({ traceId, action: "getBibliotecaPaginaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return { success: true as const, data: result };
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "getBibliotecaPaginaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return { success: false as const, error: "No fue posible listar la biblioteca de medios." };
@@ -646,6 +678,7 @@ export async function subirElementoBibliotecaAction(formData: FormData) {
     await logAudit({ traceId, action: "subirElementoBibliotecaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return { success: true as const, data: result };
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "subirElementoBibliotecaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     const mensaje = error instanceof Error ? error.message : "No fue posible subir el archivo.";
@@ -661,6 +694,7 @@ export async function eliminarElementoBibliotecaAction(id: string) {
     await logAudit({ traceId, action: "eliminarElementoBibliotecaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return { success: true as const };
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "eliminarElementoBibliotecaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return { success: false as const, error: "No fue posible eliminar el elemento de la biblioteca." };
@@ -676,6 +710,7 @@ export async function getCamposAction(tipo: string = "trabajador") {
     await logAudit({ traceId, action: "getCamposAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return { success: true as const, data: result };
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "getCamposAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return { success: false as const, error: "No fue posible obtener los campos." };
@@ -699,6 +734,7 @@ export async function crearCampoPersonalizadoAction(data: {
     await logAudit({ traceId, action: "crearCampoPersonalizadoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return { success: true as const, data: result };
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "crearCampoPersonalizadoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     const mensaje = error instanceof Error ? error.message : "No fue posible registrar el campo.";
@@ -717,6 +753,7 @@ export async function actualizarCampoPersonalizadoAction(
     await logAudit({ traceId, action: "actualizarCampoPersonalizadoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return { success: true as const, data: result };
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "actualizarCampoPersonalizadoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     const mensaje = error instanceof Error ? error.message : "No fue posible actualizar el campo.";
@@ -732,6 +769,7 @@ export async function eliminarCampoPersonalizadoAction(codigo: string) {
     await logAudit({ traceId, action: "eliminarCampoPersonalizadoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return { success: true as const };
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "eliminarCampoPersonalizadoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return { success: false as const, error: "No fue posible eliminar el campo personalizado." };
@@ -747,6 +785,7 @@ export async function consultarFichaQrAction(securityHash: string) {
     await logAudit({ traceId, action: "consultarFichaQrAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "consultarFichaQrAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
@@ -761,6 +800,7 @@ export async function consultarSaludEmergenciaAction(securityHash: string) {
     await logAudit({ traceId, action: "consultarSaludEmergenciaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "consultarSaludEmergenciaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
@@ -775,6 +815,7 @@ export async function obtenerPreferenciasPrivacidadAction() {
     await logAudit({ traceId, action: "obtenerPreferenciasPrivacidadAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "obtenerPreferenciasPrivacidadAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
@@ -789,6 +830,7 @@ export async function guardarPreferenciasPrivacidadAction(preferencias: Preferen
     await logAudit({ traceId, action: "guardarPreferenciasPrivacidadAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "guardarPreferenciasPrivacidadAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;

@@ -15,7 +15,7 @@ from django.utils import timezone
 
 from core.domain.catalogos import TIPO_PERSONAL_PASIVO
 from apps.carga_masiva.domain.condicion import puede_aplicarse, puede_confirmarse
-from apps.carga_masiva.domain.registro_campos import POBLACION_ACTIVOS, POBLACION_PASIVOS
+from apps.carga_masiva.domain.registro_campos import POBLACION_PASIVOS
 from apps.carga_masiva.infrastructure.cargo_resolucion import resolver_datos_cargo
 from apps.carga_masiva.infrastructure.models import CargaMasivaFilaModel, CargaMasivaModel
 from apps.cargos.application.dtos.cargos_dtos import CrearCargoDTO
@@ -61,7 +61,6 @@ from apps.personal.infrastructure.models.catalogos_soporte_models import (
     NivelAcademicoModel,
     PatologiaCronicaModel,
     TallaModel,
-    TipoPrendaModel,
 )
 from apps.catalogos.infrastructure.models.catalogo_models import PaisModel, TipoProcedenciaModel
 from apps.personal.infrastructure.models.expediente_models import (

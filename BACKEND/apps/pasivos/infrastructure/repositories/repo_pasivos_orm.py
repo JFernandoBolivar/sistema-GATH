@@ -13,15 +13,12 @@ from core.domain.catalogos import (
     TIPO_PERSONAL_PASIVO,
 )
 from core.domain.categorias_motivo import (
-    MOTIVO_SISTEMA_JUBILACION,
-    MOTIVO_SISTEMA_PENSION_INVALIDEZ,
     Operacion,
 )
 from core.domain.exceptions import ConflictError, NotFoundError, ValidationError
 from apps.catalogos.infrastructure.repositories.motivos_por_categoria import (
     listar_motivos_de_operacion,
     obtener_motivo_de_operacion,
-    obtener_motivo_de_sistema,
 )
 from apps.cargos.domain import events
 from apps.pasivos.domain.entities.pasivo import Pasivo
