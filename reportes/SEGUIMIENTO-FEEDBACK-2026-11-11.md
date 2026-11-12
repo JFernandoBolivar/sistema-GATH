@@ -13,7 +13,7 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 | Estado | Cantidad |
 |---|---|
 | ✅ Completado | 39 |
-| ⏳ En proceso | 14 |
+| ⏳ En proceso | 15 |
 | ❓ Respondida | 7 |
 | 🟡 Espera tu decisión | 4 |
 
@@ -62,6 +62,7 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 | 67 | Los campos obligatorios deben llevar asterisco | ⏳ | En los formularios de Movimientos | — |
 | 68 | Al guardar el contrato: «Ha ocurrido un error interno» | ⏳ | Causa: el estatus del contrato no existe en el catálogo. Se corrige, y si falla dará un mensaje claro | — |
 | 69 | ¿Se corrigió que no se pudiera reenviar ni regenerar la constancia después de unos días, y que no llegara el correo? | ❓ | Sí, en `b268731a` (cada reenvío tiene su propia clave y se agregó la recuperación). Aún no está en producción: entra con el próximo pase. En local no llegó porque el pasivo de prueba no tiene correo (el log dice «sin correo para enviar») | `b268731a` |
+| 70 | Reporte de pasivos: subir los grupos de filtros para quitar los espacios en blanco y verificar que todos los filtros se apliquen en el PDF | ⏳ | Diseño en columnas sin huecos y revisión de cada filtro | — |
 | 30 | Familiares: grupo sanguíneo obligatorio, errores que no se marcan, error en el flujo de registro y actualización, documentos en la actualización | ⏳ | OpenCode lo está corrigiendo | — |
 
 ## Carnetización
