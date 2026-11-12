@@ -568,7 +568,7 @@ export function ConfiguracionPuntoCuentaPage() {
       title="Configuración de Punto de Cuenta"
       description="Estructura formal de la Administración Pública venezolana, procesos que generan punto de cuenta y diseño de plantillas en PDF."
     >
-      <div className="space-y-6 max-w-4xl">
+      <div className="space-y-6">
         {/* Volver y Versión */}
         <div className="flex items-center justify-between">
           <Link

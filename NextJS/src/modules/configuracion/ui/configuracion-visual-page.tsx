@@ -106,7 +106,7 @@ export default function ConfiguracionVisualPage() {
       title="Identidad Visual y Cintillos"
       description="Personalización del cintillo superior, logotipo oficial y pie de página institucional para todos los documentos y reportes PDF del sistema."
     >
-      <div className="space-y-6 max-w-5xl">
+      <div className="space-y-6">
         {/* Cabecera y Navegación */}
         <div className="flex items-center justify-between">
           <Link
