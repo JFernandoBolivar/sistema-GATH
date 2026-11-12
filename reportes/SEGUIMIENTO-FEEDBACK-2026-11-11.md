@@ -12,8 +12,8 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 
 | Estado | Cantidad |
 |---|---|
-| ✅ Completado | 35 |
-| ⏳ En proceso | 7 |
+| ✅ Completado | 36 |
+| ⏳ En proceso | 8 |
 | ❓ Respondida | 6 |
 | 🟡 Espera tu decisión | 4 |
 
@@ -50,6 +50,8 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 | 27 | «Previsualizar PDF formal» no hacía nada | ✅ | El navegador bloqueaba la pestaña; ahora se abre en el mismo clic o se descarga | `cc061feb` |
 | 28 | Filtros de Auditoría desalineados y pequeños | ✅ | Grilla alineada, controles legibles | `8455e2b7` |
 | 29 | Auditoría: el rol no aparece | ✅ | Se guarda desde ahora; en los registros viejos se muestra el rol actual | `e27125db` |
+| 58 | El campo «Escriba la cédula nueva para confirmar» aceptaba letras | ✅ | Ese campo y el de la cédula solo aceptan números | `f33fc3fb` |
+| 59 | Nacionalidad con permiso propio, separado del de la cédula | ⏳ | Permiso «Actualizar nacionalidad del trabajador» | — |
 | 30 | Familiares: grupo sanguíneo obligatorio, errores que no se marcan, error en el flujo de registro y actualización, documentos en la actualización | ⏳ | OpenCode lo está corrigiendo | — |
 
 ## Carnetización
