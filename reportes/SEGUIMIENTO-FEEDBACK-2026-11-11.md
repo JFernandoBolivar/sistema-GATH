@@ -12,9 +12,9 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 
 | Estado | Cantidad |
 |---|---|
-| ✅ Completado | 39 |
-| ⏳ En proceso | 16 |
-| ❓ Respondida | 8 |
+| ✅ Completado | 61 |
+| ⏳ En proceso | 9 |
+| ❓ Respondida | 9 |
 | 🟡 Espera tu decisión | 0 |
 
 ## Cambios urgentes y administración
@@ -51,7 +51,7 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 | 28 | Filtros de Auditoría desalineados y pequeños | ✅ | Grilla alineada, controles legibles | `8455e2b7` |
 | 29 | Auditoría: el rol no aparece | ✅ | Se guarda desde ahora; en los registros viejos se muestra el rol actual | `e27125db` |
 | 58 | El campo «Escriba la cédula nueva para confirmar» aceptaba letras | ✅ | Ese campo y el de la cédula solo aceptan números | `f33fc3fb` |
-| 59 | Nacionalidad con permiso propio, separado del de la cédula | ⏳ | Permiso «Actualizar nacionalidad del trabajador» | — |
+| 59 | Nacionalidad con permiso propio, separado del de la cédula | ✅ | Permiso «Actualizar nacionalidad del trabajador» | `71cb939a` |
 | 60 | El familiar registrado en una fe de vida aprobada no aparece en Familiares del pasivo | ⏳ | Revisado: al aprobar, los familiares **sí se guardan**. En la solicitud que mirabas (99000320 / 5132733) los familiares existen (ids 5659 y 5642); fueron **modificaciones**, no altas. Hallazgo: el familiar 5642 tiene **la misma cédula que el titular (5132733)**, y eso no debería permitirse. Cédula buscada: 5132733. Se valida que familiar y titular no compartan cédula y se revisa la consulta (OpenCode) | — |
 | 61 | «¿Tiene hijos?» de la fe de vida debe actualizar el expediente y verse y editarse en la ficha de activos y pasivos | ⏳ | Ya se guarda en el expediente al validar (datos complementarios). Falta mostrarlo y editarlo en la ficha de activos y pasivos; no hace falta migración | — |
 | 62 | Botón «Contacto de emergencia» distinto a los demás | ✅ | Mismo estilo e ícono que las otras secciones | `0dcb8f4d` |
@@ -62,11 +62,11 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 | 67 | Los campos obligatorios deben llevar asterisco | ✅ | En los formularios de Movimientos | `4b7ff4fb` |
 | 68 | Al guardar el contrato: «Ha ocurrido un error interno» | ✅ | Causa: el estatus del contrato no existe en el catálogo. Se corrige, y si falla dará un mensaje claro | `4b7ff4fb` |
 | 69 | ¿Se corrigió que no se pudiera reenviar ni regenerar la constancia después de unos días, y que no llegara el correo? | ❓ | Sí, en `b268731a` (cada reenvío tiene su propia clave y se agregó la recuperación). Aún no está en producción: entra con el próximo pase. En local no llegó porque el pasivo de prueba no tiene correo (el log dice «sin correo para enviar») | `b268731a` |
-| 70 | Reporte de pasivos: subir los grupos de filtros para quitar los espacios en blanco y verificar que todos los filtros se apliquen en el PDF | ⏳ | Diseño en columnas sin huecos y revisión de cada filtro | — |
-| 71 | «Tipo de Pasivo» en el reporte debe listar solo los tipos de pasivo | ⏳ | Mismo filtro que se usa al pasar a pasivo | — |
-| 72 | El PDF de pasivos perdió los totales de femeninos y masculinos | ⏳ | Se recupera el conteo por sexo sobre el resultado filtrado | — |
-| 73 | Consultar pasivos: quitar el filtro «Tipo de Jubilación / Pensión» (permitía crear motivos) | ✅ | Eliminado; se sube con el permiso de nacionalidad | (pendiente de commit) |
-| 74 | Ficha de pasivos: no deben salir Grado, «Cargo cubierto por encargaduría» ni Encargadurías | ✅ | Ocultos en la ficha de pasivos | (pendiente de commit) |
+| 70 | Reporte de pasivos: subir los grupos de filtros para quitar los espacios en blanco y verificar que todos los filtros se apliquen en el PDF | ✅ | Diseño en columnas sin huecos y revisión de cada filtro | `57a480a3` |
+| 71 | «Tipo de Pasivo» en el reporte debe listar solo los tipos de pasivo | ✅ | Mismo filtro que se usa al pasar a pasivo | `57a480a3` |
+| 72 | El PDF de pasivos perdió los totales de femeninos y masculinos | ✅ | Se recupera el conteo por sexo sobre el resultado filtrado | `57a480a3` |
+| 73 | Consultar pasivos: quitar el filtro «Tipo de Jubilación / Pensión» (permitía crear motivos) | ✅ | Eliminado; se sube con el permiso de nacionalidad | `71cb939a` |
+| 74 | Ficha de pasivos: no deben salir Grado, «Cargo cubierto por encargaduría» ni Encargadurías | ✅ | Ocultos en la ficha de pasivos | `71cb939a` |
 | 75 | Familiares: menú de acciones como el de Personal y botón de editar por bloque en Ver detalle | ⏳ | OpenCode, después de lo de Familiares | — |
 | 76 | Movimientos (contrato con error 500, buscador de cargo, asteriscos, código especial) | ✅ | Ver los puntos 65 a 68 | `4b7ff4fb` |
 | 77 | ¿La regla «familiar con la misma cédula del titular» afecta a los hijos menores con cédula «titular-n»? | ❓ | No: solo bloquea cuando las cédulas son exactamente iguales. «5132733-1» sigue permitida y se agregó una prueba | — |
@@ -95,12 +95,12 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 | 45 | Texto que se desborda al imprimir por lotes | ✅ | Reduce el tamaño, parte en dos líneas o recorta; nunca sale de la tarjeta | `8a2f465c` |
 | 46 | Visitantes: mensaje «No se encontraron» con el buscador vacío, ícono del calendario, correo ambiguo | ✅ | Mensajes correctos, calendario a la derecha y «Correo del visitante» | `e0d15ed2` |
 | 47 | Credencial temporal: selector de un solo tipo, nombre en un campo gris, correo suelto | ✅ | Tipo fijo y tarjeta resumen del trabajador | `3df08f3f` |
-| 48 | Mensajes de error en inglés («This field may not be blank») | ⏳ | El sistema pasa a español, con el nombre del campo en cada error | — |
-| 49 | Estadísticas de carnetización en 0 | ⏳ | En investigación y corrección | — |
-| 50 | Tarjetas de eventos muy simples y lista de eventos sin paginar | ⏳ | Rediseño y paginación | — |
-| 51 | Agregar invitados sin escribir: buscar y seleccionar (todos, activos, pasivos, por dependencia, externos) | ⏳ | Diálogo de búsqueda con selección | — |
-| 52 | «PDF Gafetes» da error y abre una página en blanco; zonas y categorías; utilidad de «Importar lista» | ⏳ | Se corrige el botón, se pueden gestionar zonas y categorías, e «Importar externos (Excel)» queda para los no registrados | — |
-| 53 | Fondos Fijos (Clásico): ¿qué es?, mejorar el diseño, paginar plantillas, fondos y biblioteca | ⏳ | Explicación, rediseño y paginación | — |
+| 48 | Mensajes de error en inglés («This field may not be blank») | ✅ | El sistema está en español; los errores indican el campo | `71cb939a` |
+| 49 | Estadísticas de carnetización en 0 | ✅ | Contaba claves equivocadas; ahora incluye credenciales externas y cuenta las de hoy y del mes | `71cb939a` |
+| 50 | Tarjetas de eventos muy simples y lista de eventos sin paginar | ✅ | Tarjetas rediseñadas y lista paginada con filtros | `71cb939a` |
+| 51 | Agregar invitados sin escribir: buscar y seleccionar (todos, activos, pasivos, por dependencia, externos) | ✅ | Diálogo con búsqueda: personal (todos, activos, pasivos o por dependencia) y externos registrados | `71cb939a` |
+| 52 | «PDF Gafetes» da error y abre una página en blanco; zonas y categorías; utilidad de «Importar lista» | ✅ | «Descargar gafetes (PDF)», pestaña «Zonas y categorías» e «Importar externos (Excel)» en «Más opciones» | `71cb939a` |
+| 53 | Fondos Fijos (Clásico): ¿qué es?, mejorar el diseño, paginar plantillas, fondos y biblioteca | ✅ | Fondos Fijos es un respaldo (se usa solo si no hay plantilla por capas); rediseño y paginación de plantillas, fondos y biblioteca | `71cb939a` |
 | 54 | Eventos: ¿los trabajadores entran con su carnet o con un gafete del evento? | ⏳ | Decidido: con su carnet institucional. En cola | — |
 | 55 | Campos personalizados: no tienen de dónde sacar el dato | ⏳ | Hoy salen vacíos. Decidido: a) elegir el origen del dato del expediente, con un permiso propio asignable por rol. En cola | — |
 | 56 | ¿Se puede emitir el carnet cuantas veces se quiera? | ⏳ | Hoy sí, y cada emisión anula la anterior. Decidido: aviso «ya tiene carnet vigente», motivo obligatorio y registro en la bitácora. En cola | — |
