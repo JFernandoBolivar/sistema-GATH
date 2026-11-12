@@ -110,6 +110,10 @@ class EmpleadosListView(APIView):
         return ok(EmpleadoSerializer(dto).data, 'Empleado registrado correctamente.', status=201)
 
 
+PERMISO_NACIONALIDAD = 'personal.editar_nacionalidad'
+MENSAJE_NACIONALIDAD = 'No posee permiso para modificar la nacionalidad del trabajador.'
+
+
 class EmpleadoDetailView(APIView):
     permission_classes = [IsAuthenticated, HasPermission('personal.ver')]
 
@@ -137,6 +141,9 @@ class EmpleadoDetailView(APIView):
         serializer.is_valid(raise_exception=True)
 
         repo = RepoPersonalORM()
+        nueva = serializer.validated_data.get('nacionalidad_id')
+        if nueva and nueva != obtener_personal_por_cedula(repo, cedula=cedula).nacionalidad_id                 and not usuario_tiene_permiso(request.user, PERMISO_NACIONALIDAD):
+            return fail(MENSAJE_NACIONALIDAD, status=403)
         dto = actualizar_empleado(repo, cedula=cedula, datos=serializer.validated_data)
         return ok(EmpleadoSerializer(dto).data, 'Empleado actualizado correctamente.')
 

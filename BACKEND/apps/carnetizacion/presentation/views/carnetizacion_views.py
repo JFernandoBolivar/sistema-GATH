@@ -15,6 +15,7 @@ from core.domain.exceptions import ValidationError
 from core.infrastructure.storage.imagenes import reducir_foto_perfil
 from core.infrastructure.storage.validacion_archivo import MAX_BYTES_IMAGEN, TIPOS_IMAGEN, clave_segura, validar_archivo
 from core.presentation.envelope import fail, ok
+from apps.carnetizacion.domain.value_objects.paginacion import Paginacion
 from core.presentation.permissions import HasPermission
 from apps.carnetizacion.application.use_cases.consultar_qr import (
     consultar_ficha_qr_uc,
@@ -33,6 +34,7 @@ from apps.carnetizacion.application.use_cases.gestionar_campos import (
 )
 from apps.carnetizacion.application.use_cases.gestionar_biblioteca import (
     eliminar_elemento_biblioteca_uc,
+    listar_elementos_biblioteca_paginado_uc,
     listar_elementos_biblioteca_uc,
     subir_elemento_biblioteca_uc,
 )
@@ -41,9 +43,12 @@ from apps.carnetizacion.application.use_cases.gestionar_plantillas import (
     activar_plantilla_motor,
     actualizar_borrador_plantilla,
     crear_plantilla_borrador,
+    eliminar_fondo_fijo,
     eliminar_plantilla_motor,
+    listar_fondos_fijos,
     listar_plantillas,
     listar_plantillas_motor,
+    listar_plantillas_motor_paginado,
     listar_tipos_credencial,
     listar_versiones_plantilla,
     obtener_plantilla_activa,
@@ -193,6 +198,19 @@ class PlantillaMotorListView(APIView):
         estado = request.query_params.get('estado')
         solo_activas = request.query_params.get('activas', '').lower() in ('1', 'true')
         repo = RepoCarnetizacionORM()
+        if Paginacion.solicitada(request.query_params):
+            # Con ?pagina= se pagina en el servidor (?page_size= 12/24/48, ?busqueda= por nombre).
+            paginacion = Paginacion.desde_parametros(request.query_params.dict())
+            pagina, total = listar_plantillas_motor_paginado(
+                repo,
+                paginacion,
+                codigo_tipo=codigo_tipo,
+                estado=estado,
+                solo_activas=solo_activas,
+                busqueda=request.query_params.get('busqueda', ''),
+            )
+            return ok(paginacion.sobre(PlantillaMotorDetalleSerializer(pagina, many=True).data, total))
+        # Sin ?pagina= devuelve todo (selectores que necesitan la lista completa).
         plantillas = listar_plantillas_motor(
             repo,
             codigo_tipo=codigo_tipo,
@@ -368,6 +386,17 @@ class ElementoBibliotecaListView(APIView):
     def get(self, request):
         categoria = request.query_params.get('categoria')
         repo = RepoCarnetizacionORM()
+        if Paginacion.solicitada(request.query_params):
+            # Con ?pagina= se pagina en el servidor (?page_size= 12/24/48, ?busqueda=, ?categoria=).
+            paginacion = Paginacion.desde_parametros(request.query_params.dict())
+            pagina, total = listar_elementos_biblioteca_paginado_uc(
+                repo,
+                paginacion,
+                categoria=categoria,
+                busqueda=request.query_params.get('busqueda', ''),
+            )
+            return ok(paginacion.sobre(ElementoBibliotecaSerializer(pagina, many=True).data, total))
+        # Sin ?pagina= devuelve todo (selector de logos del diseñador).
         elementos = listar_elementos_biblioteca_uc(repo, categoria=categoria)
         return ok(ElementoBibliotecaSerializer(elementos, many=True).data)
 
@@ -493,6 +522,33 @@ class PlantillasListView(APIView):
         repo = RepoCarnetizacionORM()
         dtos = listar_plantillas(repo)
         return ok(PlantillaCarnetSerializer(dtos, many=True).data)
+
+
+class FondosFijosListView(APIView):
+    """Fondos fijos (clásicos): listado paginado en el servidor con búsqueda por nombre."""
+    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.ver')]
+
+    @extend_schema(
+        tags=['Carnetización'],
+        summary='Listar fondos fijos (paginado)',
+        description='Paginación: ?pagina= y ?page_size= (12, 24 o 48; 12 por defecto). Búsqueda: ?busqueda= por nombre.',
+    )
+    def get(self, request):
+        paginacion = Paginacion.desde_parametros(request.query_params.dict())
+        pagina, total = listar_fondos_fijos(
+            RepoCarnetizacionORM(), paginacion, busqueda=request.query_params.get('busqueda', ''),
+        )
+        return ok(paginacion.sobre(PlantillaCarnetSerializer(pagina, many=True).data, total))
+
+
+class FondoFijoDetalleView(APIView):
+    """Eliminación de un fondo fijo; el fondo activo (en uso) está protegido."""
+    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.disenar')]
+
+    @extend_schema(tags=['Carnetización'], summary='Eliminar un fondo fijo inactivo')
+    def delete(self, request, fondo_id: int):
+        eliminar_fondo_fijo(RepoCarnetizacionORM(), fondo_id)
+        return ok(None, 'Fondo fijo eliminado.')
 
 
 class PlantillaImagenView(APIView):

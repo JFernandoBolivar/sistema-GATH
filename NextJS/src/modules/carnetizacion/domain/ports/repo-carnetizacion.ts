@@ -5,6 +5,8 @@ import type {
   CampoCredencial,
   Carnet,
   CategoriaBiblioteca,
+  PaginaCarnet,
+  ParamsPagina,
   DatosCarnetEmpleado,
   ElementoBiblioteca,
   EstadisticasCarnet,
@@ -43,6 +45,9 @@ export interface RepoCarnetizacion {
   // Motor de Plantillas y Catálogo (O44 - E3)
   listarTiposCredencial(grupo?: string): Promise<TipoCredencial[]>;
   listarPlantillasMotor(tipo?: string, estado?: string, activas?: boolean): Promise<PlantillaMotor[]>;
+  listarPlantillasMotorPagina(tipo: string | undefined, params: ParamsPagina): Promise<PaginaCarnet<PlantillaMotor>>;
+  listarFondosFijos(params: ParamsPagina): Promise<PaginaCarnet<PlantillaCarnet>>;
+  eliminarFondoFijo(id: number | string): Promise<void>;
   obtenerPlantillaMotor(id: string): Promise<PlantillaMotor>;
   crearPlantillaBorrador(input: CrearPlantillaBorradorInput): Promise<PlantillaMotor>;
   actualizarPlantillaBorrador(id: string, input: Partial<CrearPlantillaBorradorInput>): Promise<PlantillaMotor>;
@@ -54,6 +59,7 @@ export interface RepoCarnetizacion {
 
   // Biblioteca Compartida de Medios (O44 - E4)
   listarBiblioteca(categoria?: string): Promise<ElementoBiblioteca[]>;
+  listarBibliotecaPagina(categoria: string | undefined, params: ParamsPagina): Promise<PaginaCarnet<ElementoBiblioteca>>;
   subirElementoBiblioteca(nombre: string, categoria: CategoriaBiblioteca, archivo: File, descripcion?: string): Promise<ElementoBiblioteca>;
   eliminarElementoBiblioteca(id: string): Promise<boolean>;
 

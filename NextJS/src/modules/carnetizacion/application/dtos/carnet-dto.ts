@@ -40,6 +40,7 @@ export interface EstadisticasCarnetDTO {
   revocados: number;
   emitidosHoy: number;
   emitidosMes: number;
+  ultimos?: { nombre: string; cedula: string; fecha: string; motivo: string; activo: boolean }[];
   porMotivo: EstadisticaMotivoCarnetDTO[];
 }
 

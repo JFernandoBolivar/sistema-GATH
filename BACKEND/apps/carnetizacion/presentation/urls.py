@@ -38,6 +38,8 @@ from apps.carnetizacion.presentation.views.carnetizacion_views import (
     CarnetGenerarView,
     CarnetPdfView,
     CarnetsListView,
+    FondoFijoDetalleView,
+    FondosFijosListView,
     CarnetSubirFotoView,
     ElementoBibliotecaArchivoView,
     ElementoBibliotecaDetailView,
@@ -63,6 +65,16 @@ from apps.carnetizacion.presentation.views.carnetizacion_views import (
 )
 
 app_name = 'carnetizacion'
+
+from apps.carnetizacion.presentation.views.evento_invitables_views import (
+    EventoCategoriaDetalleView,
+    EventoExternosInvitablesIdsView,
+    EventoExternosInvitablesView,
+    EventoInvitadosEnBloqueView,
+    EventoPersonalInvitableIdsView,
+    EventoPersonalInvitableView,
+    EventoZonaDetalleView,
+)
 
 urlpatterns = [
     # Carnets
@@ -128,7 +140,18 @@ urlpatterns = [
     path('eventos/<str:evento_id>/pdf/', EventoCredencialPdfView.as_view(), name='evento-pdf'),
     path('eventos/<str:evento_id>/panel/', EventoPanelView.as_view(), name='evento-panel'),
     path('eventos/invitados/<str:pk>/', EventoInvitadoDetalleView.as_view(), name='evento-invitado-detalle'),
+    path('eventos/categorias/<str:pk>/', EventoCategoriaDetalleView.as_view(), name='evento-categoria-detalle'),
+    path('eventos/zonas/<str:pk>/', EventoZonaDetalleView.as_view(), name='evento-zona-detalle'),
+    path('eventos/<str:evento_id>/invitables/personal/', EventoPersonalInvitableView.as_view(), name='evento-invitables-personal'),
+    path('eventos/<str:evento_id>/invitables/personal/ids/', EventoPersonalInvitableIdsView.as_view(), name='evento-invitables-personal-ids'),
+    path('eventos/<str:evento_id>/invitables/externos/', EventoExternosInvitablesView.as_view(), name='evento-invitables-externos'),
+    path('eventos/<str:evento_id>/invitables/externos/ids/', EventoExternosInvitablesIdsView.as_view(), name='evento-invitables-externos-ids'),
+    path('eventos/<str:evento_id>/invitados/agregar-en-bloque/', EventoInvitadosEnBloqueView.as_view(), name='evento-invitados-bloque'),
     path('control-eventos/check-in/', EventoControlEntradaCheckInView.as_view(), name='evento-checkin'),
+
+    # Fondos fijos (clásicos): listado paginado y eliminación
+    path('fondos-fijos/', FondosFijosListView.as_view(), name='fondos-fijos-list'),
+    path('fondos-fijos/<int:fondo_id>/', FondoFijoDetalleView.as_view(), name='fondo-fijo-detalle'),
 
     # Plantillas Legacy
     path('plantillas/', PlantillasListView.as_view(), name='plantillas-list'),

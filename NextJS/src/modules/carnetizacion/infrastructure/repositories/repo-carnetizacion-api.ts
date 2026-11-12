@@ -13,6 +13,7 @@ import {
   elementoBibliotecaApiAEntidad,
   campoCredencialApiAEntidad,
   fichaQrApiAEntidad,
+  paginaApiAEntidad,
 } from "../mappers/mapper-carnetizacion";
 
 export const repoCarnetizacionApi: RepoCarnetizacion = {
@@ -87,6 +88,20 @@ export const repoCarnetizacionApi: RepoCarnetizacion = {
     return raw.map(plantillaMotorApiAEntidad);
   },
 
+  async listarPlantillasMotorPagina(tipo, params) {
+    const raw = await carnetizacionApi.getPlantillasMotorPagina(tipo, params);
+    return paginaApiAEntidad(raw, plantillaMotorApiAEntidad);
+  },
+
+  async listarFondosFijos(params) {
+    const raw = await carnetizacionApi.getFondosFijos(params);
+    return paginaApiAEntidad(raw, plantillaCarnetApiAEntidad);
+  },
+
+  async eliminarFondoFijo(id) {
+    await carnetizacionApi.eliminarFondoFijo(id);
+  },
+
   async obtenerPlantillaMotor(id) {
     const raw = await carnetizacionApi.getPlantillaMotor(id);
     return plantillaMotorApiAEntidad(raw);
@@ -130,6 +145,11 @@ export const repoCarnetizacionApi: RepoCarnetizacion = {
   async listarBiblioteca(categoria) {
     const raw = await carnetizacionApi.getBiblioteca(categoria);
     return raw.map(elementoBibliotecaApiAEntidad);
+  },
+
+  async listarBibliotecaPagina(categoria, params) {
+    const raw = await carnetizacionApi.getBibliotecaPagina(categoria, params);
+    return paginaApiAEntidad(raw, elementoBibliotecaApiAEntidad);
   },
 
   async subirElementoBiblioteca(nombre, categoria, archivo, descripcion) {

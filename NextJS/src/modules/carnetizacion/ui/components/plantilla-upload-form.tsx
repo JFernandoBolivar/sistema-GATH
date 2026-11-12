@@ -8,13 +8,10 @@ import {
   FormItem,
   FormLabel,
   FormControl,
+  FormDescription,
   FormMessage,
 } from "@/components/ui/form";
-import {
-  Loader2,
-  Upload,
-  FileImage,
-} from "lucide-react";
+import { Loader2, Upload, FileImage } from "lucide-react";
 import type { z } from "zod";
 import type { schemaPlantilla } from "../schema/schema-carnet";
 
@@ -31,6 +28,7 @@ interface Props {
   onSubmit: (values: PlantillaValues) => void;
 }
 
+/** Formulario de subida de un fondo fijo: etiquetas separadas de sus controles y controles de 44 px. */
 export default function PlantillaUploadForm({
   form,
   isPending,
@@ -43,23 +41,24 @@ export default function PlantillaUploadForm({
 }: Props) {
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="gap-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
         <InputForm<PlantillaValues>
           form={form}
           nameInput="nombre"
-          label="Nombre"
+          label="Nombre del fondo"
           placeholder="Ej: Fondo CONATEL 2026"
           type="text"
+          className="space-y-1.5 gap-0"
         />
 
         <FormField
           control={form.control}
           name="imagen"
           render={({ field: { onChange, value: _value, onBlur: _onBlur, ref: _ref, ...fieldProps } }) => (
-            <FormItem>
-              <FormLabel>Imagen (JPG/PNG, máx 5MB)</FormLabel>
+            <FormItem className="space-y-1.5 gap-0">
+              <FormLabel>Imagen de fondo</FormLabel>
               <FormControl>
-                <div>
+                <div className="flex flex-col gap-3">
                   <input
                     key={fileInputKey}
                     ref={fileInputRef}
@@ -72,50 +71,44 @@ export default function PlantillaUploadForm({
                     }}
                     {...fieldProps}
                   />
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex flex-wrap items-center gap-3">
                     <Button
                       type="button"
                       variant="outline"
-                      size="sm"
+                      className="h-11"
                       onClick={() => fileInputRef.current?.click()}
                     >
-                      <FileImage className="size-4 mr-1" />
-                      Seleccionar Imagen
+                      <FileImage className="size-4" aria-hidden="true" />
+                      {fileName ? "Cambiar imagen" : "Seleccionar imagen"}
                     </Button>
                     {fileName && (
-                      <span className="text-sm text-muted-foreground truncate max-w-[180px]">
+                      <span className="max-w-[180px] truncate text-sm text-muted-foreground" title={fileName}>
                         {fileName}
                       </span>
                     )}
                   </div>
                 </div>
               </FormControl>
+              <FormDescription>JPG o PNG, máximo 5 MB.</FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
 
         {preview && (
-          <div className="border rounded-md overflow-hidden mt-3">
-            <img
-              src={preview}
-              alt="Preview"
-              className="w-full object-cover max-h-40"
-            />
+          <div className="overflow-hidden rounded-md border bg-muted/30">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={preview} alt="Vista previa del fondo" className="max-h-40 w-full object-contain" />
           </div>
         )}
 
-        <Button
-          className="w-full mt-4"
-          type="submit"
-          disabled={isPending}
-        >
+        <Button className="h-11 w-full" type="submit" disabled={isPending}>
           {isPending ? (
-            <Loader2 className="size-4 animate-spin mr-2" />
+            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
           ) : (
-            <Upload className="size-4 mr-2" />
+            <Upload className="size-4" aria-hidden="true" />
           )}
-          {isPending ? "Subiendo..." : "Subir Plantilla"}
+          {isPending ? "Subiendo..." : "Subir fondo"}
         </Button>
       </form>
     </Form>

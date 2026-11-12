@@ -12,6 +12,7 @@ function aEstadisticasDTO(e: EstadisticasCarnet): EstadisticasCarnetDTO {
     revocados: e.revocados,
     emitidosHoy: e.emitidosHoy,
     emitidosMes: e.emitidosMes,
+    ultimos: e.ultimos ?? [],
     porMotivo: e.porMotivo.map((m) => ({
       motivoId: m.motivoId,
       motivo: m.motivo,

@@ -10,11 +10,25 @@ import type {
   EventoInvitado,
   EventoZona,
   FiltrosInvitados,
+  FiltroPersonalInvitable,
+  PaginaPersonasInvitables,
+  ResultadoAgregarEnBloque,
+  SolicitudAgregarEnBloque,
+  PaginaEventos,
   PaginaInvitados,
   PanelEvento,
   ResumenImportacion,
 } from "../../domain/entities/evento";
 import {
+  actualizarCategoriaEvento,
+  actualizarZonaEvento,
+  agregarInvitadosEnBloque,
+  eliminarCategoriaEvento,
+  eliminarZonaEvento,
+  getExternosInvitables,
+  getIdsExternosInvitables,
+  getIdsPersonalInvitable,
+  getPersonalInvitable,
   actualizarEvento,
   actualizarInvitado,
   checkInAcceso,
@@ -28,6 +42,7 @@ import {
   getCategoriasEvento,
   getEventoDetalle,
   getEventos,
+  getEventosPaginado,
   getIdsInvitadosEvento,
   getInvitadosEvento,
   getPanelEvento,
@@ -57,6 +72,25 @@ export async function getEventosAction(filtros?: {
       status: "FAILED",
       durationMs: Date.now() - startedAt,
     });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getEventosPaginadoAction(filtros: {
+  estado?: string;
+  busqueda?: string;
+  pagina: number;
+  page_size: number;
+}): Promise<PaginaEventos> {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await getEventosPaginado(filtros);
+    await logAudit({ traceId, action: "getEventosPaginadoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getEventosPaginadoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
   }
@@ -555,4 +589,82 @@ export async function checkInAccesoAction(datos: {
     handleSessionExpired(error);
     throw error;
   }
+}
+
+/** Envuelve una llamada HTTP con traza de auditoría y manejo de sesión vencida. */
+async function conTraza<T>(accion: string, fn: () => Promise<T>): Promise<T> {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await fn();
+    await logAudit({ traceId, action: accion, status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: accion, status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getPersonalInvitableAction(
+  eventoId: string,
+  filtro: FiltroPersonalInvitable
+): Promise<PaginaPersonasInvitables> {
+  return conTraza("getPersonalInvitableAction", () => getPersonalInvitable(eventoId, filtro));
+}
+
+export async function getIdsPersonalInvitableAction(
+  eventoId: string,
+  filtro: Omit<FiltroPersonalInvitable, "pagina" | "page_size">
+): Promise<string[]> {
+  return conTraza("getIdsPersonalInvitableAction", () => getIdsPersonalInvitable(eventoId, filtro));
+}
+
+export async function getExternosInvitablesAction(
+  eventoId: string,
+  filtro: { busqueda?: string; pagina?: number; page_size?: number }
+): Promise<PaginaPersonasInvitables> {
+  return conTraza("getExternosInvitablesAction", () => getExternosInvitables(eventoId, filtro));
+}
+
+export async function getIdsExternosInvitablesAction(
+  eventoId: string,
+  busqueda?: string
+): Promise<string[]> {
+  return conTraza("getIdsExternosInvitablesAction", () =>
+    getIdsExternosInvitables(eventoId, busqueda)
+  );
+}
+
+export async function agregarInvitadosEnBloqueAction(
+  eventoId: string,
+  solicitud: SolicitudAgregarEnBloque
+): Promise<ResultadoAgregarEnBloque> {
+  return conTraza("agregarInvitadosEnBloqueAction", () =>
+    agregarInvitadosEnBloque(eventoId, solicitud)
+  );
+}
+
+export async function actualizarCategoriaEventoAction(
+  categoriaId: string,
+  datos: { nombre?: string; color_primario?: string; color_acento?: string; orden?: number }
+): Promise<EventoCategoria> {
+  return conTraza("actualizarCategoriaEventoAction", () =>
+    actualizarCategoriaEvento(categoriaId, datos)
+  );
+}
+
+export async function eliminarCategoriaEventoAction(categoriaId: string): Promise<void> {
+  return conTraza("eliminarCategoriaEventoAction", () => eliminarCategoriaEvento(categoriaId));
+}
+
+export async function actualizarZonaEventoAction(
+  zonaId: string,
+  datos: { nombre?: string; codigo?: string; orden?: number }
+): Promise<EventoZona> {
+  return conTraza("actualizarZonaEventoAction", () => actualizarZonaEvento(zonaId, datos));
+}
+
+export async function eliminarZonaEventoAction(zonaId: string): Promise<void> {
+  return conTraza("eliminarZonaEventoAction", () => eliminarZonaEvento(zonaId));
 }

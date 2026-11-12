@@ -405,3 +405,19 @@ def test_listar_pasivos_filtra_por_motivo(catalogos):
     assert '997791' in cedulas
     assert '997790' not in cedulas
 
+
+
+def test_cambiar_nacionalidad_de_pasivo_exige_el_permiso_propio(catalogos):
+    NacionalidadModel.objects.get_or_create(pk=2, defaults={'codigo': 'E', 'nombre': 'Extranjera'})
+    creado = _cliente('pasivos.crear').post(
+        '/api/v1/pasivos/', _cuerpo(catalogos, cedula='997781'), format='json',
+    )
+    assert creado.status_code == 201
+    sin = _cliente('pasivos.editar').patch('/api/v1/pasivos/997781/', {'nacionalidad_id': 2}, format='json')
+    assert sin.status_code == 403
+    igual = _cliente('pasivos.editar').patch('/api/v1/pasivos/997781/', {'nacionalidad_id': 1}, format='json')
+    assert igual.status_code == 200, igual.content
+    con = _cliente('pasivos.editar', 'personal.editar_nacionalidad').patch(
+        '/api/v1/pasivos/997781/', {'nacionalidad_id': 2}, format='json',
+    )
+    assert con.status_code == 200, con.content

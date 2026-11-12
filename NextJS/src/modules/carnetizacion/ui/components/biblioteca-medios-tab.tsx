@@ -10,6 +10,7 @@ import {
   Loader2,
   ImageOff,
   PlusCircle,
+  Search,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -35,9 +36,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { CategoriaBiblioteca, ElementoBiblioteca } from "../../domain/entities/carnet";
+import { useBusquedaDiferida } from "../hooks/use-busqueda-diferida";
+import { PaginadorServidor } from "./paginador-servidor";
 import {
   eliminarElementoBibliotecaAction,
-  getBibliotecaAction,
+  getBibliotecaPaginaAction,
   subirElementoBibliotecaAction,
 } from "../../infrastructure/actions/carnetizacion-actions";
 
@@ -55,7 +58,12 @@ function formatearBytes(bytes: number): string {
 }
 
 export function BibliotecaMediosTab() {
-  const [categoriaFiltro, setCategoriaFiltro] = useState<string>("todas");
+  const [categoriaFiltro, setCategoriaFiltroCruda] = useState<string>("todas");
+  // Paginación, categoría y búsqueda se resuelven en el servidor.
+  const [pagina, setPagina] = useState(1);
+  const [tamano, setTamano] = useState(12);
+  const [busqueda, setBusquedaCruda] = useState("");
+  const busquedaAplicada = useBusquedaDiferida(busqueda);
   const [modalSubirOpen, setModalSubirOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -81,10 +89,20 @@ export function BibliotecaMediosTab() {
     data: respuestaBiblioteca,
     isLoading,
     mutate,
-  } = useSWR(["biblioteca-medios", categoriaParam], () => getBibliotecaAction(categoriaParam));
+  } = useSWR(
+    ["biblioteca-medios", categoriaParam, pagina, tamano, busquedaAplicada],
+    () => getBibliotecaPaginaAction(categoriaParam, { pagina, tamano, busqueda: busquedaAplicada }),
+    { keepPreviousData: true },
+  );
 
-  const elementos: ElementoBiblioteca[] =
-    respuestaBiblioteca && respuestaBiblioteca.success ? respuestaBiblioteca.data : [];
+  const datosPagina = respuestaBiblioteca && respuestaBiblioteca.success ? respuestaBiblioteca.data : null;
+  const elementos: ElementoBiblioteca[] = datosPagina?.resultados ?? [];
+  const hayBusqueda = busqueda.trim().length > 0;
+
+  const setCategoriaFiltro = (valor: string) => {
+    setCategoriaFiltroCruda(valor);
+    setPagina(1);
+  };
 
   const handleArchivoSeleccionado = (file: File) => {
     // Validar tipo permitido
@@ -170,6 +188,8 @@ export function BibliotecaMediosTab() {
       if (res.success) {
         toast.success("Elemento eliminado de la biblioteca.");
         setElementoAEliminar(null);
+        // Si era el último de la página, retrocede para no dejar una página vacía.
+        if (elementos.length === 1) setPagina((p) => Math.max(1, p - 1));
         mutate();
       } else {
         toast.error(res.error || "No fue posible eliminar el elemento.");
@@ -196,14 +216,32 @@ export function BibliotecaMediosTab() {
           ))}
         </div>
 
-        <Button onClick={() => setModalSubirOpen(true)} className="gap-2 shrink-0" size="sm">
-          <PlusCircle className="size-4" />
-          Subir Medio
-        </Button>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="relative">
+            <Search
+              className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+              aria-hidden="true"
+            />
+            <Input
+              value={busqueda}
+              onChange={(e) => {
+                setBusquedaCruda(e.target.value);
+                setPagina(1);
+              }}
+              placeholder="Buscar medio por nombre…"
+              className="pl-9 sm:w-64"
+              aria-label="Buscar medio por nombre"
+            />
+          </div>
+          <Button onClick={() => setModalSubirOpen(true)} className="gap-2 shrink-0" size="sm">
+            <PlusCircle className="size-4" />
+            Subir Medio
+          </Button>
+        </div>
       </div>
 
       {/* Grid de Medios */}
-      {isLoading ? (
+      {isLoading && !datosPagina ? (
         <div className="flex justify-center items-center py-20">
           <Loader2 className="size-8 animate-spin text-primary" />
         </div>
@@ -212,20 +250,25 @@ export function BibliotecaMediosTab() {
           <CardContent className="text-center py-12">
             <ImagePlus className="size-12 mx-auto text-muted-foreground/40" />
             <h3 className="text-base font-semibold text-foreground mt-4">
-              No hay medios registrados
+              {hayBusqueda || categoriaFiltro !== "todas"
+                ? "Ningún medio coincide con el filtro"
+                : "No hay medios registrados"}
             </h3>
             <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-              Sube logos institucionales, firmas autorizadas o sellos que podrán ser incrustados en
-              los carnets.
+              {hayBusqueda || categoriaFiltro !== "todas"
+                ? "Pruebe con otro nombre o cambie la categoría."
+                : "Sube logos institucionales, firmas autorizadas o sellos que podrán ser incrustados en los carnets."}
             </p>
-            <Button
-              onClick={() => setModalSubirOpen(true)}
-              className="mt-4 gap-2"
-              variant="outline"
-            >
-              <PlusCircle className="size-4" />
-              Subir primer medio
-            </Button>
+            {!hayBusqueda && categoriaFiltro === "todas" && (
+              <Button
+                onClick={() => setModalSubirOpen(true)}
+                className="mt-4 gap-2"
+                variant="outline"
+              >
+                <PlusCircle className="size-4" />
+                Subir primer medio
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -299,6 +342,22 @@ export function BibliotecaMediosTab() {
             </Card>
           ))}
         </div>
+      )}
+
+      {datosPagina && (
+        <PaginadorServidor
+          id="filas-biblioteca"
+          pagina={datosPagina.pagina}
+          totalPaginas={datosPagina.totalPaginas}
+          tamano={datosPagina.tamano}
+          total={datosPagina.total}
+          cargando={isLoading}
+          onPagina={setPagina}
+          onTamano={(t) => {
+            setTamano(t);
+            setPagina(1);
+          }}
+        />
       )}
 
       {/* --- DIALOG DE SUBIDA --- */}

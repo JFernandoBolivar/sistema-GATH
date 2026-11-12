@@ -14,6 +14,11 @@ import type {
   EventoInvitado,
   EventoZona,
   FiltrosInvitados,
+  FiltroPersonalInvitable,
+  PaginaPersonasInvitables,
+  ResultadoAgregarEnBloque,
+  SolicitudAgregarEnBloque,
+  PaginaEventos,
   PaginaInvitados,
   PanelEvento,
   ResumenImportacion,
@@ -33,6 +38,22 @@ export async function getEventos(filtros?: {
     params,
   });
   return res.data || [];
+}
+
+export async function getEventosPaginado(filtros: {
+  estado?: string;
+  busqueda?: string;
+  pagina: number;
+  page_size: number;
+}): Promise<PaginaEventos> {
+  const params: Record<string, string | number | undefined> = {
+    pagina: filtros.pagina,
+    page_size: filtros.page_size,
+  };
+  if (filtros.estado) params.estado = filtros.estado;
+  if (filtros.busqueda) params.busqueda = filtros.busqueda;
+  const res = await apiClient.get<ApiResponse<PaginaEventos>>(`${BASE_URL}/`, { params });
+  return res.data;
 }
 
 export async function getEventoDetalle(id: string): Promise<Evento | null> {
@@ -300,4 +321,108 @@ export async function checkInAcceso(datos: {
     throw new Error(res.message || "Error al procesar control de entrada");
   }
   return res.data;
+}
+
+function paramsPersonal(f: Partial<FiltroPersonalInvitable>): Record<string, string | undefined> {
+  const params: Record<string, string | undefined> = {};
+  if (f.poblacion) params.poblacion = f.poblacion;
+  if (f.dependencia_id) params.dependencia_id = String(f.dependencia_id);
+  if (f.busqueda) params.busqueda = f.busqueda;
+  if (f.pagina) params.pagina = String(f.pagina);
+  if (f.page_size) params.page_size = String(f.page_size);
+  return params;
+}
+
+/** Trabajadores que pueden invitarse (filtro, búsqueda y página en el servidor). */
+export async function getPersonalInvitable(
+  eventoId: string,
+  filtro: FiltroPersonalInvitable
+): Promise<PaginaPersonasInvitables> {
+  const res = await apiClient.get<ApiResponse<PaginaPersonasInvitables>>(
+    `${BASE_URL}/${eventoId}/invitables/personal/`,
+    { params: paramsPersonal(filtro) }
+  );
+  if (!res.data) throw new Error(res.message || "Error al buscar personal");
+  return res.data;
+}
+
+/** Cédulas de todo el filtro que aún no están invitadas. */
+export async function getIdsPersonalInvitable(
+  eventoId: string,
+  filtro: Omit<FiltroPersonalInvitable, "pagina" | "page_size">
+): Promise<string[]> {
+  const res = await apiClient.get<ApiResponse<{ ids: string[] }>>(
+    `${BASE_URL}/${eventoId}/invitables/personal/ids/`,
+    { params: paramsPersonal(filtro) }
+  );
+  return res.data?.ids ?? [];
+}
+
+export async function getExternosInvitables(
+  eventoId: string,
+  filtro: { busqueda?: string; pagina?: number; page_size?: number }
+): Promise<PaginaPersonasInvitables> {
+  const res = await apiClient.get<ApiResponse<PaginaPersonasInvitables>>(
+    `${BASE_URL}/${eventoId}/invitables/externos/`,
+    { params: paramsPersonal(filtro as Partial<FiltroPersonalInvitable>) }
+  );
+  if (!res.data) throw new Error(res.message || "Error al buscar externos");
+  return res.data;
+}
+
+export async function getIdsExternosInvitables(
+  eventoId: string,
+  busqueda?: string
+): Promise<string[]> {
+  const res = await apiClient.get<ApiResponse<{ ids: string[] }>>(
+    `${BASE_URL}/${eventoId}/invitables/externos/ids/`,
+    { params: paramsPersonal({ busqueda }) }
+  );
+  return res.data?.ids ?? [];
+}
+
+export async function agregarInvitadosEnBloque(
+  eventoId: string,
+  solicitud: SolicitudAgregarEnBloque
+): Promise<ResultadoAgregarEnBloque> {
+  const res = await apiClient.post<ApiResponse<ResultadoAgregarEnBloque>>(
+    `${BASE_URL}/${eventoId}/invitados/agregar-en-bloque/`,
+    { ...solicitud }
+  );
+  if (!res.data) throw new Error(res.message || "Error al agregar invitados");
+  return res.data;
+}
+
+export async function actualizarCategoriaEvento(
+  categoriaId: string,
+  datos: { nombre?: string; color_primario?: string; color_acento?: string; orden?: number }
+): Promise<EventoCategoria> {
+  const res = await apiClient.patch<ApiResponse<EventoCategoria>>(
+    `${BASE_URL}/categorias/${categoriaId}/`,
+    datos
+  );
+  if (!res.data) throw new Error(res.message || "Error al actualizar categoría");
+  return res.data;
+}
+
+export async function eliminarCategoriaEvento(categoriaId: string): Promise<void> {
+  await apiClient.delete<ApiResponse<{ eliminado: boolean }>>(
+    `${BASE_URL}/categorias/${categoriaId}/`
+  );
+}
+
+export async function actualizarZonaEvento(
+  zonaId: string,
+  datos: { nombre?: string; codigo?: string; orden?: number }
+): Promise<EventoZona> {
+  const res = await apiClient.patch<ApiResponse<EventoZona>>(
+    `${BASE_URL}/zonas/${zonaId}/`,
+    datos
+  );
+  if (!res.data) throw new Error(res.message || "Error al actualizar zona");
+  return res.data;
+}
+
+export async function eliminarZonaEvento(zonaId: string): Promise<void> {
+  await apiClient.delete<ApiResponse<{ eliminado: boolean }>>(`${BASE_URL}/zonas/${zonaId}/`);
 }

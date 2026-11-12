@@ -80,6 +80,7 @@ def catalogo(db):
         ('identidad.restablecer_acceso', 'Restablecer acceso'),
         ('identidad.cambiar_correo_acceso', 'Cambiar correo de acceso'),
         ('configuracion.editar', 'Editar configuración'),
+        ('personal.corregir_cedula', 'Corregir cédula del trabajador'),
         ('personal.ver', 'Ver personal'),
     ):
         PermisoModel.objects.get_or_create(codigo=codigo, defaults={'nombre': nombre})
@@ -101,6 +102,7 @@ def matriz(catalogo):
         'identidad.restablecer_acceso',
         'identidad.cambiar_correo_acceso',
         'configuracion.editar',
+        'personal.corregir_cedula',
         EDITAR,
         VER,
     ):

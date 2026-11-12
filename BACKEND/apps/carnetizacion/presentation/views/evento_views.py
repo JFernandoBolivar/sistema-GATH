@@ -80,15 +80,34 @@ class EventosListView(APIView):
         parameters=[
             OpenApiParameter("estado", str, required=False),
             OpenApiParameter("busqueda", str, required=False),
+            OpenApiParameter("pagina", int, required=False),
+            OpenApiParameter("page_size", int, required=False),
         ],
+        description=(
+            "Filtros: ?estado=activo (en curso)|proximo|finalizado|cancelado|borrador y "
+            "?busqueda= por nombre o lugar. Paginación: ?pagina= y ?page_size= (10 por "
+            "defecto, tope 50). Incluye `resumen` con los totales reales de todos los eventos."
+        ),
         responses={200: EventoSerializer(many=True)},
     )
     def get(self, request):
         repo = RepoEventosORM()
-        estado = request.query_params.get("estado")
-        busqueda = request.query_params.get("busqueda")
-        eventos = ListarEventosUseCase(repo).ejecutar(estado=estado, busqueda=busqueda)
-        return ok(EventoSerializer(eventos, many=True).data)
+        if "pagina" not in request.query_params and "page_size" not in request.query_params:
+            # Compatibilidad: sin parámetros de página se devuelve la lista completa.
+            eventos = ListarEventosUseCase(repo).ejecutar(
+                estado=request.query_params.get("estado") or None,
+                busqueda=request.query_params.get("busqueda") or None,
+            )
+            return ok(EventoSerializer(eventos, many=True).data)
+        paginacion = Paginacion.desde_parametros(request.query_params.dict())
+        eventos, total, resumen = ListarEventosUseCase(repo).ejecutar_paginado(
+            paginacion,
+            estado=request.query_params.get("estado") or None,
+            busqueda=request.query_params.get("busqueda") or None,
+        )
+        cuerpo = paginacion.envolver(EventoSerializer(eventos, many=True).data, total)
+        cuerpo["resumen"] = resumen
+        return ok(cuerpo, f"{total} evento(s) encontrado(s).")
 
     @extend_schema(
         tags=["Carnetización - Eventos"],

@@ -428,3 +428,64 @@ def test_ficha_qr_publica_recorta_ip_y_user_agent(datos_base):
     assert len(bitacora.ip) <= 45
     assert len(bitacora.user_agent) <= 500
 
+
+
+def test_estadisticas_cuentan_los_carnets_emitidos(datos_base):
+    """Con 2 carnets emitidos las estadisticas dan total=2 (antes el panel mostraba 0)."""
+    empleado = datos_base["empleado"]
+    CarnetEmitidoModel.objects.create(
+        employee=empleado,
+        motivo=datos_base["carnet"].motivo,
+        security_hash="HashApiO45Estad_-abcdef1",
+        activo=True,
+    )
+    resp = datos_base["api"].get(f"{BASE}/estadisticas/")
+    assert resp.status_code == 200
+    d = resp.json()["data"]
+    assert d["total"] == 2
+    assert d["activos"] == 2
+    assert d["emitidos_hoy"] == 2 and d["emitidos_mes"] == 2
+    assert len(d["ultimos"]) == 2
+    assert d["ultimos"][0]["cedula"] == "V-1" and d["ultimos"][0]["nombre"] == "ANA API"
+    assert d["por_motivo"][0]["total"] == 2
+
+
+@pytest.mark.django_db
+def test_listado_de_eventos_paginado_pagina_1_y_2():
+    api = APIClient()
+    api.force_authenticate(user=_UsuarioPaginacion())
+    ahora = timezone.now()
+    for n in range(1, 6):
+        r = api.post(
+            f"{BASE}/eventos/",
+            {
+                "nombre": f"Evento paginado {n}",
+                "lugar": "Sala",
+                "fecha_inicio": (ahora + timedelta(days=n)).isoformat(),
+                "fecha_fin": (ahora + timedelta(days=n, hours=3)).isoformat(),
+            },
+            format="json",
+        )
+        assert r.status_code == 201, r.content
+    p1 = api.get(f"{BASE}/eventos/", {"pagina": 1, "page_size": 2, "busqueda": "Evento paginado"}).json()["data"]
+    p2 = api.get(f"{BASE}/eventos/", {"pagina": 2, "page_size": 2, "busqueda": "Evento paginado"}).json()["data"]
+    assert (p1["total"], p1["tamano"], p1["total_paginas"], p1["pagina"]) == (5, 2, 3, 1)
+    assert p2["pagina"] == 2 and len(p1["resultados"]) == len(p2["resultados"]) == 2
+    assert not {e["id"] for e in p1["resultados"]} & {e["id"] for e in p2["resultados"]}
+    assert p1["resumen"]["eventos"] >= 5 and p1["resumen"]["proximos"] >= 5
+    proximos = api.get(f"{BASE}/eventos/", {"pagina": 1, "page_size": 50, "estado": "proximo"}).json()["data"]
+    assert proximos["total"] >= 5
+    en_curso = api.get(f"{BASE}/eventos/", {"pagina": 1, "page_size": 50, "estado": "activo", "busqueda": "Evento paginado"}).json()["data"]
+    assert en_curso["total"] == 0
+
+
+class _UsuarioPaginacion:
+    is_authenticated = True
+    is_active = True
+    pk = 1
+    id = None
+    cedula_id = "V-1"
+    rol_id = None
+
+    def tiene_permiso(self, codigo):
+        return True

@@ -63,6 +63,14 @@ export interface PlantillaMotorApiItem {
   imagen_url: string;
 }
 
+export interface PaginaApi<T> {
+  resultados: T[];
+  total: number;
+  pagina: number;
+  tamano: number;
+  total_paginas: number;
+}
+
 export interface ElementoBibliotecaApiItem {
   id: string;
   nombre: string;
@@ -136,6 +144,7 @@ export interface EstadisticasCarnetApiItem {
   emitidos_hoy: number;
   emitidos_mes: number;
   por_motivo: EstadisticaMotivoCarnetApiItem[];
+  ultimos?: { nombre: string; cedula: string; fecha: string; motivo: string; activo: boolean }[];
 }
 
 export interface EmpleadoCarnetApiItem {
@@ -195,6 +204,17 @@ export const carnetizacionApi = {
     return envelope.data ?? [];
   },
 
+  getPlantillasMotorPagina: async (
+    tipo: string | undefined,
+    p: { pagina: number; tamano: number; busqueda?: string },
+  ) => {
+    const envelope = await apiClient.get<ApiResponse<PaginaApi<PlantillaMotorApiItem>>>(
+      "/api/v1/carnetizacion/plantillas-motor/",
+      { params: { tipo, pagina: p.pagina, page_size: p.tamano, busqueda: p.busqueda || undefined } },
+    );
+    return envelope.data;
+  },
+
   getPlantillaMotor: async (id: string | number) => {
     const envelope = await apiClient.get<ApiResponse<PlantillaMotorApiItem>>(`/api/v1/carnetizacion/plantillas-motor/${id}/`);
     return envelope.data;
@@ -246,6 +266,17 @@ export const carnetizacionApi = {
     return envelope.data ?? [];
   },
 
+  getBibliotecaPagina: async (
+    categoria: string | undefined,
+    p: { pagina: number; tamano: number; busqueda?: string },
+  ) => {
+    const envelope = await apiClient.get<ApiResponse<PaginaApi<ElementoBibliotecaApiItem>>>(
+      "/api/v1/carnetizacion/biblioteca/",
+      { params: { categoria, pagina: p.pagina, page_size: p.tamano, busqueda: p.busqueda || undefined } },
+    );
+    return envelope.data;
+  },
+
   subirElementoBiblioteca: async (formData: FormData) => {
     const envelope = await apiClient.postForm<ApiResponse<ElementoBibliotecaApiItem>>("/api/v1/carnetizacion/biblioteca/", formData);
     return envelope.data;
@@ -278,6 +309,18 @@ export const carnetizacionApi = {
   getPlantillas: async () => {
     const envelope = await apiClient.get<ApiResponse<PlantillaCarnetApiItem[]>>("/api/v1/carnetizacion/plantillas/");
     return envelope.data ?? [];
+  },
+
+  getFondosFijos: async (p: { pagina: number; tamano: number; busqueda?: string }) => {
+    const envelope = await apiClient.get<ApiResponse<PaginaApi<PlantillaCarnetApiItem>>>(
+      "/api/v1/carnetizacion/fondos-fijos/",
+      { params: { pagina: p.pagina, page_size: p.tamano, busqueda: p.busqueda || undefined } },
+    );
+    return envelope.data;
+  },
+
+  eliminarFondoFijo: async (id: number | string) => {
+    await apiClient.delete<ApiResponse<null>>(`/api/v1/carnetizacion/fondos-fijos/${id}/`);
   },
 
   activarPlantilla: async (plantillaId: number | string) => {
@@ -361,6 +404,11 @@ export const carnetizacionApi = {
       plantilla_id: plantillaId,
       datos_editados: { nombre, cedula },
     });
+  },
+
+  /** PNG de vista previa del QR con un estilo (la imagen exacta que saldrá en el PDF). */
+  vistaPreviaQr: async (qrEstilo: unknown) => {
+    return apiClient.postBlob("/api/v1/carnetizacion/qr/vista-previa/", { qr_estilo: qrEstilo });
   },
 
   // --- QR y Privacidad por Dato (O44 - E9) ---

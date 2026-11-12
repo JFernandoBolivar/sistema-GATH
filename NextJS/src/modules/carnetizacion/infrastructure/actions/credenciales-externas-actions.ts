@@ -3,6 +3,7 @@
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
+import { mensajeErrorCredencial } from "../../application/etiquetar-errores-credencial";
 import {
   credencialesExternasApi,
   type CrearCredencialExternaApiInput,
@@ -38,7 +39,8 @@ export async function crearCredencialExternaAction(
   } catch (error) {
     await logAudit({ traceId, action: "crearCredencialExternaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    return errorDeAccion(error, "No fue posible emitir la credencial.");
+    const r = errorDeAccion(error, "No fue posible emitir la credencial.");
+    return { ...r, error: mensajeErrorCredencial(r, grupo === "temporal") };
   }
 }
 

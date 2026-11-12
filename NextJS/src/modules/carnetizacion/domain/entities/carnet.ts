@@ -39,6 +39,7 @@ export interface EstadisticasCarnet {
   revocados: number;
   emitidosHoy: number;
   emitidosMes: number;
+  ultimos?: UltimoCarnet[];
   porMotivo: EstadisticaMotivoCarnet[];
 }
 
@@ -156,6 +157,24 @@ export interface Plantilla {
   activo: boolean;
   creado: string;
 }
+
+/** Página de resultados paginada en el servidor ({resultados, total, pagina, tamano, total_paginas}). */
+export interface PaginaCarnet<T> {
+  resultados: T[];
+  total: number;
+  pagina: number;
+  tamano: number;
+  totalPaginas: number;
+}
+
+/** Parámetros de paginación y búsqueda que viajan al servidor. */
+export interface ParamsPagina {
+  pagina: number;
+  tamano: number;
+  busqueda?: string;
+}
+
+export const TAMANOS_PAGINA = [12, 24, 48] as const;
 
 export interface UltimoCarnet {
   nombre: string;

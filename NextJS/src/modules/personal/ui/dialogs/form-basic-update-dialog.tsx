@@ -50,6 +50,8 @@ interface FormBasicUpdateDialogProps {
   triggerLabel?: string;
   /** Con el permiso `personal.corregir_cedula` la cédula se vuelve editable. */
   puedeCorregirCedula?: boolean;
+  /** Con el permiso `personal.editar_nacionalidad` el select de Nacionalidad se puede cambiar. */
+  puedeEditarNacionalidad?: boolean;
   /** Se llama con la cédula nueva tras corregirla, para que el padre siga al trabajador. */
   onCedulaCorregida?: (cedulaNueva: string) => void;
 }
@@ -65,6 +67,7 @@ export default function FormBasicUpdateDialog({
   triggerClassName = "cursor-pointer bg-blue-700 hover:bg-blue-900 text-white",
   triggerLabel = "Actualizar Información Basica",
   puedeCorregirCedula = false,
+  puedeEditarNacionalidad = false,
   onCedulaCorregida,
 }: FormBasicUpdateDialogProps) {
   const [open, setOpen] = useState(false);
@@ -362,6 +365,7 @@ export default function FormBasicUpdateDialog({
                         error={mensajeDe(errores.nacionalidadId)}
                       >
                         <Select
+                          disabled={!puedeEditarNacionalidad}
                           value={watch("nacionalidadId") ? String(watch("nacionalidadId")) : ""}
                           onValueChange={(v) =>
                             setValue("nacionalidadId", Number(v), { shouldValidate: true })
@@ -371,6 +375,9 @@ export default function FormBasicUpdateDialog({
                             id="nacionalidadId"
                             className="w-full truncate"
                             aria-invalid={!!errores.nacionalidadId || undefined}
+                            aria-describedby={
+                              puedeEditarNacionalidad ? undefined : "nacionalidadId-ayuda"
+                            }
                           >
                             <SelectValue placeholder="V / E" />
                           </SelectTrigger>
@@ -382,6 +389,11 @@ export default function FormBasicUpdateDialog({
                             ))}
                           </SelectContent>
                         </Select>
+                        {!puedeEditarNacionalidad && (
+                          <p id="nacionalidadId-ayuda" className="text-xs text-muted-foreground">
+                            Requiere permiso para modificar la nacionalidad
+                          </p>
+                        )}
                       </CampoDialogo>
                       <CampoDialogo id="sexoId" label="Sexo *" error={mensajeDe(errores.sexoId)}>
                         <Select

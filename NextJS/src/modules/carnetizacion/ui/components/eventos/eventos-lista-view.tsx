@@ -1,27 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
-import Link from "next/link";
-import {
-  ArrowRight,
-  CalendarDays,
-  CheckCircle2,
-  Clock3,
-  MapPin,
-  Plus,
-  QrCode,
-  Users,
-} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { CalendarDays, Clock3, Plus, QrCode, Users } from "lucide-react";
 
-import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/components/card";
+import { Card, CardContent } from "@/shared/ui/components/card";
 import { BarraFiltros, type FiltroActivoChip } from "@/shared/ui/components/barra-filtros";
 import {
   Select,
@@ -31,39 +14,11 @@ import {
   SelectValue,
 } from "@/shared/ui/components/select";
 import { cn } from "@/lib/utils";
-import { getEventosAction } from "@/modules/carnetizacion/infrastructure/actions/eventos-actions";
-import type { Evento } from "@/modules/carnetizacion/domain/entities/evento";
+import { getEventosPaginadoAction } from "@/modules/carnetizacion/infrastructure/actions/eventos-actions";
+import type { PaginaEventos } from "@/modules/carnetizacion/domain/entities/evento";
 import { EventoCrearDialog } from "./evento-crear-dialog";
-
-const ETIQUETAS_ESTADO: Record<string, string> = {
-  activo: "En curso",
-  borrador: "Borrador",
-  finalizado: "Finalizado",
-  cancelado: "Cancelado",
-};
-
-function estiloEstado(estado: string): string {
-  if (estado === "activo") return "border-success/30 bg-success-soft text-success";
-  if (estado === "cancelado") return "border-danger/30 bg-danger-soft text-danger";
-  if (estado === "borrador") return "border-warning/30 bg-warning-soft text-warning";
-  return "border-border bg-muted text-muted-foreground";
-}
-
-function acentoEstado(estado: string): string {
-  if (estado === "activo") return "bg-success";
-  if (estado === "cancelado") return "bg-danger";
-  if (estado === "borrador") return "bg-warning";
-  return "bg-border";
-}
-
-function formatearFecha(iso?: string): string {
-  if (!iso) return "Sin fecha";
-  return new Date(iso).toLocaleDateString("es-VE", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
+import { EventosPaginacion } from "./eventos-paginacion";
+import { ETIQUETAS_ESTADO, EventoTarjeta } from "./evento-tarjeta";
 
 function Metrica({
   icono: Icono,
@@ -79,14 +34,14 @@ function Metrica({
   tono: string;
 }) {
   return (
-    <Card className="border-border/60 shadow-none">
-      <CardContent className="flex items-center gap-3 p-4">
-        <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-xl", tono)}>
+    <Card className="border-border/60 shadow-sm transition-shadow hover:shadow-md">
+      <CardContent className="flex items-center gap-4 p-4">
+        <span className={cn("flex size-12 shrink-0 items-center justify-center rounded-full", tono)}>
           <Icono className="size-5" aria-hidden />
         </span>
         <div className="min-w-0">
-          <p className="text-xs font-medium text-muted-foreground">{etiqueta}</p>
-          <p className="text-2xl font-bold leading-tight tabular-nums text-foreground">{valor}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{etiqueta}</p>
+          <p className="text-3xl font-bold leading-tight tabular-nums text-foreground">{valor}</p>
           <p className="truncate text-[11px] text-muted-foreground">{detalle}</p>
         </div>
       </CardContent>
@@ -94,51 +49,53 @@ function Metrica({
   );
 }
 
+const TAMANO_PAGINA = 12;
+
 export function EventosListaView() {
-  const [eventos, setEventos] = useState<Evento[]>([]);
+  // Referencia fija para distinguir eventos próximos (evita Date.now() en el render).
+  const [ahora] = useState(() => Date.now());
+  const [pagina, setPagina] = useState<PaginaEventos | null>(null);
+  const [numPagina, setNumPagina] = useState(1);
   const [busqueda, setBusqueda] = useState("");
+  const [busquedaAplicada, setBusquedaAplicada] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState("TODOS");
   const [openCrear, setOpenCrear] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  const cargarEventos = () => {
+  // La búsqueda se envía al servidor con una pequeña espera.
+  useEffect(() => {
+    const t = setTimeout(() => setBusquedaAplicada(busqueda.trim()), 350);
+    return () => clearTimeout(t);
+  }, [busqueda]);
+
+  const cargarEventos = useCallback(() => {
     startTransition(async () => {
       try {
-        const data = await getEventosAction();
-        setEventos(data);
+        const data = await getEventosPaginadoAction({
+          pagina: numPagina,
+          page_size: TAMANO_PAGINA,
+          estado: estadoFiltro === "TODOS" ? undefined : estadoFiltro,
+          busqueda: busquedaAplicada || undefined,
+        });
+        setPagina(data);
       } catch (err) {
         console.error("Error cargando eventos:", err);
       }
     });
-  };
+  }, [numPagina, estadoFiltro, busquedaAplicada]);
 
   useEffect(() => {
     cargarEventos();
-  }, []);
+  }, [cargarEventos]);
 
-  const metricas = useMemo(() => {
-    const totalInvitados = eventos.reduce((total, ev) => total + (ev.total_invitados ?? 0), 0);
-    const totalIngresos = eventos.reduce((total, ev) => total + (ev.total_entraron ?? 0), 0);
-    return {
-      total: eventos.length,
-      activos: eventos.filter((ev) => ev.estado === "activo").length,
-      invitados: totalInvitados,
-      ingresos: totalIngresos,
-    };
-  }, [eventos]);
-
-  const filtrados = useMemo(() => {
-    const q = busqueda.trim().toLowerCase();
-    return eventos.filter((ev) => {
-      if (estadoFiltro !== "TODOS" && ev.estado !== estadoFiltro) return false;
-      if (!q) return true;
-      return (
-        ev.nombre.toLowerCase().includes(q) ||
-        (ev.lugar ?? "").toLowerCase().includes(q) ||
-        (ev.descripcion ?? "").toLowerCase().includes(q)
-      );
-    });
-  }, [eventos, busqueda, estadoFiltro]);
+  const filtrados = pagina?.resultados ?? [];
+  const resumen = pagina?.resumen;
+  const metricas = {
+    total: resumen?.eventos ?? 0,
+    activos: resumen?.en_curso ?? 0,
+    invitados: resumen?.invitados ?? 0,
+    ingresos: resumen?.ingresos ?? 0,
+  };
 
   const chipsActivos = useMemo<FiltroActivoChip[]>(() => {
     const chips: FiltroActivoChip[] = [];
@@ -147,7 +104,11 @@ export function EventosListaView() {
         id: "busqueda",
         label: "Búsqueda",
         valorLegible: busqueda,
-        onRemover: () => setBusqueda(""),
+        onRemover: () => {
+          setBusqueda("");
+          setBusquedaAplicada("");
+          setNumPagina(1);
+        },
       });
     }
     if (estadoFiltro !== "TODOS") {
@@ -155,7 +116,10 @@ export function EventosListaView() {
         id: "estado",
         label: "Estado",
         valorLegible: ETIQUETAS_ESTADO[estadoFiltro] ?? estadoFiltro,
-        onRemover: () => setEstadoFiltro("TODOS"),
+        onRemover: () => {
+          setEstadoFiltro("TODOS");
+          setNumPagina(1);
+        },
       });
     }
     return chips;
@@ -200,14 +164,19 @@ export function EventosListaView() {
       {/* Búsqueda y filtros */}
       <BarraFiltros
         busqueda={busqueda}
-        onBusquedaChange={setBusqueda}
+        onBusquedaChange={(v) => {
+          setBusqueda(v);
+          setNumPagina(1);
+        }}
         placeholderBusqueda="Buscar por evento, lugar o descripción…"
-        totalResultados={filtrados.length}
+        totalResultados={pagina?.total ?? 0}
         etiquetaResultados="eventos"
         hayFiltrosActivos={hayFiltros}
         onLimpiarFiltros={() => {
           setBusqueda("");
+          setBusquedaAplicada("");
           setEstadoFiltro("TODOS");
+          setNumPagina(1);
         }}
         chipsActivos={chipsActivos}
         tituloFiltrosMovil="Filtros de eventos"
@@ -216,7 +185,10 @@ export function EventosListaView() {
           <span className="text-sm font-medium text-foreground">Estado del evento</span>
           <Select
             value={estadoFiltro}
-            onValueChange={setEstadoFiltro}
+            onValueChange={(v) => {
+              setEstadoFiltro(v);
+              setNumPagina(1);
+            }}
           >
             <SelectTrigger className="h-11 w-full min-w-0 text-sm" aria-label="Estado del evento">
               <SelectValue placeholder="Todos los estados" />
@@ -224,6 +196,7 @@ export function EventosListaView() {
             <SelectContent>
               <SelectItem value="TODOS">Todos los estados</SelectItem>
               <SelectItem value="activo">En curso</SelectItem>
+              <SelectItem value="proximo">Próximos</SelectItem>
               <SelectItem value="borrador">Borrador</SelectItem>
               <SelectItem value="finalizado">Finalizado</SelectItem>
               <SelectItem value="cancelado">Cancelado</SelectItem>
@@ -244,20 +217,20 @@ export function EventosListaView() {
       </BarraFiltros>
 
       {/* Listado */}
-      {isPending && eventos.length === 0 ? (
+      {isPending && pagina === null ? (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
           {[0, 1, 2].map((i) => (
-            <Card key={i} className="h-72 animate-pulse border-border/60 bg-muted/30" />
+            <Card key={i} className="h-80 animate-pulse border-border/60 bg-muted/30" />
           ))}
         </div>
       ) : filtrados.length === 0 ? (
         <Card className="border-dashed border-border/80 bg-card">
-          <CardContent className="flex flex-col items-center py-14 text-center">
-            <span className="flex size-14 items-center justify-center rounded-full bg-secondary text-primary">
-              <CalendarDays className="size-7" aria-hidden />
+          <CardContent className="flex flex-col items-center px-4 py-16 text-center">
+            <span className="flex size-20 items-center justify-center rounded-full bg-secondary text-primary ring-8 ring-secondary/50">
+              <CalendarDays className="size-9" aria-hidden />
             </span>
             <h3 className="mt-4 text-lg font-semibold text-foreground">
-              {hayFiltros ? "No hay eventos que coincidan con los filtros" : "Aún no hay eventos registrados"}
+              {hayFiltros ? "No hay eventos que coincidan con los filtros" : "Aún no hay eventos"}
             </h3>
             <p className="mt-1 max-w-md text-sm text-muted-foreground">
               {hayFiltros
@@ -272,119 +245,29 @@ export function EventosListaView() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {filtrados.map((ev) => {
-            const total = ev.total_invitados ?? 0;
-            const ingresos = ev.total_entraron ?? 0;
-            const asistencia = total > 0 ? Math.min(100, Math.round((ingresos / total) * 100)) : 0;
-            const esActivo = ev.estado === "activo";
-
-            return (
-              <Card
-                key={ev.id}
-                className={cn(
-                  "group relative flex flex-col overflow-hidden border-border/60 shadow-none transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md",
-                  esActivo && "border-primary/30 ring-1 ring-primary/10",
-                )}
-              >
-                <span className={cn("absolute inset-y-0 left-0 w-1", acentoEstado(ev.estado))} />
-
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 flex-wrap items-center gap-2">
-                      <Badge
-                        variant="outline"
-                        className={cn("gap-1.5 text-[10px] font-bold uppercase", estiloEstado(ev.estado))}
-                      >
-                        <span className={cn("size-1.5 rounded-full", acentoEstado(ev.estado))} />
-                        {ETIQUETAS_ESTADO[ev.estado] ?? ev.estado}
-                      </Badge>
-                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
-                        <CalendarDays className="size-3" aria-hidden />
-                        {formatearFecha(ev.fecha_inicio)}
-                      </span>
-                    </div>
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary">
-                      <CalendarDays className="size-5" aria-hidden />
-                    </span>
-                  </div>
-
-                  <CardTitle className="mt-3 line-clamp-1 text-lg font-bold text-foreground">
-                    {ev.nombre}
-                  </CardTitle>
-                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <MapPin className="size-3.5 shrink-0" aria-hidden />
-                    <span className="truncate">{ev.lugar || "Sede CONATEL"}</span>
-                  </p>
-                </CardHeader>
-
-                <CardContent className="space-y-4 pb-4">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-lg border border-border/50 bg-muted/30 p-2.5">
-                      <span className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
-                        <Users className="size-3" aria-hidden />
-                        Invitados
-                      </span>
-                      <span className="mt-0.5 block text-xl font-bold tabular-nums text-foreground">
-                        {total}
-                      </span>
-                    </div>
-                    <div className="rounded-lg border border-border/50 bg-muted/30 p-2.5">
-                      <span className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
-                        <CheckCircle2 className="size-3 text-success" aria-hidden />
-                        Ingresaron
-                      </span>
-                      <span className="mt-0.5 block text-xl font-bold tabular-nums text-success">
-                        {ingresos}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-[11px] font-medium">
-                      <span className="text-muted-foreground">Asistencia</span>
-                      <span className="tabular-nums text-foreground">{asistencia}%</span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full bg-primary transition-all"
-                        style={{ width: `${asistencia}%` }}
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-
-                <CardFooter className="mt-auto flex items-center justify-between gap-2 border-t border-border/50 pt-3">
-                  <Link
-                    href={`/carnetizacion/control-eventos?evento_id=${ev.id}`}
-                    className="inline-flex"
-                  >
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-9 gap-1.5 text-xs font-semibold text-success border-success/30 hover:bg-success-soft"
-                    >
-                      <QrCode className="size-3.5" aria-hidden />
-                      Check-in QR
-                    </Button>
-                  </Link>
-
-                  <Link href={`/carnetizacion/eventos/${ev.id}`} className="inline-flex">
-                    <Button size="sm" className="h-9 gap-1.5 text-xs font-semibold">
-                      Ver hub
-                      <ArrowRight className="size-3.5" aria-hidden />
-                    </Button>
-                  </Link>
-                </CardFooter>
-              </Card>
-            );
-          })}
+          {filtrados.map((ev) => (
+            <EventoTarjeta key={ev.id} evento={ev} ahora={ahora} />
+          ))}
         </div>
+      )}
+
+      {pagina && pagina.total > 0 && (
+        <EventosPaginacion
+          pagina={pagina.pagina}
+          totalPaginas={pagina.total_paginas}
+          total={pagina.total}
+          tamano={pagina.tamano}
+          onPagina={setNumPagina}
+        />
       )}
 
       <EventoCrearDialog
         open={openCrear}
         onOpenChange={setOpenCrear}
-        onEventoCreado={() => cargarEventos()}
+        onEventoCreado={() => {
+          if (numPagina !== 1) setNumPagina(1);
+          else cargarEventos();
+        }}
       />
     </div>
   );

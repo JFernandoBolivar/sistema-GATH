@@ -16,7 +16,9 @@ from apps.carnetizacion.domain.entities.evento import (
     EventoCategoria,
     EventoZona,
 )
+from core.domain.paginacion import Paginacion
 from apps.carnetizacion.domain.ports.repo_eventos import RepoEventosPort
+from core.domain.exceptions import ConflictError, NotFoundError, ValidationError
 
 
 class CrearEventoUseCase:
@@ -119,49 +121,63 @@ class ListarEventosUseCase:
         self, estado: str | None = None, busqueda: str | None = None
     ) -> list[EventoDTO]:
         eventos = self.repo.listar_eventos(estado, busqueda=busqueda)
-        resultado = []
-        for ev in eventos:
-            cats = [
-                EventoCategoriaDTO(
-                    id=c.id,
-                    evento_id=c.evento_id,
-                    nombre=c.nombre,
-                    color_primario=c.color_primario,
-                    color_acento=c.color_acento,
-                    orden=c.orden,
-                )
-                for c in self.repo.listar_categorias(ev.id)
-            ]
-            zonas = [
-                EventoZonaDTO(
-                    id=z.id,
-                    evento_id=z.evento_id,
-                    nombre=z.nombre,
-                    codigo=z.codigo,
-                    orden=z.orden,
-                )
-                for z in self.repo.listar_zonas(ev.id)
-            ]
-            resumen = self.repo.obtener_resumen_panel(ev.id)
-            resultado.append(
-                EventoDTO(
-                    id=ev.id,
-                    nombre=ev.nombre,
-                    lugar=ev.lugar,
-                    fecha_inicio=ev.fecha_inicio.isoformat() if ev.fecha_inicio else "",
-                    fecha_fin=ev.fecha_fin.isoformat() if ev.fecha_fin else "",
-                    descripcion=ev.descripcion,
-                    estado=ev.estado.value if hasattr(ev.estado, 'value') else str(ev.estado),
-                    plantilla_id=ev.plantilla_id,
-                    creado_por_id=ev.creado_por_id,
-                    created_at=ev.created_at.isoformat() if ev.created_at else None,
-                    categorias=cats,
-                    zonas=zonas,
-                    total_invitados=resumen.total_invitados,
-                    total_entraron=resumen.entraron,
-                )
+        return [self._a_dto(ev) for ev in eventos]
+
+    def ejecutar_paginado(
+        self,
+        paginacion: Paginacion,
+        estado: str | None = None,
+        busqueda: str | None = None,
+    ) -> tuple[list[EventoDTO], int, dict[str, int]]:
+        """Devuelve (página de eventos, total del filtro, resumen global real)."""
+        eventos, total = self.repo.listar_eventos_paginado(
+            paginacion.offset, paginacion.tamano, estado=estado, busqueda=busqueda
+        )
+        return (
+            [self._a_dto(ev) for ev in eventos],
+            total,
+            self.repo.resumen_global_eventos(),
+        )
+
+    def _a_dto(self, ev: Evento) -> EventoDTO:
+        cats = [
+            EventoCategoriaDTO(
+                id=c.id,
+                evento_id=c.evento_id,
+                nombre=c.nombre,
+                color_primario=c.color_primario,
+                color_acento=c.color_acento,
+                orden=c.orden,
             )
-        return resultado
+            for c in self.repo.listar_categorias(ev.id)
+        ]
+        zonas = [
+            EventoZonaDTO(
+                id=z.id,
+                evento_id=z.evento_id,
+                nombre=z.nombre,
+                codigo=z.codigo,
+                orden=z.orden,
+            )
+            for z in self.repo.listar_zonas(ev.id)
+        ]
+        resumen = self.repo.obtener_resumen_panel(ev.id)
+        return EventoDTO(
+            id=ev.id,
+            nombre=ev.nombre,
+            lugar=ev.lugar,
+            fecha_inicio=ev.fecha_inicio.isoformat() if ev.fecha_inicio else "",
+            fecha_fin=ev.fecha_fin.isoformat() if ev.fecha_fin else "",
+            descripcion=ev.descripcion,
+            estado=ev.estado.value if hasattr(ev.estado, 'value') else str(ev.estado),
+            plantilla_id=ev.plantilla_id,
+            creado_por_id=ev.creado_por_id,
+            created_at=ev.created_at.isoformat() if ev.created_at else None,
+            categorias=cats,
+            zonas=zonas,
+            total_invitados=resumen.total_invitados,
+            total_entraron=resumen.entraron,
+        )
 
 
 class ObtenerEventoDetalleUseCase:
@@ -303,3 +319,75 @@ class CrearZonaEventoUseCase:
             orden=zona.orden,
         )
 
+
+
+def _plural(n: int) -> str:
+    return "invitado asignado" if n == 1 else "invitados asignados"
+
+
+class ActualizarCategoriaEventoUseCase:
+    def __init__(self, repo: RepoEventosPort):
+        self.repo = repo
+
+    def ejecutar(self, categoria_id: str, datos: dict) -> EventoCategoria:
+        cat = self.repo.obtener_categoria(categoria_id)
+        if not cat:
+            raise NotFoundError("Categoría no encontrada.")
+        if "nombre" in datos:
+            nombre = str(datos["nombre"]).strip()
+            if not nombre:
+                raise ValidationError("El nombre de categoría es obligatorio.", campo="nombre")
+            cat.nombre = nombre
+        if datos.get("color_primario"):
+            cat.color_primario = str(datos["color_primario"])
+        if datos.get("color_acento"):
+            cat.color_acento = str(datos["color_acento"])
+        if "orden" in datos:
+            cat.orden = int(datos["orden"])
+        return self.repo.actualizar_categoria(cat)
+
+
+class EliminarCategoriaEventoUseCase:
+    def __init__(self, repo: RepoEventosPort):
+        self.repo = repo
+
+    def ejecutar(self, categoria_id: str) -> None:
+        if not self.repo.obtener_categoria(categoria_id):
+            raise NotFoundError("Categoría no encontrada.")
+        n = self.repo.contar_invitados_categoria(categoria_id)
+        if n:
+            raise ConflictError(f"No se puede eliminar la categoría: tiene {n} {_plural(n)}.")
+        self.repo.eliminar_categoria(categoria_id)
+
+
+class ActualizarZonaEventoUseCase:
+    def __init__(self, repo: RepoEventosPort):
+        self.repo = repo
+
+    def ejecutar(self, zona_id: str, datos: dict) -> EventoZona:
+        zona = self.repo.obtener_zona(zona_id)
+        if not zona:
+            raise NotFoundError("Zona no encontrada.")
+        if "nombre" in datos:
+            nombre = str(datos["nombre"]).strip()
+            if not nombre:
+                raise ValidationError("El nombre de zona es obligatorio.", campo="nombre")
+            zona.nombre = nombre
+        if "codigo" in datos:
+            zona.codigo = str(datos["codigo"]).strip()
+        if "orden" in datos:
+            zona.orden = int(datos["orden"])
+        return self.repo.actualizar_zona(zona)
+
+
+class EliminarZonaEventoUseCase:
+    def __init__(self, repo: RepoEventosPort):
+        self.repo = repo
+
+    def ejecutar(self, zona_id: str) -> None:
+        if not self.repo.obtener_zona(zona_id):
+            raise NotFoundError("Zona no encontrada.")
+        n = self.repo.contar_invitados_zona(zona_id)
+        if n:
+            raise ConflictError(f"No se puede eliminar la zona: tiene {n} {_plural(n)}.")
+        self.repo.eliminar_zona(zona_id)

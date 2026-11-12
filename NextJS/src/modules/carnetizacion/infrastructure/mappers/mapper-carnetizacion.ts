@@ -9,6 +9,7 @@ import type {
   EstadisticasCarnet,
   FichaQr,
   GrupoCampo,
+  PaginaCarnet,
   PlantillaCarnet,
   PlantillaMotor,
   TipoCredencial,
@@ -94,7 +95,8 @@ export function estadisticasCarnetApiAEntidad(raw: EstadisticasCarnetApiItem): E
     revocados: raw.revocados,
     emitidosHoy: raw.emitidos_hoy,
     emitidosMes: raw.emitidos_mes,
-    porMotivo: raw.por_motivo.map((m) => ({
+    ultimos: raw.ultimos ?? [],
+    porMotivo: (raw.por_motivo ?? []).map((m) => ({
       motivoId: m.motivo_id,
       motivo: m.motivo,
       total: m.total,
@@ -158,5 +160,19 @@ export function fichaQrApiAEntidad(raw: FichaQrApiItem): FichaQr {
     saludDisponible: raw.salud_disponible,
     fechaEmision: raw.fecha_emision,
     fechaVencimiento: raw.fecha_vencimiento,
+  };
+}
+
+/** Convierte la página del servidor ({resultados, total_paginas, ...}) a la entidad de dominio. */
+export function paginaApiAEntidad<A, E>(
+  raw: { resultados: A[]; total: number; pagina: number; tamano: number; total_paginas: number } | null | undefined,
+  mapear: (item: A) => E,
+): PaginaCarnet<E> {
+  return {
+    resultados: (raw?.resultados ?? []).map(mapear),
+    total: raw?.total ?? 0,
+    pagina: raw?.pagina ?? 1,
+    tamano: raw?.tamano ?? 12,
+    totalPaginas: raw?.total_paginas ?? 1,
   };
 }

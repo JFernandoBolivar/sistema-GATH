@@ -16,6 +16,10 @@ import { emitirCarnet, listarCarnets } from "./emitir-carnet";
 import { obtenerEstadisticas } from "./obtener-estadisticas";
 import { validarCarnetPorHash } from "./validar-qr";
 
+function paginaVaciaPrueba<T>() {
+  return { resultados: [] as T[], total: 0, pagina: 1, tamano: 12, totalPaginas: 1 };
+}
+
 class RepoCarnetizacionMemoria implements RepoCarnetizacion {
   carnets: Carnet[] = [
     {
@@ -128,6 +132,16 @@ class RepoCarnetizacionMemoria implements RepoCarnetizacion {
     ];
   }
 
+  async listarPlantillasMotorPagina() {
+    return paginaVaciaPrueba<PlantillaMotor>();
+  }
+  async listarFondosFijos() {
+    return paginaVaciaPrueba<PlantillaCarnet>();
+  }
+  async eliminarFondoFijo(): Promise<void> {}
+  async listarBibliotecaPagina() {
+    return paginaVaciaPrueba<ElementoBiblioteca>();
+  }
   async listarPlantillasMotor(): Promise<PlantillaMotor[]> {
     return [];
   }

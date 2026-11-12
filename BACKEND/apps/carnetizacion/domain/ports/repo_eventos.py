@@ -4,6 +4,7 @@ Puerto del Repositorio de Eventos, Categorías, Zonas e Invitados (Regla B1, O45
 from abc import ABC, abstractmethod
 from typing import Any
 
+from apps.carnetizacion.domain.entities.persona_origen import PersonaOrigen
 from apps.carnetizacion.domain.entities.evento import (
     Evento,
     EventoCategoria,
@@ -33,6 +34,22 @@ class RepoEventosPort(ABC):
     def listar_eventos(
         self, estado: str | None = None, busqueda: str | None = None
     ) -> list[Evento]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def listar_eventos_paginado(
+        self,
+        offset: int,
+        limite: int,
+        estado: str | None = None,
+        busqueda: str | None = None,
+    ) -> tuple[list[Evento], int]:
+        """Página de eventos y total del filtro. `estado` admite también «proximo»."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def resumen_global_eventos(self) -> dict[str, int]:
+        """Totales reales de todos los eventos: eventos, en_curso, proximos, invitados, ingresos."""
         raise NotImplementedError
 
     # ─── Categorías ───
@@ -126,6 +143,41 @@ class RepoEventosPort(ABC):
         busqueda: str | None = None,
     ) -> list[str]:
         """Solo los ids que cumplen el filtro (selección masiva de todo el filtro)."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def documentos_invitados(self, evento_id: str) -> set[str]:
+        """Documentos (normalizados) de quienes ya están invitados al evento."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def agregar_invitados_en_bloque(
+        self,
+        evento_id: str,
+        categoria_id: str,
+        zona_id: str,
+        personas: list[PersonaOrigen],
+    ) -> tuple[int, int]:
+        """Inserta en una transacción a quienes no estén ya invitados.
+
+        Devuelve `(agregados, duplicados)`.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def contar_invitados_categoria(self, categoria_id: str) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    def contar_invitados_zona(self, zona_id: str) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    def eliminar_categoria(self, categoria_id: str) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def eliminar_zona(self, zona_id: str) -> None:
         raise NotImplementedError
 
     @abstractmethod

@@ -256,6 +256,28 @@ class RepoCarnetizacionORM:
             qs = qs.filter(activa=True)
         return [plantilla_motor_a_entidad(p) for p in qs]
 
+    def listar_plantillas_paginado(
+        self,
+        codigo_tipo: str | None = None,
+        estado: str | None = None,
+        solo_activas: bool = False,
+        busqueda: str = '',
+        offset: int = 0,
+        limite: int = 12,
+    ) -> tuple[list[PlantillaCarnet], int]:
+        self._asegurar_plantilla_semilla()
+        qs = PlantillaCarnetModel.objects.select_related('tipo_credencial').all().order_by('-activa', '-version', '-created_at')
+        if codigo_tipo:
+            qs = qs.filter(tipo_credencial_id=codigo_tipo)
+        if estado:
+            qs = qs.filter(estado=estado)
+        if solo_activas:
+            qs = qs.filter(activa=True)
+        if busqueda:
+            qs = qs.filter(nombre__icontains=busqueda)
+        total = qs.count()
+        return [plantilla_motor_a_entidad(p) for p in qs[offset:offset + limite]], total
+
     def obtener_plantilla(self, plantilla_id: str | int) -> PlantillaCarnet | None:
         self._asegurar_plantilla_semilla()
         obj = PlantillaCarnetModel.objects.select_related('tipo_credencial').filter(pk=plantilla_id).first()
@@ -507,6 +529,32 @@ class RepoCarnetizacionORM:
             CarnetTemplateModel.objects.all().update(activo=False)
         obj = CarnetTemplateModel.objects.create(nombre=nombre, imagen=imagen, activo=activar)
         return plantilla_a_entidad(obj)
+
+    def listar_fondos_fijos(
+        self, busqueda: str = '', offset: int = 0, limite: int = 12,
+    ) -> tuple[list[PlantillaCarnet], int]:
+        """Fondos fijos (clásicos) subidos como imagen, paginados y con búsqueda por nombre."""
+        qs = CarnetTemplateModel.objects.all().order_by('-activo', '-creado', '-pk')
+        if busqueda:
+            qs = qs.filter(nombre__icontains=busqueda)
+        total = qs.count()
+        return [plantilla_a_entidad(f) for f in qs[offset:offset + limite]], total
+
+    def eliminar_fondo_fijo(self, fondo_id: int | str) -> None:
+        obj = CarnetTemplateModel.objects.filter(pk=fondo_id).first()
+        if obj is None:
+            raise NotFoundError(f"Fondo fijo con id {fondo_id} no encontrado")
+        if obj.activo:
+            raise ValidationError(
+                "No se puede eliminar un fondo fijo activo: se está usando al generar carnets. "
+                "Active otro fondo primero."
+            )
+        if obj.imagen:
+            try:
+                obj.imagen.delete(save=False)
+            except Exception:
+                logger.warning("No se pudo borrar el archivo del fondo fijo %s.", fondo_id, exc_info=True)
+        obj.delete()
 
     def ruta_imagen_plantilla(self, plantilla_id: int | str) -> str:
         obj = CarnetTemplateModel.objects.filter(pk=plantilla_id).first()
@@ -979,6 +1027,21 @@ class RepoCarnetizacionORM:
         if categoria:
             qs = qs.filter(categoria=categoria)
         return [elemento_biblioteca_a_entidad(e) for e in qs]
+
+    def listar_elementos_biblioteca_paginado(
+        self,
+        categoria: str | None = None,
+        busqueda: str = '',
+        offset: int = 0,
+        limite: int = 12,
+    ) -> tuple[list[ElementoBiblioteca], int]:
+        qs = ElementoBibliotecaModel.objects.all()
+        if categoria:
+            qs = qs.filter(categoria=categoria)
+        if busqueda:
+            qs = qs.filter(nombre__icontains=busqueda)
+        total = qs.count()
+        return [elemento_biblioteca_a_entidad(e) for e in qs[offset:offset + limite]], total
 
     def obtener_elemento_biblioteca(self, elemento_id: str | int) -> ElementoBiblioteca:
         obj = ElementoBibliotecaModel.objects.filter(pk=elemento_id).first()

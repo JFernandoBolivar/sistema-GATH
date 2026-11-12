@@ -13,6 +13,7 @@ import {
   IdCard,
   Mail,
   MapPin,
+  MoreHorizontal,
   Plus,
   Printer,
   QrCode,
@@ -38,6 +39,12 @@ import { Badge } from "@/shared/ui/components/badge";
 import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/shared/ui/components/dropdown-menu";
+import {
   Tabs,
   TabsContent,
   TabsList,
@@ -60,8 +67,6 @@ import {
 } from "@/shared/ui/components/select";
 
 import {
-  crearCategoriaEventoAction,
-  crearZonaEventoAction,
   emitirCredencialesLoteAction,
   enviarCredencialesCorreoAction,
   getCategoriasEventoAction,
@@ -78,7 +83,8 @@ import type {
   EventoZona,
   PanelEvento,
 } from "@/modules/carnetizacion/domain/entities/evento";
-import { InvitadoCrearDialog } from "./invitado-crear-dialog";
+import { InvitadosAgregarDialog } from "./invitados-agregar-dialog";
+import { ZonasCategoriasPanel } from "./zonas-categorias-panel";
 import { InvitadosImportarDialog } from "./invitados-importar-dialog";
 import { ControlEntradaQrView } from "./control-entrada-qr-view";
 
@@ -123,11 +129,7 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
   const [openCrearInvitado, setOpenCrearInvitado] = useState(false);
   const [openImportarInvitados, setOpenImportarInvitados] = useState(false);
 
-  // Estados de configuración de nueva categoría y zona
-  const [nuevaCatNombre, setNuevaCatNombre] = useState("");
-  const [nuevaCatColor, setNuevaCatColor] = useState("#001f3f");
-  const [nuevaZonaNombre, setNuevaZonaNombre] = useState("");
-  const [nuevaZonaCodigo, setNuevaZonaCodigo] = useState("");
+  const [descargandoGafetes, setDescargandoGafetes] = useState(false);
 
   const [isPending, startTransition] = useTransition();
   const [mensaje, setMensaje] = useState<string | null>(null);
@@ -274,36 +276,39 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
     }
   };
 
-  const handleCrearCategoria = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!nuevaCatNombre.trim()) return;
-    try {
-      await crearCategoriaEventoAction(eventoId, {
-        nombre: nuevaCatNombre.trim(),
-        color_primario: nuevaCatColor,
-      });
-      setNuevaCatNombre("");
-      setMensaje("Categoría agregada exitosamente.");
-      cargarDatos();
-    } catch (err) {
-      setErrorAccion(err instanceof Error ? err.message : "Error al crear categoría");
+  // El PDF se abre en una pestaña creada en el mismo clic (si se abre tras el `await`, el
+  // bloqueador de ventanas la descarta); si igual se bloquea, se descarga el archivo.
+  const descargarGafetes = async () => {
+    if (totalEvento === 0) {
+      setMensaje(null);
+      setErrorAccion("Este evento aún no tiene invitados: agregue invitados antes de descargar los gafetes.");
+      return;
     }
-  };
-
-  const handleCrearZona = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!nuevaZonaNombre.trim()) return;
+    setErrorAccion(null);
+    setDescargandoGafetes(true);
+    const ventana = window.open("", "_blank");
     try {
-      await crearZonaEventoAction(eventoId, {
-        nombre: nuevaZonaNombre.trim(),
-        codigo: nuevaZonaCodigo.trim() || undefined,
-      });
-      setNuevaZonaNombre("");
-      setNuevaZonaCodigo("");
-      setMensaje("Zona / Puerta agregada exitosamente.");
-      cargarDatos();
+      const res = await fetch(`/api/carnetizacion/eventos/${eventoId}/pdf`);
+      if (!res.ok) {
+        const cuerpo = await res.json().catch(() => null);
+        throw new Error(cuerpo?.error || "No fue posible generar los gafetes en PDF.");
+      }
+      const url = window.URL.createObjectURL(await res.blob());
+      if (ventana && !ventana.closed) {
+        ventana.location.href = url;
+      } else {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "gafetes-evento.pdf";
+        a.click();
+        setMensaje("El navegador bloqueó la pestaña; se descargó el PDF de gafetes.");
+      }
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
     } catch (err) {
-      setErrorAccion(err instanceof Error ? err.message : "Error al crear zona");
+      ventana?.close();
+      setErrorAccion(err instanceof Error ? err.message : "No fue posible generar los gafetes en PDF.");
+    } finally {
+      setDescargandoGafetes(false);
     }
   };
 
@@ -336,6 +341,31 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
       </PageLayout>
     );
   }
+
+  const menuMasOpciones = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="outline" size="sm" className="min-h-10 text-xs font-semibold px-3">
+          <MoreHorizontal className="size-4 mr-1.5" aria-hidden />
+          Más opciones
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem
+          onSelect={() => setOpenImportarInvitados(true)}
+          title="Para invitados que no están registrados en el sistema"
+        >
+          <UploadCloud className="size-4" aria-hidden />
+          <span className="flex flex-col">
+            <span>Importar externos (Excel)</span>
+            <span className="text-[10px] text-muted-foreground">
+              Para invitados que no están registrados en el sistema
+            </span>
+          </span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   // Primer invitado seleccionado o de ejemplo para la vista previa del gafete
   const invitadoParaPreview =
@@ -401,16 +431,18 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
               Actualizar
             </Button>
 
-            <a
-              href={`/api/v1/carnetizacion/eventos/${evento.id}/pdf/`}
-              target="_blank"
-              rel="noopener noreferrer"
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={descargarGafetes}
+              disabled={descargandoGafetes}
+              title="Gafetes de 90×130 mm de los invitados del evento"
+              className="text-xs font-semibold h-10 px-3"
             >
-              <Button variant="outline" size="sm" className="text-xs font-semibold h-10 px-3">
-                <Download className="size-3.5 mr-1.5" />
-                PDF Gafetes (90×130)
-              </Button>
-            </a>
+              <Download className="size-3.5 mr-1.5" />
+              Descargar gafetes (PDF)
+            </Button>
 
             <Button
               variant="default"
@@ -459,7 +491,7 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
               Control
             </TabsTrigger>
             <TabsTrigger value="configuracion" className="text-xs py-2.5 font-semibold">
-              Configuración
+              Zonas y categorías
             </TabsTrigger>
           </TabsList>
 
@@ -506,32 +538,24 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
                 <div className="flex flex-wrap gap-2 border-t border-border pt-4">
                   <Button
                     type="button"
-                    variant="outline"
-                    onClick={() => setOpenImportarInvitados(true)}
-                    className="min-h-10"
-                  >
-                    <UploadCloud className="size-4" aria-hidden />
-                    Importar lista
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
                     onClick={() => setOpenCrearInvitado(true)}
                     className="min-h-10"
                   >
                     <Plus className="size-4" aria-hidden />
-                    Agregar invitado
+                    Agregar invitados
                   </Button>
-                  <Button variant="outline" className="min-h-10" asChild>
-                    <a
-                      href={`/api/v1/carnetizacion/eventos/${evento.id}/pdf/`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Printer className="size-4" aria-hidden />
-                      Imprimir en lote
-                    </a>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={descargarGafetes}
+                    disabled={descargandoGafetes}
+                    className="min-h-10"
+                    title="Gafetes de 90×130 mm de los invitados del evento"
+                  >
+                    <Printer className="size-4" aria-hidden />
+                    Imprimir en lote
                   </Button>
+                  {menuMasOpciones}
                   <Button
                     type="button"
                     variant="outline"
@@ -795,15 +819,7 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
                       </SelectContent>
                     </Select>
 
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setOpenImportarInvitados(true)}
-                      className="h-10 text-xs font-semibold px-3"
-                    >
-                      <UploadCloud className="size-3.5 mr-1.5" />
-                      Importar (.xlsx)
-                    </Button>
+                    {menuMasOpciones}
 
                     <Button
                       size="sm"
@@ -811,7 +827,7 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
                       className="h-10 text-xs font-semibold px-3"
                     >
                       <Plus className="size-3.5 mr-1" />
-                      Agregar Invitado
+                      Agregar invitados
                     </Button>
                   </div>
                 </div>
@@ -1081,21 +1097,16 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
                           Emitir Credenciales en Lote
                         </Button>
 
-                        <a
-                          href={`/api/v1/carnetizacion/eventos/${evento.id}/pdf/`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex-1"
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={descargarGafetes}
+                          disabled={descargandoGafetes}
+                          className="min-h-11 flex-1 font-semibold text-xs border-primary/30 text-primary hover:bg-primary/10"
                         >
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="min-h-11 w-full font-semibold text-xs border-primary/30 text-primary hover:bg-primary/10"
-                          >
-                            <Download className="size-4 mr-2" />
-                            Descargar PDF Completo (90×130 mm)
-                          </Button>
-                        </a>
+                          <Download className="size-4 mr-2" />
+                          Descargar PDF Completo (90×130 mm)
+                        </Button>
                       </div>
 
                       <Button
@@ -1178,117 +1189,34 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
           {/* PESTAÑA 5: CONFIGURACIÓN DEL EVENTO                            */}
           {/* ============================================================== */}
           <TabsContent value="configuracion" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Formulario / Lista de Categorías */}
-              <Card className="border-border/60 bg-card shadow-xs">
-                <CardHeader className="pb-3 border-b border-border/40">
-                  <CardTitle className="text-sm font-bold flex items-center gap-2">
-                    <Settings className="size-4 text-primary" />
-                    Categorías de Acreditación
-                  </CardTitle>
-                </CardHeader>
-
-                <CardContent className="pt-4 space-y-4 text-xs">
-                  <form onSubmit={handleCrearCategoria} className="flex gap-2">
-                    <Input
-                      placeholder="Nombre de nueva categoría..."
-                      value={nuevaCatNombre}
-                      onChange={(e) => setNuevaCatNombre(e.target.value)}
-                      className="h-9 text-xs"
-                    />
-                    <Input
-                      type="color"
-                      value={nuevaCatColor}
-                      onChange={(e) => setNuevaCatColor(e.target.value)}
-                      className="h-9 w-12 p-0.5"
-                      title="Color distintivo"
-                    />
-                    <Button type="submit" size="sm" className="h-9 text-xs px-3 font-semibold">
-                      Agregar
-                    </Button>
-                  </form>
-
-                  <div className="space-y-2 pt-2 border-t border-border/40">
-                    {categorias.map((c) => (
-                      <div
-                        key={c.id}
-                        className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border/40"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="size-3.5 rounded-full"
-                            style={{ backgroundColor: c.color_primario || "#001f3f" }}
-                          />
-                          <span className="font-semibold text-foreground">{c.nombre}</span>
-                        </div>
-                        <Badge variant="outline" className="text-[10px]">
-                          Activa
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Formulario / Lista de Zonas */}
-              <Card className="border-border/60 bg-card shadow-xs">
-                <CardHeader className="pb-3 border-b border-border/40">
-                  <CardTitle className="text-sm font-bold flex items-center gap-2">
-                    <MapPin className="size-4 text-primary" />
-                    Zonas y Puertas de Acceso
-                  </CardTitle>
-                </CardHeader>
-
-                <CardContent className="pt-4 space-y-4 text-xs">
-                  <form onSubmit={handleCrearZona} className="space-y-2">
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="Nombre de zona (ej: Auditorio)..."
-                        value={nuevaZonaNombre}
-                        onChange={(e) => setNuevaZonaNombre(e.target.value)}
-                        className="h-9 text-xs flex-1"
-                      />
-                      <Input
-                        placeholder="Cód (ej: ZON-A)"
-                        value={nuevaZonaCodigo}
-                        onChange={(e) => setNuevaZonaCodigo(e.target.value)}
-                        className="h-9 text-xs w-24 font-mono"
-                      />
-                      <Button type="submit" size="sm" className="h-9 text-xs px-3 font-semibold">
-                        Agregar
-                      </Button>
-                    </div>
-                  </form>
-
-                  <div className="space-y-2 pt-2 border-t border-border/40">
-                    {zonas.map((z) => (
-                      <div
-                        key={z.id}
-                        className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border/40"
-                      >
-                        <span className="font-semibold text-foreground">{z.nombre}</span>
-                        {z.codigo && (
-                          <span className="font-mono text-[10px] text-muted-foreground">
-                            {z.codigo}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <ZonasCategoriasPanel
+              eventoId={eventoId}
+              categorias={categorias}
+              zonas={zonas}
+              onCambio={(texto) => {
+                setMensaje(texto);
+                cargarDatos();
+              }}
+            />
           </TabsContent>
         </Tabs>
 
         {/* Diálogos */}
-        <InvitadoCrearDialog
+        <InvitadosAgregarDialog
           open={openCrearInvitado}
           onOpenChange={setOpenCrearInvitado}
           eventoId={eventoId}
           categorias={categorias}
           zonas={zonas}
-          onInvitadoCreado={() => cargarDatos()}
+          onAgregados={(r) => {
+            setErrorAccion(null);
+            setMensaje(
+              `Se agregaron ${r.agregados} invitado${r.agregados === 1 ? "" : "s"}` +
+                (r.duplicados ? `; ${r.duplicados} ya estaban invitados y se omitieron.` : ".")
+            );
+            cargarDatos();
+          }}
+          onGestionarZonasCategorias={() => setActiveTab("configuracion")}
         />
 
         <InvitadosImportarDialog

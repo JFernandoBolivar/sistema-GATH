@@ -21,6 +21,10 @@ import {
   truncarNombre,
 } from "./disenar-carnet";
 
+function paginaVaciaPrueba<T>() {
+  return { resultados: [] as T[], total: 0, pagina: 1, tamano: 12, totalPaginas: 1 };
+}
+
 class RepoCarnetizacionMock implements RepoCarnetizacion {
   async listarCarnets(): Promise<Carnet[]> { return []; }
   async emitirCarnet(): Promise<Carnet> { throw new Error("not implemented"); }
@@ -35,6 +39,16 @@ class RepoCarnetizacionMock implements RepoCarnetizacion {
     return { total: 0, activos: 0, revocados: 0, emitidosHoy: 0, emitidosMes: 0, porMotivo: [] };
   }
   async listarTiposCredencial(): Promise<TipoCredencial[]> { return []; }
+  async listarPlantillasMotorPagina() {
+    return paginaVaciaPrueba<PlantillaMotor>();
+  }
+  async listarFondosFijos() {
+    return paginaVaciaPrueba<PlantillaCarnet>();
+  }
+  async eliminarFondoFijo(): Promise<void> {}
+  async listarBibliotecaPagina() {
+    return paginaVaciaPrueba<ElementoBiblioteca>();
+  }
   async listarPlantillasMotor(): Promise<PlantillaMotor[]> { return []; }
   async obtenerPlantillaMotor(): Promise<PlantillaMotor> { throw new Error("not implemented"); }
   async crearPlantillaBorrador(): Promise<PlantillaMotor> { throw new Error("not implemented"); }

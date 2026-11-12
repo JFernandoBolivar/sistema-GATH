@@ -1,11 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   Clock,
   Copy,
   History,
@@ -38,14 +36,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import type { PlantillaMotor, TipoCredencial } from "../../../domain/entities/carnet";
+import type { PaginaCarnet, PlantillaMotor, TipoCredencial } from "../../../domain/entities/carnet";
+import { PaginadorServidor } from "../paginador-servidor";
 import { PlantillaMiniatura } from "./plantilla-miniatura";
 
 interface PlantillasMotorGridProps {
   tipoActivo: string;
   onCambiarTipoActivo: (tipo: string) => void;
   tiposCredencial: TipoCredencial[];
-  plantillasMotor: PlantillaMotor[];
+  /** Página actual del servidor (ya filtrada por tipo y búsqueda). */
+  paginaMotor: PaginaCarnet<PlantillaMotor>;
+  busqueda: string;
+  onCambiarBusqueda: (valor: string) => void;
+  onCambiarPagina: (pagina: number) => void;
+  onCambiarTamano: (tamano: number) => void;
   cargandoMotor: boolean;
   isPending: boolean;
   onAbrirModalNuevo: () => void;
@@ -60,7 +64,11 @@ export function PlantillasMotorGrid({
   tipoActivo,
   onCambiarTipoActivo,
   tiposCredencial,
-  plantillasMotor,
+  paginaMotor,
+  busqueda,
+  onCambiarBusqueda,
+  onCambiarPagina,
+  onCambiarTamano,
   cargandoMotor,
   isPending,
   onAbrirModalNuevo,
@@ -70,23 +78,9 @@ export function PlantillasMotorGrid({
   onDuplicarMotor,
   onEliminarMotor,
 }: PlantillasMotorGridProps) {
-  const [busqueda, setBusqueda] = useState("");
-  const [pagina, setPagina] = useState(1);
-  const [porPagina] = useState(6);
   const [plantillaAEliminar, setPlantillaAEliminar] = useState<PlantillaMotor | null>(null);
-
-  const filtradas = useMemo(() => {
-    const q = busqueda.trim().toLowerCase();
-    if (!q) return plantillasMotor;
-    return plantillasMotor.filter((p) =>
-      `${p.nombre} ${p.codigo_tipo} ${p.estado} ${p.version}`.toLowerCase().includes(q),
-    );
-  }, [plantillasMotor, busqueda]);
-
-  const totalPaginas = Math.max(1, Math.ceil(filtradas.length / porPagina));
-  const paginaActual = Math.min(pagina, totalPaginas);
-  const inicio = (paginaActual - 1) * porPagina;
-  const visibles = filtradas.slice(inicio, inicio + porPagina);
+  const visibles = paginaMotor.resultados;
+  const hayBusqueda = busqueda.trim().length > 0;
 
   const confirmarEliminacion = () => {
     if (!plantillaAEliminar) return;
@@ -145,18 +139,15 @@ export function PlantillasMotorGrid({
           <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           <Input
             value={busqueda}
-            onChange={(e) => {
-              setBusqueda(e.target.value);
-              setPagina(1);
-            }}
-            placeholder="Buscar plantilla por nombre, tipo o versión…"
-            className="pl-9 h-10 text-sm"
+            onChange={(e) => onCambiarBusqueda(e.target.value)}
+            placeholder="Buscar plantilla por nombre…"
+            className="pl-9"
             aria-label="Buscar plantilla"
           />
         </div>
         <span className="text-xs text-muted-foreground">
-          {filtradas.length} plantilla{filtradas.length === 1 ? "" : "s"}
-          {busqueda.trim() ? " encontradas" : " registradas"}
+          {paginaMotor.total} plantilla{paginaMotor.total === 1 ? "" : "s"}
+          {hayBusqueda ? " encontradas" : " registradas"}
         </span>
       </div>
 
@@ -165,21 +156,21 @@ export function PlantillasMotorGrid({
         <div className="flex justify-center items-center py-20">
           <Loader2 className="size-8 animate-spin text-primary" />
         </div>
-      ) : filtradas.length === 0 ? (
+      ) : visibles.length === 0 ? (
         <Card className="shadow-xs border border-dashed">
           <CardContent className="text-center py-12">
             <Palette className="size-12 mx-auto text-muted-foreground/40" />
             <h3 className="text-base font-semibold text-foreground mt-4">
-              {busqueda.trim()
+              {hayBusqueda
                 ? "No hay plantillas que coincidan con la búsqueda"
                 : "No hay plantillas registradas para este tipo"}
             </h3>
             <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-              {busqueda.trim()
-                ? "Pruebe con otro nombre, tipo o versión."
+              {hayBusqueda
+                ? "Pruebe con otro nombre."
                 : "Crea una nueva plantilla en borrador para configurar las dimensiones y capas oficiales."}
             </p>
-            {!busqueda.trim() && (
+            {!hayBusqueda && (
               <Button onClick={onAbrirModalNuevo} className="mt-4 gap-2" variant="outline">
                 <PlusCircle className="size-4" />
                 Crear plantilla
@@ -377,39 +368,16 @@ export function PlantillasMotorGrid({
         </div>
       )}
 
-      {totalPaginas > 1 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-border pt-4 text-xs text-muted-foreground">
-          <span>
-            Mostrando {filtradas.length ? inicio + 1 : 0}–
-            {Math.min(inicio + porPagina, filtradas.length)} de {filtradas.length}
-          </span>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 px-2.5 text-xs"
-              disabled={paginaActual <= 1}
-              onClick={() => setPagina((p) => Math.max(1, p - 1))}
-            >
-              <ChevronLeft className="size-3.5" />
-              Anterior
-            </Button>
-            <span className="px-2 font-medium">
-              {paginaActual} / {totalPaginas}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 px-2.5 text-xs"
-              disabled={paginaActual >= totalPaginas}
-              onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
-            >
-              Siguiente
-              <ChevronRight className="size-3.5" />
-            </Button>
-          </div>
-        </div>
-      )}
+      <PaginadorServidor
+        id="filas-plantillas-motor"
+        pagina={paginaMotor.pagina}
+        totalPaginas={paginaMotor.totalPaginas}
+        tamano={paginaMotor.tamano}
+        total={paginaMotor.total}
+        cargando={cargandoMotor}
+        onPagina={onCambiarPagina}
+        onTamano={onCambiarTamano}
+      />
 
       <AlertDialog
         open={!!plantillaAEliminar}

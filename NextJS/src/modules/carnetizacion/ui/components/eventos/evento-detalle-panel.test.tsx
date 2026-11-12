@@ -17,6 +17,7 @@ const acciones = vi.hoisted(() => ({
 }));
 
 vi.mock("@/modules/carnetizacion/infrastructure/actions/eventos-actions", () => acciones);
+vi.mock("@/modules/organizacion/infrastructure/actions/organizacion-actions", () => ({ getDependenciasAction: vi.fn() }));
 vi.mock("@/modules/carnetizacion/infrastructure/actions/carnetizacion-actions", () => ({
   consultarFichaQrAction: acciones.consultarFichaQrAction,
 }));
@@ -143,7 +144,7 @@ describe("EventoDetallePanel - Hub Integral de Eventos", () => {
     expect(screen.getByText(/Invitados \(\d+\)/)).toBeInTheDocument();
     expect(screen.getByText("Gafetes")).toBeInTheDocument();
     expect(screen.getByText("Control")).toBeInTheDocument();
-    expect(screen.getByText("Configuración")).toBeInTheDocument();
+    expect(screen.getByText("Zonas y categorías")).toBeInTheDocument();
 
     // Métricas en la pestaña Resumen
     expect(await screen.findByText("Invitados")).toBeInTheDocument();

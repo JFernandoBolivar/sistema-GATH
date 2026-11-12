@@ -4,6 +4,7 @@ Casos de Uso para Gestión e Importación de Invitados a Eventos (Regla B4, O45-
 import hashlib
 import secrets
 import uuid
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
@@ -17,7 +18,14 @@ from apps.carnetizacion.domain.entities.evento import (
     EstadoInvitado,
     EventoInvitado,
 )
+from apps.carnetizacion.domain.entities.persona_origen import (
+    POBLACIONES,
+    TOPE_AGREGAR_EN_BLOQUE,
+    PersonaOrigen,
+)
 from apps.carnetizacion.domain.ports.repo_eventos import RepoEventosPort
+from apps.carnetizacion.domain.ports.repo_origen_invitados import RepoOrigenInvitadosPort
+from core.domain.exceptions import NotFoundError, ValidationError
 
 
 def _generar_hash_invitado(evento_id: str, nombre: str) -> str:
@@ -283,3 +291,156 @@ class ImportarInvitadosUseCase:
             filas_invalidas=total_invalidas,
             filas=filas_procesadas,
         )
+
+
+# ─── Agregar invitados desde personas registradas (trabajadores y externos) ───
+
+def _normalizar_poblacion(poblacion: str | None) -> str:
+    valor = (poblacion or "TODOS").strip().upper()
+    if valor not in POBLACIONES:
+        raise ValidationError("La población debe ser TODOS, ACTIVOS o PASIVOS.", campo="poblacion")
+    return valor
+
+
+def _clave_doc(documento: str) -> str:
+    return "".join(ch for ch in (documento or "").upper() if ch.isalnum())
+
+
+class BuscarPersonalInvitableUseCase:
+    """Página de trabajadores del filtro, marcando a quienes ya están invitados."""
+
+    def __init__(self, repo_eventos: RepoEventosPort, repo_origen: RepoOrigenInvitadosPort):
+        self.repo_eventos = repo_eventos
+        self.repo_origen = repo_origen
+
+    def ejecutar(
+        self,
+        evento_id: str,
+        poblacion: str | None,
+        dependencia_id: int | None,
+        busqueda: str,
+        offset: int,
+        limite: int,
+    ) -> tuple[list[PersonaOrigen], int]:
+        busqueda = (busqueda or "").strip()
+        if busqueda and len(busqueda) < 2:
+            return [], 0
+        personas, total = self.repo_origen.buscar_personal(
+            _normalizar_poblacion(poblacion), dependencia_id, busqueda, offset, limite
+        )
+        ya = self.repo_eventos.documentos_invitados(evento_id)
+        for p in personas:
+            p.ya_invitado = _clave_doc(p.documento) in ya
+        return personas, total
+
+
+class BuscarExternosInvitablesUseCase:
+    def __init__(self, repo_eventos: RepoEventosPort, repo_origen: RepoOrigenInvitadosPort):
+        self.repo_eventos = repo_eventos
+        self.repo_origen = repo_origen
+
+    def ejecutar(
+        self, evento_id: str, busqueda: str, offset: int, limite: int
+    ) -> tuple[list[PersonaOrigen], int]:
+        busqueda = (busqueda or "").strip()
+        if busqueda and len(busqueda) < 2:
+            return [], 0
+        personas, total = self.repo_origen.buscar_externos(busqueda, offset, limite)
+        ya = self.repo_eventos.documentos_invitados(evento_id)
+        for p in personas:
+            p.ya_invitado = _clave_doc(p.documento) in ya
+        return personas, total
+
+
+class IdsPersonasInvitablesUseCase:
+    """Claves (cédulas o ids) de todo el filtro, sin quienes ya están invitados."""
+
+    def __init__(self, repo_eventos: RepoEventosPort, repo_origen: RepoOrigenInvitadosPort):
+        self.repo_eventos = repo_eventos
+        self.repo_origen = repo_origen
+
+    def personal(
+        self, evento_id: str, poblacion: str | None, dependencia_id: int | None, busqueda: str
+    ) -> list[str]:
+        busqueda = (busqueda or "").strip()
+        if busqueda and len(busqueda) < 2:
+            return []
+        cedulas = self.repo_origen.cedulas_personal(
+            _normalizar_poblacion(poblacion), dependencia_id, busqueda, TOPE_AGREGAR_EN_BLOQUE
+        )
+        ya = self.repo_eventos.documentos_invitados(evento_id)
+        return [c for c in cedulas if _clave_doc(c) not in ya]
+
+    def externos(self, evento_id: str, busqueda: str) -> list[str]:
+        busqueda = (busqueda or "").strip()
+        if busqueda and len(busqueda) < 2:
+            return []
+        return self.repo_origen.ids_externos(busqueda, TOPE_AGREGAR_EN_BLOQUE)
+
+
+@dataclass
+class ResultadoAgregarBloque:
+    agregados: int
+    duplicados: int
+    solicitados: int
+
+
+class AgregarInvitadosEnBloqueUseCase:
+    """Agrega invitados desde trabajadores (cédulas o filtro de población) o credenciales externas."""
+
+    def __init__(self, repo_eventos: RepoEventosPort, repo_origen: RepoOrigenInvitadosPort):
+        self.repo_eventos = repo_eventos
+        self.repo_origen = repo_origen
+
+    def ejecutar(
+        self,
+        evento_id: str,
+        categoria_id: str,
+        zona_id: str,
+        *,
+        cedulas: list[str] | None = None,
+        poblacion: str | None = None,
+        dependencia_id: int | None = None,
+        externos_ids: list[str] | None = None,
+    ) -> ResultadoAgregarBloque:
+        if not self.repo_eventos.obtener_evento(evento_id):
+            raise NotFoundError("Evento no encontrado.")
+        cat = self.repo_eventos.obtener_categoria(categoria_id)
+        zona = self.repo_eventos.obtener_zona(zona_id)
+        if not cat or str(cat.evento_id) != str(evento_id):
+            raise ValidationError("La categoría no pertenece al evento.", campo="categoria_id")
+        if not zona or str(zona.evento_id) != str(evento_id):
+            raise ValidationError("La zona no pertenece al evento.", campo="zona_id")
+
+        cedulas = [c for c in (cedulas or []) if c]
+        externos_ids = [i for i in (externos_ids or []) if i]
+        if not cedulas and not externos_ids and poblacion is None:
+            raise ValidationError("Seleccione al menos una persona o un filtro de población.")
+        if len(cedulas) + len(externos_ids) > TOPE_AGREGAR_EN_BLOQUE:
+            raise ValidationError(
+                f"No se pueden agregar más de {TOPE_AGREGAR_EN_BLOQUE} invitados a la vez; "
+                "acote la selección."
+            )
+
+        personas: list[PersonaOrigen] = []
+        if cedulas or (poblacion is not None and not externos_ids):
+            personas += self.repo_origen.resolver_personal(
+                cedulas or None,
+                _normalizar_poblacion(poblacion),
+                dependencia_id,
+                TOPE_AGREGAR_EN_BLOQUE + 1,
+            )
+        if externos_ids:
+            personas += self.repo_origen.resolver_externos(externos_ids, TOPE_AGREGAR_EN_BLOQUE)
+        if len(personas) > TOPE_AGREGAR_EN_BLOQUE:
+            raise ValidationError(
+                f"El filtro supera el tope de {TOPE_AGREGAR_EN_BLOQUE} invitados por operación; "
+                "acótelo (por dependencia o búsqueda)."
+            )
+        if not personas:
+            return ResultadoAgregarBloque(0, 0, 0)
+
+        agregados, duplicados = self.repo_eventos.agregar_invitados_en_bloque(
+            evento_id, categoria_id, zona_id, personas
+        )
+        return ResultadoAgregarBloque(agregados, duplicados, len(personas))

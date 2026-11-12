@@ -2,10 +2,12 @@
 Repositorio ORM de Eventos, Categorías, Zonas e Invitados (Regla B2/B3, O45-B).
 """
 import logging
+import secrets
 import uuid
 from datetime import datetime
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
+from django.utils import timezone
 
 from apps.carnetizacion.domain.entities.evento import (
     EstadoEvento,
@@ -17,6 +19,7 @@ from apps.carnetizacion.domain.entities.evento import (
     RegistroAccesoEvento,
     ResumenPanelEvento,
 )
+from apps.carnetizacion.domain.entities.persona_origen import PersonaOrigen
 from apps.carnetizacion.domain.ports.repo_eventos import RepoEventosPort
 from apps.carnetizacion.infrastructure.mappers.mapper_eventos import (
     a_entidad_categoria,
@@ -84,6 +87,46 @@ class RepoEventosORM(RepoEventosPort):
                 Q(nombre__icontains=busqueda) | Q(lugar__icontains=busqueda)
             )
         return [a_entidad_evento(m) for m in qs]
+
+    @staticmethod
+    def _qs_eventos_filtrado(estado: str | None, busqueda: str | None):
+        """«activo» = en curso (ya empezó); «proximo» = activo que aún no empieza."""
+        ahora = timezone.now()
+        qs = EventoModel.objects.all().order_by('-fecha_inicio', 'id')
+        if estado == 'proximo':
+            qs = qs.filter(estado='activo', fecha_inicio__gt=ahora)
+        elif estado == 'activo':
+            qs = qs.filter(estado='activo', fecha_inicio__lte=ahora)
+        elif estado:
+            qs = qs.filter(estado=estado)
+        termino = (busqueda or '').strip()
+        if termino:
+            qs = qs.filter(Q(nombre__icontains=termino) | Q(lugar__icontains=termino))
+        return qs
+
+    def listar_eventos_paginado(
+        self,
+        offset: int,
+        limite: int,
+        estado: str | None = None,
+        busqueda: str | None = None,
+    ) -> tuple[list[Evento], int]:
+        qs = self._qs_eventos_filtrado(estado, busqueda)
+        total = qs.count()
+        return [a_entidad_evento(m) for m in qs[offset:offset + limite]], total
+
+    def resumen_global_eventos(self) -> dict[str, int]:
+        ahora = timezone.now()
+        activos = EventoModel.objects.filter(estado='activo')
+        return {
+            'eventos': EventoModel.objects.count(),
+            'en_curso': activos.filter(fecha_inicio__lte=ahora).count(),
+            'proximos': activos.filter(fecha_inicio__gt=ahora).count(),
+            'invitados': EventoInvitadoModel.objects.count(),
+            'ingresos': EventoInvitadoModel.objects.filter(
+                estado=EstadoInvitado.INGRESO.value
+            ).count(),
+        }
 
     # ─── Categorías ───
     def crear_categoria(self, categoria: EventoCategoria) -> EventoCategoria:
@@ -316,6 +359,71 @@ class RepoEventosORM(RepoEventosPort):
                 | Q(correo__icontains=term)
             )
         return qs
+
+    @staticmethod
+    def _normalizar_documento(valor: str) -> str:
+        return ''.join(ch for ch in (valor or '').upper() if ch.isalnum())
+
+    def documentos_invitados(self, evento_id: str) -> set[str]:
+        docs = EventoInvitadoModel.objects.filter(evento_id=evento_id).values_list(
+            'documento_identidad', flat=True
+        )
+        return {self._normalizar_documento(d) for d in docs if d}
+
+    def agregar_invitados_en_bloque(
+        self,
+        evento_id: str,
+        categoria_id: str,
+        zona_id: str,
+        personas: list[PersonaOrigen],
+    ) -> tuple[int, int]:
+        for intento in range(4):
+            try:
+                with transaction.atomic():
+                    vistos = self.documentos_invitados(evento_id)
+                    nuevos: list[EventoInvitadoModel] = []
+                    duplicados = 0
+                    siguiente = int(self.siguiente_codigo_credencial().split('-', 1)[1])
+                    for p in personas:
+                        clave = self._normalizar_documento(p.documento)
+                        if clave and clave in vistos:
+                            duplicados += 1
+                            continue
+                        if clave:
+                            vistos.add(clave)
+                        nuevos.append(EventoInvitadoModel(
+                            id=str(uuid.uuid4()),
+                            evento_id=evento_id,
+                            nombre_completo=p.nombre[:150],
+                            categoria_id=categoria_id,
+                            zona_id=zona_id,
+                            documento_identidad=p.documento[:30],
+                            organizacion=(p.organizacion or p.dependencia)[:150],
+                            correo=p.correo,
+                            codigo_credencial=f'INV-{siguiente:04d}',
+                            security_hash=secrets.token_hex(32),
+                            trabajador_titular_id=p.empleado_id,
+                            estado='registrado',
+                        ))
+                        siguiente += 1
+                    EventoInvitadoModel.objects.bulk_create(nuevos, batch_size=500)
+                    return len(nuevos), duplicados
+            except IntegrityError as exc:
+                if 'codigo_credencial' not in str(exc) or intento == 3:
+                    raise
+        raise RuntimeError('No se pudieron asignar códigos de credencial únicos.')
+
+    def contar_invitados_categoria(self, categoria_id: str) -> int:
+        return EventoInvitadoModel.objects.filter(categoria_id=categoria_id).count()
+
+    def contar_invitados_zona(self, zona_id: str) -> int:
+        return EventoInvitadoModel.objects.filter(zona_id=zona_id).count()
+
+    def eliminar_categoria(self, categoria_id: str) -> None:
+        EventoCategoriaModel.objects.filter(id=categoria_id).delete()
+
+    def eliminar_zona(self, zona_id: str) -> None:
+        EventoZonaModel.objects.filter(id=zona_id).delete()
 
     def registrar_ingreso(
         self,

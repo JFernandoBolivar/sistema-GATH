@@ -121,6 +121,25 @@ export interface PanelEvento {
   por_zona: Record<string, number>;
 }
 
+/** Totales reales de todos los eventos (no de la página). */
+export interface ResumenEventos {
+  eventos: number;
+  en_curso: number;
+  proximos: number;
+  invitados: number;
+  ingresos: number;
+}
+
+/** Página de eventos (paginada en el servidor). */
+export interface PaginaEventos {
+  resultados: Evento[];
+  total: number;
+  pagina: number;
+  tamano: number;
+  total_paginas: number;
+  resumen: ResumenEventos;
+}
+
 /** Página de invitados de un evento (paginada en el servidor). */
 export interface PaginaInvitados {
   resultados: EventoInvitado[];
@@ -138,4 +157,53 @@ export interface FiltrosInvitados {
   busqueda?: string;
   pagina?: number;
   page_size?: number;
+}
+
+export type PoblacionInvitable = "TODOS" | "ACTIVOS" | "PASIVOS";
+
+/** Tope de invitados por operación en bloque (espejo del backend). */
+export const TOPE_AGREGAR_EN_BLOQUE = 2000;
+
+/** Persona registrada (trabajador o credencial externa) que puede invitarse a un evento. */
+export interface PersonaInvitable {
+  tipo: "TRABAJADOR" | "EXTERNO";
+  clave: string;
+  nombre: string;
+  documento: string;
+  cargo: string;
+  dependencia: string;
+  condicion: string;
+  foto_url: string;
+  ya_invitado: boolean;
+}
+
+export interface PaginaPersonasInvitables {
+  resultados: PersonaInvitable[];
+  total: number;
+  pagina: number;
+  tamano: number;
+  total_paginas: number;
+}
+
+export interface FiltroPersonalInvitable {
+  poblacion: PoblacionInvitable;
+  dependencia_id?: number;
+  busqueda?: string;
+  pagina?: number;
+  page_size?: number;
+}
+
+export interface SolicitudAgregarEnBloque {
+  categoria_id: string;
+  zona_id: string;
+  poblacion?: PoblacionInvitable;
+  dependencia_id?: number;
+  cedulas?: string[];
+  externos_ids?: string[];
+}
+
+export interface ResultadoAgregarEnBloque {
+  agregados: number;
+  duplicados: number;
+  solicitados: number;
 }

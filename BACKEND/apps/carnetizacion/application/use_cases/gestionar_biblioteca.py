@@ -4,6 +4,7 @@ Casos de uso para la Biblioteca Compartida de Logos, Firmas e Imágenes (O44 - E
 from apps.carnetizacion.application.dtos.carnetizacion_dtos import ElementoBibliotecaDTO
 from apps.carnetizacion.domain.entities.elemento_biblioteca import ElementoBiblioteca
 from apps.carnetizacion.domain.ports.repo_carnetizacion import RepoCarnetizacion
+from apps.carnetizacion.domain.value_objects.paginacion import Paginacion
 from apps.carnetizacion.domain.services.validador_multimedia import validar_archivo_biblioteca
 
 
@@ -30,6 +31,22 @@ def listar_elementos_biblioteca_uc(
     """Lista todos los recursos de la biblioteca o filtra por categoría."""
     elementos = repo.listar_elementos_biblioteca(categoria=categoria)
     return [elemento_biblioteca_a_dto(e) for e in elementos]
+
+
+def listar_elementos_biblioteca_paginado_uc(
+    repo: RepoCarnetizacion,
+    paginacion: Paginacion,
+    categoria: str | None = None,
+    busqueda: str = "",
+) -> tuple[list[ElementoBibliotecaDTO], int]:
+    """Una página de la biblioteca con filtro por categoría y búsqueda por nombre en el servidor."""
+    elementos, total = repo.listar_elementos_biblioteca_paginado(
+        categoria=categoria or None,
+        busqueda=busqueda.strip(),
+        offset=paginacion.offset,
+        limite=paginacion.tamano,
+    )
+    return [elemento_biblioteca_a_dto(e) for e in elementos], total
 
 
 def subir_elemento_biblioteca_uc(

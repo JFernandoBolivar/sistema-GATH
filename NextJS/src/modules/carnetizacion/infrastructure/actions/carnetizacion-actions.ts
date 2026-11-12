@@ -10,6 +10,7 @@ import type { ZodError } from "zod";
 
 import {
   listarBiblioteca,
+  listarBibliotecaPagina,
   subirElementoBiblioteca,
   eliminarElementoBiblioteca,
 } from "../../application/use-cases/gestionar-biblioteca";
@@ -24,7 +25,7 @@ import {
   obtenerPreferenciasPrivacidadUC,
   guardarPreferenciasPrivacidadUC,
 } from "../../application/use-cases/consultar-qr-ficha";
-import type { CategoriaBiblioteca, PreferenciasPrivacidadCarnet } from "../../domain/entities/carnet";
+import type { CategoriaBiblioteca, ParamsPagina, PreferenciasPrivacidadCarnet } from "../../domain/entities/carnet";
 
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
@@ -353,6 +354,19 @@ export async function generarCarnetPdfAction(
   }
 }
 
+/** Vista previa fiel del estilo del QR: PNG del backend como data URL. */
+export async function vistaPreviaQrAction(qrEstilo: unknown) {
+  try {
+    const { carnetizacionApi } = await import("../http/carnetizacion-api");
+    const blob = await carnetizacionApi.vistaPreviaQr(qrEstilo);
+    const base64 = Buffer.from(await blob.arrayBuffer()).toString("base64");
+    return { success: true as const, data: `data:image/png;base64,${base64}` };
+  } catch (error) {
+    handleSessionExpired(error);
+    return { success: false as const, data: null };
+  }
+}
+
 export async function getTiposCredencialAction(grupo?: string) {
   const traceId = generateTraceId();
   const startedAt = Date.now();
@@ -378,6 +392,51 @@ export async function getPlantillasMotorAction(tipo?: string, estado?: string, a
     await logAudit({ traceId, action: "getPlantillasMotorAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return [];
+  }
+}
+
+/** Una página de plantillas por capas del tipo indicado (paginada y con búsqueda en el servidor). */
+export async function getPlantillasMotorPaginaAction(tipo: string | undefined, params: ParamsPagina) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await repoCarnetizacionApi.listarPlantillasMotorPagina(tipo, params);
+    await logAudit({ traceId, action: "getPlantillasMotorPaginaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const, data: result };
+  } catch (error) {
+    await logAudit({ traceId, action: "getPlantillasMotorPaginaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return { success: false as const, error: "No fue posible listar las plantillas." };
+  }
+}
+
+/** Una página de fondos fijos (clásicos), paginada y con búsqueda por nombre en el servidor. */
+export async function getFondosFijosAction(params: ParamsPagina) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await repoCarnetizacionApi.listarFondosFijos(params);
+    await logAudit({ traceId, action: "getFondosFijosAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const, data: result };
+  } catch (error) {
+    await logAudit({ traceId, action: "getFondosFijosAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return { success: false as const, error: "No fue posible listar los fondos fijos." };
+  }
+}
+
+/** Elimina un fondo fijo; el servidor rechaza el que está activo (en uso) con un mensaje en español. */
+export async function eliminarFondoFijoAction(id: number | string) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    await repoCarnetizacionApi.eliminarFondoFijo(id);
+    await logAudit({ traceId, action: "eliminarFondoFijoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const };
+  } catch (error) {
+    await logAudit({ traceId, action: "eliminarFondoFijoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return { success: false as const, ...errorDeAccion(error, "No fue posible eliminar el fondo fijo.") };
   }
 }
 
@@ -527,6 +586,25 @@ export async function getBibliotecaAction(categoria?: string) {
     return { success: true as const, data: result };
   } catch (error) {
     await logAudit({ traceId, action: "getBibliotecaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return { success: false as const, error: "No fue posible listar la biblioteca de medios." };
+  }
+}
+
+/** Una página de la biblioteca con filtro por categoría y búsqueda por nombre en el servidor. */
+export async function getBibliotecaPaginaAction(categoria: string | undefined, params: ParamsPagina) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarBibliotecaPagina(
+      repoCarnetizacionApi,
+      categoria as CategoriaBiblioteca | undefined,
+      params,
+    );
+    await logAudit({ traceId, action: "getBibliotecaPaginaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const, data: result };
+  } catch (error) {
+    await logAudit({ traceId, action: "getBibliotecaPaginaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return { success: false as const, error: "No fue posible listar la biblioteca de medios." };
   }
