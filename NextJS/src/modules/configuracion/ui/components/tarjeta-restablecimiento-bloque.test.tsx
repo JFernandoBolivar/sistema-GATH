@@ -47,7 +47,7 @@ function abrir() {
 
 async function irAlPaso2() {
   fireEvent.change(screen.getByLabelText(/Motivo/), { target: { value: "Plazo inicial vencido" } });
-  fireEvent.click(screen.getByRole("button", { name: /Siguiente →/ }));
+  fireEvent.click(screen.getByRole("button", { name: /^Siguiente$/ }));
   await screen.findByTestId("vista-previa-bloque");
 }
 
@@ -64,7 +64,7 @@ describe("Asistente de restablecimiento en bloque", () => {
     const vencida = await screen.findByRole("radio", { name: /Contraseña inicial vencida/ });
     expect(vencida).toBeChecked();
     fireEvent.change(screen.getByLabelText(/Motivo/), { target: { value: "corto" } });
-    fireEvent.click(screen.getByRole("button", { name: /Siguiente →/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Siguiente$/ }));
     expect(await screen.findByText(/al menos 10 caracteres/)).toBeInTheDocument();
     expect(calcular).not.toHaveBeenCalled();
   });

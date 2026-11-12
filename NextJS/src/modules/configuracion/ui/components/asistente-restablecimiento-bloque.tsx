@@ -637,7 +637,7 @@ export function AsistenteRestablecimientoBloque({ abierto, onCerrar }: Props) {
                 disabled={calculando}
                 onClick={() => calcular({ clasificacion, alcance, enviarCorreo, motivo })}
               >
-                {calculando ? "Calculando…" : "Siguiente →"}
+                {calculando ? "Calculando…" : "Siguiente"}
                 {!calculando && <ArrowRight className="ml-1.5 size-3.5" />}
               </Button>
             )}
