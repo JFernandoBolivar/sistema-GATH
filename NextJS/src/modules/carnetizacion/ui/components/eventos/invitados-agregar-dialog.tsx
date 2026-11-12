@@ -1,5 +1,6 @@
 "use client";
 
+import { Avatar, AvatarFallback, AvatarImage } from "@/shared/ui/components/avatar";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
 
@@ -136,17 +137,13 @@ function ListaPersonas({
                 onCheckedChange={() => onAlternar(p)}
                 aria-label={`Seleccionar a ${p.nombre}`}
               />
-              <span
-                className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-xs font-semibold text-muted-foreground"
-                aria-hidden
-              >
-                {p.foto_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={p.foto_url} alt="" className="size-full object-cover" />
-                ) : (
-                  iniciales(p.nombre)
-                )}
-              </span>
+              {/* Si la foto no existe o no carga, Avatar muestra las iniciales. */}
+              <Avatar className="size-9 shrink-0" aria-hidden>
+                {p.foto_url ? <AvatarImage src={p.foto_url} alt="" className="object-cover" /> : null}
+                <AvatarFallback className="bg-muted text-xs font-semibold text-muted-foreground">
+                  {iniciales(p.nombre)}
+                </AvatarFallback>
+              </Avatar>
               <Label htmlFor={id} className="min-w-0 flex-1 cursor-pointer flex-col items-start gap-0">
                 <span className="truncate text-sm font-semibold">{p.nombre}</span>
                 <span className="truncate text-xs font-normal text-muted-foreground">
