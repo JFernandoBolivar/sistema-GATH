@@ -25,6 +25,17 @@ import {
   REGLAS_COLOR_DEFECTO,
   resolverColorDeRegla,
 } from "../../domain/entities/disenador";
+import {
+  agregarPuntoCercano,
+  cambiarRadioPunto,
+  eliminarPunto,
+  generarPathDesdePuntos,
+  moverPunto,
+  puntosDesdePath,
+  PUNTOS_FRANJA_DIAGONAL,
+  PUNTOS_TRIANGULO,
+  type PuntoForma,
+} from "../../domain/entities/forma-puntos";
 import { crearElementosInicialesDefecto } from "../../domain/entities/disenador-plantilla-defecto";
 import { buscarEmpleadoParaCarnetAction } from "../../infrastructure/actions/carnetizacion-actions";
 
@@ -50,6 +61,10 @@ export function useDisenadorEditor({
     [],
   );
   const [mostrarGuias, setMostrarGuias] = useState(true);
+  // Modo «Editar puntos»: elemento en edición y vértice seleccionado
+  const [edicionPuntos, setEdicionPuntos] = useState<{ id: string; indice: number | null } | null>(null);
+  const edicionRef = useRef(edicionPuntos);
+  edicionRef.current = edicionPuntos;
 
   // Estados de definición y capas
   const [elementos, setElementos] = useState<ElementoKonva[]>([]);
@@ -164,6 +179,89 @@ export function useDisenadorEditor({
     toast.success(seleccionIds.length === 1 ? "Elemento eliminado." : "Elementos eliminados.");
   };
 
+  // --- Edición de puntos (cada cambio entra al historial: se puede deshacer) ---
+  const aplicarPuntos = (id: string, puntos: PuntoForma[], extra: Partial<ElementoKonva> = {}) => {
+    const el = elementosRef.current.find((e) => e.id === id);
+    if (!el) return;
+    handleActualizarElemento(id, {
+      t: "path",
+      puntos,
+      path: generarPathDesdePuntos(puntos, el.w, el.h),
+      ...extra,
+    });
+  };
+
+  const iniciarEdicionPuntos = (id: string) => {
+    const el = elementosRef.current.find((e) => e.id === id);
+    if (!el) return;
+    if (!el.puntos) {
+      const inicial: PuntoForma[] | null =
+        el.t === "tri"
+          ? [...PUNTOS_TRIANGULO]
+          : el.t === "diag"
+            ? [...PUNTOS_FRANJA_DIAGONAL]
+            : el.t === "path"
+              ? puntosDesdePath(el.path || "")
+              : null;
+      if (!inicial) {
+        toast.error("Esta forma no se puede editar por puntos; usa el código SVG avanzado.");
+        return;
+      }
+      if (el.t === "path" && el.path && /[CQcq]/.test(el.path)) {
+        toast.info("Las curvas pasaron a vértices; usa el radio de cada punto para curvar esa esquina.");
+      }
+      aplicarPuntos(id, inicial);
+    }
+    setSeleccionIds([id]);
+    setEdicionPuntos({ id, indice: null });
+  };
+  const terminarEdicionPuntos = () => setEdicionPuntos(null);
+  const seleccionarPunto = (indice: number | null) =>
+    setEdicionPuntos((prev) => (prev ? { ...prev, indice } : prev));
+  const moverPuntoEditado = (indice: number, x: number, y: number) => {
+    const ed = edicionRef.current;
+    const el = ed && elementosRef.current.find((e) => e.id === ed.id);
+    if (!ed || !el?.puntos) return;
+    aplicarPuntos(ed.id, moverPunto(el.puntos, indice, x, y));
+  };
+  const agregarPuntoEditado = (x: number, y: number) => {
+    const ed = edicionRef.current;
+    const el = ed && elementosRef.current.find((e) => e.id === ed.id);
+    if (!ed || !el?.puntos) return;
+    const res = agregarPuntoCercano(el.puntos, x, y, el.w, el.h);
+    aplicarPuntos(ed.id, res.puntos);
+    setEdicionPuntos({ id: ed.id, indice: res.indice });
+  };
+  const eliminarPuntoEditado = () => {
+    const ed = edicionRef.current;
+    const el = ed && elementosRef.current.find((e) => e.id === ed.id);
+    if (!ed || ed.indice === null || !el?.puntos) return;
+    if (el.puntos.length <= 3) {
+      toast.warning("Una forma necesita al menos 3 puntos.");
+      return;
+    }
+    aplicarPuntos(ed.id, eliminarPunto(el.puntos, ed.indice));
+    setEdicionPuntos({ id: ed.id, indice: null });
+  };
+  const cambiarRadioPuntoEditado = (indice: number, r: number) => {
+    const ed = edicionRef.current;
+    const el = ed && elementosRef.current.find((e) => e.id === ed.id);
+    if (!ed || !el?.puntos) return;
+    aplicarPuntos(ed.id, cambiarRadioPunto(el.puntos, indice, r));
+  };
+  /** Pasa la forma a path libre (sin puntos) para editar el código a mano. */
+  const convertirAPathLibre = (id: string) => {
+    handleActualizarElemento(id, { puntos: undefined });
+    setEdicionPuntos(null);
+  };
+
+  // Al cambiar la selección se sale del modo de edición de puntos
+  useEffect(() => {
+    if (edicionPuntos && !(seleccionIds.length === 1 && seleccionIds[0] === edicionPuntos.id)) {
+      setEdicionPuntos(null);
+    }
+  }, [seleccionIds, edicionPuntos]);
+
   // Selección múltiple
   const seleccionarElemento = (id: string | null, aditivo = false) => {
     if (id === null) return setSeleccionIds([]);
@@ -176,12 +274,22 @@ export function useDisenadorEditor({
   };
 
   // Atajos: Supr/Delete, Escape, Ctrl+A (no se activan al escribir en un campo)
-  const atajosRef = useRef({ eliminarElemento, caraActual });
-  atajosRef.current = { eliminarElemento, caraActual };
+  const atajosRef = useRef({ eliminarElemento, eliminarPuntoEditado, caraActual });
+  atajosRef.current = { eliminarElemento, eliminarPuntoEditado, caraActual };
   useEffect(() => {
     const alPulsar = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
+      if (edicionRef.current) {
+        // En «Editar puntos» Supr/Retroceso borra el vértice y Esc sale del modo.
+        if (e.key === "Delete" || e.key === "Backspace") {
+          e.preventDefault();
+          atajosRef.current.eliminarPuntoEditado();
+        } else if (e.key === "Escape") {
+          setEdicionPuntos(null);
+        }
+        return;
+      }
       if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
         atajosRef.current.eliminarElemento();
@@ -274,6 +382,15 @@ export function useDisenadorEditor({
     setMostrarGuias,
     elementoSeleccionadoId,
     setElementoSeleccionadoId,
+    edicionPuntos,
+    iniciarEdicionPuntos,
+    terminarEdicionPuntos,
+    seleccionarPunto,
+    moverPuntoEditado,
+    agregarPuntoEditado,
+    eliminarPuntoEditado,
+    cambiarRadioPuntoEditado,
+    convertirAPathLibre,
     seleccionIds,
     seleccionarElemento,
     seleccionarVarios,

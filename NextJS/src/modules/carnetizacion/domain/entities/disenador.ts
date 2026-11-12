@@ -5,6 +5,9 @@
  * con respaldo y Funcionario azul marino (#1f3a5f) inicial.
  */
 
+import type { PuntoForma } from "./forma-puntos";
+import type { QrEstilo } from "./qr-estilo";
+
 export type TipoElementoKonva =
   | "field"
   | "text"
@@ -48,8 +51,15 @@ export interface ElementoKonva {
   etiqueta?: string;
   // diag: variante 'diagr' (acento diagonal opuesto) del PDF
   diagr?: boolean;
+  // Estilo del QR (props.qr_estilo); ausente = institucional
+  qr_estilo?: QrEstilo;
   // Formas personalizadas (SVG path normalizado 0..100)
   path?: string;
+  // Forma editable por puntos (props.puntos): vértices en la caja 0..100 con radio en mm.
+  // Si existe, el path se genera desde aquí; `path` queda como copia para quien no la entienda.
+  puntos?: PuntoForma[];
+  // Rectángulo: radio por esquina en mm [sup-izq, sup-der, inf-der, inf-izq] (props.radios)
+  radios?: [number, number, number, number];
   // Organización
   grupo_id?: string | null;
   bloqueado?: boolean;
@@ -96,9 +106,31 @@ export const ETIQUETA_VALORES_CRITERIO: Record<CriterioColor, string> = {
   otro: "Valores",
 };
 
-/** Valores sugeridos de un criterio (solo la nómina tiene catálogo propio en el editor). */
-export function sugerenciasCriterio(criterio: CriterioColor): string[] {
-  return criterio === "nomina" ? Object.keys(REGLAS_COLOR_DEFECTO.valores) : [];
+/** Tipo de credencial externa (visitante, contratista...) tal como lo entrega el catálogo. */
+export interface TipoExternoColor {
+  codigo: string;
+  nombre: string;
+}
+
+/**
+ * Valores sugeridos de un criterio. La nómina suma los tipos de credencial externa: el PDF
+ * usa su código en mayúsculas como nómina, así que la regla se llama igual (VISITANTE).
+ */
+export function sugerenciasCriterio(
+  criterio: CriterioColor,
+  tiposExternos: readonly TipoExternoColor[] = [],
+): string[] {
+  if (criterio !== "nomina") return [];
+  const externos = tiposExternos.map((t) => t.codigo.toUpperCase());
+  return [...new Set([...Object.keys(REGLAS_COLOR_DEFECTO.valores), ...externos])];
+}
+
+/** Etiqueta legible de un valor sugerido (ej. VISITANTE -> «Visitante»), o null si no la hay. */
+export function etiquetaSugerencia(
+  valor: string,
+  tiposExternos: readonly TipoExternoColor[] = [],
+): string | null {
+  return tiposExternos.find((t) => t.codigo.toUpperCase() === valor)?.nombre ?? null;
 }
 
 /**

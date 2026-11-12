@@ -29,6 +29,11 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { CampoCredencial } from "../../../domain/entities/carnet";
 import type { ElementoKonva } from "../../../domain/entities/disenador";
+import {
+  crearElementoDeForma,
+  FORMAS_INSTITUCIONALES,
+} from "../../../domain/entities/formas-institucionales";
+import { colorParaMiniatura, MiniaturaForma } from "./miniatura-forma";
 
 interface DisenadorHerramientasPanelProps {
   caraActual: "anverso" | "reverso";
@@ -280,6 +285,36 @@ export function DisenadorHerramientasPanel({
               <PenTool className="size-4" aria-hidden />
               Forma SVG
             </Button>
+          </div>
+        </div>
+
+        {/* Formas institucionales: calcadas de la propuesta oficial del carnet */}
+        <div className="space-y-2">
+          <span className="block text-xs font-medium text-muted-foreground">
+            Formas institucionales
+          </span>
+          <div className="grid grid-cols-2 gap-2">
+            {FORMAS_INSTITUCIONALES.map((forma) => (
+              <Button
+                key={forma.id}
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-auto flex-col items-stretch gap-1.5 px-2 py-2 text-xs"
+                title={`${forma.nombre} (${forma.cara})`}
+                onClick={() => onAnadirElemento(crearElementoDeForma(forma, caraActual))}
+              >
+                <span className="flex h-10 items-center justify-center rounded bg-muted/40">
+                  <MiniaturaForma
+                    path={forma.elemento.path ?? ""}
+                    color={colorParaMiniatura(forma.elemento.fill)}
+                    tamano={36}
+                    proporcion={forma.elemento.w / forma.elemento.h}
+                  />
+                </span>
+                <span className="truncate text-center">{forma.nombre}</span>
+              </Button>
+            ))}
           </div>
         </div>
 

@@ -5,6 +5,9 @@ import { Layer, Line, Rect, Stage, Transformer } from "react-konva";
 import Konva from "konva";
 
 import type { ElementoKonva, PersonaMuestra } from "../../../domain/entities/disenador";
+import { claveVistaPreviaQr, QR_PREFIJO } from "../../../domain/entities/qr-estilo";
+import { vistaPreviaQrAction } from "../../../infrastructure/actions/carnetizacion-actions";
+import { KonvaEdicionPuntos } from "./konva-edicion-puntos";
 import { KonvaElementoItem } from "./konva-elemento-item";
 
 interface Props {
@@ -20,6 +23,11 @@ interface Props {
   datosPersona: PersonaMuestra;
   coloresRegla?: { primario: string; acento: string; texto: string };
   mostrarGuias?: boolean;
+  /** Modo «Editar puntos»: elemento en edición y vértice seleccionado. */
+  edicionPuntos?: { id: string; indice: number | null } | null;
+  onSeleccionarPunto?: (indice: number | null) => void;
+  onMoverPunto?: (indice: number, x: number, y: number) => void;
+  onAgregarPunto?: (x: number, y: number) => void;
 }
 
 export function KonvaCanvasStage({
@@ -35,8 +43,13 @@ export function KonvaCanvasStage({
   datosPersona,
   coloresRegla = { primario: "#16264a", acento: "#d9121f", texto: "#ffffff" },
   mostrarGuias = true,
+  edicionPuntos = null,
+  onSeleccionarPunto,
+  onMoverPunto,
+  onAgregarPunto,
 }: Props) {
   const stageRef = useRef<Konva.Stage>(null);
+  const qrSolicitados = useRef<Set<string>>(new Set());
   const trRef = useRef<Konva.Transformer>(null);
   const [imagenesCargadas, setImagenesCargadas] = useState<Record<string, HTMLImageElement>>({});
   const [marco, setMarco] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
@@ -63,6 +76,32 @@ export function KonvaCanvasStage({
     });
   }, [elementosCara, imagenesCargadas]);
 
+  // Vista previa fiel del estilo del QR: el backend dibuja el mismo PNG que irá en el PDF.
+  // Se pide con un pequeño retardo para no saturar mientras se arrastra un slider o color.
+  const clavesQr = [
+    ...new Set(
+      elementosCara.filter((e) => e.t === "qr").map((e) => claveVistaPreviaQr(e.qr_estilo)),
+    ),
+  ];
+  const clavesQrTexto = clavesQr.join("\n");
+  useEffect(() => {
+    const pendientes = clavesQrTexto
+      .split("\n")
+      .filter((c) => c && !imagenesCargadas[c] && !qrSolicitados.current.has(c));
+    if (pendientes.length === 0) return;
+    const temporizador = window.setTimeout(() => {
+      pendientes.forEach(async (clave) => {
+        qrSolicitados.current.add(clave);
+        const res = await vistaPreviaQrAction(JSON.parse(clave.slice(QR_PREFIJO.length)));
+        if (!res.success || !res.data) return;
+        const img = new window.Image();
+        img.onload = () => setImagenesCargadas((prev) => ({ ...prev, [clave]: img }));
+        img.src = res.data;
+      });
+    }, 350);
+    return () => window.clearTimeout(temporizador);
+  }, [clavesQrTexto, imagenesCargadas]);
+
   // El Transformer muestra todos los nodos seleccionados (uno o varios)
   useEffect(() => {
     if (!trRef.current || !stageRef.current) return;
@@ -70,9 +109,10 @@ export function KonvaCanvasStage({
     const nodos = seleccionIds
       .map((id) => stage.findOne(`#node-${id}`))
       .filter((n): n is Konva.Node => !!n);
-    trRef.current.nodes(nodos);
+    // En «Editar puntos» mandan los tiradores de los vértices, no el Transformer.
+    trRef.current.nodes(edicionPuntos ? [] : nodos);
     trRef.current.getLayer()?.batchDraw();
-  }, [seleccionIds, elementosCara]);
+  }, [seleccionIds, elementosCara, edicionPuntos]);
 
   const esFondo = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) =>
     e.target === stageRef.current || e.target.name() === "canvas-background";
@@ -174,11 +214,27 @@ export function KonvaCanvasStage({
             datosPersona={datosPersona}
             coloresRegla={coloresRegla}
             imagenesCargadas={imagenesCargadas}
+            editandoPuntos={edicionPuntos?.id === el.id}
             onSeleccionarElemento={onSeleccionarElemento}
             onActualizarElemento={onActualizarElemento}
             onActualizarGuias={setGuiasActivas}
           />
         ))}
+
+        {edicionPuntos &&
+          elementosCara
+            .filter((el) => el.id === edicionPuntos.id)
+            .map((el) => (
+              <KonvaEdicionPuntos
+                key={`puntos-${el.id}`}
+                elemento={el}
+                escala={escala}
+                indiceSeleccionado={edicionPuntos.indice}
+                onSeleccionarPunto={(i) => onSeleccionarPunto?.(i)}
+                onMoverPunto={(i, x, y) => onMoverPunto?.(i, x, y)}
+                onAgregarPunto={(x, y) => onAgregarPunto?.(x, y)}
+              />
+            ))}
 
         {marco && (
           <Rect

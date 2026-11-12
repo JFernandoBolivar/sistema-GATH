@@ -12,6 +12,8 @@ import type {
   TipoElementoKonva,
 } from "../../domain/entities/disenador";
 import { REGLAS_COLOR_DEFECTO } from "../../domain/entities/disenador";
+import { normalizarPuntos } from "../../domain/entities/forma-puntos";
+import { normalizarQrEstilo } from "../../domain/entities/qr-estilo";
 
 type Json = Record<string, unknown>;
 
@@ -129,6 +131,10 @@ function elementoDesdePlantilla(elemento: Json, cara: "anverso" | "reverso"): El
     src: asset ? ASSETS_PUBLICOS[asset] : undefined,
     biblioteca_id: asset,
     etiqueta: typeof props.label === "string" ? props.label : undefined,
+    qr_estilo:
+      t === "qr" && props.qr_estilo && typeof props.qr_estilo === "object"
+        ? normalizarQrEstilo(props.qr_estilo)
+        : undefined,
     diagr: tipoOriginal === "diagr",
     path:
       typeof elemento.path === "string"
@@ -136,9 +142,18 @@ function elementoDesdePlantilla(elemento: Json, cara: "anverso" | "reverso"): El
         : typeof props.d === "string"
           ? props.d
           : undefined,
+    puntos: t === "path" ? (normalizarPuntos(props.puntos) ?? undefined) : undefined,
+    radios: t === "rect" ? radiosDesdeProps(props.radios) : undefined,
     bloqueado: false,
     oculto: false,
   };
+}
+
+function radiosDesdeProps(valor: unknown): [number, number, number, number] | undefined {
+  if (!Array.isArray(valor) || valor.length !== 4) return undefined;
+  const radios = valor.map((r) => Number(r));
+  if (radios.some((r) => !Number.isFinite(r) || r < 0)) return undefined;
+  return radios as [number, number, number, number];
 }
 
 export interface DefinicionAdaptada {
@@ -183,7 +198,9 @@ export function adaptarDefinicionAEditor(definicion: unknown): DefinicionAdaptad
 
 function elementoAPlantilla(elemento: ElementoKonva, original?: Json): Json {
   const base: Json = original ? { ...original } : {};
-  const tipo = String(original?.tipo ?? TIPO_A_PLANTILLA[elemento.t] ?? "rect");
+  // Un triángulo o franja convertidos a puntos pasan a ser «path» al guardar.
+  const tipo =
+    elemento.t === "path" ? "path" : String(original?.tipo ?? TIPO_A_PLANTILLA[elemento.t] ?? "rect");
   const props = { ...objeto(base.props) };
 
   const resultado: Json = {
@@ -221,6 +238,15 @@ function elementoAPlantilla(elemento: ElementoKonva, original?: Json): Json {
     if (elemento.stroke) props.stroke = elemento.stroke;
     if (elemento.sw) props.sw = elemento.sw;
     if (tipo === "path" && elemento.path) props.d = elemento.path;
+    if (elemento.t === "path") {
+      if (elemento.puntos) props.puntos = elemento.puntos;
+      else delete props.puntos;
+    }
+    if (elemento.t === "rect") {
+      if (elemento.radios) props.radios = elemento.radios;
+      else delete props.radios;
+    }
+    if (tipo === "qr" && elemento.qr_estilo) props.qr_estilo = elemento.qr_estilo;
     resultado.props = props;
   }
 

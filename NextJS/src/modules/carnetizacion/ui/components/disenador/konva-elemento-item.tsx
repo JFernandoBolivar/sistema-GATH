@@ -4,6 +4,8 @@ import { Circle, Group, Image as KonvaImage, Line, Path, Rect, Text } from "reac
 import type Konva from "konva";
 
 import type { ElementoKonva, PersonaMuestra } from "../../../domain/entities/disenador";
+import { cornerRadiusParaRect, generarPathDesdePuntos } from "../../../domain/entities/forma-puntos";
+import { claveVistaPreviaQr, normalizarQrEstilo } from "../../../domain/entities/qr-estilo";
 
 // Factor de conversión de puntos tipográficos pt a mm
 const PT_A_MM = 0.3528;
@@ -26,6 +28,8 @@ interface KonvaElementoItemProps {
   datosPersona: PersonaMuestra;
   coloresRegla: { primario: string; acento: string; texto: string };
   imagenesCargadas: Record<string, HTMLImageElement>;
+  /** Este elemento está en modo «Editar puntos»: no se arrastra ni se transforma. */
+  editandoPuntos?: boolean;
   onSeleccionarElemento: (id: string | null, aditivo?: boolean) => void;
   onActualizarElemento: (id: string, cambios: Partial<ElementoKonva>) => void;
   onActualizarGuias: (guias: { x?: number; y?: number }) => void;
@@ -39,6 +43,7 @@ export function KonvaElementoItem({
   datosPersona,
   coloresRegla,
   imagenesCargadas,
+  editandoPuntos = false,
   onSeleccionarElemento,
   onActualizarElemento,
   onActualizarGuias,
@@ -66,7 +71,7 @@ export function KonvaElementoItem({
     shadowBlur: sombra,
     shadowOpacity: sombra > 0 ? 0.25 : 0,
     shadowOffset: { x: sombra > 0 ? 2 : 0, y: sombra > 0 ? 3 : 0 },
-    draggable: !el.bloqueado,
+    draggable: !el.bloqueado && !editandoPuntos,
     onClick: (e: Konva.KonvaEventObject<MouseEvent>) =>
       onSeleccionarElemento(el.id, e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey),
     onTap: () => onSeleccionarElemento(el.id),
@@ -104,12 +109,16 @@ export function KonvaElementoItem({
       node.scaleX(1);
       node.scaleY(1);
 
+      const nuevoW = Math.max(2, Number(((w * scaleX) / escala).toFixed(2)));
+      const nuevoH = Math.max(2, Number(((h * scaleY) / escala).toFixed(2)));
       onActualizarElemento(el.id, {
         x: Number((node.x() / escala).toFixed(2)),
         y: Number((node.y() / escala).toFixed(2)),
-        w: Math.max(2, Number(((w * scaleX) / escala).toFixed(2))),
-        h: Math.max(2, Number(((h * scaleY) / escala).toFixed(2))),
+        w: nuevoW,
+        h: nuevoH,
         r: Number(node.rotation().toFixed(1)),
+        // Los radios de las esquinas están en mm: el path se recalcula con el tamaño nuevo.
+        ...(el.puntos ? { path: generarPathDesdePuntos(el.puntos, nuevoW, nuevoH) } : {}),
       });
     },
   };
@@ -123,7 +132,7 @@ export function KonvaElementoItem({
         width={w}
         height={h}
         fill={colorRelleno}
-        cornerRadius={radio}
+        cornerRadius={cornerRadiusParaRect(el, escala)}
         stroke={bordeColor || undefined}
         strokeWidth={bordeGrosor}
       />
@@ -170,7 +179,10 @@ export function KonvaElementoItem({
 
   // 3b. Forma libre definida por un SVG path en una caja de 0..100
   if (el.t === "path") {
-    const datos = el.path || "M 0 0 H 100 V 100 H 0 Z";
+    const datos =
+      (el.puntos && generarPathDesdePuntos(el.puntos, el.w, el.h)) ||
+      el.path ||
+      "M 0 0 H 100 V 100 H 0 Z";
     return (
       <Path
         key={el.id}
@@ -268,6 +280,15 @@ export function KonvaElementoItem({
   if (el.t === "qr") {
     // El PDF dibuja el QR como un cuadrado de lado min(w, h), anclado arriba a la izquierda.
     const lado = Math.min(w, h);
+    const previa = imagenesCargadas[claveVistaPreviaQr(el.qr_estilo)];
+    const estiloQr = normalizarQrEstilo(el.qr_estilo);
+    if (previa) {
+      return (
+        <Group key={el.id} {...propiedadesComunes}>
+          <KonvaImage image={previa} width={lado} height={lado} />
+        </Group>
+      );
+    }
     return (
       <Group key={el.id} {...propiedadesComunes}>
         <Rect
@@ -287,7 +308,7 @@ export function KonvaElementoItem({
           fontStyle="bold"
           align="center"
           verticalAlign="middle"
-          fill="#16264a"
+          fill={estiloQr.color_modulos}
         />
       </Group>
     );
