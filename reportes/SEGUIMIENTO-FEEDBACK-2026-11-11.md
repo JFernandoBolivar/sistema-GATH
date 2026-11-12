@@ -12,8 +12,8 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 
 | Estado | Cantidad |
 |---|---|
-| ✅ Completado | 61 |
-| ⏳ En proceso | 9 |
+| ✅ Completado | 62 |
+| ⏳ En proceso | 8 |
 | ❓ Respondida | 9 |
 | 🟡 Espera tu decisión | 0 |
 
@@ -70,7 +70,7 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 | 75 | Familiares: menú de acciones como el de Personal y botón de editar por bloque en Ver detalle | ⏳ | OpenCode, después de lo de Familiares | — |
 | 76 | Movimientos (contrato con error 500, buscador de cargo, asteriscos, código especial) | ✅ | Ver los puntos 65 a 68 | `4b7ff4fb` |
 | 77 | ¿La regla «familiar con la misma cédula del titular» afecta a los hijos menores con cédula «titular-n»? | ❓ | No: solo bloquea cuando las cédulas son exactamente iguales. «5132733-1» sigue permitida y se agregó una prueba | — |
-| 78 | Autogestión: la vivienda como un solo bloque «Actualizar mi vivienda», respetando la cascada país → estado → municipio → parroquia | ⏳ | Aprobado. En curso | — |
+| 78 | Autogestión: la vivienda como un solo bloque «Actualizar mi vivienda», respetando la cascada país → estado → municipio → parroquia | ✅ | Una casilla abre el formulario completo con la cascada; además ahora se valida la coherencia en los cambios de un solo campo | `97d1e7ca` |
 | 79 | «Mi carnet» en autogestión muestra un diseño fijo, no la plantilla configurada | ⏳ | Se mostrará la imagen real del carnet con la plantilla vigente y el QR verdadero. En cola | — |
 | 30 | Familiares: grupo sanguíneo obligatorio, errores que no se marcan, error en el flujo de registro y actualización, documentos en la actualización | ⏳ | OpenCode lo está corrigiendo | — |
 
