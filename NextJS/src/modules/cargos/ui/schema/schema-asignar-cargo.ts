@@ -86,7 +86,7 @@ export const crearCargoSchema = z.object({
   especificaId: z.number().int().positive({ message: "Seleccione una denominación de cargo específico" }),
   tipoNominaId: z.number().int().positive({ message: "Seleccione un tipo de nómina" }),
   // Un código no puede crearse solo con el Nivel: exige también la Oficina/Gerencia.
-  dependenciaId: z.number({ message: "Seleccione el Nivel (Dependencia)" }).int().positive({ message: "Seleccione el Nivel (Dependencia)" }),
+  dependenciaId: z.number({ message: "Seleccione el Nivel" }).int().positive({ message: "Seleccione el Nivel" }),
   direccionGeneralId: z
     .number({ message: "Seleccione la Dirección / Gerencia / Oficina" })
     .int()

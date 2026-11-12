@@ -61,9 +61,15 @@ class RepoMovimientosORM:
         # el cargo no los tiene, se prefiere fallar de forma explícita (y
         # que la transacción que originó el evento haga rollback) antes que
         # dejar una fila de auditoría a medias.
-        if cargo.Dependencia_id is None:
+        dependencia_id = cargo.Dependencia_id
+        if dependencia_id is None and cargo.DireccionGeneral_id is not None:
+            # El Nivel se deriva de la Dirección General a la que pertenece el código.
+            dependencia_id = cargo.DireccionGeneral.dependenciaId_id
+            if dependencia_id is not None:
+                AsigTrabajoModel.objects.filter(pk=cargo.pk).update(Dependencia_id=dependencia_id)
+        if dependencia_id is None:
             raise ValidationError(
-                f'El código {cargo.codigo} no tiene Nivel (Dependencia) asignado. '
+                f'El código {cargo.codigo} no tiene Nivel asignado. '
                 'Edite el código en Gestión de códigos y complete su ubicación antes de asignarlo.'
             )
         tipo_personal_id = cargo.Tipo_personal_id
@@ -87,7 +93,7 @@ class RepoMovimientosORM:
             tiponomina_id=cargo.tiponominaid_id,
             estatus_id=cargo.estatusid_id,
             tipo_personal_id=tipo_personal_id,
-            DependenciasId_id=cargo.Dependencia_id,
+            DependenciasId_id=dependencia_id,
             DireccionGeneralid_id=cargo.DireccionGeneral_id,
             DireccionLineaid_id=cargo.DireccionLinea_id,
             Coordinacionid_id=cargo.Coordinacion_id,

@@ -106,7 +106,7 @@ export default function CreateDirectionDependency({ onSuccess }: CreateDirection
       .finally(() => setIsLoadingDep(false));
   }, []);
 
-  // Manejar cambio de Nivel (Dependencia)
+  // Manejar cambio de Nivel
   const onSelectDependency = (val: string) => {
     setDependencyId(val);
     setSelectionDirectionGeneralId("");
@@ -152,7 +152,7 @@ export default function CreateDirectionDependency({ onSuccess }: CreateDirection
   // Submit Dirección General
   const onSubmitDG = (data: DireccionGeneralFormType) => {
     if (!dependencyId) {
-      toast.error("Debe seleccionar un Nivel (Dependencia) antes de crear la Dirección General.");
+      toast.error("Debe seleccionar un Nivel antes de crear la Dirección General.");
       return;
     }
     startTransition(async () => {

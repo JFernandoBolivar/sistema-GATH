@@ -15,7 +15,7 @@ def validar_ubicacion_minima(dependencia_id: int | None, direccion_general_id: i
     a su campo para que el formulario lo marque.
     """
     if not dependencia_id:
-        raise ValidationError('Seleccione el Nivel (Dependencia).', campo='dependencia_id')
+        raise ValidationError('Seleccione el Nivel.', campo='dependencia_id')
     if not direccion_general_id:
         raise ValidationError(
             'Seleccione la Dirección / Gerencia / Oficina: el código no puede crearse solo con el Nivel.',
