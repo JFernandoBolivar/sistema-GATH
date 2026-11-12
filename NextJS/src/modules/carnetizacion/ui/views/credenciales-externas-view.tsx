@@ -30,7 +30,7 @@ import {
 } from "@/shared/ui/components/table";
 
 import type { EmployeeCarnet, TipoCredencial } from "../../domain/entities/carnet";
-import type { CredencialExternaApiItem } from "../../infrastructure/http/credenciales-externas-api";
+import type { CredencialExterna as CredencialExternaApiItem } from "../../domain/entities/credencial-externa";
 import {
   anularCredencialExternaAction,
   crearCredencialExternaAction,

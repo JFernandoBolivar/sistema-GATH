@@ -77,6 +77,7 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'core.presentation.trace_middleware.TraceIDMiddleware',
+    'core.presentation.auditoria_middleware.OrigenAuditoriaMiddleware',
     'core.presentation.security_headers.SecurityHeadersMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',

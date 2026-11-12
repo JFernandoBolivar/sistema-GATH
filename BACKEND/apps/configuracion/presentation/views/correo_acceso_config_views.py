@@ -33,6 +33,7 @@ from core.domain.notificaciones import CorreoSolicitado, SolicitudNotificacion
 from core.infrastructure.pdf.report_excel import generar_reporte_excel
 from core.infrastructure.providers import obtener_notificador
 from core.infrastructure.tasks.celery_queue import CeleryTaskQueue
+from core.infrastructure.auditoria_contexto import origen_para_tarea
 from core.presentation.audit import origen_de_peticion, registrar_auditoria
 from core.presentation.envelope import ok
 from core.presentation.permissions import HasPermission
@@ -267,6 +268,7 @@ class AplicarPoliticaCorreoAccesoView(APIView):
                     grupo=grupo,
                     motivo=motivo,
                     incluir_excepciones=incluir_excepciones,
+                    origen=origen_para_tarea(),
                 )
                 return ok(
                     {'asincrono': True, 'tarea_id': tarea_id, 'total': total},

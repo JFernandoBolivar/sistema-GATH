@@ -59,6 +59,7 @@ from apps.carnetizacion.presentation.views.carnetizacion_views import (
     PlantillaMotorVersionesView,
     PlantillasListView,
     RevocarCarnetView,
+    SugerenciasReglasColorView,
     TiposCredencialListView,
     ValidarCarnetHashView,
     ValidarCarnetIdView,
@@ -98,6 +99,7 @@ urlpatterns = [
     path('plantillas-motor/<str:plantilla_id>/publicar/', PlantillaMotorPublicarView.as_view(), name='plantilla-motor-publicar'),
     path('plantillas-motor/<str:plantilla_id>/activar/', PlantillaMotorActivarView.as_view(), name='plantilla-motor-activar'),
     path('plantillas-motor/<str:plantilla_id>/versiones/', PlantillaMotorVersionesView.as_view(), name='plantilla-motor-versiones'),
+    path('reglas-color/sugerencias/', SugerenciasReglasColorView.as_view(), name='reglas-color-sugerencias'),
 
     # Biblioteca Compartida de Medios (O44 - E4)
     path('qr/vista-previa/', QrVistaPreviaView.as_view(), name='qr-vista-previa'),

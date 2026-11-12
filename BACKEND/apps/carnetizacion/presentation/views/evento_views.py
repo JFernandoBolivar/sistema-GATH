@@ -1,8 +1,5 @@
 """Vistas DRF para Eventos, Invitados, Emisión y Control de Entrada con QR (O45-B)."""
-import csv
-import io
 import json
-import logging
 
 from django.http import HttpResponse
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -10,9 +7,9 @@ from rest_framework.parsers import FormParser, MultiPartParser, JSONParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
+from core.domain.exceptions import ValidationError
 from core.domain.paginacion import Paginacion
 from core.infrastructure.pdf.report_excel import generar_reporte_excel
-from core.infrastructure.storage.validacion_archivo import MAX_BYTES_DOCUMENTO
 from core.presentation.envelope import fail, ok
 from core.presentation.permissions import HasAnyPermission, HasPermission
 from apps.carnetizacion.application.dtos.evento_dtos import (
@@ -38,12 +35,15 @@ from apps.carnetizacion.application.use_cases.gestionar_eventos import (
 from apps.carnetizacion.application.use_cases.gestionar_invitados import (
     ActualizarInvitadoUseCase,
     CrearInvitadoUseCase,
-    ImportarInvitadosUseCase,
     ListarIdsInvitadosUseCase,
     ListarInvitadosPaginadoUseCase,
 )
+from apps.carnetizacion.application.use_cases.importar_invitados import importar_invitados
 from apps.carnetizacion.application.use_cases.obtener_panel_evento import (
     ObtenerPanelEventoUseCase,
+)
+from apps.carnetizacion.infrastructure.lectores.lector_invitados import (
+    leer_archivo_invitados,
 )
 from apps.carnetizacion.infrastructure.pdf.evento_pdf import (
     generar_gafete_evento_pdf,
@@ -373,57 +373,10 @@ class EventoInvitadosImportarView(APIView):
 
         archivo = request.FILES.get("archivo")
         if archivo:
-            # Validación de entrada: el import se lee entero en memoria, así que
-            # se acota el tamaño y se aceptan solo los formatos que se procesan.
-            if archivo.size > MAX_BYTES_DOCUMENTO:
-                return fail(
-                    "El archivo excede el tamaño máximo de "
-                    f"{MAX_BYTES_DOCUMENTO // (1024 * 1024)} MB.",
-                    status=400,
-                )
-            nombre = archivo.name.lower()
-            if not nombre.endswith((".xlsx", ".csv")):
-                return fail("El archivo debe ser .xlsx o .csv.", status=400)
-            if nombre.endswith(".xlsx"):
-                try:
-                    import openpyxl
-                    wb = openpyxl.load_workbook(io.BytesIO(archivo.read()), read_only=True, data_only=True)
-                    ws = wb.active
-                    filas_iter = ws.iter_rows(values_only=True)
-                    encabezados = next(filas_iter, None)
-                    if not encabezados:
-                        return fail("El archivo Excel está vacío", status=400)
-                    claves = [str(col).strip().lower() if col is not None else "" for col in encabezados]
-                    for fila_val in filas_iter:
-                        if not any(fila_val):
-                            continue
-                        fila_dict = {}
-                        for idx_c, val in enumerate(fila_val):
-                            if idx_c < len(claves) and claves[idx_c]:
-                                fila_dict[claves[idx_c]] = str(val if val is not None else "").strip()
-                        filas_crudas.append(fila_dict)
-                except Exception:
-                    logging.getLogger('security_backend').exception(
-                        'No se pudo leer el archivo Excel de invitados',
-                    )
-                    return fail(
-                        'No se pudo leer el archivo Excel. Verifique el formato e intente de nuevo.',
-                        status=400,
-                    )
-            else:
-                try:
-                    contenido = archivo.read().decode("utf-8-sig")
-                    lector = csv.DictReader(io.StringIO(contenido))
-                    for row in lector:
-                        filas_crudas.append(row)
-                except Exception:
-                    logging.getLogger('security_backend').exception(
-                        'No se pudo leer el archivo CSV de invitados',
-                    )
-                    return fail(
-                        'No se pudo leer el archivo CSV. Verifique el formato e intente de nuevo.',
-                        status=400,
-                    )
+            try:
+                filas_crudas = leer_archivo_invitados(archivo)
+            except ValidationError as exc:
+                return fail(str(exc), status=400)
         elif "filas" in request.data:
             filas_crudas = request.data.get("filas", [])
             if isinstance(filas_crudas, str):
@@ -435,8 +388,9 @@ class EventoInvitadosImportarView(APIView):
         if not filas_crudas:
             return fail("No se proporcionaron filas ni archivo para importar", status=400)
 
-        use_case = ImportarInvitadosUseCase(repo)
-        resumen = use_case.ejecutar(str(evento_id), filas_crudas, aplicar=bool(confirmar))
+        resumen = importar_invitados(
+            repo, str(evento_id), filas_crudas, aplicar=bool(confirmar),
+        )
         return ok(ResumenImportacionSerializer(resumen).data)
 
 

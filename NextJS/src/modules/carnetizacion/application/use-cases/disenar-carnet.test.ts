@@ -39,6 +39,7 @@ class RepoCarnetizacionMock implements RepoCarnetizacion {
     return { total: 0, activos: 0, revocados: 0, emitidosHoy: 0, emitidosMes: 0, porMotivo: [] };
   }
   async listarTiposCredencial(): Promise<TipoCredencial[]> { return []; }
+  async obtenerSugerenciasReglasColor() { return { cargos: [], oficinas: [] }; }
   async listarPlantillasMotorPagina() {
     return paginaVaciaPrueba<PlantillaMotor>();
   }

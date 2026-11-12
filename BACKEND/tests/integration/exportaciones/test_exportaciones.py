@@ -74,12 +74,13 @@ def _auditor(*args):
     return None
 
 
-def _solicitar(repo=None, cola=None, solicitante=1, formato='pdf', tipo='auditoria', max_activas=3, filtros=None):
+def _solicitar(repo=None, cola=None, solicitante=1, formato='pdf', tipo='auditoria', max_activas=3, filtros=None, origen=None):
     repo = repo or RepoExportacionesORM()
     return uc.solicitar_exportacion(
         repo, cola or ColaFalsa(), _auditor,
         solicitante_id=solicitante, solicitante_cedula='V1', tipo=tipo, formato=formato,
         parametros={'filtros': filtros or {}}, ahora=AHORA, ttl_horas=24, max_activas=max_activas,
+        origen=origen,
     )
 
 
@@ -322,3 +323,14 @@ def test_api_sin_broker_responde_503_claro(monkeypatch):
 
 def test_api_id_inexistente_es_404(entorno):
     assert _cliente(1).get(f'{BASE}00000000-0000-4000-8000-000000000000/').status_code == 404
+
+
+def test_solicitar_pasa_el_origen_a_la_tarea():
+    cola = ColaFalsa()
+    origen = {'ip_origen': '10.0.0.5', 'user_agent': 'UA-Navegador', 'dispositivo': 'MOVIL'}
+
+    trabajo = _solicitar(cola=cola, origen=origen)
+
+    assert cola.encoladas == [
+        ('exportaciones.generar', {'trabajo_id': trabajo.id, 'origen': origen}),
+    ]

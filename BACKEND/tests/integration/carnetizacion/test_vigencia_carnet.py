@@ -13,7 +13,7 @@ from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
     TipoCredencialModel,
 )
 from apps.carnetizacion.infrastructure.models.credencial_externa_model import CredencialExternaModel
-from apps.carnetizacion.infrastructure.repositories import repo_carnetizacion_orm as repo_mod
+from apps.carnetizacion.infrastructure.repositories import repo_carnetizacion_carnets as repo_carnets_mod
 from apps.carnetizacion.infrastructure.repositories.repo_carnetizacion_orm import RepoCarnetizacionORM
 from apps.carnetizacion.infrastructure.repositories.repo_credenciales_externas_orm import (
     RepoCredencialesExternasORM,
@@ -93,7 +93,7 @@ def test_emitir_pasivo_usa_parametro_de_pasivo(monkeypatch):
     _empleado()
     _param(TRABAJADOR, 6)
     _param(PASIVO, 24)
-    monkeypatch.setattr(repo_mod, '_es_pasivo', lambda empleado: True)
+    monkeypatch.setattr(repo_carnets_mod, '_es_pasivo', lambda empleado: True)
     carnet = RepoCarnetizacionORM().emitir_carnet('V30799436', 1)
     fila = CarnetEmitidoModel.objects.get(pk=carnet.id)
     assert abs(fila.fecha_vencimiento - sumar_meses(fila.fecha_emision, 24)) < timedelta(minutes=1)

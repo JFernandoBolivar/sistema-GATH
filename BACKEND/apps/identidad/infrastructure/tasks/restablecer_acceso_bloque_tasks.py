@@ -41,8 +41,10 @@ from apps.identidad.infrastructure.repositories.repo_permisos_version_orm import
     RepoPermisosVersionORM,
 )
 from apps.identidad.infrastructure.signals import publicar_evento_identidad
+from apps.configuracion.domain.parametros import definicion_de
 from core.domain.configuracion import CLAVE_PASSWORD_INICIAL_DIAS
 from core.domain.exceptions import ConflictError
+from core.infrastructure.auditoria_contexto import con_origen_de_tarea
 from core.infrastructure.providers import obtener_lector_configuracion
 from core.presentation.audit import registrar_auditoria
 
@@ -52,7 +54,7 @@ CANDADO = 'identidad:lock:restablecer_acceso_bloque'
 CANDADO_SEGUNDOS = 2 * 60 * 60
 PREVIEW_TTL = 30 * 60
 ACCION_AUDITORIA = 'identidad.acceso_restablecido_bloque'
-DIAS_POR_DEFECTO = 7
+DIAS_POR_DEFECTO = int(definicion_de(CLAVE_PASSWORD_INICIAL_DIAS).defecto)
 MUESTRA_MAXIMA = 50
 
 
@@ -196,6 +198,7 @@ def ejecutar_bloque(
 
 
 @shared_task(name='identidad.restablecer_acceso_en_bloque', acks_late=True)
+@con_origen_de_tarea
 def restablecer_acceso_en_bloque_tarea(
     clasificacion: str,
     alcance: str,

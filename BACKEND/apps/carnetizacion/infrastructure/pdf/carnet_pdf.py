@@ -246,17 +246,9 @@ def _dibujar_qr(
     cedula = getattr(datos, 'cedula', None) or (datos.get('cedula') if isinstance(datos, dict) else '')
     nombre = getattr(datos, 'nombre_completo', None) or (datos.get('nombre_completo') if isinstance(datos, dict) else '')
 
-    base_frontend = str(getattr(settings, 'FRONTEND_URL', '') or '').rstrip('/')
-    if base_frontend:
-        # La cámara del teléfono abre directamente la ficha pública de verificación.
-        contenido = f"{base_frontend}/carnet/{sec_hash}"
-    else:
-        # Respaldo legible para entornos sin FRONTEND_URL configurada.
-        contenido = (
-            f"GATH-ID: {sec_hash}\n"
-            f"CI: {cedula}\n"
-            f"Titular: {str(nombre)[:30]}\n"
-        )
+    from apps.carnetizacion.infrastructure.qr_institucional import contenido_qr_carnet
+
+    contenido = contenido_qr_carnet(sec_hash, cedula, nombre)
 
     c.drawImage(
         ImageReader(BytesIO(_qr_png_cacheado(contenido, con_logo, estilo))),

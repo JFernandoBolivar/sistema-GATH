@@ -112,17 +112,45 @@ export interface TipoExternoColor {
   nombre: string;
 }
 
+/** Listas reales de cargo y oficina que entrega el backend para el diseñador. */
+export interface SugerenciasReglasColor {
+  cargos: string[];
+  oficinas: string[];
+}
+
 /**
  * Valores sugeridos de un criterio. La nómina suma los tipos de credencial externa: el PDF
  * usa su código en mayúsculas como nómina, así que la regla se llama igual (VISITANTE).
+ * Cargo y oficina usan las listas reales del backend (el mismo texto del PDF).
  */
 export function sugerenciasCriterio(
   criterio: CriterioColor,
   tiposExternos: readonly TipoExternoColor[] = [],
+  sugerencias: Partial<SugerenciasReglasColor> = {},
 ): string[] {
+  if (criterio === "cargo") return [...new Set(sugerencias.cargos ?? [])];
+  if (criterio === "oficina") return [...new Set(sugerencias.oficinas ?? [])];
   if (criterio !== "nomina") return [];
   const externos = tiposExternos.map((t) => t.codigo.toUpperCase());
   return [...new Set([...Object.keys(REGLAS_COLOR_DEFECTO.valores), ...externos])];
+}
+
+/**
+ * Añade de una vez todos los valores sugeridos que aún no tienen regla, con el
+ * color de respaldo vigente, para poder usar «Aplicar a todos/seleccionados».
+ */
+export function cargarValoresSugeridos(
+  reglas: ReglasColorConfig,
+  valores: readonly string[],
+): ReglasColorConfig {
+  const nuevos = { ...reglas.valores };
+  for (const valor of valores) {
+    const clave = valor.trim();
+    if (clave && !(clave in nuevos)) {
+      nuevos[clave] = { ...reglas.respaldo };
+    }
+  }
+  return { ...reglas, valores: nuevos };
 }
 
 /** Etiqueta legible de un valor sugerido (ej. VISITANTE -> «Visitante»), o null si no la hay. */

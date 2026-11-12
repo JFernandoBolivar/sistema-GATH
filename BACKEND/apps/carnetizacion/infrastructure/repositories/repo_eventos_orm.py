@@ -6,7 +6,7 @@ import secrets
 import uuid
 from datetime import datetime
 from django.db import IntegrityError, transaction
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from apps.carnetizacion.domain.entities.evento import (
@@ -498,17 +498,28 @@ class RepoEventosORM(RepoEventosPort):
         ).count()
         faltan = total - entraron
 
-        # Conteo por categoría
-        por_cat = {}
-        for c in EventoCategoriaModel.objects.filter(evento_id=evento_id):
-            cnt = EventoInvitadoModel.objects.filter(evento_id=evento_id, categoria_id=c.id).count()
-            por_cat[c.nombre] = cnt
+        # Conteo por categoría y por zona: una consulta agregada por grupo, no una por fila.
+        categorias = list(EventoCategoriaModel.objects.filter(evento_id=evento_id))
+        conteo_categorias = {
+            fila['categoria_id']: fila['total']
+            for fila in (
+                EventoInvitadoModel.objects.filter(evento_id=evento_id)
+                .values('categoria_id')
+                .annotate(total=Count('pk'))
+            )
+        }
+        por_cat = {c.nombre: conteo_categorias.get(c.id, 0) for c in categorias}
 
-        # Conteo por zona
-        por_zona = {}
-        for z in EventoZonaModel.objects.filter(evento_id=evento_id):
-            cnt = EventoInvitadoModel.objects.filter(evento_id=evento_id, zona_id=z.id).count()
-            por_zona[z.nombre] = cnt
+        zonas = list(EventoZonaModel.objects.filter(evento_id=evento_id))
+        conteo_zonas = {
+            fila['zona_id']: fila['total']
+            for fila in (
+                EventoInvitadoModel.objects.filter(evento_id=evento_id)
+                .values('zona_id')
+                .annotate(total=Count('pk'))
+            )
+        }
+        por_zona = {z.nombre: conteo_zonas.get(z.id, 0) for z in zonas}
 
         return ResumenPanelEvento(
             evento_id=str(evento_id),

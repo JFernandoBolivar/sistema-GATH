@@ -26,6 +26,7 @@ from apps.exportaciones.infrastructure.repositories.repo_exportaciones_orm impor
     RepoExportacionesORM,
 )
 from core.domain.exceptions import AlmacenamientoNoDisponible
+from core.infrastructure.auditoria_contexto import con_origen_de_tarea
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
 
 logger = logging.getLogger('gath.tasks')
@@ -42,6 +43,7 @@ def _ahora() -> datetime:
     bind=True, name='exportaciones.generar', acks_late=True, max_retries=MAX_REINTENTOS,
     time_limit=900, soft_time_limit=840,
 )
+@con_origen_de_tarea
 def generar_exportacion(self, trabajo_id: str) -> str:
     repo = RepoExportacionesORM()
     auditar = auditor_de_tarea()

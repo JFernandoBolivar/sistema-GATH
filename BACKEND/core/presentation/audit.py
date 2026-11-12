@@ -9,6 +9,7 @@ estructurada con formato fijo de §I.4.7; el formatter añade el timestamp.
 """
 import logging
 
+from core.infrastructure.auditoria_contexto import obtener_origen
 from core.infrastructure.models.auditoria import AuditoriaLog
 from core.infrastructure.providers import obtener_resolutor_rol_actor
 from core.presentation.ip_cliente import ip_del_cliente
@@ -46,6 +47,16 @@ def registrar_auditoria(
     estado_nuevo: dict | None = None,
 ) -> AuditoriaLog:
     """Implementación concreta del puerto `AuditLogger` (`core/domain/ports.py`)."""
+    # El middleware deja el origen de la petición en el ContextVar; solo se usa
+    # para completar lo que el llamador no haya pasado (nunca lo sobrescribe).
+    origen = obtener_origen()
+    if not ip_origen:
+        ip_origen = origen.get('ip_origen')
+    if not user_agent:
+        user_agent = origen.get('user_agent', '')
+    if not dispositivo:
+        dispositivo = origen.get('dispositivo', '')
+
     if not actor_rol and (actor_id is not None or actor_cedula):
         # Se resuelve ANTES de crear la fila: `actor_rol` entra en el hash de la
         # cadena, así que no se puede completar después. El lector lo aporta

@@ -291,3 +291,6 @@ class RepoCuentasORM:
         RepoPasswordInicialORM().limpiar(fila.pk)
         # M2: cualquier cambio de contraseña invalida las sesiones abiertas.
         RepoPermisosVersionORM().incrementar_cuenta(fila.pk)
+
+    def registrar_ultimo_acceso(self, id: int, momento) -> None:
+        CuentaModel.objects.filter(pk=id).update(last_login=momento)

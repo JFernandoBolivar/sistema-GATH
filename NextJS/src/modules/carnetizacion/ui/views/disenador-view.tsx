@@ -16,6 +16,7 @@ import {
   getBibliotecaAction,
   getCamposAction,
   getPlantillaMotorAction,
+  getSugerenciasReglasColorAction,
   getTiposCredencialAction,
 } from "../../infrastructure/actions/carnetizacion-actions";
 import { useDisenadorEditor } from "../hooks/use-disenador-editor";
@@ -81,6 +82,12 @@ export function DisenadorView({ plantillaId }: Props) {
   );
   const tiposExternos = (tiposCredencial ?? []).filter(
     (t) => t.activo && t.grupo !== "trabajador" && t.grupo !== "pasivo",
+  );
+
+  // Cargos y oficinas reales para sugerir en las reglas de color (mismo texto que el PDF).
+  const { data: sugerenciasReglasColor, isLoading: cargandoSugerencias } = useSWR(
+    "sugerencias-reglas-color-disenador",
+    () => getSugerenciasReglasColorAction(),
   );
 
   const anchoMm = plantilla?.ancho_mm || 54.0;
@@ -250,6 +257,8 @@ export function DisenadorView({ plantillaId }: Props) {
               nuevoValorNombre={editor.nuevoValorNombre}
               onCambiarNuevoValorNombre={editor.setNuevoValorNombre}
               tiposExternos={tiposExternos}
+              sugerenciasReglasColor={sugerenciasReglasColor}
+              cargandoSugerencias={cargandoSugerencias}
             />
           ) : editor.seleccionIds.length > 1 ? (
             <DisenadorSeleccionMultiple

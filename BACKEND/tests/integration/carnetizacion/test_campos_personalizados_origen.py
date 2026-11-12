@@ -166,7 +166,7 @@ def test_generar_pdf_pasa_el_valor_del_origen_al_documento(monkeypatch):
         return b'%PDF'
 
     monkeypatch.setattr(
-        'apps.carnetizacion.infrastructure.repositories.repo_carnetizacion_orm.generar_carnet_pdf', falso,
+        'apps.carnetizacion.infrastructure.repositories.repo_carnetizacion_pdf.generar_carnet_pdf', falso,
     )
 
     RepoCarnetizacionORM(almacen=SimpleNamespace()).generar_pdf(carnet.pk)

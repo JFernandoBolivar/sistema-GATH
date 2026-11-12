@@ -45,9 +45,12 @@ def generar_excel_censo(filtros: dict | None = None) -> io.BytesIO:
     else:
         cedulas_final = respondentes
 
-    empleados = anotar_apn_oficial(
-        EmployeeModel.objects.filter(cedulaidentidad__in=cedulas_final)
-    ).order_by('cedulaidentidad')
+    empleados = list(
+        anotar_apn_oficial(
+            EmployeeModel.objects.filter(cedulaidentidad__in=cedulas_final)
+        ).order_by('cedulaidentidad')
+    )
+    cedulas = [emp.cedulaidentidad for emp in empleados]
 
     preguntas = PreguntasEncuestasModel.objects.filter(activo=True).order_by("orden")
     pregunta_ids = list(preguntas.values_list("id", flat=True))
@@ -67,31 +70,51 @@ def generar_excel_censo(filtros: dict | None = None) -> io.BytesIO:
     ws.title = "Censo Vivienda"
     ws.append(headers)
 
-    for emp in empleados:
-        respuestas = (
-            RespuestasEncuestaModel.objects.filter(empleado_id=emp.cedulaidentidad)
-            .select_related("pregunta", "opcion")
+    # Precarga en bloque: el export no debe hacer una consulta por empleado.
+    respuestas_por_cedula: dict[str, dict[int, object]] = {}
+    for respuesta in (
+        RespuestasEncuestaModel.objects
+        .filter(empleado_id__in=cedulas)
+        .select_related("pregunta", "opcion")
+        .order_by("pk")
+    ):
+        respuestas_por_cedula.setdefault(respuesta.empleado_id, {})[respuesta.pregunta_id] = (
+            respuesta.opcion.tipo_opcion if respuesta.opcion else respuesta.respuesta
         )
-        respuestas_map = {}
-        for r in respuestas:
-            respuestas_map[r.pregunta_id] = r.opcion.tipo_opcion if r.opcion else r.respuesta
+
+    asignaciones_por_cedula: dict[str, object] = {}
+    for asignacion in (
+        AsigTrabajoModel.objects
+        .filter(employee_id__in=cedulas)
+        .select_related(
+            'denominacioncargoid', 'denominacioncargoespecificoid',
+            'DireccionGeneral', 'tiponominaid',
+        )
+        .order_by('-fecha_actualizacion')
+    ):
+        asignaciones_por_cedula.setdefault(asignacion.employee_id, asignacion)
+
+    viviendas_por_empleado: dict[int, object] = {}
+    for vivienda in (
+        DatosViviendaModel.objects
+        .filter(empleado_id__in=[emp.id for emp in empleados])
+        .select_related('codigo_postal')
+        .order_by('pk')
+    ):
+        viviendas_por_empleado.setdefault(vivienda.empleado_id, vivienda)
+
+    for emp in empleados:
+        respuestas_map = respuestas_por_cedula.get(emp.cedulaidentidad, {})
 
         # Assignment details
-        asig = (
-            AsigTrabajoModel.objects.filter(employee_id=emp.cedulaidentidad)
-            .select_related(
-                'denominacioncargoid', 'denominacioncargoespecificoid',
-                'DireccionGeneral', 'tiponominaid'
-            )
-            .first()
-        )
+        asig = asignaciones_por_cedula.get(emp.cedulaidentidad)
         dg_nombre = asig.DireccionGeneral.direccion_general if asig and asig.DireccionGeneral else ""
         nomina_nombre = asig.tiponominaid.nomina if asig and asig.tiponominaid else ""
         cargo_nombre = asig.denominacioncargoid.cargo if asig and asig.denominacioncargoid else ""
         cargo_esp_nombre = asig.denominacioncargoespecificoid.cargo if asig and asig.denominacioncargoespecificoid else ""
 
         # Vivienda
-        vivienda = DatosViviendaModel.objects.filter(empleado_id=emp.id).select_related('codigo_postal').first()
+        vivienda = viviendas_por_empleado.get(emp.id)
         dir_vivienda = vivienda.direccion_exacta if vivienda else ""
         cp = vivienda.codigo_postal.codigo if vivienda and vivienda.codigo_postal else ""
 

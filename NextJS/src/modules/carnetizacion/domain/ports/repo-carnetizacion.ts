@@ -44,6 +44,7 @@ export interface RepoCarnetizacion {
 
   // Motor de Plantillas y Catálogo (O44 - E3)
   listarTiposCredencial(grupo?: string): Promise<TipoCredencial[]>;
+  obtenerSugerenciasReglasColor(): Promise<{ cargos: string[]; oficinas: string[] }>;
   listarPlantillasMotor(tipo?: string, estado?: string, activas?: boolean): Promise<PlantillaMotor[]>;
   listarPlantillasMotorPagina(tipo: string | undefined, params: ParamsPagina): Promise<PaginaCarnet<PlantillaMotor>>;
   listarFondosFijos(params: ParamsPagina): Promise<PaginaCarnet<PlantillaCarnet>>;

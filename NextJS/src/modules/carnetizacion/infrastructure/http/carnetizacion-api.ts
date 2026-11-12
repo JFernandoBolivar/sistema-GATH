@@ -201,6 +201,14 @@ export const carnetizacionApi = {
     return envelope.data ?? [];
   },
 
+  /** Cargos y oficinas reales (mismo texto que el PDF) para las reglas de color. */
+  getSugerenciasReglasColor: async () => {
+    const envelope = await apiClient.get<
+      ApiResponse<{ cargos: string[]; oficinas: string[] }>
+    >("/api/v1/carnetizacion/reglas-color/sugerencias/");
+    return envelope.data ?? { cargos: [], oficinas: [] };
+  },
+
   getPlantillasMotor: async (tipo?: string, estado?: string, activas?: boolean) => {
     const envelope = await apiClient.get<ApiResponse<PlantillaMotorApiItem[]>>("/api/v1/carnetizacion/plantillas-motor/", {
       params: { tipo, estado, activas: activas ? "true" : undefined },

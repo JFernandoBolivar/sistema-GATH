@@ -28,6 +28,9 @@ from apps.identidad.application.use_cases.emitir_tokens_sesion import (
 from apps.identidad.application.use_cases.obtener_condicion_trabajador import (
     obtener_condicion_trabajador,
 )
+from apps.identidad.application.use_cases.registrar_ultimo_acceso import (
+    registrar_ultimo_acceso,
+)
 from apps.identidad.application.use_cases.restablecer_password import (
     restablecer_password,
 )
@@ -230,7 +233,7 @@ class LoginView(APIView):
         # «Último acceso» del listado de usuarios: el login por JWT no pasa por
         # `django.contrib.auth.login`, así que `last_login` nunca se actualizaba.
         try:
-            type(cuenta).objects.filter(pk=cuenta.pk).update(last_login=timezone.now())
+            registrar_ultimo_acceso(RepoCuentasORM(), cuenta.pk, timezone.now())
         except Exception:  # noqa: BLE001 - registrar el acceso no debe impedir el ingreso
             logger.exception('login: no se pudo registrar el último acceso')
 

@@ -132,6 +132,10 @@ class RepoCarnetizacionMemoria implements RepoCarnetizacion {
     ];
   }
 
+  async obtenerSugerenciasReglasColor() {
+    return { cargos: [], oficinas: [] };
+  }
+
   async listarPlantillasMotorPagina() {
     return paginaVaciaPrueba<PlantillaMotor>();
   }

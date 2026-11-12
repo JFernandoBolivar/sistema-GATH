@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   alinearElementoKonva,
   aplicarColoresAValores,
+  cargarValoresSugeridos,
   quitarTodosLosValores,
   cambiarCriterioColor,
   CRITERIOS_COLOR_SOPORTADOS,
@@ -206,5 +207,63 @@ describe("sugerencias de nómina con tipos de credencial externa", () => {
     expect(sugerencias).toContain("TRABAJADOR_TEMPORAL");
     expect(etiquetaSugerencia("VISITANTE", tipos)).toBe("Visitante");
     expect(sugerir("cargo", tipos)).toEqual([]);
+  });
+});
+
+describe("sugerencias reales de cargo y oficina (reglas de color)", () => {
+  const listas = {
+    cargos: ["ANALISTA", "DIRECTOR", "ANALISTA"],
+    oficinas: ["GESTION HUMANA"],
+  };
+
+  it("devuelve los cargos del backend sin duplicados", () => {
+    expect(sugerenciasCriterio("cargo", [], listas)).toEqual(["ANALISTA", "DIRECTOR"]);
+  });
+
+  it("devuelve las oficinas del backend", () => {
+    expect(sugerenciasCriterio("oficina", [], listas)).toEqual(["GESTION HUMANA"]);
+  });
+
+  it("no mezcla las listas entre criterios ni con nomina", () => {
+    expect(sugerenciasCriterio("cargo", [], { oficinas: ["GESTION HUMANA"] })).toEqual([]);
+    expect(sugerenciasCriterio("oficina", [], { cargos: ["ANALISTA"] })).toEqual([]);
+    expect(sugerenciasCriterio("nomina", [], listas)).not.toContain("ANALISTA");
+  });
+
+  it("sin listas del backend no inventa valores", () => {
+    expect(sugerenciasCriterio("cargo")).toEqual([]);
+    expect(sugerenciasCriterio("oficina")).toEqual([]);
+  });
+});
+
+describe("cargar todos los valores sugeridos", () => {
+  const base: ReglasColorConfig = {
+    criterio: "cargo",
+    respaldo: { primario: "#111111", acento: "#222222", texto: "#ffffff" },
+    valores: {
+      DIRECTOR: { primario: "#000001", acento: "#000002", texto: "#eeeeee" },
+    },
+  };
+
+  it("agrega los valores nuevos con el color de respaldo", () => {
+    const r = cargarValoresSugeridos(base, ["ANALISTA", "DIRECTOR", "SECRETARIA"]);
+    expect(Object.keys(r.valores)).toEqual(["DIRECTOR", "ANALISTA", "SECRETARIA"]);
+    expect(r.valores.ANALISTA).toEqual(base.respaldo);
+    expect(r.valores.SECRETARIA).toEqual(base.respaldo);
+  });
+
+  it("respeta el color ya configurado de un valor", () => {
+    const r = cargarValoresSugeridos(base, ["DIRECTOR"]);
+    expect(r.valores.DIRECTOR).toEqual(base.valores.DIRECTOR);
+  });
+
+  it("ignora valores vacios y no muta las reglas originales", () => {
+    const r = cargarValoresSugeridos(base, ["  ", "ANALISTA"]);
+    expect(Object.keys(r.valores)).toEqual(["DIRECTOR", "ANALISTA"]);
+    expect(Object.keys(base.valores)).toEqual(["DIRECTOR"]);
+  });
+
+  it("sin valores devuelve las reglas intactas", () => {
+    expect(cargarValoresSugeridos(base, []).valores).toEqual(base.valores);
   });
 });

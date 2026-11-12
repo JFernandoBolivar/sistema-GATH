@@ -47,3 +47,7 @@ class RepoCuentas(Protocol):
     def establecer_password(self, id: int, password_nuevo: str) -> None:
         """Reemplaza el hash de contraseña almacenado."""
         ...
+
+    def registrar_ultimo_acceso(self, id: int, momento) -> None:
+        """Actualiza la marca de último acceso de la cuenta."""
+        ...

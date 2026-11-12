@@ -11,6 +11,9 @@ vi.mock("next/headers", () => ({
   cookies: vi.fn(async () => ({
     get: (name: string) => (name === "dj_access" ? { value: "token-actual" } : undefined),
   })),
+  headers: vi.fn(async () => ({
+    get: (name: string) => (name.toLowerCase() === "user-agent" ? "UA-Navegador/1.0" : null),
+  })),
 }));
 
 vi.mock("#/auth", () => ({
@@ -186,5 +189,21 @@ describe("apiClient (fetcher-api)", () => {
     const headers = ((init?.headers ?? {}) as Record<string, string>);
     expect(headers["Authorization"]).toBeUndefined();
     expect(headers["X-Trace-Id"]).toBeDefined();
+  });
+});
+
+describe("User-Agent del navegador (auditoría)", () => {
+  it("reenvía el User-Agent de la petición a Django", async () => {
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        jsonResponse({ status: "success", message: "ok", data: null }, 200),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await apiClient.get("personal/");
+
+    const init = fetchMock.mock.calls[0]?.[1];
+    const headers = ((init?.headers ?? {}) as Record<string, string>);
+    expect(headers["User-Agent"]).toBe("UA-Navegador/1.0");
   });
 });

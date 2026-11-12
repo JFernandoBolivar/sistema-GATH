@@ -67,6 +67,9 @@ from apps.carnetizacion.application.use_cases.validar_carnet import (
     validar_carnet_por_hash,
     validar_carnet_por_id,
 )
+from apps.carnetizacion.application.use_cases.sugerencias_reglas_color import (
+    sugerencias_reglas_color,
+)
 from apps.carnetizacion.infrastructure.pdf.carnet_pdf import logo_qr_de_biblioteca
 from apps.carnetizacion.infrastructure.qr_institucional import (
     generar_qr_png,
@@ -856,3 +859,17 @@ class AutogestionPrivacidadCarnetView(APIView):
             preferencias=serializer.validated_data['preferencias'],
         )
         return ok(actualizadas, "Preferencias de privacidad guardadas.")
+
+
+class SugerenciasReglasColorView(APIView):
+    """GET /api/v1/carnetizacion/reglas-color/sugerencias/ — cargos y oficinas reales."""
+
+    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.disenar')]
+
+    @extend_schema(
+        tags=['Carnetización'],
+        summary='Valores reales de cargo y oficina para las reglas de color',
+        responses={200: None},
+    )
+    def get(self, request):
+        return ok(sugerencias_reglas_color(RepoCarnetizacionORM()))

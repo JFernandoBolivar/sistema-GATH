@@ -7,6 +7,9 @@
  */
 import { apiClient } from "@/shared/infrastructure/http/fetcher-api";
 import type { ApiResponse } from "@/shared/types/api-response";
+import type { CatalogoPasivo } from "../../domain/entities/catalogo-pasivo";
+
+export type CatalogoPasivoApiItem = CatalogoPasivo;
 
 export interface PasivoApiItem {
   id: number;
@@ -130,11 +133,6 @@ export interface ResultadoSobrevivienteApiItem {
   nombre_completo: string;
   creado: boolean;
   codigo_asignacion: string | null;
-}
-
-export interface CatalogoPasivoApiItem {
-  id: number;
-  nombre: string;
 }
 
 async function list<T>(getter: Promise<ApiResponse<T[]>>): Promise<T[]> {

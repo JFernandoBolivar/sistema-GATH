@@ -83,6 +83,10 @@ export const repoCarnetizacionApi: RepoCarnetizacion = {
     return raw.map(tipoCredencialApiAEntidad);
   },
 
+  async obtenerSugerenciasReglasColor() {
+    return carnetizacionApi.getSugerenciasReglasColor();
+  },
+
   async listarPlantillasMotor(tipo, estado, activas) {
     const raw = await carnetizacionApi.getPlantillasMotor(tipo, estado, activas);
     return raw.map(plantillaMotorApiAEntidad);

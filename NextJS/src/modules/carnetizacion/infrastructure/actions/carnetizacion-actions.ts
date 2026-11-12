@@ -413,6 +413,22 @@ export async function getTiposCredencialAction(grupo?: string) {
   }
 }
 
+/** Cargos y oficinas reales para las sugerencias de las reglas de color. */
+export async function getSugerenciasReglasColorAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await repoCarnetizacionApi.obtenerSugerenciasReglasColor();
+    await logAudit({ traceId, action: "getSugerenciasReglasColorAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    unstable_rethrow(error);
+    await logAudit({ traceId, action: "getSugerenciasReglasColorAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return { cargos: [], oficinas: [] };
+  }
+}
+
 export async function getPlantillasMotorAction(tipo?: string, estado?: string, activas?: boolean) {
   const traceId = generateTraceId();
   const startedAt = Date.now();

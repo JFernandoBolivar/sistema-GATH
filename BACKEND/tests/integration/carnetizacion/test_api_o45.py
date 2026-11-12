@@ -574,3 +574,27 @@ def test_reemision_rechaza_motivo_invalido_y_detalle_corto(datos_base):
     )
     assert corto.status_code == 400, corto.content
     assert "detalle" in str(corto.json())
+
+
+def test_resumen_panel_evento_agrega_por_grupo_y_no_por_fila(datos_base, django_assert_max_num_queries):
+    """N+1 corregido: 3 categorías y 2 zonas no deben sumar consultas por fila."""
+    from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
+        EventoCategoriaModel,
+        EventoZonaModel,
+    )
+    from apps.carnetizacion.infrastructure.repositories.repo_eventos_orm import RepoEventosORM
+
+    api = datos_base["api"]
+    evento = _crear_evento(api)
+    for i in range(3):
+        EventoCategoriaModel.objects.create(evento_id=evento["id"], nombre=f"Categoría {i}")
+    for i in range(2):
+        EventoZonaModel.objects.create(evento_id=evento["id"], nombre=f"Zona {i}")
+
+    with django_assert_max_num_queries(8):
+        resumen = RepoEventosORM().obtener_resumen_panel(evento["id"])
+
+    # El evento nace con categorías por defecto (Staff, Prensa…): basta con que estén las nuevas.
+    assert set(resumen.por_categoria) >= {f"Categoría {i}" for i in range(3)}
+    assert set(resumen.por_zona) >= {f"Zona {i}" for i in range(2)}
+    assert all(valor == 0 for valor in resumen.por_categoria.values())

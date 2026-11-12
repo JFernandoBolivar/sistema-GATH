@@ -83,7 +83,7 @@ def tareas(monkeypatch):
 
     llamadas = []
 
-    def ejecutar_delay(*args):
+    def ejecutar_delay(*args, **kwargs):
         llamadas.append(args)
         return SimpleNamespace(id='tarea-1')
 

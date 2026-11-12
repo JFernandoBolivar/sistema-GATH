@@ -33,6 +33,7 @@ from apps.identidad.presentation.serializers.restablecer_acceso_bloque_serialize
     RestablecerAccesoBloqueSerializer,
 )
 from core.domain.exceptions import ConflictError
+from core.infrastructure.auditoria_contexto import origen_para_tarea
 from core.infrastructure.pdf.report_excel import generar_reporte_excel
 from core.presentation.envelope import ok
 from core.presentation.permissions import HasPermission
@@ -159,7 +160,9 @@ class RestablecerAccesoBloqueEjecutarView(APIView):
             list(cuenta_ids),
         )
         if datos['alcance'] == Alcance.TODOS.value:
-            tarea = restablecer_acceso_en_bloque_tarea.delay(*argumentos)
+            tarea = restablecer_acceso_en_bloque_tarea.delay(
+                *argumentos, origen=origen_para_tarea(),
+            )
             cache.delete(clave)
             return ok(
                 {'task_id': tarea.id, 'estado': 'EN_PROCESO'},

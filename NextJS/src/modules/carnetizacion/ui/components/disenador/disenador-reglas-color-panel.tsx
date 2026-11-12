@@ -27,10 +27,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { CriterioColor, ReglasColorConfig } from "../../../domain/entities/disenador";
+import type { CriterioColor, ReglasColorConfig, SugerenciasReglasColor } from "../../../domain/entities/disenador";
 import {
   aplicarColoresAValores,
   cambiarCriterioColor,
+  cargarValoresSugeridos,
   quitarTodosLosValores,
   CRITERIOS_COLOR_SOPORTADOS,
   ETIQUETA_VALORES_CRITERIO,
@@ -49,6 +50,9 @@ interface DisenadorReglasColorPanelProps {
   onCambiarNuevoValorNombre: (valor: string) => void;
   /** Tipos de credencial externa del catálogo (visitante, contratista...) para sugerir como nómina. */
   tiposExternos?: readonly TipoExternoColor[];
+  /** Cargos y oficinas reales (el mismo texto que usa el PDF). */
+  sugerenciasReglasColor?: Partial<SugerenciasReglasColor>;
+  cargandoSugerencias?: boolean;
 }
 
 export function DisenadorReglasColorPanel({
@@ -57,6 +61,8 @@ export function DisenadorReglasColorPanel({
   nuevoValorNombre,
   onCambiarNuevoValorNombre,
   tiposExternos = [],
+  sugerenciasReglasColor = {},
+  cargandoSugerencias = false,
 }: DisenadorReglasColorPanelProps) {
   const [busquedaValor, setBusquedaValor] = useState("");
   const [colorMasivo, setColorMasivo] = useState({ primario: "#1f3a5f", acento: "#1273bd" });
@@ -69,7 +75,11 @@ export function DisenadorReglasColorPanel({
   const filtradas = busquedaValor.trim()
     ? entradas.filter(([k]) => k.toLowerCase().includes(busquedaValor.trim().toLowerCase()))
     : entradas;
-  const sugerencias = sugerenciasCriterio(criterio, tiposExternos).filter((v) => !(v in reglasColor.valores));
+  const sugerencias = sugerenciasCriterio(
+    criterio,
+    tiposExternos,
+    sugerenciasReglasColor,
+  ).filter((v) => !(v in reglasColor.valores));
   const soportado = (c: string) => (CRITERIOS_COLOR_SOPORTADOS as readonly string[]).includes(c);
 
   const marcadosVigentes = marcados.filter((k) => k in reglasColor.valores);
@@ -404,6 +414,9 @@ export function DisenadorReglasColorPanel({
             </div>
 
             {/* Agregar nuevo valor de regla */}
+            {cargandoSugerencias && (
+              <p className="text-[10px] text-muted-foreground">Cargando sugerencias…</p>
+            )}
             <div className="flex items-center gap-1 pt-1">
               <Input
                 placeholder={criterio === "nomina" ? "Nuevo valor (ej. Pasante)" : "Nuevo valor (ej. Analista)"}
@@ -417,6 +430,22 @@ export function DisenadorReglasColorPanel({
                   <option key={v} value={v} label={etiquetaSugerencia(v, tiposExternos) ?? undefined} />
                 ))}
               </datalist>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 text-[11px] px-2 shrink-0"
+                disabled={cargandoSugerencias || sugerencias.length === 0}
+                title="Añadir todos los valores sugeridos con el color de respaldo"
+                onClick={() => {
+                  onActualizarReglasColor((prev) => cargarValoresSugeridos(prev, sugerencias));
+                  toast.success(
+                    `${sugerencias.length} valores cargados con el color de respaldo.`,
+                  );
+                }}
+              >
+                {cargandoSugerencias ? "Cargando…" : `Cargar todos (${sugerencias.length})`}
+              </Button>
               <Button
                 type="button"
                 variant="secondary"

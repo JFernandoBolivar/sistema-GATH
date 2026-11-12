@@ -154,6 +154,10 @@ class RepoCarnetizacion(Protocol):
         """Id del catálogo `MotivosEmision` que corresponde al motivo de reemisión."""
         ...
 
+    def sugerencias_reglas_color(self) -> dict[str, list[str]]:
+        """Cargos y oficinas reales del último cargo activo de cada titular."""
+        ...
+
     def emitir_carnet(
         self,
         empleado_cedula: str,

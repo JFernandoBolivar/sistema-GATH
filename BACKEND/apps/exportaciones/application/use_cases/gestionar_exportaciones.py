@@ -59,6 +59,7 @@ def solicitar_exportacion(
     ahora: datetime,
     ttl_horas: int,
     max_activas: int,
+    origen: dict | None = None,
 ) -> TrabajoExportacion:
     tipo, formato = validar_tipo_y_formato(tipo, formato)
     if max_activas > 0 and repo.contar_activos_de(solicitante_id) >= max_activas:
@@ -79,7 +80,10 @@ def solicitar_exportacion(
         expira_en=ahora + timedelta(hours=ttl_horas),
     ))
     try:
-        trabajo.task_id = cola.encolar(TAREA_GENERAR, trabajo_id=trabajo.id)
+        kwargs_tarea: dict = {'trabajo_id': trabajo.id}
+        if origen:
+            kwargs_tarea['origen'] = origen
+        trabajo.task_id = cola.encolar(TAREA_GENERAR, **kwargs_tarea)
     except ColaTareasNoDisponible:
         # Sin worker no hay quien genere el archivo: el trabajo queda en ERROR y
         # el usuario recibe el 503 claro (no se simula un trabajo pendiente).

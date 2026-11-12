@@ -245,3 +245,22 @@ def verificar_lectura_estilos(definicion: dict[str, Any] | None) -> None:
                     f'El estilo del código QR del {cara} no se pudo leer en la prueba de lectura. '
                     'Use colores más oscuros, un logo más pequeño o el estilo «Institucional».'
                 )
+
+
+def contenido_qr_carnet(security_hash: str, cedula: str = '', nombre: str = '') -> str:
+    """Texto que va dentro del QR de un carnet (PDF y vista web usan el mismo).
+
+    Con `FRONTEND_URL` configurada es la URL de la ficha pública de verificación, para que la
+    cámara del teléfono la abra directamente; sin ella, un respaldo legible.
+    """
+    from django.conf import settings
+
+    base_frontend = str(getattr(settings, 'FRONTEND_URL', '') or '').rstrip('/')
+    if base_frontend:
+        return f'{base_frontend}/carnet/{security_hash}'
+    lineas = [f'GATH-ID: {security_hash}']
+    if cedula:
+        lineas.append(f'CI: {cedula}')
+    if nombre:
+        lineas.append(f'Titular: {str(nombre)[:30]}')
+    return '\n'.join(lineas) + '\n'

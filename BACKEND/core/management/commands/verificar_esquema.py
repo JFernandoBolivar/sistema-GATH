@@ -24,7 +24,7 @@ from django.db import connection
 from django.db.migrations.exceptions import InconsistentMigrationHistory
 from django.db.migrations.loader import MigrationLoader
 
-SUPERADMIN = getattr(settings, "SUPERADMIN_CEDULA", "30799436")
+SUPERADMIN = settings.SUPERADMIN_CEDULA
 
 ROLES_ESPERADOS = (
     "ADMINISTRADOR",
