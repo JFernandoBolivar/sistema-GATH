@@ -114,5 +114,29 @@ Cuando todo lo de arriba esté completado, se hará una auditoría de todos los 
 - corrección de los hallazgos que no requieran tu decisión; los demás se anotan para que decidas.
 
 ## Pendiente técnico conocido
-- El PDF debe dibujar las formas editadas por puntos y los radios por esquina. Hoy usa la copia del path.
 - La rama `chore/next-upgrade` hay que ponerla al día con la feature antes del próximo pase.
+
+## Comentarios del 12/11/2026 (pruebas por el túnel)
+
+| # | Comentario | Estado | Qué se hizo | Commit |
+|---|---|---|---|---|
+| 80 | Flecha doble en «Siguiente» del restablecimiento en bloque | ✅ | Una sola flecha | `a7212e5f` |
+| 81 | Auditoría en el teléfono: botones de exportar desbordados | ✅ | La barra se parte en dos filas; aplica a todas las pantallas con filtros | `f9dcf782` |
+| 82 | Auditoría: IP y dispositivo salen «—» | ✅ | Toda acción guarda IP y dispositivo, incluso en segundo plano; Next reenvía el navegador del usuario | `2663ca6d` |
+| 83 | Nacionalidad bloqueada para el administrador | ✅ Respondido | El permiso existe; la sesión guarda los permisos al entrar: cerrar sesión y volver a entrar | — |
+| 84 | «No tiene Nivel (Dependencia)» en préstamo de cargo | ✅ | Solo 44 códigos de prueba sin ubicación; el Nivel se toma de la Dirección General si falta; textos dicen «Nivel» | `6afbe20f` |
+| 85 | «Guardar configuración» de Punto de cuenta: error interno | ✅ | Import roto corregido; revisión de todo el backend: 3 más corregidos y prueba guardiana de imports | `06afe673`, `75517485` |
+| 86 | Agregar documento del familiar: diseño | ✅ | Tipo en botones, archivo a todo el ancho, acción abajo | `011f11bb` |
+| 87 | Bandeja de fe de vida: orden por fecha y hora | ✅ | Ordenada por fecha de envío; las sin enviar al final | `a42e90ee` |
+| 88 | Vivienda: «Ciudad o región» en «Otros» y campos de Venezuela para otro país | ✅ | Regla otro país / Venezuela en revisión, ficha y portal | `4a367e03` |
+| 89 | Fotos de invitados que no cargan | ✅ | Iniciales si no hay foto | `b5a45da7` |
+| 90 | Botones de colores del diseñador desbordados | ✅ | Uno debajo del otro | `72dd15b1` |
+| 91 | «Por cargo» y «Por oficina» sin valores | ✅ | Sugerencias reales del catálogo y «Cargar todos» | `2663ca6d` |
+| 92 | Documentos del familiar duplicados por tipo | ✅ | Uno por tipo: el nuevo reemplaza al viejo | `4a367e03` |
+| 93 | «Orden de nacimiento» bloqueado y «Revise los campos en rojo» sin rojo | ✅ | Cálculo corregido (1 a 9 con cédula de 8 dígitos) y error visible | `6c4c5da4` |
+| 94 | Contador «12/500» duplicado | ✅ | Uno solo | `6c4c5da4` |
+| 95 | QR de «Mi carnet» no abre ninguna página | ✅ | Lleva la URL de verificación, igual que el PDF | `2663ca6d` |
+| 96 | Textos desbordados en «Elementos e inserción» | ✅ | Los textos se parten | `4a367e03` |
+| 97 | ¿Reenviar y regenerar constancia están listos? | ✅ Respondido | Sí, desde `b268731a` (11/11); llega a producción en el próximo pase | — |
+
+**Mejora sugerida (sin hacer):** que la sesión refresque sola los permisos nuevos sin volver a entrar.
