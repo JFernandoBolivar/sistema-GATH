@@ -12,8 +12,8 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 
 | Estado | Cantidad |
 |---|---|
-| ✅ Completado | 62 |
-| ⏳ En proceso | 8 |
+| ✅ Completado | 63 |
+| ⏳ En proceso | 7 |
 | ❓ Respondida | 9 |
 | 🟡 Espera tu decisión | 0 |
 
@@ -53,7 +53,7 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 | 58 | El campo «Escriba la cédula nueva para confirmar» aceptaba letras | ✅ | Ese campo y el de la cédula solo aceptan números | `f33fc3fb` |
 | 59 | Nacionalidad con permiso propio, separado del de la cédula | ✅ | Permiso «Actualizar nacionalidad del trabajador» | `71cb939a` |
 | 60 | El familiar registrado en una fe de vida aprobada no aparece en Familiares del pasivo | ⏳ | Revisado: al aprobar, los familiares **sí se guardan**. En la solicitud que mirabas (99000320 / 5132733) los familiares existen (ids 5659 y 5642); fueron **modificaciones**, no altas. Hallazgo: el familiar 5642 tiene **la misma cédula que el titular (5132733)**, y eso no debería permitirse. Cédula buscada: 5132733. Se valida que familiar y titular no compartan cédula y se revisa la consulta (OpenCode) | — |
-| 61 | «¿Tiene hijos?» de la fe de vida debe actualizar el expediente y verse y editarse en la ficha de activos y pasivos | ⏳ | Ya se guarda en el expediente al validar (datos complementarios). Falta mostrarlo y editarlo en la ficha de activos y pasivos; no hace falta migración | — |
+| 61 | «¿Tiene hijos?» de la fe de vida debe actualizar el expediente y verse y editarse en la ficha de activos y pasivos | ✅ | Tarjeta «Grupo Familiar» en la ficha de activos y pasivos, con botón Actualizar (Sí/No) y auditoría | `0eb90c4c` |
 | 62 | Botón «Contacto de emergencia» distinto a los demás | ✅ | Mismo estilo e ícono que las otras secciones | `0dcb8f4d` |
 | 63 | Organización: el encabezado azul de la tabla se sale del recuadro redondeado | ✅ | El encabezado queda dentro del recuadro | `a9e0d523` |
 | 64 | Cargos: la página no se adapta al ancho de la pantalla | ✅ | Las tablas anchas se desplazan dentro de su tarjeta; corregido para todas las páginas | `a9e0d523` |
