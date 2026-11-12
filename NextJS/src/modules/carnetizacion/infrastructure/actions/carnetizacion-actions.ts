@@ -8,6 +8,8 @@
  */
 import type { ZodError } from "zod";
 
+import { ApiHttpError } from "@/shared/infrastructure/http/errors";
+
 import {
   listarBiblioteca,
   listarBibliotecaPagina,
@@ -18,6 +20,7 @@ import {
   listarCamposCredencial,
   crearCampoPersonalizado,
   eliminarCampoPersonalizado,
+  actualizarCampoPersonalizado,
 } from "../../application/use-cases/gestionar-campos";
 import {
   consultarFichaQrUC,
@@ -337,12 +340,15 @@ export async function generarCarnetPdfAction(
   motivoId: number,
   nombre: string,
   plantillaId?: string,
+  opciones?: { motivoReemision?: string; detalle?: string; observaciones?: string },
 ) {
   const traceId = generateTraceId();
   const startedAt = Date.now();
   try {
     const { carnetizacionApi } = await import("../http/carnetizacion-api");
-    const blob = await carnetizacionApi.generarCarnetPdf(cedula, motivoId, nombre, plantillaId);
+    const blob = await carnetizacionApi.generarCarnetPdf(
+      cedula, motivoId, nombre, plantillaId, opciones,
+    );
     const arrayBuffer = await blob.arrayBuffer();
     const base64 = Buffer.from(arrayBuffer).toString("base64");
     await logAudit({ traceId, action: "generarCarnetPdfAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
@@ -350,7 +356,14 @@ export async function generarCarnetPdfAction(
   } catch (error) {
     await logAudit({ traceId, action: "generarCarnetPdfAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    return { success: false as const, message: "Error al generar el carnet", data: null };
+    return {
+      success: false as const,
+      message: error instanceof ApiHttpError
+        ? error.message
+        : "Error al generar el carnet",
+      data: null,
+      status: error instanceof ApiHttpError ? error.status : undefined,
+    };
   }
 }
 
@@ -677,6 +690,7 @@ export async function crearCampoPersonalizadoAction(data: {
   sensible?: boolean;
   descripcion?: string;
   valor_ejemplo?: string;
+  origen: string;
 }) {
   const traceId = generateTraceId();
   const startedAt = Date.now();
@@ -688,6 +702,24 @@ export async function crearCampoPersonalizadoAction(data: {
     await logAudit({ traceId, action: "crearCampoPersonalizadoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     const mensaje = error instanceof Error ? error.message : "No fue posible registrar el campo.";
+    return { success: false as const, error: mensaje };
+  }
+}
+
+export async function actualizarCampoPersonalizadoAction(
+  codigo: string,
+  data: { etiqueta: string; origen: string; sensible?: boolean; descripcion?: string; valor_ejemplo?: string },
+) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await actualizarCampoPersonalizado(repoCarnetizacionApi, codigo, data);
+    await logAudit({ traceId, action: "actualizarCampoPersonalizadoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const, data: result };
+  } catch (error) {
+    await logAudit({ traceId, action: "actualizarCampoPersonalizadoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const mensaje = error instanceof Error ? error.message : "No fue posible actualizar el campo.";
     return { success: false as const, error: mensaje };
   }
 }

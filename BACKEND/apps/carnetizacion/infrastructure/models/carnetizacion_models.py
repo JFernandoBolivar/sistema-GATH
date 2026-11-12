@@ -208,6 +208,8 @@ class CampoPersonalizadoModel(BaseModel):
     sensible = models.BooleanField(default=False)
     descripcion = models.TextField(blank=True, default='')
     valor_ejemplo = models.CharField(max_length=255, blank=True, default='')
+    # Origen del dato (lista cerrada del dominio). Vacío = campo anterior, sin origen: se imprime vacío.
+    origen = models.CharField(max_length=40, blank=True, default='')
 
     class Meta:
         db_table = 'CarnetCampoPersonalizado'

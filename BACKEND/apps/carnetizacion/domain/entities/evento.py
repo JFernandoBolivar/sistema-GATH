@@ -21,6 +21,15 @@ class EstadoInvitado(str, Enum):
     ANULADO = "anulado"
 
 
+class ResolucionCarnetInstitucional(str, Enum):
+    """Qué es un código escaneado que no pertenece a ningún gafete de evento."""
+    NO_ES_CARNET = "NO_ES_CARNET"
+    ANULADO = "ANULADO"
+    VENCIDO = "VENCIDO"
+    NO_INVITADO = "NO_INVITADO"
+    INVITADO = "INVITADO"
+
+
 class ResultadoControlEntrada(str, Enum):
     ACCESO_PERMITIDO = "ACCESO_PERMITIDO"
     YA_INGRESO = "YA_INGRESO"

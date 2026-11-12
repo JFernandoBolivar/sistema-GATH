@@ -75,6 +75,8 @@ export interface EmployeeCarnet {
   telefono: string;
   total_solicitudes: number;
   tiene_carnet: boolean;
+  /** ISO de la emisión del carnet vigente; null si no tiene. */
+  carnet_activo_emitido_en?: string | null;
 }
 
 export interface MotivoOption {
@@ -147,6 +149,8 @@ export interface CampoCredencial {
   es_personalizado: boolean;
   descripcion: string;
   valor_ejemplo: string;
+  /** Solo en personalizados: de dónde sale el valor al imprimir. Vacío = campo viejo sin origen. */
+  origen?: string;
 }
 
 export interface Plantilla {

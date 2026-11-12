@@ -52,7 +52,7 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 | 29 | Auditoría: el rol no aparece | ✅ | Se guarda desde ahora; en los registros viejos se muestra el rol actual | `e27125db` |
 | 58 | El campo «Escriba la cédula nueva para confirmar» aceptaba letras | ✅ | Ese campo y el de la cédula solo aceptan números | `f33fc3fb` |
 | 59 | Nacionalidad con permiso propio, separado del de la cédula | ✅ | Permiso «Actualizar nacionalidad del trabajador» | `71cb939a` |
-| 60 | El familiar registrado en una fe de vida aprobada no aparece en Familiares del pasivo | ⏳ | Revisado: al aprobar, los familiares **sí se guardan**. En la solicitud que mirabas (99000320 / 5132733) los familiares existen (ids 5659 y 5642); fueron **modificaciones**, no altas. Hallazgo: el familiar 5642 tiene **la misma cédula que el titular (5132733)**, y eso no debería permitirse. Cédula buscada: 5132733. Se valida que familiar y titular no compartan cédula y se revisa la consulta (OpenCode) | — |
+| 60 | El familiar registrado en una fe de vida aprobada no aparece en Familiares del pasivo | ✅ | Corregido: los familiares de la fe de vida aprobada se muestran en Familiares del pasivo | `f16df37a` |
 | 61 | «¿Tiene hijos?» de la fe de vida debe actualizar el expediente y verse y editarse en la ficha de activos y pasivos | ✅ | Tarjeta «Grupo Familiar» en la ficha de activos y pasivos, con botón Actualizar (Sí/No) y auditoría | `0eb90c4c` |
 | 62 | Botón «Contacto de emergencia» distinto a los demás | ✅ | Mismo estilo e ícono que las otras secciones | `0dcb8f4d` |
 | 63 | Organización: el encabezado azul de la tabla se sale del recuadro redondeado | ✅ | El encabezado queda dentro del recuadro | `a9e0d523` |
@@ -67,12 +67,12 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 | 72 | El PDF de pasivos perdió los totales de femeninos y masculinos | ✅ | Se recupera el conteo por sexo sobre el resultado filtrado | `57a480a3` |
 | 73 | Consultar pasivos: quitar el filtro «Tipo de Jubilación / Pensión» (permitía crear motivos) | ✅ | Eliminado; se sube con el permiso de nacionalidad | `71cb939a` |
 | 74 | Ficha de pasivos: no deben salir Grado, «Cargo cubierto por encargaduría» ni Encargadurías | ✅ | Ocultos en la ficha de pasivos | `71cb939a` |
-| 75 | Familiares: menú de acciones como el de Personal y botón de editar por bloque en Ver detalle | ⏳ | OpenCode, después de lo de Familiares | — |
+| 75 | Familiares: menú de acciones como el de Personal y botón de editar por bloque en Ver detalle | ✅ | Menú de acciones como Personal y edición por bloque en Ver detalle | `f16df37a` |
 | 76 | Movimientos (contrato con error 500, buscador de cargo, asteriscos, código especial) | ✅ | Ver los puntos 65 a 68 | `4b7ff4fb` |
 | 77 | ¿La regla «familiar con la misma cédula del titular» afecta a los hijos menores con cédula «titular-n»? | ❓ | No: solo bloquea cuando las cédulas son exactamente iguales. «5132733-1» sigue permitida y se agregó una prueba | — |
 | 78 | Autogestión: la vivienda como un solo bloque «Actualizar mi vivienda», respetando la cascada país → estado → municipio → parroquia | ✅ | Una casilla abre el formulario completo con la cascada; además ahora se valida la coherencia en los cambios de un solo campo | `97d1e7ca` |
 | 79 | «Mi carnet» en autogestión muestra un diseño fijo, no la plantilla configurada | ⏳ | Se mostrará la imagen real del carnet con la plantilla vigente y el QR verdadero. En cola | — |
-| 30 | Familiares: grupo sanguíneo obligatorio, errores que no se marcan, error en el flujo de registro y actualización, documentos en la actualización | ⏳ | OpenCode lo está corrigiendo | — |
+| 30 | Familiares: grupo sanguíneo obligatorio, errores que no se marcan, error en el flujo de registro y actualización, documentos en la actualización | ✅ | Grupo sanguíneo obligatorio, errores marcados en cada campo, flujo de registro y actualización corregido, documentos en la actualización | `f16df37a` |
 
 ## Carnetización
 

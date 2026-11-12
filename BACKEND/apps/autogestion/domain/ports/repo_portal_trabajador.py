@@ -40,6 +40,10 @@ class RepoPortalTrabajador(Protocol):
         """PDF del carnet activo del trabajador, o None si no tiene carnet activo."""
         ...
 
+    def generar_vista_previa_carnet_activo(self, cedula: str) -> str | None:
+        """Vista previa PNG (data URL) del carnet activo, o None si no tiene."""
+        ...
+
     def puede_ver_carnet(self, cedula: str) -> bool:
         """Determina si el trabajador tiene acceso a Mi carnet según la política del sistema."""
         ...

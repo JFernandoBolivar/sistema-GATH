@@ -2,6 +2,9 @@
 Vistas delgadas de Carnetización (Reglas B4, B7, O44 - E3).
 Con Envelope unificado `ok()` / `fail()` y permisos PBAC.
 """
+import logging
+import uuid
+
 from django.db import transaction
 from django.http import HttpResponse
 from rest_framework.views import APIView
@@ -14,7 +17,9 @@ from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
 from core.domain.exceptions import ValidationError
 from core.infrastructure.storage.imagenes import reducir_foto_perfil
 from core.infrastructure.storage.validacion_archivo import MAX_BYTES_IMAGEN, TIPOS_IMAGEN, clave_segura, validar_archivo
+from core.presentation.audit import origen_de_peticion, registrar_auditoria
 from core.presentation.envelope import fail, ok
+from apps.carnetizacion.domain.exceptions import ReemisionSinMotivoError
 from apps.carnetizacion.domain.value_objects.paginacion import Paginacion
 from core.presentation.permissions import HasPermission
 from apps.carnetizacion.application.use_cases.consultar_qr import (
@@ -28,6 +33,7 @@ from apps.carnetizacion.application.use_cases.emitir_carnet import (
 )
 from apps.carnetizacion.application.use_cases.generar_pdf_carnet import generar_pdf_carnet
 from apps.carnetizacion.application.use_cases.gestionar_campos import (
+    actualizar_campo_personalizado_uc,
     crear_campo_personalizado_uc,
     eliminar_campo_personalizado_uc,
     listar_campos_credencial_uc,
@@ -73,6 +79,7 @@ from apps.carnetizacion.presentation.serializers.carnetizacion_serializers impor
     ActualizarPlantillaBorradorInputSerializer,
     CampoCredencialSerializer,
     CarnetSerializer,
+    ActualizarCampoPersonalizadoInputSerializer,
     CrearCampoPersonalizadoInputSerializer,
     CrearPlantillaBorradorInputSerializer,
     ElementoBibliotecaSerializer,
@@ -404,11 +411,11 @@ class ElementoBibliotecaListView(APIView):
     def post(self, request):
         serializer = SubirElementoBibliotecaInputSerializer(data=request.data)
         if not serializer.is_valid():
-            return fail(serializer.errors, 'Datos inválidos', 400)
+            return fail('Datos inválidos', status=400, data=serializer.errors)
 
         archivo = request.FILES.get('archivo')
         if not archivo:
-            return fail({'archivo': ['Debe adjuntar un archivo gráfico.']}, 'Archivo requerido', 400)
+            return fail('Archivo requerido', status=400, data={'archivo': ['Debe adjuntar un archivo gráfico.']})
 
         contenido = archivo.read()
         repo = RepoCarnetizacionORM()
@@ -475,13 +482,13 @@ class CampoPersonalizadoCreateView(APIView):
     """
     Creación de campos personalizados para credenciales (O44 - E5).
     """
-    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.disenar')]
+    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.campos_personalizados')]
 
     @extend_schema(tags=['Carnetización'], summary='Registrar campo personalizado', request=CrearCampoPersonalizadoInputSerializer)
     def post(self, request):
         serializer = CrearCampoPersonalizadoInputSerializer(data=request.data)
         if not serializer.is_valid():
-            return fail(serializer.errors, 'Datos del campo inválidos', 400)
+            return fail('Datos del campo inválidos', status=400, data=serializer.errors)
 
         repo = RepoCarnetizacionORM()
         creado = crear_campo_personalizado_uc(
@@ -493,15 +500,33 @@ class CampoPersonalizadoCreateView(APIView):
             sensible=serializer.validated_data.get('sensible', False),
             descripcion=serializer.validated_data.get('descripcion', ''),
             valor_ejemplo=serializer.validated_data.get('valor_ejemplo', ''),
+            origen=serializer.validated_data['origen'],
         )
         return ok(CampoCredencialSerializer(creado).data, 'Campo personalizado registrado.', 201)
 
 
 class CampoPersonalizadoDetailView(APIView):
     """
-    Eliminación de campo personalizado (O44 - E5).
+    Edición y eliminación de campo personalizado (O44 - E5).
     """
-    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.disenar')]
+    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.campos_personalizados')]
+
+    @extend_schema(tags=['Carnetización'], summary='Editar campo personalizado', request=ActualizarCampoPersonalizadoInputSerializer)
+    def patch(self, request, codigo: str):
+        serializer = ActualizarCampoPersonalizadoInputSerializer(data=request.data)
+        if not serializer.is_valid():
+            return fail('Datos del campo inválidos', status=400, data=serializer.errors)
+        datos = serializer.validated_data
+        actualizado = actualizar_campo_personalizado_uc(
+            RepoCarnetizacionORM(),
+            codigo=codigo,
+            etiqueta=datos['etiqueta'],
+            origen=datos['origen'],
+            descripcion=datos.get('descripcion', ''),
+            valor_ejemplo=datos.get('valor_ejemplo', ''),
+            sensible=datos.get('sensible', False),
+        )
+        return ok(CampoCredencialSerializer(actualizado).data, 'Campo personalizado actualizado.')
 
     @extend_schema(tags=['Carnetización'], summary='Eliminar campo personalizado')
     def delete(self, request, codigo: str):
@@ -667,6 +692,8 @@ class CarnetGenerarView(APIView):
         plantilla_id = request.data.get('plantilla_id')
         datos_editados = request.data.get('datos_editados', {})
         nombre_override = datos_editados.get('nombre') if isinstance(datos_editados, dict) else None
+        motivo_reemision = request.data.get('motivo_reemision')
+        detalle = request.data.get('detalle')
 
         try:
             motivo = int(motivo_id) if motivo_id else 1
@@ -677,17 +704,51 @@ class CarnetGenerarView(APIView):
 
         # L2-18: emisión y PDF en la misma transacción: si el PDF falla no queda
         # un carnet nuevo con el anterior ya anulado.
-        with transaction.atomic():
-            pdf_bytes = emitir_carnet_y_pdf(
-                RepoCarnetizacionORM(),
-                empleado_cedula=cedula,
-                motivo_id=motivo,
-                observaciones=observaciones,
-                plantilla_id=plantilla_id,
-                nombre_override=nombre_override,
+        try:
+            with transaction.atomic():
+                emision = emitir_carnet_y_pdf(
+                    RepoCarnetizacionORM(),
+                    empleado_cedula=cedula,
+                    motivo_id=motivo,
+                    observaciones=observaciones,
+                    plantilla_id=plantilla_id,
+                    nombre_override=nombre_override,
+                    motivo_reemision=motivo_reemision,
+                    detalle=detalle,
+                )
+        except ReemisionSinMotivoError as exc:
+            # T2: 409 con el resumen del carnet vigente para que la consola
+            # muestre la fecha y exija el motivo.
+            return fail(
+                str(exc),
+                status=409,
+                data={'carnet_vigente': exc.carnet_vigente},
             )
+
+        if emision.motivo_reemision:
+            try:
+                registrar_auditoria(
+                    trace_id=getattr(request, 'trace_id', None) or uuid.uuid4().hex,
+                    actor_id=getattr(request.user, 'pk', None),
+                    actor_cedula=str(getattr(request.user, 'cedula_id', '') or ''),
+                    accion='carnetizacion.carnet_reemitido',
+                    modulo='carnetizacion',
+                    recurso_tipo='CarnetEmitido',
+                    recurso_id=str(emision.carnet.id),
+                    estado_nuevo={
+                        'motivo_reemision': emision.motivo_reemision,
+                        'detalle': emision.detalle,
+                        'carnet_id': emision.carnet.id,
+                    },
+                    **origen_de_peticion(request),
+                )
+            except Exception:  # noqa: BLE001 - la auditoría no debe tumbar la emisión
+                logging.getLogger('security_backend').exception(
+                    'No se pudo auditar la reemisión del carnet %s', emision.carnet.id,
+                )
+
         # O46-A: el endpoint debe devolver el PDF binario, no un sobre JSON en base64.
-        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response = HttpResponse(emision.pdf, content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="carnet_{cedula}.pdf"'
         return response
 
@@ -786,7 +847,7 @@ class AutogestionPrivacidadCarnetView(APIView):
             return fail("El usuario autenticado no tiene un expediente asociado.", status=400)
         serializer = PreferenciasPrivacidadInputSerializer(data=request.data)
         if not serializer.is_valid():
-            return fail(serializer.errors, "Datos de preferencias inválidos", 400)
+            return fail("Datos de preferencias inválidos", status=400, data=serializer.errors)
 
         repo = RepoCarnetizacionORM()
         actualizadas = guardar_privacidad_por_cedula_uc(

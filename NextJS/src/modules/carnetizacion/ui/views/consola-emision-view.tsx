@@ -26,6 +26,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { formatearFecha } from "@/shared/lib/formato-fecha";
 import {
   Select,
   SelectContent,
@@ -70,6 +71,16 @@ function downloadPdfBase64(base64: string, filename: string) {
 
 type FiltroRapido = "todos" | "activos" | "pasivos" | "sin_carnet";
 
+const MOTIVOS_REEMISION = [
+  { value: "PERDIDA_ROBO", label: "Pérdida o robo" },
+  { value: "DETERIORO", label: "Deterioro" },
+  { value: "CAMBIO_DATOS", label: "Cambio de datos" },
+  { value: "CAMBIO_CARGO", label: "Cambio de cargo" },
+  { value: "OTRO", label: "Otro" },
+] as const;
+
+const DETALLE_REEMISION_MIN = 10;
+
 export function ConsolaEmisionView() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -84,6 +95,9 @@ export function ConsolaEmisionView() {
   const [motivoId, setMotivoId] = useState<number>(0);
   const [plantillaId, setPlantillaId] = useState<string>("activa");
   const [observaciones, setObservaciones] = useState("");
+  const [motivoReemision, setMotivoReemision] = useState<string>("");
+  const [detalleReemision, setDetalleReemision] = useState("");
+  const [avisoReemision, setAvisoReemision] = useState<string | null>(null);
   const [vistaPreviaRaster, setVistaPreviaRaster] = useState<string>("");
   const [isPendingEmision, startTransitionEmision] = useTransition();
   // Cédula con vista previa en curso (ref: evita lanzar una segunda petición para la misma
@@ -139,6 +153,18 @@ export function ConsolaEmisionView() {
 
   // Motivo efectivo derivado del catálogo
   const motivoEfectivoId = motivoId || (listaMotivos?.[0]?.id ?? 1);
+
+  // T2: si la persona ya tiene un carnet vigente hay que indicar el motivo.
+  const tieneCarnetVigente = Boolean(trabajadorSeleccionado?.tiene_carnet);
+  const requiereDetalleReemision = motivoReemision === "OTRO";
+  const reemisionCompleta =
+    !tieneCarnetVigente ||
+    (Boolean(motivoReemision) &&
+      (!requiereDetalleReemision ||
+        detalleReemision.trim().length >= DETALLE_REEMISION_MIN));
+  const fechaCarnetVigente = trabajadorSeleccionado?.carnet_activo_emitido_en
+    ? formatearFecha(trabajadorSeleccionado.carnet_activo_emitido_en)
+    : null;
 
   // Si viene con parámetro ?cedula=, preseleccionar automáticamente al trabajador
   useEffect(() => {
@@ -210,6 +236,9 @@ export function ConsolaEmisionView() {
     setTrabajadorSeleccionado(emp);
     setBusqueda(emp.cedula);
     setDebouncedQuery(emp.cedula);
+    setMotivoReemision("");
+    setDetalleReemision("");
+    setAvisoReemision(null);
   };
 
   const handleLimpiarSeleccion = () => {
@@ -217,6 +246,9 @@ export function ConsolaEmisionView() {
     setBusqueda("");
     setDebouncedQuery("");
     setVistaPreviaRaster("");
+    setMotivoReemision("");
+    setDetalleReemision("");
+    setAvisoReemision(null);
   };
 
   const handleActualizarPreview = async () => {
@@ -243,6 +275,10 @@ export function ConsolaEmisionView() {
       toast.error("Seleccione un motivo de emisión válido.");
       return;
     }
+    if (!reemisionCompleta) {
+      toast.error("Indique el motivo de la reemisión para continuar.");
+      return;
+    }
 
     startTransitionEmision(async () => {
       const cedula = trabajadorSeleccionado.cedula;
@@ -254,14 +290,28 @@ export function ConsolaEmisionView() {
           motivoEfectivoId,
           nombre,
           plantillaId === "activa" ? undefined : plantillaId,
+          {
+            motivoReemision: tieneCarnetVigente ? motivoReemision : undefined,
+            detalle:
+              tieneCarnetVigente && requiereDetalleReemision
+                ? detalleReemision.trim()
+                : undefined,
+            observaciones: observaciones.trim() || undefined,
+          },
         );
         if (!result.success || !result.data) {
+          if (result.status === 409) {
+            setAvisoReemision(result.message);
+          }
           toast.error(result.message || "No fue posible generar el carnet oficial.");
           return;
         }
 
         downloadPdfBase64(result.data, `carnet_CONATEL_${cedula}.pdf`);
         toast.success(`Carnet emitido y descargado exitosamente para C.I. ${cedula}.`);
+        setAvisoReemision(null);
+        setMotivoReemision("");
+        setDetalleReemision("");
 
         // Actualizar el estado local para reflejar la nueva emisión
         setTrabajadorSeleccionado((prev) =>
@@ -270,6 +320,7 @@ export function ConsolaEmisionView() {
                 ...prev,
                 tiene_carnet: true,
                 total_solicitudes: (prev.total_solicitudes || 0) + 1,
+                carnet_activo_emitido_en: new Date().toISOString(),
               }
             : null,
         );
@@ -608,6 +659,78 @@ export function ConsolaEmisionView() {
                     </div>
                   </div>
 
+                  {tieneCarnetVigente && (
+                    <div className="space-y-3 rounded-lg border border-amber-300 bg-amber-50/60 p-3 dark:border-amber-700/60 dark:bg-amber-950/20">
+                      <p
+                        role="alert"
+                        className="flex items-start gap-2 text-xs font-medium text-amber-800 dark:text-amber-300"
+                      >
+                        <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                        <span>
+                          Ya tiene un carnet vigente emitido el{" "}
+                          {fechaCarnetVigente ?? "día registrado"}.
+                        </span>
+                      </p>
+
+                      {avisoReemision && (
+                        <p role="alert" className="text-xs text-destructive">
+                          {avisoReemision}
+                        </p>
+                      )}
+
+                      <div>
+                        <Label htmlFor="motivo-reemision" className="text-xs font-semibold">
+                          Motivo de la reemisión *
+                        </Label>
+                        <Select
+                          value={motivoReemision}
+                          onValueChange={(val) => {
+                            setMotivoReemision(val);
+                            if (val !== "OTRO") setDetalleReemision("");
+                          }}
+                        >
+                          <SelectTrigger
+                            id="motivo-reemision"
+                            className="mt-1 h-10 text-xs"
+                            aria-invalid={!motivoReemision}
+                          >
+                            <SelectValue placeholder="Seleccione el motivo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {MOTIVOS_REEMISION.map((opcion) => (
+                              <SelectItem key={opcion.value} value={opcion.value} className="text-xs">
+                                {opcion.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {requiereDetalleReemision && (
+                        <div>
+                          <Label htmlFor="detalle-reemision" className="text-xs font-semibold">
+                            Detalle de la reemisión *
+                          </Label>
+                          <Textarea
+                            id="detalle-reemision"
+                            value={detalleReemision}
+                            onChange={(e) => setDetalleReemision(e.target.value)}
+                            placeholder="Explique brevemente el motivo (mínimo 10 caracteres)"
+                            maxLength={300}
+                            className="mt-1"
+                            aria-invalid={
+                              detalleReemision.trim().length < DETALLE_REEMISION_MIN
+                            }
+                          />
+                          <p className="mt-1 text-[11px] text-muted-foreground">
+                            {detalleReemision.trim().length}/{DETALLE_REEMISION_MIN} caracteres
+                            mínimos
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div>
                     <Label htmlFor="observaciones-emision" className="text-xs font-semibold">
                       Observaciones Administrativas
@@ -649,7 +772,9 @@ export function ConsolaEmisionView() {
                       <Button
                         type="button"
                         onClick={handleEmitirCarnet}
-                        disabled={isPendingEmision || generandoPreview || !motivoEfectivoId}
+                        disabled={
+                          isPendingEmision || generandoPreview || !motivoEfectivoId || !reemisionCompleta
+                        }
                         className="text-xs font-semibold min-h-11 px-5 shadow-sm"
                       >
                         {isPendingEmision ? (

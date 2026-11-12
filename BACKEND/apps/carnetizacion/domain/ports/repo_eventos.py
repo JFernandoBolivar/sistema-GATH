@@ -11,6 +11,7 @@ from apps.carnetizacion.domain.entities.evento import (
     EventoInvitado,
     EventoZona,
     RegistroAccesoEvento,
+    ResolucionCarnetInstitucional,
     ResumenPanelEvento,
 )
 
@@ -107,6 +108,16 @@ class RepoEventosPort(ABC):
     @abstractmethod
     def buscar_invitado_por_hash_o_codigo(self, hash_o_codigo: str) -> tuple[EventoInvitado | None, Evento | None]:
         raise NotImplementedError
+
+    def resolver_carnet_institucional(
+        self, codigo: str, evento_id: str | None = None,
+    ) -> tuple[ResolucionCarnetInstitucional, EventoInvitado | None, Evento | None]:
+        """Interpreta `codigo` como el QR de un carnet institucional (`security_hash`).
+
+        Devuelve si es un carnet vigente, anulado o vencido y, si el trabajador está invitado al
+        evento, su invitación. Por defecto ningún código es un carnet institucional.
+        """
+        return ResolucionCarnetInstitucional.NO_ES_CARNET, None, None
 
     @abstractmethod
     def listar_invitados(

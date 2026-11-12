@@ -137,6 +137,7 @@ PERMISOS_CATALOGO = [
     ("carnetizacion.enviar", "Enviar credenciales por correo"),
     ("carnetizacion.eventos", "Gestionar eventos, categorías, zonas e invitados"),
     ("carnetizacion.control_eventos", "Control de entrada y acceso con QR a eventos"),
+    ("carnetizacion.campos_personalizados", "Gestionar campos personalizados del carnet"),
 
     # ─── 11. AUTOGESTIÓN ───
     ("autogestion.ver_propio", "Consultar expediente personal propio"),

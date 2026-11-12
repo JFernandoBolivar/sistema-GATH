@@ -14,6 +14,7 @@ from apps.carnetizacion.domain.entities.evento import (
     Evento,
     EventoInvitado,
     RegistroAccesoEvento,
+    ResolucionCarnetInstitucional,
     ResultadoCheckIn,
     ResultadoControlEntrada,
 )
@@ -39,10 +40,24 @@ def validar_y_registrar_entrada_evento(
     # 1. Buscar invitado
     invitado, evento = repo.buscar_invitado_por_hash_o_codigo(limpio)
     if not invitado or not evento:
-        return ResultadoCheckIn(
-            resultado=ResultadoControlEntrada.NO_VALIDA,
-            mensaje="Credencial no encontrada o inexistente.",
-        )
+        # Los trabajadores entran con su carnet institucional si están invitados al evento.
+        resolucion, invitado, evento = repo.resolver_carnet_institucional(limpio, evento_id)
+        if resolucion == ResolucionCarnetInstitucional.NO_INVITADO:
+            return ResultadoCheckIn(
+                resultado=ResultadoControlEntrada.NO_VALIDA,
+                mensaje="No está en la lista de invitados.",
+            )
+        if resolucion in (ResolucionCarnetInstitucional.ANULADO, ResolucionCarnetInstitucional.VENCIDO):
+            estado = "anulado" if resolucion == ResolucionCarnetInstitucional.ANULADO else "vencido"
+            return ResultadoCheckIn(
+                resultado=ResultadoControlEntrada.NO_VALIDA,
+                mensaje=f"No válida: Este carnet institucional está {estado}.",
+            )
+        if resolucion != ResolucionCarnetInstitucional.INVITADO or not invitado or not evento:
+            return ResultadoCheckIn(
+                resultado=ResultadoControlEntrada.NO_VALIDA,
+                mensaje="Credencial no encontrada o inexistente.",
+            )
 
     tz = evento.fecha_fin.tzinfo if evento.fecha_fin else None
     if ahora is None:

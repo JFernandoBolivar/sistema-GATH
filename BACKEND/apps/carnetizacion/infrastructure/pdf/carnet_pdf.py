@@ -11,7 +11,7 @@ import json
 import logging
 import math
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from io import BytesIO
 from typing import Any
 
@@ -151,6 +151,8 @@ class DatosCarnetPdf:
     plantilla_path: str | None = None
     foto_bytes: bytes | None = None
     vence: str = ''
+    # Valores de los campos personalizados ya resueltos por su origen: {codigo_del_campo: valor}.
+    campos_extra: dict[str, str] = field(default_factory=dict)
 
 
 def _hex_seguro(valor: str | None, defecto: str = '#111827') -> HexColor:
@@ -334,6 +336,109 @@ def _extraer_valor_campo(campo: str, datos: DatosCarnetPdf | dict[str, Any]) -> 
     return ''
 
 
+def _num_path(valor: float) -> str:
+    """Número como lo escribe el diseñador: dos decimales sin ceros sobrantes."""
+    texto = f'{valor:.2f}'.rstrip('0').rstrip('.')
+    return '0' if texto in ('', '-0') else texto
+
+
+def _puntos_validos(valor: Any) -> list[dict[str, float]] | None:
+    """Lee `props.puntos` ({x, y, r} en la caja 0..100); None si no es una lista usable."""
+    if not isinstance(valor, list) or len(valor) < 3:
+        return None
+    lista: list[dict[str, float]] = []
+    for p in valor:
+        if not isinstance(p, dict):
+            return None
+        try:
+            x, y = float(p.get('x')), float(p.get('y'))
+            r = float(p.get('r') or 0)
+        except (TypeError, ValueError):
+            return None
+        if not (math.isfinite(x) and math.isfinite(y) and math.isfinite(r)):
+            return None
+        lista.append({'x': min(100.0, max(0.0, x)), 'y': min(100.0, max(0.0, y)), 'r': max(0.0, r)})
+    return lista
+
+
+def path_desde_puntos(puntos: list[dict[str, float]], w_mm: float, h_mm: float) -> str:
+    """Path SVG (caja 0..100) de una forma por vértices; igual a `generarPathDesdePuntos` del diseñador.
+
+    Cada vértice con `r` > 0 se redondea con una curva Q cuyo control es el vértice; el radio
+    (mm) se limita a la mitad de la más corta de sus dos aristas.
+    """
+    n = len(puntos)
+    if n < 3 or not (w_mm > 0) or not (h_mm > 0):
+        return ''
+    mm = [(p['x'] * w_mm / 100, p['y'] * h_mm / 100) for p in puntos]
+
+    def caja(x: float, y: float) -> str:
+        return f'{_num_path(x * 100 / w_mm)} {_num_path(y * 100 / h_mm)}'
+
+    partes: list[str] = []
+    for i, (px_, py_) in enumerate(mm):
+        orden = 'M' if i == 0 else 'L'
+        r = puntos[i]['r']
+        tramo = None
+        if r > 0:
+            prev, nxt = mm[(i - 1) % n], mm[(i + 1) % n]
+            lp = math.hypot(prev[0] - px_, prev[1] - py_)
+            ln = math.hypot(nxt[0] - px_, nxt[1] - py_)
+            if lp != 0 and ln != 0:
+                d = min(r, lp / 2, ln / 2)
+                tramo = (
+                    (px_ + (prev[0] - px_) / lp * d, py_ + (prev[1] - py_) / lp * d),
+                    (px_ + (nxt[0] - px_) / ln * d, py_ + (nxt[1] - py_) / ln * d),
+                )
+        if tramo is None:
+            partes.append(f'{orden} {caja(px_, py_)}')
+        else:
+            ini, fin = tramo
+            partes.append(f'{orden} {caja(*ini)} Q {caja(px_, py_)} {caja(*fin)}')
+    return ' '.join(partes) + ' Z'
+
+
+def _radios_esquinas_mm(valor: Any, w_mm: float, h_mm: float) -> list[float] | None:
+    """`props.radios` [sup-izq, sup-der, inf-der, inf-izq] en mm, acotados a la mitad del lado menor."""
+    if not isinstance(valor, (list, tuple)) or len(valor) != 4:
+        return None
+    try:
+        radios = [float(r) for r in valor]
+    except (TypeError, ValueError):
+        return None
+    if not all(math.isfinite(r) for r in radios):
+        return None
+    tope = max(0.0, min(w_mm, h_mm) / 2)
+    return [min(tope, max(0.0, r)) for r in radios]
+
+
+def _dibujar_rect_radios(
+    c: canvas.Canvas, x: float, y: float, w: float, h: float, radios_pt: list[float], relleno: bool, borde: bool,
+) -> None:
+    """Rectángulo con un radio por esquina [sup-izq, sup-der, inf-der, inf-izq] (cada esquina es una Q)."""
+    tl, tr, br, bl = radios_pt
+    path = c.beginPath()
+
+    def esquina(p0: tuple[float, float], ctrl: tuple[float, float], p1: tuple[float, float]) -> None:
+        path.curveTo(
+            p0[0] + 2 / 3 * (ctrl[0] - p0[0]), p0[1] + 2 / 3 * (ctrl[1] - p0[1]),
+            p1[0] + 2 / 3 * (ctrl[0] - p1[0]), p1[1] + 2 / 3 * (ctrl[1] - p1[1]),
+            p1[0], p1[1],
+        )
+
+    path.moveTo(x + tl, y + h)
+    path.lineTo(x + w - tr, y + h)
+    esquina((x + w - tr, y + h), (x + w, y + h), (x + w, y + h - tr))
+    path.lineTo(x + w, y + br)
+    esquina((x + w, y + br), (x + w, y), (x + w - br, y))
+    path.lineTo(x + bl, y)
+    esquina((x + bl, y), (x, y), (x, y + bl))
+    path.lineTo(x, y + h - tl)
+    esquina((x, y + h - tl), (x, y + h), (x + tl, y + h))
+    path.close()
+    c.drawPath(path, fill=1 if relleno else 0, stroke=1 if borde else 0)
+
+
 def _dibujar_svg_path(
     c: canvas.Canvas,
     datos: str | None,
@@ -474,6 +579,8 @@ def generar_carnet_pdf_fiel(definicion: dict[str, Any], datos: DatosCarnetPdf | 
             'security_hash': datos.security_hash,
             'vence': datos.vence,
         }
+        # Los campos personalizados nunca pisan los datos base del titular.
+        datos_dict = {**datos.campos_extra, **datos_dict}
         foto_bytes = datos.foto_bytes
     else:
         datos_dict = datos
@@ -559,7 +666,13 @@ def generar_carnet_pdf_fiel(definicion: dict[str, Any], datos: DatosCarnetPdf | 
 
             # Renderizado por tipo de primitiva gráfica
             if tipo in ('rect', 'forma'):
-                c.roundRect(x_pt, y_pt, w_pt, h_pt, rad_pt, fill=1, stroke=1 if tiene_stroke else 0)
+                radios_mm = _radios_esquinas_mm(props.get('radios') or el.get('radios'), w_mm, h_mm)
+                if radios_mm is not None:
+                    _dibujar_rect_radios(
+                        c, x_pt, y_pt, w_pt, h_pt, [r * MM_A_PT for r in radios_mm], True, bool(tiene_stroke),
+                    )
+                else:
+                    c.roundRect(x_pt, y_pt, w_pt, h_pt, rad_pt, fill=1, stroke=1 if tiene_stroke else 0)
 
             elif tipo in ('circle', 'ellipse'):
                 c.ellipse(x_pt, y_pt, x_pt + w_pt, y_pt + h_pt, fill=1, stroke=1 if tiene_stroke else 0)
@@ -593,9 +706,11 @@ def generar_carnet_pdf_fiel(definicion: dict[str, Any], datos: DatosCarnetPdf | 
                 c.drawPath(path, fill=1, stroke=1 if tiene_stroke else 0)
 
             elif tipo == 'path':
+                puntos = _puntos_validos(props.get('puntos'))
+                path_forma = path_desde_puntos(puntos, w_mm, h_mm) if puntos else ''
                 _dibujar_svg_path(
                     c,
-                    el.get('path') or props.get('d'),
+                    path_forma or el.get('path') or props.get('d'),
                     x_pt, y_pt, w_pt, h_pt,
                     fill_color,
                     stroke_raw if tiene_stroke else None,

@@ -146,6 +146,7 @@ export function campoCredencialApiAEntidad(raw: CampoCredencialApiItem): CampoCr
     es_personalizado: Boolean(raw.es_personalizado),
     descripcion: raw.descripcion || "",
     valor_ejemplo: raw.valor_ejemplo || "",
+    origen: raw.origen || "",
   };
 }
 

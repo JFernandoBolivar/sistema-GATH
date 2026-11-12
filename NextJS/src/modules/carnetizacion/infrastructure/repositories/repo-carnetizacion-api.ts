@@ -179,6 +179,11 @@ export const repoCarnetizacionApi: RepoCarnetizacion = {
     return campoCredencialApiAEntidad(raw);
   },
 
+  async actualizarCampoPersonalizado(codigo, campo) {
+    const raw = await carnetizacionApi.actualizarCampoPersonalizado(codigo, campo as unknown as Record<string, unknown>);
+    return campoCredencialApiAEntidad(raw);
+  },
+
   async eliminarCampoPersonalizado(codigo) {
     return carnetizacionApi.eliminarCampoPersonalizado(codigo);
   },

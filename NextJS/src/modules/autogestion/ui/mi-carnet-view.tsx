@@ -40,7 +40,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { ContadorCaracteres } from "@/components/contador-caracteres";
 import { LIMITES_TEXTO } from "@/shared/validation/limites-texto";
-import { CarnetVistaPrevia } from "@/shared/ui/components/carnet-vista-previa";
+import { CarnetReal } from "./components/carnet-real";
 import { PrivacidadCarnetDialog } from "@/modules/carnetizacion/ui/components/privacidad-carnet-dialog";
 
 import {
@@ -126,16 +126,6 @@ export function MiCarnetView() {
   }
 
   const tieneCarnetActivo = Boolean(carnet_activo && carnet_activo.activo);
-  const cargoPrincipal =
-    empleado.asignaciones?.[0]?.denominacion_cargo_especifico ||
-    empleado.asignaciones?.[0]?.denominacion_cargo ||
-    "PERSONAL INSTITUCIONAL";
-  const dependenciaPrincipal =
-    empleado.asignaciones?.[0]?.direccion_general ||
-    empleado.asignaciones?.[0]?.direccion_linea ||
-    empleado.asignaciones?.[0]?.coordinacion ||
-    empleado.asignaciones?.[0]?.dependencia ||
-    "CONATEL";
   const listaCarnets = carnets ?? [];
   const listaMotivos = motivos_carnet ?? [];
   const yaTieneCredencial = listaCarnets.length > 0 || Boolean(carnet_activo);
@@ -256,13 +246,9 @@ export function MiCarnetView() {
                 </CardHeader>
                 <CardContent className="pt-6 flex flex-col items-center">
                   <div className="w-full max-w-xs transition-transform duration-300 hover:scale-[1.02]">
-                    <CarnetVistaPrevia
+                    <CarnetReal
                       cedula={empleado.cedula}
-                      nombreCompleto={empleado.nombre_completo || `${empleado.nombres} ${empleado.apellidos}`}
-                      cargo={cargoPrincipal}
-                      departamento={dependenciaPrincipal}
-                      codigo={(empleado.asignaciones && empleado.asignaciones[0]?.codigo) || undefined}
-                      fotoUrl={empleado.foto_url}
+                      alt={`Carnet institucional de ${empleado.nombre_completo || `${empleado.nombres} ${empleado.apellidos}`}`}
                     />
                   </div>
                   <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-4 text-center">

@@ -146,6 +146,14 @@ class RepoCarnetizacion(Protocol):
     def obtener_por_id(self, carnet_id: int) -> Carnet | None:
         ...
 
+    def obtener_carnet_vigente(self, empleado_cedula: str) -> Carnet | None:
+        """Carnet activo (vigente) del empleado, o None si no tiene."""
+        ...
+
+    def motivo_id_para_reemision(self, motivo_reemision: str) -> int | None:
+        """Id del catálogo `MotivosEmision` que corresponde al motivo de reemisión."""
+        ...
+
     def emitir_carnet(
         self,
         empleado_cedula: str,
@@ -223,8 +231,21 @@ class RepoCarnetizacion(Protocol):
         sensible: bool = False,
         descripcion: str = "",
         valor_ejemplo: str = "",
+        origen: str = "",
     ) -> CampoCredencial:
         """Registra un nuevo campo personalizado para usar en las credenciales."""
+        ...
+
+    def actualizar_campo_personalizado(
+        self,
+        codigo: str,
+        etiqueta: str,
+        origen: str,
+        descripcion: str = "",
+        valor_ejemplo: str = "",
+        sensible: bool = False,
+    ) -> CampoCredencial:
+        """Edita un campo personalizado existente (el código no cambia)."""
         ...
 
     def eliminar_campo_personalizado(self, codigo: str) -> bool:

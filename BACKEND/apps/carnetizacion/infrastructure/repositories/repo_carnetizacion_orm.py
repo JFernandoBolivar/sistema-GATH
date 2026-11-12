@@ -34,6 +34,7 @@ from apps.carnetizacion.domain.entities.campo_credencial import (
     CampoCredencial,
 )
 from apps.carnetizacion.domain.entities.carnet import Carnet
+from apps.carnetizacion.infrastructure.resolver_origen_campos import valores_campos_personalizados
 from apps.carnetizacion.domain.entities.elemento_biblioteca import ElementoBiblioteca
 from apps.carnetizacion.domain.entities.plantilla import PlantillaCarnet
 from apps.carnetizacion.domain.entities.tipo_credencial import TipoCredencial
@@ -591,6 +592,26 @@ class RepoCarnetizacionORM:
         )
         return carnet_a_entidad(fila) if fila else None
 
+    def obtener_carnet_vigente(self, empleado_cedula: str) -> Carnet | None:
+        fila = (
+            CarnetEmitidoModel.objects.select_related('employee', 'motivo')
+            .filter(employee__cedulaidentidad=empleado_cedula, activo=True)
+            .order_by('-fecha_emision')
+            .first()
+        )
+        return carnet_a_entidad(fila) if fila else None
+
+    def motivo_id_para_reemision(self, motivo_reemision: str) -> int | None:
+        from apps.carnetizacion.domain.services.motivo_reemision import (
+            NOMBRE_CATALOGO_POR_MOTIVO,
+        )
+
+        nombre = NOMBRE_CATALOGO_POR_MOTIVO.get((motivo_reemision or '').strip().upper())
+        if not nombre:
+            return None
+        fila = MotivosEmisionModel.objects.filter(nombre__iexact=nombre).first()
+        return fila.pk if fila else None
+
     def emitir_carnet(
         self,
         empleado_cedula: str,
@@ -695,11 +716,14 @@ class RepoCarnetizacionORM:
             .values_list('employee__cedulaidentidad')
             .annotate(total=Count('pk'))
         )
-        activos = set(
-            CarnetEmitidoModel.objects
-            .filter(employee__cedulaidentidad__in=cedulas, activo=True)
-            .values_list('employee__cedulaidentidad', flat=True)
-        )
+        activos = {
+            cedula: fecha
+            for cedula, fecha in (
+                CarnetEmitidoModel.objects
+                .filter(employee__cedulaidentidad__in=cedulas, activo=True)
+                .values_list('employee__cedulaidentidad', 'fecha_emision')
+            )
+        }
 
         filas = []
         for e in qs:
@@ -723,6 +747,7 @@ class RepoCarnetizacionORM:
                 codigo = asig.codigo or ''
 
             tiene_carnet = e.cedulaidentidad in activos
+            fecha_emision_activa = activos.get(e.cedulaidentidad)
             filas.append({
                 'id': e.pk,
                 'cedula': str(e.cedulaidentidad),
@@ -736,6 +761,10 @@ class RepoCarnetizacionORM:
                 'total_solicitudes': totales.get(e.cedulaidentidad, 0),
                 'tiene_carnet': tiene_carnet,
                 'tiene_carnet_activo': tiene_carnet,
+                'carnet_activo_emitido_en': (
+                    fecha_emision_activa.isoformat()
+                    if tiene_carnet and fecha_emision_activa else None
+                ),
             })
         return filas
 
@@ -871,6 +900,7 @@ class RepoCarnetizacionORM:
             plantilla_path=plantilla_path,
             foto_bytes=foto_bytes,
             vence=vence.strftime('%d/%m/%Y') if vence else '',
+            campos_extra=valores_campos_personalizados(empleado, asignacion),
         )
         return generar_carnet_pdf(datos, definicion=definicion)
 
@@ -937,6 +967,7 @@ class RepoCarnetizacionORM:
             security_hash=sec_hash,
             plantilla_path=plantilla_path,
             foto_bytes=foto_bytes,
+            campos_extra=valores_campos_personalizados(empleado, asignacion),
         )
         pdf_bytes = generar_carnet_pdf(datos, definicion=definicion)
         images = convert_from_bytes(pdf_bytes, first_page=1, last_page=1, fmt='png', dpi=110)
@@ -1146,6 +1177,7 @@ class RepoCarnetizacionORM:
         sensible: bool = False,
         descripcion: str = "",
         valor_ejemplo: str = "",
+        origen: str = "",
     ) -> CampoCredencial:
         """Registra un nuevo campo personalizado para credenciales."""
         if CampoPersonalizadoModel.objects.filter(codigo=codigo).exists():
@@ -1159,7 +1191,29 @@ class RepoCarnetizacionORM:
             sensible=sensible,
             descripcion=descripcion,
             valor_ejemplo=valor_ejemplo,
+            origen=origen,
         )
+        return campo_personalizado_a_entidad(obj)
+
+    def actualizar_campo_personalizado(
+        self,
+        codigo: str,
+        etiqueta: str,
+        origen: str,
+        descripcion: str = "",
+        valor_ejemplo: str = "",
+        sensible: bool = False,
+    ) -> CampoCredencial:
+        """Edita etiqueta, origen del dato, descripción, ejemplo y sensibilidad de un campo personalizado."""
+        obj = CampoPersonalizadoModel.objects.filter(codigo=codigo).first()
+        if not obj:
+            raise NotFoundError(f"Campo personalizado '{codigo}' no encontrado")
+        obj.etiqueta = etiqueta
+        obj.origen = origen
+        obj.descripcion = descripcion
+        obj.valor_ejemplo = valor_ejemplo
+        obj.sensible = sensible
+        obj.save(update_fields=['etiqueta', 'origen', 'descripcion', 'valor_ejemplo', 'sensible', 'updated_at'])
         return campo_personalizado_a_entidad(obj)
 
     def eliminar_campo_personalizado(self, codigo: str) -> bool:

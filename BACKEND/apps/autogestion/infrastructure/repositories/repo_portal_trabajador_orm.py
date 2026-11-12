@@ -65,6 +65,12 @@ class RepoPortalTrabajadorORM:
             return None
         return RepoCarnetizacionORM().generar_pdf(carnet.pk)
 
+    def generar_vista_previa_carnet_activo(self, cedula: str) -> str | None:
+        """PNG (data URL) del carnet vigente; reutiliza la vista previa de carnetización."""
+        if not self.tiene_carnet_activo(cedula):
+            return None
+        return RepoCarnetizacionORM().generar_vista_previa(cedula)
+
     def puede_ver_carnet(self, cedula: str) -> bool:
         from apps.autogestion.domain.services.politica_mi_carnet import (
             parsear_usuarios_especificos,

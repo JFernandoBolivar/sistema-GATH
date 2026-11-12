@@ -73,7 +73,18 @@ export interface RepoCarnetizacion {
     sensible?: boolean;
     descripcion?: string;
     valor_ejemplo?: string;
+    origen: string;
   }): Promise<CampoCredencial>;
+  actualizarCampoPersonalizado(
+    codigo: string,
+    campo: {
+      etiqueta: string;
+      origen: string;
+      sensible?: boolean;
+      descripcion?: string;
+      valor_ejemplo?: string;
+    },
+  ): Promise<CampoCredencial>;
   eliminarCampoPersonalizado(codigo: string): Promise<boolean>;
 
   // QR y Privacidad por Dato (O44 - E9)

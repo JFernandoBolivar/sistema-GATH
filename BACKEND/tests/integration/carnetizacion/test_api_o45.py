@@ -17,6 +17,7 @@ from apps.catalogos.infrastructure.models.catalogo_models import (
     SexoModel,
 )
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
+from core.infrastructure.models.auditoria import AuditoriaLog
 
 pytestmark = pytest.mark.django_db
 
@@ -174,7 +175,11 @@ def test_emision_con_pdf_fallido_no_deja_carnet_ni_desactiva_el_anterior(datos_b
     monkeypatch.setattr(carnetizacion_views, "emitir_carnet_y_pdf", explota)
 
     # El handler central traduce la excepción a 500 (no se propaga al cliente).
-    respuesta = api.post(f"{BASE}/generar/V-1/", {"motivo_id": previo.motivo_id}, format="json")
+    respuesta = api.post(
+        f"{BASE}/generar/V-1/",
+        {"motivo_id": previo.motivo_id, "motivo_reemision": "CAMBIO_DATOS"},
+        format="json",
+    )
     assert respuesta.status_code == 500, respuesta.content
 
     previo.refresh_from_db()
@@ -379,6 +384,7 @@ def test_generar_carnet_devuelve_pdf_binario(datos_base):
         f"{BASE}/generar/V-1/",
         {
             "motivo_id": datos_base["carnet"].motivo_id,
+            "motivo_reemision": "CAMBIO_DATOS",
             "observaciones": "O46-A",
             "datos_editados": {"nombre": "ANA API", "cedula": "V-1"},
         },
@@ -489,3 +495,82 @@ class _UsuarioPaginacion:
 
     def tiene_permiso(self, codigo):
         return True
+
+
+# ==============================================================================
+# T2 (OC 2026-11-11): motivo obligatorio para reemitir el carnet
+# ==============================================================================
+
+def _generar(api: APIClient, cuerpo: dict):
+    return api.post(f"{BASE}/generar/V-1/", cuerpo, format="json")
+
+
+def test_emision_sin_carnet_vigente_no_exige_motivo(datos_base):
+    """Sin carnet vigente se emite sin `motivo_reemision`."""
+    carnet = datos_base["carnet"]
+    carnet.activo = False
+    carnet.save(update_fields=["activo"])
+
+    respuesta = _generar(
+        datos_base["api"],
+        {"motivo_id": datos_base["carnet"].motivo_id, "datos_editados": {"nombre": "ANA API", "cedula": "V-1"}},
+    )
+
+    assert respuesta.status_code == 200, respuesta.content
+    assert respuesta.content[:5] == b"%PDF-"
+    assert CarnetEmitidoModel.objects.filter(
+        employee=datos_base["empleado"], activo=True,
+    ).count() == 1
+
+
+def test_reemision_con_carnet_vigente_y_sin_motivo_da_409(datos_base):
+    """409 con el resumen del carnet vigente y el mensaje en español."""
+    respuesta = _generar(datos_base["api"], {"motivo_id": datos_base["carnet"].motivo_id})
+
+    assert respuesta.status_code == 409, respuesta.content
+    cuerpo = respuesta.json()
+    assert "Indique el motivo de la reemisión" in cuerpo["message"]
+    vigente = cuerpo["data"]["carnet_vigente"]
+    assert vigente["id"] == datos_base["carnet"].id
+    assert vigente["numero"] == datos_base["carnet"].id
+    assert vigente["emitido_en"]
+
+
+def test_reemision_con_motivo_valido_emite_y_audita(datos_base):
+    respuesta = _generar(
+        datos_base["api"],
+        {
+            "motivo_id": datos_base["carnet"].motivo_id,
+            "motivo_reemision": "OTRO",
+            "detalle": "Se deterioró el carnet en la lavadora",
+        },
+    )
+
+    assert respuesta.status_code == 200, respuesta.content
+    nuevo = CarnetEmitidoModel.objects.filter(
+        employee=datos_base["empleado"], activo=True,
+    ).get()
+    assert "Reemisión: OTRO" in (nuevo.observaciones or "")
+    assert "Se deterioró el carnet en la lavadora" in (nuevo.observaciones or "")
+
+    auditoria = AuditoriaLog.objects.filter(
+        accion="carnetizacion.carnet_reemitido", recurso_id=str(nuevo.pk),
+    ).first()
+    assert auditoria is not None
+    assert auditoria.actor_cedula == "V-1"
+    assert auditoria.estado_nuevo["motivo_reemision"] == "OTRO"
+    assert "lavadora" in auditoria.estado_nuevo["detalle"]
+
+
+def test_reemision_rechaza_motivo_invalido_y_detalle_corto(datos_base):
+    invalido = _generar(
+        datos_base["api"], {"motivo_id": datos_base["carnet"].motivo_id, "motivo_reemision": "CAMBIO_DE_PUESTO"},
+    )
+    assert invalido.status_code == 400, invalido.content
+
+    corto = _generar(
+        datos_base["api"],
+        {"motivo_id": datos_base["carnet"].motivo_id, "motivo_reemision": "OTRO", "detalle": "corto"},
+    )
+    assert corto.status_code == 400, corto.content
+    assert "detalle" in str(corto.json())

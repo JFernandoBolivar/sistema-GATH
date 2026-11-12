@@ -17,6 +17,7 @@ from apps.carnetizacion.domain.entities.evento import (
     EventoInvitado,
     EventoZona,
     RegistroAccesoEvento,
+    ResolucionCarnetInstitucional,
     ResumenPanelEvento,
 )
 from apps.carnetizacion.domain.entities.persona_origen import PersonaOrigen
@@ -297,6 +298,35 @@ class RepoEventosORM(RepoEventosPort):
         if not m:
             return None, None
         return a_entidad_invitado(m), a_entidad_evento(m.evento)
+
+    def resolver_carnet_institucional(
+        self, codigo: str, evento_id: str | None = None,
+    ) -> tuple[ResolucionCarnetInstitucional, EventoInvitado | None, Evento | None]:
+        """El código es el QR de un carnet institucional: vigente + trabajador invitado -> su invitación."""
+        from apps.carnetizacion.domain.value_objects.security_hash import normalizar_codigo_qr
+        from apps.carnetizacion.infrastructure.models.carnetizacion_models import CarnetEmitidoModel
+        from apps.carnetizacion.infrastructure.repositories.repo_carnetizacion_orm import vencimiento_de_carnet
+
+        valor = (codigo or '').strip().rstrip('/')
+        valor = valor.rsplit('/', 1)[-1]  # el QR impreso puede traer la URL completa /carnet/<codigo>
+        normalizado = normalizar_codigo_qr(valor)
+        if not normalizado:
+            return ResolucionCarnetInstitucional.NO_ES_CARNET, None, None
+        carnet = CarnetEmitidoModel.objects.select_related('employee').filter(security_hash=normalizado).first()
+        if carnet is None:
+            return ResolucionCarnetInstitucional.NO_ES_CARNET, None, None
+        if not carnet.activo:
+            return ResolucionCarnetInstitucional.ANULADO, None, None
+        vence = vencimiento_de_carnet(carnet)
+        if vence is not None and vence < timezone.now():
+            return ResolucionCarnetInstitucional.VENCIDO, None, None
+        qs = EventoInvitadoModel.objects.select_related('evento').filter(trabajador_titular_id=carnet.employee_id)
+        if evento_id:
+            qs = qs.filter(evento_id=evento_id)
+        m = qs.exclude(estado=EstadoInvitado.ANULADO.value).order_by('-evento__fecha_inicio').first()
+        if m is None:
+            return ResolucionCarnetInstitucional.NO_INVITADO, None, None
+        return ResolucionCarnetInstitucional.INVITADO, a_entidad_invitado(m), a_entidad_evento(m.evento)
 
     def listar_invitados_paginado(
         self,

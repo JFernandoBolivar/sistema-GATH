@@ -63,6 +63,7 @@ class RepoCarnetizacionMock implements RepoCarnetizacion {
   async eliminarElementoBiblioteca(): Promise<boolean> { return true; }
   async listarCampos() { return []; }
   async crearCampoPersonalizado(): Promise<CampoCredencial> { throw new Error("not implemented"); }
+  async actualizarCampoPersonalizado(): Promise<CampoCredencial> { throw new Error("not implemented"); }
   async eliminarCampoPersonalizado(): Promise<boolean> { return true; }
   async obtenerDatosEmpleado(cedula: string): Promise<DatosCarnetEmpleado | null> {
     if (cedula === "12345678") {

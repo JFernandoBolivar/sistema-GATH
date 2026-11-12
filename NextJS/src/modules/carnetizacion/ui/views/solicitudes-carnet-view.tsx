@@ -325,9 +325,14 @@ export function SolicitudesCarnetView() {
 
         // Intentar generar el PDF directamente si la API responde
         const result = await generarCarnetPdfAction(cedula, motivo, nombre);
-        if (result.success && result.data) {
-          downloadPdfBase64(result.data, `carnet_aprobado_${cedula}.pdf`);
+        if (!result.success || !result.data) {
+          toast.error(
+            result.message ||
+              "No fue posible emitir el carnet. Use la consola de emisión e indique el motivo de la reemisión.",
+          );
+          return;
         }
+        downloadPdfBase64(result.data, `carnet_aprobado_${cedula}.pdf`);
 
         // Actualizar estado de la solicitud en la bandeja
         setSolicitudes((prev) =>

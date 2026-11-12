@@ -16,6 +16,7 @@ from core.presentation.envelope import ok, fail
 from core.presentation.permissions import EsPropiaCedulaOTienePermiso, HasPermission
 from apps.autogestion.application.use_cases.obtener_mi_expediente import (
     obtener_mi_carnet_pdf,
+    obtener_mi_carnet_vista_previa,
     obtener_mi_expediente,
     solicitar_mi_carnet,
 )
@@ -314,6 +315,27 @@ class SolicitarCarnetView(APIView):
             message="Carnet institucional generado exitosamente",
             status=status.HTTP_201_CREATED,
         )
+
+
+class MiCarnetVistaPreviaView(APIView):
+    """
+    GET /api/v1/autogestion/mi-carnet/vista-previa/
+    Devuelve la imagen PNG del carnet vigente del trabajador autenticado.
+    Zero-IDOR: solo usa `request.user.cedula_id`, igual que `MiCarnetPdfView`.
+    """
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(tags=['Autogestión'], summary='Vista previa PNG del carnet activo (Zero-IDOR)')
+    def get(self, request):
+        cedula = getattr(request.user, 'cedula_id', None)
+        if not cedula:
+            return fail("El usuario no tiene expediente asociado.", status=404)
+
+        png = obtener_mi_carnet_vista_previa(RepoPortalTrabajadorORM(), str(cedula))
+        respuesta = HttpResponse(png, content_type='image/png')
+        respuesta['X-Content-Type-Options'] = 'nosniff'
+        respuesta['Cache-Control'] = 'private, no-store'
+        return respuesta
 
 
 class MiCarnetAccesoView(APIView):

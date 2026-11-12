@@ -7,6 +7,7 @@ from apps.autogestion.presentation.views.autogestion_views import (
     MetricasCensoView,
     MiCarnetAccesoView,
     MiCarnetPdfView,
+    MiCarnetVistaPreviaView,
     MiExpedienteView,
     PreguntasCensoListView,
     ReporteCensoDependenciasView,
@@ -76,6 +77,7 @@ urlpatterns = [
     path('mi-expediente/', MiExpedienteView.as_view(), name='mi-expediente'),
     path('solicitar-carnet/', SolicitarCarnetView.as_view(), name='solicitar-carnet'),
     path('mi-carnet/acceso/', MiCarnetAccesoView.as_view(), name='mi-carnet-acceso'),
+    path('mi-carnet/vista-previa/', MiCarnetVistaPreviaView.as_view(), name='mi-carnet-vista-previa'),
     path('mi-carnet/pdf/', MiCarnetPdfView.as_view(), name='mi-carnet-pdf'),
 
     # Preguntas activas

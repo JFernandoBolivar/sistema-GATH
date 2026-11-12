@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { RepoCarnetizacion } from "../../domain/ports/repo-carnetizacion";
 import type { CampoCredencial } from "../../domain/entities/carnet";
+import { campoSinOrigen, etiquetaOrigenCampo, ORIGENES_CAMPO } from "../../domain/entities/origen-campo";
 import {
+  actualizarCampoPersonalizado,
   crearCampoPersonalizado,
   eliminarCampoPersonalizado,
   listarCamposCredencial,
@@ -53,6 +55,7 @@ class RepoCamposMemoria implements Partial<RepoCarnetizacion> {
     sensible?: boolean;
     descripcion?: string;
     valor_ejemplo?: string;
+    origen: string;
   }): Promise<CampoCredencial> {
     const nuevo: CampoCredencial = {
       codigo: campo.codigo,
@@ -63,9 +66,21 @@ class RepoCamposMemoria implements Partial<RepoCarnetizacion> {
       es_personalizado: true,
       descripcion: campo.descripcion || "",
       valor_ejemplo: campo.valor_ejemplo || "",
+      origen: campo.origen,
     };
     this.campos.push(nuevo);
     return nuevo;
+  }
+
+  async actualizarCampoPersonalizado(
+    codigo: string,
+    campo: { etiqueta: string; origen: string },
+  ): Promise<CampoCredencial> {
+    const actual = this.campos.find((c) => c.codigo === codigo);
+    if (!actual) throw new Error("no existe");
+    actual.etiqueta = campo.etiqueta;
+    actual.origen = campo.origen;
+    return actual;
   }
 
   async eliminarCampoPersonalizado(codigo: string): Promise<boolean> {
@@ -95,14 +110,57 @@ describe("Casos de uso de Registro de Campos (O44 - E5)", () => {
       sensible: false,
       descripcion: "Turno asignado",
       valor_ejemplo: "Guardia Nocturna",
+      origen: "tipo_nomina",
     });
 
     expect(nuevo.codigo).toBe("turno");
     expect(nuevo.es_personalizado).toBe(true);
     expect(nuevo.sensible).toBe(false);
+    expect(nuevo.origen).toBe("tipo_nomina");
 
     const todos = await listarCamposCredencial(repo, "trabajador");
     expect(todos.length).toBe(4);
+  });
+
+  it("actualizarCampoPersonalizado asigna el origen a un campo viejo", async () => {
+    const repo = new RepoCamposMemoria();
+    repo.campos.push({
+      codigo: "viejo",
+      etiqueta: "Viejo",
+      grupo: "personalizado",
+      tipo_credencial: "todos",
+      sensible: false,
+      es_personalizado: true,
+      descripcion: "",
+      valor_ejemplo: "",
+      origen: "",
+    });
+    expect(campoSinOrigen(repo.campos[3])).toBe(true);
+
+    const editado = await actualizarCampoPersonalizado(repo as unknown as RepoCarnetizacion, "viejo", {
+      etiqueta: "Sexo",
+      origen: "sexo",
+    });
+
+    expect(editado.origen).toBe("sexo");
+    expect(campoSinOrigen(editado)).toBe(false);
+    expect(etiquetaOrigenCampo("sexo")).toBe("Sexo");
+  });
+
+  it("la lista de orígenes es cerrada y trae los diez datos del expediente", () => {
+    expect(ORIGENES_CAMPO.map((o) => o.valor)).toEqual([
+      "tipo_sangre",
+      "telefono_movil",
+      "correo_acceso",
+      "correo_alternativo",
+      "fecha_ingreso",
+      "nivel",
+      "tipo_nomina",
+      "sexo",
+      "fecha_nacimiento",
+      "nacionalidad",
+    ]);
+    expect(etiquetaOrigenCampo("salario")).toBe("");
   });
 
   it("eliminarCampoPersonalizado elimina el campo por código", async () => {

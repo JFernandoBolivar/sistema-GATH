@@ -15,6 +15,22 @@ GrupoCampo = Literal[
 ]
 
 
+# Origen del dato de un campo personalizado: lista CERRADA de datos reales del expediente.
+# código -> etiqueta que ve el administrador al crear el campo.
+ORIGENES_CAMPO_PERSONALIZADO: dict[str, str] = {
+    "tipo_sangre": "Tipo de sangre",
+    "telefono_movil": "Teléfono móvil",
+    "correo_acceso": "Correo de acceso",
+    "correo_alternativo": "Correo alternativo",
+    "fecha_ingreso": "Fecha de ingreso",
+    "nivel": "Nivel",
+    "tipo_nomina": "Tipo de nómina",
+    "sexo": "Sexo",
+    "fecha_nacimiento": "Fecha de nacimiento",
+    "nacionalidad": "Nacionalidad",
+}
+
+
 @dataclass(frozen=True)
 class CampoCredencial:
     codigo: str
@@ -25,6 +41,8 @@ class CampoCredencial:
     es_personalizado: bool
     descripcion: str = ""
     valor_ejemplo: str = ""
+    # Solo en campos personalizados: de dónde sale su valor al imprimir. Vacío = campo viejo sin origen.
+    origen: str = ""
 
 
 # Campos base autorizados del expediente institucional

@@ -94,6 +94,7 @@ export interface CampoCredencialApiItem {
   es_personalizado: boolean;
   descripcion: string;
   valor_ejemplo: string;
+  origen?: string;
 }
 
 export interface FichaQrApiItem {
@@ -160,6 +161,9 @@ export interface EmpleadoCarnetApiItem {
   correo?: string;
   telefono?: string;
   foto_url?: string | null;
+  total_solicitudes?: number;
+  tiene_carnet?: boolean;
+  carnet_activo_emitido_en?: string | null;
 }
 
 export const carnetizacionApi = {
@@ -300,6 +304,14 @@ export const carnetizacionApi = {
     return envelope.data;
   },
 
+  actualizarCampoPersonalizado: async (codigo: string, data: Record<string, unknown>) => {
+    const envelope = await apiClient.patch<ApiResponse<CampoCredencialApiItem>>(
+      `/api/v1/carnetizacion/campos/personalizados/${codigo}/`,
+      data,
+    );
+    return envelope.data;
+  },
+
   eliminarCampoPersonalizado: async (codigo: string) => {
     await apiClient.delete<ApiResponse<null>>(`/api/v1/carnetizacion/campos/personalizados/${codigo}/`);
     return true;
@@ -397,10 +409,18 @@ export const carnetizacionApi = {
     };
   },
 
-  generarCarnetPdf: async (cedula: string, motivoId: number, nombre: string, plantillaId?: string) => {
+  generarCarnetPdf: async (
+    cedula: string,
+    motivoId: number,
+    nombre: string,
+    plantillaId?: string,
+    opciones?: { motivoReemision?: string; detalle?: string; observaciones?: string },
+  ) => {
     return apiClient.postBlob(`/api/v1/carnetizacion/generar/${cedula}/`, {
       motivo_id: motivoId,
-      observaciones: "",
+      motivo_reemision: opciones?.motivoReemision ?? undefined,
+      detalle: opciones?.detalle ?? undefined,
+      observaciones: opciones?.observaciones ?? "",
       plantilla_id: plantillaId,
       datos_editados: { nombre, cedula },
     });
