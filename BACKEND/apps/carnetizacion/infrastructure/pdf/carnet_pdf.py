@@ -7,6 +7,7 @@ geometría vectorial y tipografía embebida con fallback métrico exacto).
 Mantiene total compatibilidad con DatosCarnetPdf y la API previa de generar_carnet_pdf.
 """
 import hashlib
+import json
 import logging
 import math
 import os
@@ -14,6 +15,7 @@ from dataclasses import dataclass
 from io import BytesIO
 from typing import Any
 
+from apps.carnetizacion.domain.services.qr_estilo import normalizar_estilo
 from apps.carnetizacion.infrastructure.qr_institucional import LOGO_QR, generar_qr_png
 from django.conf import settings
 from django.core.cache import cache
@@ -50,6 +52,64 @@ _TEXTO_MIN_FUENTE = 5
 LADO_FOTO_MIN_PX = 600
 _CALIDAD_JPEG_FOTO = 88
 _TTL_QR_SEGUNDOS = 300
+
+
+MARGEN_TARJETA_PT = 0.8 * MM_A_PT
+
+
+def _limitar_caja_a_tarjeta(x_pt: float, w_pt: float, ancho_tarjeta_pt: float) -> tuple[float, float]:
+    """Recorta la caja horizontal para que quede dentro de la tarjeta (con un margen mínimo)."""
+    izquierda = min(max(x_pt, 0.0), max(ancho_tarjeta_pt - MARGEN_TARJETA_PT, 0.0))
+    derecha = min(x_pt + w_pt, ancho_tarjeta_pt - MARGEN_TARJETA_PT)
+    return izquierda, max(derecha - izquierda, 1.0)
+
+
+def _recortar_con_puntos(texto: str, fuente: str, tamano: float, ancho: float) -> str:
+    """Recorta el texto con «…» hasta que quepa en `ancho`."""
+    if stringWidth(texto, fuente, tamano) <= ancho:
+        return texto
+    while texto and stringWidth(texto + '…', fuente, tamano) > ancho:
+        texto = texto[:-1]
+    return (texto.rstrip() + '…') if texto else ''
+
+
+def _partir_en_dos(texto: str, fuente: str, tamano: float, ancho: float) -> list[str] | None:
+    """Reparte el texto en 2 líneas por palabras; None si alguna línea no cabe."""
+    palabras = texto.split()
+    mejor: list[str] | None = None
+    for corte in range(1, len(palabras)):
+        lineas = [' '.join(palabras[:corte]), ' '.join(palabras[corte:])]
+        if all(stringWidth(ln, fuente, tamano) <= ancho for ln in lineas):
+            if mejor is None or max(map(len, lineas)) < max(map(len, mejor)):
+                mejor = lineas
+    return mejor
+
+
+def ajustar_texto(
+    texto: str, fuente: str, tamano: float, ancho: float, alto: float,
+) -> tuple[list[str], float]:
+    """Líneas y tamaño con los que el texto cabe en la caja (`ancho` x `alto`, en puntos).
+
+    1) Reduce la letra hasta `_TEXTO_MIN_FUENTE` pt; 2) si aun así no cabe y la caja tiene
+    alto para 2 líneas, parte por palabras; 3) si no, recorta con «…». Un texto con saltos
+    de línea explícitos conserva sus líneas y solo se reduce/recorta.
+    """
+    if not texto or ancho <= 0:
+        return [texto or ''], tamano
+    lineas = texto.split('\n')
+    ancho_max = max(stringWidth(ln, fuente, tamano) for ln in lineas)
+    if ancho_max > ancho:
+        tamano = max(_TEXTO_MIN_FUENTE if tamano > _TEXTO_MIN_FUENTE else tamano, tamano * ancho / ancho_max)
+    # La reducción proporcional puede quedar un pelo corta por el redondeo de métricas.
+    while tamano > _TEXTO_MIN_FUENTE and max(stringWidth(ln, fuente, tamano) for ln in lineas) > ancho:
+        tamano = max(_TEXTO_MIN_FUENTE, tamano - 0.1)
+    if all(stringWidth(ln, fuente, tamano) <= ancho for ln in lineas):
+        return lineas, tamano
+    if len(lineas) == 1 and alto >= 2 * tamano * 1.15:
+        dos = _partir_en_dos(lineas[0], fuente, tamano, ancho)
+        if dos:
+            return dos, tamano
+    return [_recortar_con_puntos(ln, fuente, tamano, ancho) for ln in lineas], tamano
 
 
 def _tiene_transparencia(img: Image.Image) -> bool:
@@ -106,11 +166,42 @@ def _hex_seguro(valor: str | None, defecto: str = '#111827') -> HexColor:
         return HexColor(defecto)
 
 
-def _qr_png_cacheado(contenido: str, con_logo: bool) -> bytes:
-    """QR (con logo) cacheado: la clave cubre el contenido (que lleva el security_hash)
-    y la versión del logo (mtime y tamaño del archivo), así que un logo nuevo invalida."""
-    sello_logo = ''
-    if con_logo:
+def logo_qr_de_biblioteca(medio_id: str | None) -> bytes | None:
+    """Bytes del logo elegido en la Biblioteca de Medios (misma vía que el resto de sus
+    archivos: `obtener_archivo_biblioteca`); None si no hay medio o no se puede leer."""
+    if not medio_id:
+        return None
+    clave = f"carnet:qr-logo:{medio_id}"
+    try:
+        guardado = cache.get(clave)
+        if guardado:
+            return guardado
+    except Exception:
+        logger.warning("Caché no disponible al leer el logo del QR.", exc_info=True)
+    try:
+        from apps.carnetizacion.infrastructure.repositories.repo_carnetizacion_orm import (
+            RepoCarnetizacionORM,
+        )
+
+        datos, _mime, _nombre = RepoCarnetizacionORM().obtener_archivo_biblioteca(medio_id)
+    except Exception:
+        logger.warning("No se pudo leer el logo %s de la biblioteca; se usa el de CONATEL.", medio_id)
+        return None
+    try:
+        cache.set(clave, datos, _TTL_QR_SEGUNDOS)
+    except Exception:
+        logger.warning("Caché no disponible al guardar el logo del QR.", exc_info=True)
+    return datos
+
+
+def _qr_png_cacheado(contenido: str, con_logo: bool, estilo: dict[str, Any] | None = None) -> bytes:
+    """QR cacheado: la clave cubre el contenido (que lleva el security_hash), el estilo
+    normalizado y la versión del logo (mtime y tamaño del archivo de CONATEL, o el id del
+    medio de la biblioteca), así que un cambio de estilo o de logo invalida."""
+    estilo = normalizar_estilo(estilo)
+    medio_id = estilo['logo']['medio_id'] if con_logo and estilo['logo']['activo'] else None
+    sello_logo = f"medio:{medio_id}" if medio_id else ''
+    if con_logo and not medio_id:
         try:
             ruta = ruta_asset(LOGO_QR)
             if ruta:
@@ -118,7 +209,9 @@ def _qr_png_cacheado(contenido: str, con_logo: bool) -> bytes:
                 sello_logo = f"{st.st_mtime_ns}-{st.st_size}"
         except Exception:
             sello_logo = ''
-    huella = hashlib.sha256(f"{contenido}|{int(con_logo)}|{sello_logo}".encode()).hexdigest()
+    huella = hashlib.sha256(
+        f"{contenido}|{int(con_logo)}|{sello_logo}|{json.dumps(estilo, sort_keys=True)}".encode()
+    ).hexdigest()
     clave = f"carnet:qr:{huella}"
     try:
         guardado = cache.get(clave)
@@ -126,7 +219,10 @@ def _qr_png_cacheado(contenido: str, con_logo: bool) -> bytes:
             return guardado
     except Exception:
         logger.warning("Caché no disponible al leer el QR del carnet.", exc_info=True)
-    png = generar_qr_png(contenido, box_size=4, border=1, con_logo=con_logo)
+    png = generar_qr_png(
+        contenido, box_size=4, border=2, con_logo=con_logo, estilo=estilo,
+        logo_bytes=logo_qr_de_biblioteca(medio_id),
+    )
     try:
         cache.set(clave, png, _TTL_QR_SEGUNDOS)
     except Exception:
@@ -141,6 +237,7 @@ def _dibujar_qr(
     y: float,
     tamano: float = 1.2 * cm,
     con_logo: bool = True,
+    estilo: dict[str, Any] | None = None,
 ) -> None:
     """Genera y dibuja el código QR seguro con el logo institucional al centro."""
     sec_hash = getattr(datos, 'security_hash', None) or (datos.get('security_hash') if isinstance(datos, dict) else '')
@@ -160,7 +257,7 @@ def _dibujar_qr(
         )
 
     c.drawImage(
-        ImageReader(BytesIO(_qr_png_cacheado(contenido, con_logo))),
+        ImageReader(BytesIO(_qr_png_cacheado(contenido, con_logo, estilo))),
         x, y, tamano, tamano,
     )
 
@@ -518,6 +615,7 @@ def generar_carnet_pdf_fiel(definicion: dict[str, Any], datos: DatosCarnetPdf | 
                     c, datos_dict, x_pt, y_pt,
                     tamano=min(w_pt, h_pt),
                     con_logo=bool(props.get('logo', True)),
+                    estilo=props.get('qr_estilo'),
                 )
 
             elif tipo == 'image':
@@ -559,45 +657,29 @@ def generar_carnet_pdf_fiel(definicion: dict[str, Any], datos: DatosCarnetPdf | 
                 bold = bool(el.get('bold', False))
                 fuente_elegida = FUENTE_NEGRITA if bold else FUENTE
 
-                # Ajuste automático: si el texto no cabe en el ancho declarado, se
-                # reduce el tamaño (mínimo 3.5 pt) en vez de desbordar la tarjeta.
-                def _tamano_ajustado(texto: str, tamano: float) -> float:
-                    if not texto or w_pt <= 0:
-                        return tamano
-                    ancho_texto = stringWidth(texto, fuente_elegida, tamano)
-                    if ancho_texto <= w_pt:
-                        return tamano
-                    return max(3.5, tamano * (w_pt / ancho_texto))
-
-                if '\n' not in texto_render:
-                    font_size = _tamano_ajustado(texto_render, font_size)
+                # La caja nunca pasa del borde de la tarjeta (menos el margen).
+                x_txt, w_txt = _limitar_caja_a_tarjeta(x_pt, w_pt, ancho_pt)
+                lineas, font_size = ajustar_texto(
+                    texto_render, fuente_elegida, font_size, w_txt, h_pt,
+                )
                 c.setFont(fuente_elegida, font_size)
                 c.setFillColor(fill_color)
 
                 align = el.get('align', 'left')
-
-                # Si el texto es multilínea (ej. Normas de uso)
-                if '\n' in texto_render:
-                    lineas = texto_render.split('\n')
-                    interlineado = font_size * 1.2
+                interlineado = font_size * 1.2
+                if len(lineas) > 1:
                     total_h = len(lineas) * interlineado
                     y_actual = y_pt + h_pt - (h_pt - total_h) / 2 - font_size
-                    for linea in lineas:
-                        if align == 'center':
-                            c.drawCentredString(x_pt + w_pt / 2, y_actual, linea)
-                        elif align == 'right':
-                            c.drawRightString(x_pt + w_pt, y_actual, linea)
-                        else:
-                            c.drawString(x_pt, y_actual, linea)
-                        y_actual -= interlineado
                 else:
-                    y_base = y_pt + (h_pt - font_size) / 2 + 0.5
+                    y_actual = y_pt + (h_pt - font_size) / 2 + 0.5
+                for linea in lineas:
                     if align == 'center':
-                        c.drawCentredString(x_pt + w_pt / 2, y_base, texto_render)
+                        c.drawCentredString(x_txt + w_txt / 2, y_actual, linea)
                     elif align == 'right':
-                        c.drawRightString(x_pt + w_pt, y_base, texto_render)
+                        c.drawRightString(x_txt + w_txt, y_actual, linea)
                     else:
-                        c.drawString(x_pt, y_base, texto_render)
+                        c.drawString(x_txt, y_actual, linea)
+                    y_actual -= interlineado
 
             c.restoreState()
 

@@ -901,24 +901,76 @@ class RepoCarnetizacionORM:
         return f"data:image/png;base64,{encoded}"
 
     def obtener_estadisticas_carnets(self) -> dict[str, Any]:
-        total_emitidos = CarnetEmitidoModel.objects.count()
-        total_activos = CarnetEmitidoModel.objects.filter(activo=True).count()
-        total_revocados = CarnetEmitidoModel.objects.filter(activo=False).count()
-        por_motivo = (
-            CarnetEmitidoModel.objects.values('motivo__nombre')
+        """Cuenta carnets de trabajadores/pasivos (CarnetEmitido) y credenciales externas o temporales.
+
+        Las claves son las que consume el portal (total, activos, emitidos_hoy, emitidos_mes,
+        por_motivo y ultimos). «Hoy» y «mes» se calculan en la zona horaria del sistema.
+        """
+        from apps.carnetizacion.infrastructure.models.credencial_externa_model import (
+            CredencialExternaModel,
+        )
+
+        ahora = timezone.now()
+        local = timezone.localtime(ahora)
+        inicio_hoy = local.replace(hour=0, minute=0, second=0, microsecond=0)
+        inicio_mes = inicio_hoy.replace(day=1)
+
+        carnets = CarnetEmitidoModel.objects.all()
+        externas = CredencialExternaModel.objects.all()
+        vigentes_ext = externas.filter(estado='ACTIVA', vigencia_hasta__gte=ahora)
+
+        total = carnets.count() + externas.count()
+        activos = carnets.filter(activo=True).count() + vigentes_ext.count()
+        emitidos_hoy = (
+            carnets.filter(fecha_emision__gte=inicio_hoy).count()
+            + externas.filter(created_at__gte=inicio_hoy).count()
+        )
+        emitidos_mes = (
+            carnets.filter(fecha_emision__gte=inicio_mes).count()
+            + externas.filter(created_at__gte=inicio_mes).count()
+        )
+
+        por_motivo = [
+            {'motivo_id': item['motivo_id'], 'motivo': item['motivo__nombre'], 'total': item['total']}
+            for item in carnets.values('motivo_id', 'motivo__nombre')
             .annotate(total=Count('id'))
             .order_by('-total')
-        )
-        ultimos = (
-            CarnetEmitidoModel.objects.select_related('employee', 'motivo')
-            .order_by('-fecha_emision')[:10]
-        )
+        ]
+        total_ext = externas.count()
+        if total_ext:
+            por_motivo.append({'motivo_id': 0, 'motivo': 'Credenciales externas y temporales', 'total': total_ext})
+
+        recientes: list[dict[str, Any]] = []
+        for c in carnets.select_related('employee', 'motivo').order_by('-fecha_emision')[:10]:
+            emp = c.employee
+            recientes.append({
+                'nombre': f"{emp.nombres} {emp.apellidos}".strip() if emp else '',
+                'cedula': str(emp.cedulaidentidad if emp else c.employee_id),
+                'fecha': timezone.localtime(c.fecha_emision).strftime('%d/%m/%Y %H:%M'),
+                'motivo': c.motivo.nombre if c.motivo else '',
+                'activo': c.activo,
+                '_orden': c.fecha_emision,
+            })
+        for x in externas.select_related('tipo_credencial').order_by('-created_at')[:10]:
+            recientes.append({
+                'nombre': x.nombre,
+                'cedula': x.documento,
+                'fecha': timezone.localtime(x.created_at).strftime('%d/%m/%Y %H:%M'),
+                'motivo': x.tipo_credencial.nombre if x.tipo_credencial else x.motivo,
+                'activo': x.estado == 'ACTIVA' and x.vigencia_hasta >= ahora,
+                '_orden': x.created_at,
+            })
+        recientes.sort(key=lambda r: r['_orden'], reverse=True)
+        ultimos = [{k: v for k, v in r.items() if k != '_orden'} for r in recientes[:10]]
+
         return {
-            'total_emitidos': total_emitidos,
-            'total_activos': total_activos,
-            'total_revocados': total_revocados,
-            'por_motivo': [{'motivo': item['motivo__nombre'], 'total': item['total']} for item in por_motivo],
-            'ultimos_emitidos': [carnet_a_entidad(c) for c in ultimos],
+            'total': total,
+            'activos': activos,
+            'revocados': total - activos,
+            'emitidos_hoy': emitidos_hoy,
+            'emitidos_mes': emitidos_mes,
+            'por_motivo': por_motivo,
+            'ultimos': ultimos,
         }
 
     # --- Biblioteca de Medios (O44 - E4) ---

@@ -308,7 +308,10 @@ class RepoCredencialesExternasORM:
             'cedula': cedula,
             'cargo': cargo,
             'departamento': departamento,
-            'nomina': fila.tipo_credencial_id,
+            # El código del tipo hace de «nómina» (VISITANTE, CONTRATISTA...) para que las
+            # Reglas de Color del diseñador puedan asignar colores propios a cada tipo.
+            'nomina': str(fila.tipo_credencial_id or '').upper(),
+            'externo': fila.empleado_id is None,
             'security_hash': fila.security_hash,
             'tipo_credencial': fila.tipo_credencial_id,
             'motivo': fila.motivo,

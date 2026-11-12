@@ -2,6 +2,7 @@
 Casos de uso para consultar, crear, publicar y activar plantillas de carnet (O44 - E3).
 Motor de plantillas por capas en mm, dos caras, tamaños libres, versiones e historial.
 """
+from collections.abc import Callable
 from typing import Any
 
 from apps.carnetizacion.application.dtos.carnetizacion_dtos import (
@@ -12,6 +13,7 @@ from apps.carnetizacion.application.dtos.carnetizacion_dtos import (
 from apps.carnetizacion.domain.entities.plantilla import PlantillaCarnet
 from apps.carnetizacion.domain.entities.tipo_credencial import TipoCredencial
 from apps.carnetizacion.domain.ports.repo_carnetizacion import RepoCarnetizacion
+from apps.carnetizacion.domain.services.qr_estilo import validar_estilos_qr
 from apps.carnetizacion.domain.services.qr_legible import validar_qr_legible
 from core.domain.configuracion import CLAVE_CARNETIZACION_QR_TAMANO_MINIMO_MM
 from core.domain.exceptions import NotFoundError, ValidationError
@@ -201,11 +203,13 @@ def publicar_plantilla(
     activar: bool = True,
     publicado_por: str | None = None,
     lector: LectorConfiguracion | None = None,
+    verificador_qr: Callable[[dict], None] | None = None,
 ) -> PlantillaDetalleDTO:
     """
     Publica una plantilla. Genera una versión inmutable e incrementa versionado.
     Si activar=True, desactiva la versión activa previa del mismo tipo y regla.
-    Exige al menos un QR de N × N mm (parámetro del sistema) legible con teléfono.
+    Exige al menos un QR de N × N mm (parámetro del sistema) legible con teléfono y un
+    estilo de QR legible; `verificador_qr` permite una prueba de lectura real (infraestructura).
     """
     origen = repo.obtener_plantilla(plantilla_id)
     if not origen:
@@ -217,6 +221,10 @@ def publicar_plantilla(
         else QR_TAMANO_MINIMO_DEFECTO_MM
     )
     validar_qr_legible(origen.definicion, minimo)
+    # El estilo del QR (contraste, logo, ojos) no puede volverlo ilegible.
+    validar_estilos_qr(origen.definicion)
+    if verificador_qr is not None:
+        verificador_qr(origen.definicion)
     p = repo.publicar_plantilla(
         plantilla_id=plantilla_id,
         activar=activar,

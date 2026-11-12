@@ -193,3 +193,18 @@ describe("Aplicar colores en bloque a los valores de una regla", () => {
     expect(quitarTodosLosValores(base).valores).toEqual({});
   });
 });
+
+describe("sugerencias de nómina con tipos de credencial externa", () => {
+  it("suma los códigos del catálogo en mayúsculas y los etiqueta legiblemente", async () => {
+    const { sugerenciasCriterio: sugerir, etiquetaSugerencia } = await import("./disenador");
+    const tipos = [
+      { codigo: "visitante", nombre: "Visitante" },
+      { codigo: "trabajador_temporal", nombre: "Trabajador temporal" },
+    ];
+    const sugerencias = sugerir("nomina", tipos);
+    expect(sugerencias).toContain("VISITANTE");
+    expect(sugerencias).toContain("TRABAJADOR_TEMPORAL");
+    expect(etiquetaSugerencia("VISITANTE", tipos)).toBe("Visitante");
+    expect(sugerir("cargo", tipos)).toEqual([]);
+  });
+});

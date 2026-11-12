@@ -47,6 +47,7 @@ from apps.carnetizacion.presentation.views.carnetizacion_views import (
     FichaQrPublicaView,
     MotivosEmisionListView,
     PlantillaCreateView,
+    QrVistaPreviaView,
     PlantillaImagenView,
     PlantillaMotorActivaView,
     PlantillaMotorActivarView,
@@ -87,6 +88,7 @@ urlpatterns = [
     path('plantillas-motor/<str:plantilla_id>/versiones/', PlantillaMotorVersionesView.as_view(), name='plantilla-motor-versiones'),
 
     # Biblioteca Compartida de Medios (O44 - E4)
+    path('qr/vista-previa/', QrVistaPreviaView.as_view(), name='qr-vista-previa'),
     path('biblioteca/', ElementoBibliotecaListView.as_view(), name='biblioteca-list'),
     path('biblioteca/<str:elemento_id>/', ElementoBibliotecaDetailView.as_view(), name='biblioteca-detail'),
     path('biblioteca/<str:elemento_id>/archivo/', ElementoBibliotecaArchivoView.as_view(), name='biblioteca-archivo'),

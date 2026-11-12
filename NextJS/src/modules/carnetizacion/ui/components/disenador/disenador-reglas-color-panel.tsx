@@ -35,7 +35,9 @@ import {
   CRITERIOS_COLOR_SOPORTADOS,
   ETIQUETA_VALORES_CRITERIO,
   REGLAS_COLOR_DEFECTO,
+  etiquetaSugerencia,
   sugerenciasCriterio,
+  type TipoExternoColor,
 } from "../../../domain/entities/disenador";
 
 interface DisenadorReglasColorPanelProps {
@@ -45,6 +47,8 @@ interface DisenadorReglasColorPanelProps {
   ) => void;
   nuevoValorNombre: string;
   onCambiarNuevoValorNombre: (valor: string) => void;
+  /** Tipos de credencial externa del catálogo (visitante, contratista...) para sugerir como nómina. */
+  tiposExternos?: readonly TipoExternoColor[];
 }
 
 export function DisenadorReglasColorPanel({
@@ -52,6 +56,7 @@ export function DisenadorReglasColorPanel({
   onActualizarReglasColor,
   nuevoValorNombre,
   onCambiarNuevoValorNombre,
+  tiposExternos = [],
 }: DisenadorReglasColorPanelProps) {
   const [busquedaValor, setBusquedaValor] = useState("");
   const [colorMasivo, setColorMasivo] = useState({ primario: "#1f3a5f", acento: "#1273bd" });
@@ -64,7 +69,7 @@ export function DisenadorReglasColorPanel({
   const filtradas = busquedaValor.trim()
     ? entradas.filter(([k]) => k.toLowerCase().includes(busquedaValor.trim().toLowerCase()))
     : entradas;
-  const sugerencias = sugerenciasCriterio(criterio).filter((v) => !(v in reglasColor.valores));
+  const sugerencias = sugerenciasCriterio(criterio, tiposExternos).filter((v) => !(v in reglasColor.valores));
   const soportado = (c: string) => (CRITERIOS_COLOR_SOPORTADOS as readonly string[]).includes(c);
 
   const marcadosVigentes = marcados.filter((k) => k in reglasColor.valores);
@@ -409,7 +414,7 @@ export function DisenadorReglasColorPanel({
               />
               <datalist id="sugerencias-criterio-color">
                 {sugerencias.map((v) => (
-                  <option key={v} value={v} />
+                  <option key={v} value={v} label={etiquetaSugerencia(v, tiposExternos) ?? undefined} />
                 ))}
               </datalist>
               <Button

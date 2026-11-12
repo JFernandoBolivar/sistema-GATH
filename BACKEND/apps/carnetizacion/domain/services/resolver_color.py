@@ -46,6 +46,17 @@ def resolver_color_carnet(definicion: dict[str, Any], persona: dict[str, Any] | 
             'texto': respaldo.get('texto', RESPALDO_DEFECTO['texto']),
         }
 
+    # Credencial externa sin trabajador vinculado (visitante, contratista...): ni cargo ni
+    # oficina ni nómina aplican, así que el código del tipo de credencial hace de valor.
+    if persona.get('externo') and persona.get('tipo_credencial'):
+        persona = {
+            **persona,
+            'nomina': str(persona['tipo_credencial']).upper(),
+            'cargo': str(persona['tipo_credencial']).upper(),
+            'oficina': str(persona['tipo_credencial']).upper(),
+            'departamento': str(persona['tipo_credencial']).upper(),
+        }
+
     # Extraer valor de la persona según el criterio
     valor_persona: str | None = None
     if criterio in ('nomina', 'tipo_personal', 'tipo_nomina'):

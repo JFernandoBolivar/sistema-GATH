@@ -56,6 +56,11 @@ from apps.carnetizacion.application.use_cases.validar_carnet import (
     validar_carnet_por_hash,
     validar_carnet_por_id,
 )
+from apps.carnetizacion.infrastructure.pdf.carnet_pdf import logo_qr_de_biblioteca
+from apps.carnetizacion.infrastructure.qr_institucional import (
+    generar_qr_png,
+    verificar_lectura_estilos,
+)
 from apps.carnetizacion.infrastructure.repositories.repo_carnetizacion_orm import (
     RepoCarnetizacionORM,
 )
@@ -156,7 +161,6 @@ class EstadisticasCarnetsView(APIView):
     def get(self, request):
         repo = RepoCarnetizacionORM()
         data = repo.obtener_estadisticas_carnets()
-        data['ultimos_emitidos'] = CarnetSerializer(data.get('ultimos_emitidos', []), many=True).data
         return ok(data)
 
 
@@ -282,8 +286,29 @@ class PlantillaMotorPublicarView(APIView):
             plantilla_id=plantilla_id,
             activar=serializer.validated_data.get('activar', True),
             publicado_por=str(request.user.id) if request.user and request.user.is_authenticated else None,
+            verificador_qr=verificar_lectura_estilos,
         )
         return ok(PlantillaMotorDetalleSerializer(plantilla).data, f'Plantilla publicada como versión {plantilla.version}.')
+
+
+class QrVistaPreviaView(APIView):
+    """PNG del QR con un estilo dado (`qr_estilo`), para la vista previa fiel del diseñador."""
+    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.disenar')]
+
+    @extend_schema(tags=['Carnetización'], summary='Vista previa del estilo del QR (PNG)', responses={200: OpenApiTypes.BINARY})
+    def post(self, request):
+        estilo = request.data.get('qr_estilo') if isinstance(request.data, dict) else None
+        if estilo is not None and not isinstance(estilo, dict):
+            return fail('El estilo del QR debe ser un objeto.', status=400)
+        medio_id = ((estilo or {}).get('logo') or {}).get('medio_id') if isinstance((estilo or {}).get('logo'), dict) else None
+        png = generar_qr_png(
+            'https://gath.conatel.gob.ve/carnet/VistaPreviaDelEstiloQR',
+            box_size=6, border=2, con_logo=True, estilo=estilo,
+            logo_bytes=logo_qr_de_biblioteca(str(medio_id)) if medio_id else None,
+        )
+        respuesta = HttpResponse(png, content_type='image/png')
+        respuesta['Cache-Control'] = 'no-store'
+        return respuesta
 
 
 class PlantillaMotorActivarView(APIView):

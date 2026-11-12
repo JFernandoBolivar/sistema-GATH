@@ -115,3 +115,32 @@ def test_reducir_foto_perfil_endereza_exif():
     datos, _, _ = reducir_foto_perfil(buf.getvalue())
     with Image.open(BytesIO(datos)) as out:
         assert out.size == (200, 400)
+
+
+def test_texto_largo_cabe_en_la_caja_y_no_pasa_del_borde_de_la_tarjeta():
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+
+    from apps.carnetizacion.infrastructure.pdf.carnet_pdf import (
+        CARNET_WIDTH,
+        MARGEN_TARJETA_PT,
+        _limitar_caja_a_tarjeta,
+        ajustar_texto,
+    )
+    from core.infrastructure.pdf.fuentes import FUENTE_NEGRITA
+
+    nombre = 'E2E-Contratista Anulado Con Un Nombre Larguisimo 962046 Y Mas'[:60]
+    assert len(nombre) == 60
+    # Caja que se sale de la tarjeta: se limita al borde menos el margen.
+    x, w = _limitar_caja_a_tarjeta(30.0, 100.0, CARNET_WIDTH)
+    assert x + w <= CARNET_WIDTH - MARGEN_TARJETA_PT + 1e-6
+    # Una línea (caja baja): reduce hasta 5 pt y recorta con «…»; lo dibujado cabe.
+    lineas, tam = ajustar_texto(nombre, FUENTE_NEGRITA, 9, w, 8)
+    assert len(lineas) == 1 and tam >= 5
+    assert stringWidth(lineas[0], FUENTE_NEGRITA, tam) <= w + 1e-6
+    # Caja alta: parte en 2 líneas por palabras sin recortar.
+    ancho = CARNET_WIDTH - 2 * MARGEN_TARJETA_PT - 10
+    lineas, tam = ajustar_texto(nombre, FUENTE_NEGRITA, 9, ancho, 30)
+    assert all(stringWidth(ln, FUENTE_NEGRITA, tam) <= ancho + 1e-6 for ln in lineas)
+    assert ' '.join(lineas).replace('…', '') != '' and len(lineas) <= 2
+    # Un nombre corto conserva su tamaño.
+    assert ajustar_texto('ANA', FUENTE_NEGRITA, 9, 100, 10) == (['ANA'], 9)
