@@ -13,7 +13,7 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 | Estado | Cantidad |
 |---|---|
 | ✅ Completado | 36 |
-| ⏳ En proceso | 8 |
+| ⏳ En proceso | 9 |
 | ❓ Respondida | 6 |
 | 🟡 Espera tu decisión | 4 |
 
@@ -52,6 +52,7 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 | 29 | Auditoría: el rol no aparece | ✅ | Se guarda desde ahora; en los registros viejos se muestra el rol actual | `e27125db` |
 | 58 | El campo «Escriba la cédula nueva para confirmar» aceptaba letras | ✅ | Ese campo y el de la cédula solo aceptan números | `f33fc3fb` |
 | 59 | Nacionalidad con permiso propio, separado del de la cédula | ⏳ | Permiso «Actualizar nacionalidad del trabajador» | — |
+| 60 | El familiar registrado en una fe de vida aprobada no aparece en Familiares del pasivo | ⏳ | Investigando si al aprobar se agregan los familiares nuevos | — |
 | 30 | Familiares: grupo sanguíneo obligatorio, errores que no se marcan, error en el flujo de registro y actualización, documentos en la actualización | ⏳ | OpenCode lo está corrigiendo | — |
 
 ## Carnetización
