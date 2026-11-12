@@ -12,9 +12,9 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 
 | Estado | Cantidad |
 |---|---|
-| ✅ Completado | 37 |
-| ⏳ En proceso | 16 |
-| ❓ Respondida | 6 |
+| ✅ Completado | 39 |
+| ⏳ En proceso | 14 |
+| ❓ Respondida | 7 |
 | 🟡 Espera tu decisión | 4 |
 
 ## Cambios urgentes y administración
@@ -55,12 +55,13 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 | 60 | El familiar registrado en una fe de vida aprobada no aparece en Familiares del pasivo | ⏳ | Investigando si al aprobar se agregan los familiares nuevos | — |
 | 61 | «¿Tiene hijos?» de la fe de vida debe actualizar el expediente y verse y editarse en la ficha de activos y pasivos | ⏳ | Analizando dónde se guarda hoy y dónde debe ir | — |
 | 62 | Botón «Contacto de emergencia» distinto a los demás | ✅ | Mismo estilo e ícono que las otras secciones | `0dcb8f4d` |
-| 63 | Organización: el encabezado azul de la tabla se sale del recuadro redondeado | ⏳ | Ajuste de maquetación | — |
-| 64 | Cargos: la página no se adapta al ancho de la pantalla | ⏳ | Ajuste de maquetación | — |
+| 63 | Organización: el encabezado azul de la tabla se sale del recuadro redondeado | ✅ | El encabezado queda dentro del recuadro | `a9e0d523` |
+| 64 | Cargos: la página no se adapta al ancho de la pantalla | ✅ | Las tablas anchas se desplazan dentro de su tarjeta; corregido para todas las páginas | `a9e0d523` |
 | 65 | «Asignar código especial» debe tener el mismo formato que «Asignar cargo» | ⏳ | Se iguala el diseño | — |
 | 66 | Encargaduría: después de buscar al trabajador no aparece el buscador del cargo | ⏳ | Se revisa el flujo: trabajador, contrato, cargo y guardar | — |
 | 67 | Los campos obligatorios deben llevar asterisco | ⏳ | En los formularios de Movimientos | — |
 | 68 | Al guardar el contrato: «Ha ocurrido un error interno» | ⏳ | Causa: el estatus del contrato no existe en el catálogo. Se corrige, y si falla dará un mensaje claro | — |
+| 69 | ¿Se corrigió que no se pudiera reenviar ni regenerar la constancia después de unos días, y que no llegara el correo? | ❓ | Sí, en `b268731a` (cada reenvío tiene su propia clave y se agregó la recuperación). Aún no está en producción: entra con el próximo pase. En local no llegó porque el pasivo de prueba no tiene correo (el log dice «sin correo para enviar») | `b268731a` |
 | 30 | Familiares: grupo sanguíneo obligatorio, errores que no se marcan, error en el flujo de registro y actualización, documentos en la actualización | ⏳ | OpenCode lo está corrigiendo | — |
 
 ## Carnetización
