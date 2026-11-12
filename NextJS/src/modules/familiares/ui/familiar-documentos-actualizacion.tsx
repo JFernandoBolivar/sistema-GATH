@@ -161,26 +161,47 @@ export function FamiliarDocumentosActualizacion({ familiarId }: { familiarId: nu
         }}
       />
 
-      <div className="flex flex-col gap-2 border-t pt-3">
-        <h5 className="text-xs font-semibold uppercase text-muted-foreground">Agregar documento</h5>
-        <div className="flex flex-wrap items-end gap-2">
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-xs text-muted-foreground">Tipo</span>
-            <select
-              className="h-10 rounded-md border bg-transparent px-2"
-              value={tipoNuevo}
-              onChange={(event) => setTipoNuevo(event.target.value as TipoDocumentoFamiliar)}
-            >
-              {TIPOS.map((tipo) => (
-                <option key={tipo} value={tipo}>{etiquetaDocumento(tipo)}</option>
-              ))}
-            </select>
-          </label>
-          <div className="min-w-[220px] flex-1">
-            <FileUpload label="Archivo del documento" value={archivoNuevo} onChange={setArchivoNuevo} />
-          </div>
-          <Button type="button" size="sm" disabled={!archivoNuevo || isPending} onClick={onAgregar}>
-            <Upload className="mr-1 size-4" aria-hidden="true" /> Agregar
+      <div className="flex flex-col gap-3 border-t pt-4">
+        <h5 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Agregar documento
+        </h5>
+        <div role="radiogroup" aria-label="Tipo de documento" className="grid grid-cols-2 gap-2">
+          {TIPOS.map((tipo) => {
+            const activo = tipoNuevo === tipo;
+            return (
+              <button
+                key={tipo}
+                type="button"
+                role="radio"
+                aria-checked={activo}
+                onClick={() => setTipoNuevo(tipo)}
+                className={`flex h-10 items-center justify-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
+                  activo
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-input bg-background text-foreground hover:bg-accent"
+                }`}
+              >
+                <FileText className="size-4 shrink-0" aria-hidden="true" />
+                <span className="truncate">{etiquetaDocumento(tipo)}</span>
+              </button>
+            );
+          })}
+        </div>
+        <FileUpload label="Archivo del documento" value={archivoNuevo} onChange={setArchivoNuevo} />
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            className="w-full sm:w-auto"
+            disabled={!archivoNuevo || isPending}
+            onClick={onAgregar}
+            aria-label="Agregar"
+          >
+            {isPending ? (
+              <Loader2 className="mr-1 size-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Upload className="mr-1 size-4" aria-hidden="true" />
+            )}
+            Agregar documento
           </Button>
         </div>
       </div>
