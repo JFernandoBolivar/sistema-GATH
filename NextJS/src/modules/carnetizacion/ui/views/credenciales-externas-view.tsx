@@ -5,7 +5,7 @@
  * Formulario + listado + PDF + devolución/anulación + envío por correo.
  */
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { Check, ChevronsUpDown, Download, Mail, Plus, RotateCcw, Search, UserX } from "lucide-react";
+import { Check, ChevronsUpDown, Download, Mail, Plus, RotateCcw, UserX } from "lucide-react";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
@@ -65,6 +65,62 @@ function descargarBlob(blob: Blob, nombre: string): void {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+function inicialesNombre(nombre: string): string {
+  const partes = nombre.replace(/,/g, " ").trim().split(/\s+/).filter(Boolean);
+  const ini = `${partes[0]?.charAt(0) ?? ""}${partes[1]?.charAt(0) ?? ""}`.toUpperCase();
+  return ini || "?";
+}
+
+function AvatarTrabajador({ cedula, nombre }: { cedula: string; nombre: string }) {
+  const [sinFoto, setSinFoto] = useState(false);
+  const clase =
+    "flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-lg font-semibold text-primary";
+  if (sinFoto || !cedula) {
+    return (
+      <div aria-hidden="true" className={clase}>
+        {inicialesNombre(nombre)}
+      </div>
+    );
+  }
+  return (
+    <div className={clase}>
+      {/* Foto autenticada del mismo origen; next/image no reenvia cookies. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={`/api/v1/personal/${encodeURIComponent(cedula)}/foto/`}
+        alt={`Foto de ${nombre}`}
+        className="size-full object-cover"
+        onError={() => setSinFoto(true)}
+      />
+    </div>
+  );
+}
+
+/** Resumen del trabajador elegido; en móvil se apila. */
+function TarjetaTrabajador({ emp, onCambiar }: { emp: EmployeeCarnet; onCambiar: () => void }) {
+  return (
+    <div
+      data-testid="tarjeta-trabajador"
+      className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4 sm:flex-row sm:items-center"
+    >
+      <AvatarTrabajador cedula={emp.cedula} nombre={emp.nombre_completo} />
+      <div className="min-w-0 flex-1 space-y-0.5">
+        <p className="break-words text-base font-bold text-foreground">{emp.nombre_completo}</p>
+        <p className="text-sm text-muted-foreground">C.I. {emp.cedula}</p>
+        <p className="text-sm text-foreground">{emp.cargo || "Sin cargo registrado"}</p>
+        <p className="text-sm text-muted-foreground">{emp.departamento || "Sin oficina registrada"}</p>
+        <p className="break-all text-sm text-muted-foreground">{emp.correo || "Sin correo registrado"}</p>
+      </div>
+      <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end">
+        <Badge variant="secondary">ACTIVO</Badge>
+        <Button type="button" variant="outline" onClick={onCambiar} className="min-h-11">
+          Cambiar
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 const ESTADOS = ["ACTIVA", "DEVUELTA", "ANULADA", "VENCIDA"] as const;
 
 export default function CredencialesExternasView({ grupo }: Props) {
@@ -88,8 +144,7 @@ export default function CredencialesExternasView({ grupo }: Props) {
     hasta: fechaLocal(new Date(Date.now() + 4 * 60 * 60 * 1000)),
     horas: "8",
   });
-  const [busqueda, setBusqueda] = useState("");
-  const [empleado, setEmpleado] = useState<{ cedula: string; nombre: string; correo?: string } | null>(null);
+  const [empleado, setEmpleado] = useState<EmployeeCarnet | null>(null);
 
   // Persona visitada: debe ser un trabajador registrado en el sistema.
   const [personaEmpleado, setPersonaEmpleado] = useState<EmployeeCarnet | null>(null);
@@ -133,7 +188,7 @@ export default function CredencialesExternasView({ grupo }: Props) {
 
   // Búsqueda de la persona visitada entre los trabajadores registrados.
   useEffect(() => {
-    if (temporal || busquedaPersona.trim().length < 2) {
+    if (busquedaPersona.trim().length < 2) {
       setResultadosPersona([]);
       setUltimaBusquedaPersona(null);
       return;
@@ -159,7 +214,7 @@ export default function CredencialesExternasView({ grupo }: Props) {
       activo = false;
       clearTimeout(timer);
     };
-  }, [busquedaPersona, temporal]);
+  }, [busquedaPersona]);
 
   const seleccionarPersona = (emp: EmployeeCarnet) => {
     setPersonaEmpleado(emp);
@@ -168,24 +223,16 @@ export default function CredencialesExternasView({ grupo }: Props) {
     setPersonaAbierta(false);
   };
 
-  const buscarTrabajador = () => {
-    startTransition(async () => {
-      const resultado = await buscarPersonalCarnetAction(busqueda.trim());
-      if (Array.isArray(resultado) && resultado.length > 0) {
-        const emp = resultado[0];
-        const nombre = emp.nombre_completo || `${emp.nombres ?? ""} ${emp.apellidos ?? ""}`.trim();
-        setEmpleado({ cedula: emp.cedula, nombre, correo: emp.correo });
-        setForm((f) => ({
-          ...f,
-          nombre,
-          documento: emp.cedula,
-          correo: emp.correo || f.correo,
-        }));
-      } else {
-        setEmpleado(null);
-        toast.error("No se encontró un trabajador con esa cédula.");
-      }
-    });
+  const seleccionarTrabajador = (emp: EmployeeCarnet) => {
+    setEmpleado(emp);
+    setForm((f) => ({
+      ...f,
+      nombre: emp.nombre_completo,
+      documento: emp.cedula,
+      correo: emp.correo || "",
+    }));
+    setBusquedaPersona("");
+    setPersonaAbierta(false);
   };
 
   const emitir = () => {
@@ -230,7 +277,6 @@ export default function CredencialesExternasView({ grupo }: Props) {
       toast.success(temporal ? "Credencial temporal emitida." : "Credencial emitida.");
       setForm((f) => ({ ...f, nombre: "", documento: "", correo: "", empresa: "", contrato: "", persona: "", motivo: "", observaciones: "" }));
       setEmpleado(null);
-      setBusqueda("");
       setPersonaEmpleado(null);
       setBusquedaPersona("");
       setResultadosPersona([]);
@@ -275,6 +321,85 @@ export default function CredencialesExternasView({ grupo }: Props) {
     });
   };
 
+  const selectorTrabajador = ({
+    id,
+    seleccionado,
+    onSelect,
+    etiqueta,
+  }: {
+    id: string;
+    seleccionado: EmployeeCarnet | null;
+    onSelect: (emp: EmployeeCarnet) => void;
+    etiqueta: string | null;
+  }) => (
+                      <Popover open={personaAbierta} onOpenChange={setPersonaAbierta}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            id={id}
+                            type="button"
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={personaAbierta}
+                            className="h-11 w-full justify-between gap-2 text-sm font-normal"
+                          >
+                            <span
+                              className={cn(
+                                "truncate text-left",
+                                !etiqueta && "text-muted-foreground",
+                              )}
+                            >
+                              {etiqueta ?? "Buscar trabajador por nombre o cédula…"}
+                            </span>
+                            <ChevronsUpDown className="size-4 shrink-0 opacity-50" aria-hidden />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          className="w-(--radix-popover-trigger-width) min-w-[320px] p-0"
+                          align="start"
+                        >
+                          <Command shouldFilter={false}>
+                            <CommandInput
+                              placeholder="Buscar trabajador…"
+                              value={busquedaPersona}
+                              onValueChange={setBusquedaPersona}
+                            />
+                            <CommandList className="max-h-64 overflow-y-auto">
+                              <CommandEmpty>
+                                {busquedaPersona.trim().length < 2
+                                  ? "Escriba al menos 2 caracteres del nombre o la cédula"
+                                  : buscandoPersona || ultimaBusquedaPersona !== busquedaPersona.trim()
+                                    ? "Buscando…"
+                                    : "No se encontraron trabajadores."}
+                              </CommandEmpty>
+                              <CommandGroup>
+                                {resultadosPersona.map((emp) => (
+                                  <CommandItem
+                                    key={emp.cedula}
+                                    value={emp.cedula}
+                                    onSelect={() => onSelect(emp)}
+                                    className="cursor-pointer"
+                                  >
+                                    <div className="min-w-0 flex-1">
+                                      <p className="truncate text-sm font-medium">
+                                        {emp.nombre_completo}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground">
+                                        C.I. {emp.cedula}
+                                        {emp.cargo ? ` · ${emp.cargo}` : ""}
+                                      </p>
+                                    </div>
+                                    {seleccionado?.cedula === emp.cedula && (
+                                      <Check className="size-4 shrink-0 text-primary" aria-hidden />
+                                    )}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+  );
+
   const titulo = temporal ? "Credencial temporal" : "Visitantes y contratistas";
   const descripcion = temporal
     ? "Emisión corta por olvido o extravío del carnet institucional."
@@ -299,21 +424,30 @@ export default function CredencialesExternasView({ grupo }: Props) {
             <section className="space-y-3">
               <h3 className="text-sm font-semibold text-foreground">Credencial</h3>
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="cred-tipo">Tipo de credencial</Label>
-                  <Select value={tipoCodigo} onValueChange={setTipoCodigo}>
-                    <SelectTrigger id="cred-tipo" className="h-11 w-full">
-                      <SelectValue placeholder="Seleccione un tipo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {tipos.map((t) => (
-                        <SelectItem key={t.codigo} value={t.codigo}>
-                          {t.nombre}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {tipos.length === 1 ? (
+                  <div className="space-y-1.5">
+                    <p className="text-sm text-muted-foreground">Tipo de credencial</p>
+                    <p className="flex min-h-11 items-center text-base font-semibold text-foreground">
+                      {tipos[0].nombre}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cred-tipo">Tipo de credencial</Label>
+                    <Select value={tipoCodigo} onValueChange={setTipoCodigo}>
+                      <SelectTrigger id="cred-tipo" className="h-11 w-full">
+                        <SelectValue placeholder="Seleccione un tipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {tipos.map((t) => (
+                          <SelectItem key={t.codigo} value={t.codigo}>
+                            {t.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 {!temporal && (
                   <div className="space-y-1.5">
@@ -334,37 +468,14 @@ export default function CredencialesExternasView({ grupo }: Props) {
               <section className="space-y-3 border-t border-border pt-5">
                 <h3 className="text-sm font-semibold text-foreground">Trabajador</h3>
                 <div className="grid gap-4 md:grid-cols-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="cred-cedula">Cédula del trabajador</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="cred-cedula"
-                        value={busqueda}
-                        onChange={(e) => setBusqueda(e.target.value)}
-                        placeholder="Buscar cédula…"
-                        className="h-11"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={buscarTrabajador}
-                        disabled={isPending}
-                        className="min-h-11"
-                        aria-label="Buscar trabajador"
-                      >
-                        <Search className="size-4" aria-hidden />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 md:col-span-2">
                     <Label htmlFor="cred-trabajador">Trabajador</Label>
-                    <Input
-                      id="cred-trabajador"
-                      value={empleado?.nombre ?? ""}
-                      readOnly
-                      placeholder="Sin seleccionar"
-                      className="h-11 bg-muted/40"
-                    />
+                    {selectorTrabajador({
+                      id: "cred-trabajador",
+                      seleccionado: empleado,
+                      onSelect: seleccionarTrabajador,
+                      etiqueta: empleado ? `${empleado.nombre_completo} · V-${empleado.cedula}` : null,
+                    })}
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="cred-horas">Vigencia (horas)</Label>
@@ -379,6 +490,15 @@ export default function CredencialesExternasView({ grupo }: Props) {
                     />
                   </div>
                 </div>
+                {empleado ? (
+                  <TarjetaTrabajador
+                    emp={empleado}
+                    onCambiar={() => {
+                      setEmpleado(null);
+                      setPersonaAbierta(true);
+                    }}
+                  />
+                ) : null}
               </section>
             ) : (
               <>
@@ -447,74 +567,14 @@ export default function CredencialesExternasView({ grupo }: Props) {
                   <div className="grid gap-4 md:grid-cols-3">
                     <div className="space-y-1.5">
                       <Label htmlFor="cred-persona">Persona visitada</Label>
-                      <Popover open={personaAbierta} onOpenChange={setPersonaAbierta}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            id="cred-persona"
-                            type="button"
-                            variant="outline"
-                            role="combobox"
-                            aria-expanded={personaAbierta}
-                            className="h-11 w-full justify-between gap-2 text-sm font-normal"
-                          >
-                            <span
-                              className={cn(
-                                "truncate text-left",
-                                !personaEmpleado && "text-muted-foreground",
-                              )}
-                            >
-                              {personaEmpleado
-                                ? `${personaEmpleado.nombre_completo} · V-${personaEmpleado.cedula}`
-                                : "Buscar trabajador por nombre o cédula…"}
-                            </span>
-                            <ChevronsUpDown className="size-4 shrink-0 opacity-50" aria-hidden />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                          className="w-(--radix-popover-trigger-width) min-w-[320px] p-0"
-                          align="start"
-                        >
-                          <Command shouldFilter={false}>
-                            <CommandInput
-                              placeholder="Buscar trabajador…"
-                              value={busquedaPersona}
-                              onValueChange={setBusquedaPersona}
-                            />
-                            <CommandList className="max-h-64 overflow-y-auto">
-                              <CommandEmpty>
-                                {busquedaPersona.trim().length < 2
-                                  ? "Escriba al menos 2 caracteres del nombre o la cédula"
-                                  : buscandoPersona || ultimaBusquedaPersona !== busquedaPersona.trim()
-                                    ? "Buscando…"
-                                    : "No se encontraron trabajadores."}
-                              </CommandEmpty>
-                              <CommandGroup>
-                                {resultadosPersona.map((emp) => (
-                                  <CommandItem
-                                    key={emp.cedula}
-                                    value={emp.cedula}
-                                    onSelect={() => seleccionarPersona(emp)}
-                                    className="cursor-pointer"
-                                  >
-                                    <div className="min-w-0 flex-1">
-                                      <p className="truncate text-sm font-medium">
-                                        {emp.nombre_completo}
-                                      </p>
-                                      <p className="text-xs text-muted-foreground">
-                                        C.I. {emp.cedula}
-                                        {emp.cargo ? ` · ${emp.cargo}` : ""}
-                                      </p>
-                                    </div>
-                                    {personaEmpleado?.cedula === emp.cedula && (
-                                      <Check className="size-4 shrink-0 text-primary" aria-hidden />
-                                    )}
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
+                      {selectorTrabajador({
+                        id: "cred-persona",
+                        seleccionado: personaEmpleado,
+                        onSelect: seleccionarPersona,
+                        etiqueta: personaEmpleado
+                          ? `${personaEmpleado.nombre_completo} · V-${personaEmpleado.cedula}`
+                          : null,
+                      })}
                       <p className="text-xs text-muted-foreground">
                         Solo se aceptan trabajadores registrados en el sistema.
                       </p>
@@ -547,7 +607,7 @@ export default function CredencialesExternasView({ grupo }: Props) {
             {temporal ? (
               <section className="space-y-3 border-t border-border pt-5">
                 <h3 className="text-sm font-semibold text-foreground">Detalle de la emisión</h3>
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="cred-motivo-temporal">Motivo</Label>
                     <Input
@@ -557,15 +617,6 @@ export default function CredencialesExternasView({ grupo }: Props) {
                       placeholder="Motivo de la emisión temporal"
                       className="h-11"
                     />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Correo del trabajador</Label>
-                    <p className="flex h-11 items-center rounded-md border border-border bg-muted/40 px-3 text-sm text-foreground">
-                      {empleado?.correo || "Sin correo registrado"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Se toma de la ficha del trabajador; no se edita aquí.
-                    </p>
                   </div>
                 </div>
               </section>
