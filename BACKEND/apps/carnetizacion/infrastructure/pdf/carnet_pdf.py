@@ -6,13 +6,17 @@ geometría vectorial y tipografía embebida con fallback métrico exacto).
 
 Mantiene total compatibilidad con DatosCarnetPdf y la API previa de generar_carnet_pdf.
 """
+import hashlib
 import logging
+import math
+import os
 from dataclasses import dataclass
 from io import BytesIO
 from typing import Any
 
-from apps.carnetizacion.infrastructure.qr_institucional import generar_qr_png
+from apps.carnetizacion.infrastructure.qr_institucional import LOGO_QR, generar_qr_png
 from django.conf import settings
+from django.core.cache import cache
 from PIL import Image
 from core.infrastructure.pdf.fuentes import FUENTE, FUENTE_NEGRITA
 from core.infrastructure.pdf.pdf_components import ruta_asset
@@ -41,6 +45,40 @@ CARNET_HEIGHT = 85.6 * MM_A_PT
 _TEXTO_MAX_ANCHO = 2.5 * cm
 _TEXTO_MIN_FUENTE = 5
 
+# La foto se dibuja en un recuadro de ~2 cm: basta con 300 ppp de impresión. El piso de
+# 600 px evita perder calidad en recuadros pequeños y es la clave de tamaño de la caché.
+LADO_FOTO_MIN_PX = 600
+_CALIDAD_JPEG_FOTO = 88
+_TTL_QR_SEGUNDOS = 300
+
+
+def _tiene_transparencia(img: Image.Image) -> bool:
+    return img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info)
+
+
+def _lado_maximo_px(ancho_pt: float, alto_pt: float) -> int:
+    """Lado largo a 300 ppp del recuadro (puntos -> pulgadas), con piso de LADO_FOTO_MIN_PX."""
+    return max(LADO_FOTO_MIN_PX, math.ceil(max(ancho_pt, alto_pt) / 72.0 * 300))
+
+
+def _codificar_foto(img: Image.Image) -> bytes:
+    """JPEG q88 en RGB; PNG (ya reducido) solo si la foto trae transparencia."""
+    salida = BytesIO()
+    if _tiene_transparencia(img):
+        img.convert('RGBA').save(salida, format='PNG')
+    else:
+        img.convert('RGB').save(salida, format='JPEG', quality=_CALIDAD_JPEG_FOTO)
+    return salida.getvalue()
+
+
+def reducir_foto_carnet(foto_bytes: bytes, lado_max: int = LADO_FOTO_MIN_PX) -> bytes:
+    """Reduce la foto a un lado largo <= lado_max y la recodifica (JPEG, o PNG con alfa)."""
+    with Image.open(BytesIO(foto_bytes)) as img:
+        img.load()
+        if max(img.size) > lado_max:
+            img.thumbnail((lado_max, lado_max), Image.LANCZOS)
+        return _codificar_foto(img)
+
 
 @dataclass(frozen=True)
 class DatosCarnetPdf:
@@ -66,6 +104,34 @@ def _hex_seguro(valor: str | None, defecto: str = '#111827') -> HexColor:
         return HexColor(val)
     except Exception:
         return HexColor(defecto)
+
+
+def _qr_png_cacheado(contenido: str, con_logo: bool) -> bytes:
+    """QR (con logo) cacheado: la clave cubre el contenido (que lleva el security_hash)
+    y la versión del logo (mtime y tamaño del archivo), así que un logo nuevo invalida."""
+    sello_logo = ''
+    if con_logo:
+        try:
+            ruta = ruta_asset(LOGO_QR)
+            if ruta:
+                st = os.stat(ruta)
+                sello_logo = f"{st.st_mtime_ns}-{st.st_size}"
+        except Exception:
+            sello_logo = ''
+    huella = hashlib.sha256(f"{contenido}|{int(con_logo)}|{sello_logo}".encode()).hexdigest()
+    clave = f"carnet:qr:{huella}"
+    try:
+        guardado = cache.get(clave)
+        if guardado:
+            return guardado
+    except Exception:
+        logger.warning("Caché no disponible al leer el QR del carnet.", exc_info=True)
+    png = generar_qr_png(contenido, box_size=4, border=1, con_logo=con_logo)
+    try:
+        cache.set(clave, png, _TTL_QR_SEGUNDOS)
+    except Exception:
+        logger.warning("Caché no disponible al guardar el QR del carnet.", exc_info=True)
+    return png
 
 
 def _dibujar_qr(
@@ -94,7 +160,7 @@ def _dibujar_qr(
         )
 
     c.drawImage(
-        ImageReader(BytesIO(generar_qr_png(contenido, box_size=4, border=1, con_logo=con_logo))),
+        ImageReader(BytesIO(_qr_png_cacheado(contenido, con_logo))),
         x, y, tamano, tamano,
     )
 
@@ -135,10 +201,15 @@ def _dibujar_foto(c: canvas.Canvas, foto_bytes: bytes | None, x: float, y: float
                 offset = (img_height - nuevo_alto) // 2
                 pil_image = pil_image.crop((0, offset, img_width, offset + nuevo_alto))
 
-            recorte_buffer = BytesIO()
-            pil_image.save(recorte_buffer, format="PNG")
-            recorte_buffer.seek(0)
-            c.drawImage(ImageReader(recorte_buffer), x, y, ancho, alto, preserveAspectRatio=True, anchor="c")
+            # Reducir al tamaño útil de impresión (300 ppp) ANTES de recodificar: a tamaño
+            # completo, guardar como PNG y recomprimir en drawImage costaba ~12 s.
+            lado_max = _lado_maximo_px(ancho, alto)
+            if max(pil_image.size) > lado_max:
+                pil_image.thumbnail((lado_max, lado_max), Image.LANCZOS)
+            c.drawImage(
+                ImageReader(BytesIO(_codificar_foto(pil_image))),
+                x, y, ancho, alto, preserveAspectRatio=True, anchor="c",
+            )
             return
         except Exception:
             logger.warning("No se pudo procesar la foto del carnet; usando silueta de respaldo.", exc_info=True)

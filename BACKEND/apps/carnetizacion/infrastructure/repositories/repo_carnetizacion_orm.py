@@ -7,6 +7,7 @@ import hashlib
 import base64
 from io import BytesIO
 from typing import Any
+from django.core.cache import cache
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.base import ContentFile
 from django.db import transaction
@@ -77,7 +78,12 @@ from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
     PreferenciaPrivacidadCarnetModel,
     BitacoraAccesoQrModel,
 )
-from apps.carnetizacion.infrastructure.pdf.carnet_pdf import DatosCarnetPdf, generar_carnet_pdf
+from apps.carnetizacion.infrastructure.pdf.carnet_pdf import (
+    LADO_FOTO_MIN_PX,
+    DatosCarnetPdf,
+    generar_carnet_pdf,
+    reducir_foto_carnet,
+)
 
 # Import entre módulos en infrastructure (apps.cargos y apps.personal): mismo patrón ya
 # establecido en `apps.reportes`/`apps.autogestion`/`apps.pasivos`.
@@ -737,6 +743,34 @@ class RepoCarnetizacionORM:
                 return plantilla.definicion
         return None
 
+    @staticmethod
+    def _foto_carnet(clave: str) -> bytes | None:
+        """Foto del titular ya reducida, cacheada 1 h por clave del almacén.
+
+        Cada subida genera una clave nueva (`clave_segura`), así que una foto cambiada
+        nunca devuelve datos viejos. Sin caché o sin almacén, degrada a None/sin caché.
+        """
+        clave_cache = f"carnet:foto:{clave}:{LADO_FOTO_MIN_PX}"
+        try:
+            guardada = cache.get(clave_cache)
+            if guardada:
+                return guardada
+        except Exception:
+            logger.warning("Caché no disponible al leer la foto del carnet.", exc_info=True)
+        try:
+            original = SeaweedFSStorage().descargar(clave) or None
+            if not original:
+                return None
+            reducida = reducir_foto_carnet(original, LADO_FOTO_MIN_PX)
+        except Exception:
+            logger.warning("No se pudo leer la foto del empleado para el carnet.", exc_info=True)
+            return None
+        try:
+            cache.set(clave_cache, reducida, 3600)
+        except Exception:
+            logger.warning("Caché no disponible al guardar la foto del carnet.", exc_info=True)
+        return reducida
+
     def generar_pdf(self, carnet_id: int, nombre_override: str | None = None) -> bytes:
         fila = (
             CarnetEmitidoModel.objects.select_related('employee', 'motivo')
@@ -759,13 +793,7 @@ class RepoCarnetizacionORM:
             if asignacion and asignacion.DireccionGeneral else ''
         )
 
-        foto_bytes = None
-        if empleado and empleado.profile:
-            try:
-                foto_bytes = SeaweedFSStorage().descargar(empleado.profile) or None
-            except Exception:
-                logger.warning("No se pudo leer la foto del empleado para el carnet.", exc_info=True)
-                foto_bytes = None
+        foto_bytes = self._foto_carnet(empleado.profile) if empleado and empleado.profile else None
 
         # Si el carnet emitido tiene su propia plantilla snapshot, se usa esa versión
         # inmutable (O44 - E3, E8). `plantilla_version` es un entero (número de
@@ -816,10 +844,7 @@ class RepoCarnetizacionORM:
         )
 
         if foto_bytes is None and empleado.profile:
-            try:
-                foto_bytes = SeaweedFSStorage().descargar(empleado.profile) or None
-            except Exception:
-                logger.warning("No se pudo leer la foto del empleado para el carnet.", exc_info=True)
+            foto_bytes = self._foto_carnet(empleado.profile)
 
         # Preferir la plantilla por capas activa (con su versión más reciente).
         # El fondo fijo legado solo se usa si no hay definición por capas.
@@ -866,7 +891,7 @@ class RepoCarnetizacionORM:
             foto_bytes=foto_bytes,
         )
         pdf_bytes = generar_carnet_pdf(datos, definicion=definicion)
-        images = convert_from_bytes(pdf_bytes, first_page=1, last_page=1, fmt='png')
+        images = convert_from_bytes(pdf_bytes, first_page=1, last_page=1, fmt='png', dpi=110)
         if not images:
             raise ValidationError("No se pudo rasterizar la vista previa del carnet")
 

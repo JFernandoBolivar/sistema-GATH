@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { toast } from "sonner";
@@ -86,7 +86,11 @@ export function ConsolaEmisionView() {
   const [observaciones, setObservaciones] = useState("");
   const [vistaPreviaRaster, setVistaPreviaRaster] = useState<string>("");
   const [isPendingEmision, startTransitionEmision] = useTransition();
-  const [isPendingPreview, startTransitionPreview] = useTransition();
+  // Cédula con vista previa en curso (ref: evita lanzar una segunda petición para la misma
+  // cédula) y cédula actualmente seleccionada (para descartar respuestas de otra selección).
+  const [generandoPreview, setGenerandoPreview] = useState(false);
+  const previewEnCursoRef = useRef<string | null>(null);
+  const cedulaActualRef = useRef<string | null>(null);
 
   // Debounce para búsqueda en vivo
   useEffect(() => {
@@ -152,20 +156,35 @@ export function ConsolaEmisionView() {
     };
   }, [cedulaParam, trabajadorSeleccionado]);
 
+  // Genera la vista previa (≈ segundos): una sola petición por cédula a la vez.
+  const solicitarVistaPrevia = useCallback(
+    async (cedula: string, nombreCompleto: string): Promise<boolean | null> => {
+      if (previewEnCursoRef.current === cedula) return null;
+      previewEnCursoRef.current = cedula;
+      setGenerandoPreview(true);
+      try {
+        const res = await actualizarVistaPreviaAction(cedula, truncarNombre(nombreCompleto));
+        const ok = Boolean(res.success && res.vista_previa);
+        if (ok && cedulaActualRef.current === cedula) {
+          setVistaPreviaRaster(res.vista_previa as string);
+        }
+        return ok;
+      } finally {
+        if (previewEnCursoRef.current === cedula) {
+          previewEnCursoRef.current = null;
+          setGenerandoPreview(false);
+        }
+      }
+    },
+    [],
+  );
+
   // Actualizar vista previa rasterizada cuando se selecciona un trabajador
   useEffect(() => {
+    cedulaActualRef.current = trabajadorSeleccionado?.cedula ?? null;
     if (!trabajadorSeleccionado) return;
-    let activo = true;
-    const nombre = truncarNombre(trabajadorSeleccionado.nombre_completo);
-    actualizarVistaPreviaAction(trabajadorSeleccionado.cedula, nombre).then((res) => {
-      if (activo && res.success && res.vista_previa) {
-        setVistaPreviaRaster(res.vista_previa);
-      }
-    });
-    return () => {
-      activo = false;
-    };
-  }, [trabajadorSeleccionado]);
+    void solicitarVistaPrevia(trabajadorSeleccionado.cedula, trabajadorSeleccionado.nombre_completo);
+  }, [trabajadorSeleccionado, solicitarVistaPrevia]);
 
   // Filtrado rápido sobre los resultados
   const resultadosFiltrados = useMemo(() => {
@@ -200,21 +219,22 @@ export function ConsolaEmisionView() {
     setVistaPreviaRaster("");
   };
 
-  const handleActualizarPreview = () => {
-    if (!trabajadorSeleccionado) return;
-    startTransitionPreview(async () => {
-      const nombre = truncarNombre(trabajadorSeleccionado.nombre_completo);
-      const res = await actualizarVistaPreviaAction(trabajadorSeleccionado.cedula, nombre);
-      if (res.success && res.vista_previa) {
-        setVistaPreviaRaster(res.vista_previa);
-        toast.success("Vista previa actualizada con los datos vigentes.");
-      } else {
-        toast.info("Vista previa vectorial en vivo activa.");
-      }
-    });
+  const handleActualizarPreview = async () => {
+    if (!trabajadorSeleccionado || generandoPreview || isPendingEmision) return;
+    const ok = await solicitarVistaPrevia(
+      trabajadorSeleccionado.cedula,
+      trabajadorSeleccionado.nombre_completo,
+    );
+    if (ok === null) return;
+    if (ok) {
+      toast.success("Vista previa actualizada con los datos vigentes.");
+    } else {
+      toast.info("Vista previa vectorial en vivo activa.");
+    }
   };
 
   const handleEmitirCarnet = () => {
+    if (isPendingEmision) return;
     if (!trabajadorSeleccionado) {
       toast.error("Seleccione un trabajador antes de emitir.");
       return;
@@ -615,21 +635,21 @@ export function ConsolaEmisionView() {
                         variant="outline"
                         size="sm"
                         onClick={handleActualizarPreview}
-                        disabled={isPendingPreview}
+                        disabled={generandoPreview || isPendingEmision}
                         className="text-xs min-h-11 px-3"
                       >
-                        {isPendingPreview ? (
+                        {generandoPreview ? (
                           <Loader2 className="size-3.5 animate-spin mr-1.5" />
                         ) : (
                           <Eye className="size-3.5 mr-1.5" />
                         )}
-                        Refrescar Vista
+                        {generandoPreview ? "Generando vista previa…" : "Refrescar Vista"}
                       </Button>
 
                       <Button
                         type="button"
                         onClick={handleEmitirCarnet}
-                        disabled={isPendingEmision || !motivoEfectivoId}
+                        disabled={isPendingEmision || generandoPreview || !motivoEfectivoId}
                         className="text-xs font-semibold min-h-11 px-5 shadow-sm"
                       >
                         {isPendingEmision ? (
@@ -804,6 +824,17 @@ export function ConsolaEmisionView() {
                         </>
                       )}
                     </div>
+                  )}
+
+                  {(generandoPreview || isPendingEmision) && (
+                    <p
+                      role="status"
+                      aria-live="polite"
+                      className="mt-3 flex items-center justify-center gap-1.5 text-xs font-medium text-primary"
+                    >
+                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                      {isPendingEmision ? "Emitiendo…" : "Generando vista previa…"}
+                    </p>
                   )}
 
                   <p className="text-[11px] text-muted-foreground mt-3 text-center">

@@ -66,3 +66,52 @@ def test_generar_carnet_pdf_con_foto_corrupta_cae_a_placeholder():
     )
     pdf_bytes = generar_carnet_pdf(datos)
     assert pdf_bytes.startswith(b"%PDF")
+
+
+def test_reducir_foto_carnet_4k_queda_en_el_limite_y_en_jpeg():
+    from apps.carnetizacion.infrastructure.pdf.carnet_pdf import LADO_FOTO_MIN_PX, reducir_foto_carnet
+
+    buf = BytesIO()
+    Image.new('RGB', (3840, 2160), (120, 80, 200)).save(buf, format='PNG')
+
+    reducida = reducir_foto_carnet(buf.getvalue())
+
+    with Image.open(BytesIO(reducida)) as img:
+        assert max(img.size) <= LADO_FOTO_MIN_PX
+        assert img.format == 'JPEG'
+
+
+def test_reducir_foto_carnet_con_transparencia_conserva_png():
+    from apps.carnetizacion.infrastructure.pdf.carnet_pdf import LADO_FOTO_MIN_PX, reducir_foto_carnet
+
+    buf = BytesIO()
+    Image.new('RGBA', (3000, 2000), (10, 20, 30, 128)).save(buf, format='PNG')
+
+    with Image.open(BytesIO(reducir_foto_carnet(buf.getvalue()))) as img:
+        assert max(img.size) <= LADO_FOTO_MIN_PX
+        assert img.format == 'PNG'
+
+
+def test_reducir_foto_perfil_4k_queda_a_800px_jpeg():
+    from core.infrastructure.storage.imagenes import reducir_foto_perfil
+
+    buf = BytesIO()
+    Image.new('RGB', (3840, 2160), (1, 2, 3)).save(buf, format='PNG')
+    datos, tipo, ext = reducir_foto_perfil(buf.getvalue())
+    with Image.open(BytesIO(datos)) as img:
+        assert max(img.size) <= 800
+        assert img.format == 'JPEG'
+    assert ext == '.jpg' and tipo.mime == 'image/jpeg'
+
+
+def test_reducir_foto_perfil_endereza_exif():
+    from core.infrastructure.storage.imagenes import reducir_foto_perfil
+
+    img = Image.new('RGB', (400, 200), (9, 9, 9))
+    exif = Image.Exif()
+    exif[0x0112] = 6  # rotar 90 horario al mostrar: queda 200x400
+    buf = BytesIO()
+    img.save(buf, format='JPEG', exif=exif)
+    datos, _, _ = reducir_foto_perfil(buf.getvalue())
+    with Image.open(BytesIO(datos)) as out:
+        assert out.size == (200, 400)

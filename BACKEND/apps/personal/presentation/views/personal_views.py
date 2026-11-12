@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
+from core.infrastructure.storage.imagenes import reducir_foto_perfil
 from core.infrastructure.storage.validacion_archivo import (
     MAX_BYTES_IMAGEN,
     TIPOS_IMAGEN,
@@ -226,6 +227,7 @@ class EmpleadoFotoView(APIView):
             return fail('No se proporcionó ningún archivo', status=400)
 
         contenido, tipo, ext = validar_archivo(archivo, TIPOS_IMAGEN, MAX_BYTES_IMAGEN)
+        contenido, tipo, ext = reducir_foto_perfil(contenido)
         clave = clave_segura('perfiles', ext)
         SeaweedFSStorage().subir(clave, contenido, tipo.mime)
 

@@ -12,6 +12,7 @@ from drf_spectacular.utils import extend_schema
 
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
 from core.domain.exceptions import ValidationError
+from core.infrastructure.storage.imagenes import reducir_foto_perfil
 from core.infrastructure.storage.validacion_archivo import MAX_BYTES_IMAGEN, TIPOS_IMAGEN, clave_segura, validar_archivo
 from core.presentation.envelope import fail, ok
 from core.presentation.permissions import HasPermission
@@ -561,6 +562,7 @@ class CarnetSubirFotoView(APIView):
             return fail(f"Empleado con cédula {cedula} no encontrado", status=404)
 
         contenido, tipo, ext = validar_archivo(archivo, TIPOS_IMAGEN, MAX_BYTES_IMAGEN)
+        contenido, tipo, ext = reducir_foto_perfil(contenido)
         clave = clave_segura('perfiles', ext)
         SeaweedFSStorage().subir(clave, contenido, tipo.mime)
         repo.registrar_foto_perfil(cedula, clave)
