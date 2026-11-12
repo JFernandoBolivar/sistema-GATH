@@ -413,10 +413,10 @@ export function AuditoriaPage() {
                   size="sm"
                   disabled={exportando !== null}
                   onClick={() => exportar("pdf")}
-                  className="h-8 px-2.5 text-xs font-medium gap-1.5"
+                  className="h-10 flex-1 sm:flex-none px-3 text-sm font-medium gap-1.5"
                   title="Exportar registros filtrados a documento PDF"
                 >
-                  <FileText className="size-3.5" aria-hidden="true" />
+                  <FileText className="size-4" aria-hidden="true" />
                   <span>{exportando === "pdf" ? `PDF · ${exportacion.texto}` : "Exportar PDF"}</span>
                 </Button>
                 <Button
@@ -425,10 +425,10 @@ export function AuditoriaPage() {
                   size="sm"
                   disabled={exportando !== null}
                   onClick={() => exportar("excel")}
-                  className="h-8 px-2.5 text-xs font-medium gap-1.5"
+                  className="h-10 flex-1 sm:flex-none px-3 text-sm font-medium gap-1.5"
                   title="Exportar registros filtrados a hoja de cálculo Excel"
                 >
-                  <FileSpreadsheet className="size-3.5" aria-hidden="true" />
+                  <FileSpreadsheet className="size-4" aria-hidden="true" />
                   <span>{exportando === "excel" ? `Excel · ${exportacion.texto}` : "Exportar Excel"}</span>
                 </Button>
               </div>
@@ -437,12 +437,12 @@ export function AuditoriaPage() {
         >
           <form
             onSubmit={form.handleSubmit(aplicar)}
-            className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+            className="grid grid-cols-1 gap-4 sm:col-span-2 lg:col-span-4 sm:grid-cols-2 lg:grid-cols-4"
             noValidate
           >
             {/* Combobox de Acción */}
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="aud-accion" className="text-xs font-medium">
+              <Label htmlFor="aud-accion" className="text-sm font-medium">
                 Acción
               </Label>
               <ComboboxAcciones
@@ -458,7 +458,7 @@ export function AuditoriaPage() {
 
             {/* Selector de Módulo */}
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="aud-modulo" className="text-xs font-medium">
+              <Label htmlFor="aud-modulo" className="text-sm font-medium">
                 Módulo
               </Label>
               <select
@@ -481,7 +481,7 @@ export function AuditoriaPage() {
 
             {/* Selector de Resultado */}
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="aud-resultado" className="text-xs font-medium">
+              <Label htmlFor="aud-resultado" className="text-sm font-medium">
                 Resultado
               </Label>
               <select
@@ -504,7 +504,7 @@ export function AuditoriaPage() {
 
             {/* Filtro Recurso */}
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="aud-recurso" className="text-xs font-medium">
+              <Label htmlFor="aud-recurso" className="text-sm font-medium">
                 Recurso
               </Label>
               <Input
@@ -518,7 +518,7 @@ export function AuditoriaPage() {
 
             {/* Filtro IP */}
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="aud-ip" className="text-xs font-medium">
+              <Label htmlFor="aud-ip" className="text-sm font-medium">
                 Dirección IP
               </Label>
               <Input
@@ -532,7 +532,7 @@ export function AuditoriaPage() {
 
             {/* Rango de Fechas: Desde */}
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="aud-desde" className="text-xs font-medium">
+              <Label htmlFor="aud-desde" className="text-sm font-medium">
                 Desde
               </Label>
               <Input
@@ -545,7 +545,7 @@ export function AuditoriaPage() {
 
             {/* Rango de Fechas: Hasta */}
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="aud-hasta" className="text-xs font-medium">
+              <Label htmlFor="aud-hasta" className="text-sm font-medium">
                 Hasta
               </Label>
               <Input
@@ -555,14 +555,14 @@ export function AuditoriaPage() {
                 className="h-10 text-sm bg-background"
               />
               {form.formState.errors.hasta && (
-                <p role="alert" className="text-xs text-destructive">
+                <p role="alert" className="text-sm text-destructive">
                   {form.formState.errors.hasta.message}
                 </p>
               )}
             </div>
 
             {/* Botones de acción del formulario */}
-            <div className="flex items-end gap-2 lg:col-span-1">
+            <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-1">
               <Button
                 type="submit"
                 disabled={form.formState.isSubmitting}
