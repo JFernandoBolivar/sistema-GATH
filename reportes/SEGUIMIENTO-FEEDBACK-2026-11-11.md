@@ -106,6 +106,13 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 | 56 | ¿Se puede emitir el carnet cuantas veces se quiera? | ⏳ | Hoy sí, y cada emisión anula la anterior. Decidido: aviso «ya tiene carnet vigente», motivo obligatorio y registro en la bitácora. En cola | — |
 | 57 | ¿Autogestión muestra el carnet nuevo? | ❓ | Sí, siempre muestra el vigente | — |
 
+## Cierre: auditoría final (pedida por el usuario)
+Cuando todo lo de arriba esté completado, se hará una auditoría de todos los cambios del día (desde `e1062e8e`) con las skills del proyecto (`BACKEND/.claude/skills` y `NextJS/.claude/skills`):
+- arquitectura: Onion en el backend y Scream + Onion en el frontend (capas, puertos y repositorios, fronteras de import);
+- valores fijos en el código (cédulas, ids, colores, textos, URLs) que deberían ir en configuración o catálogo;
+- malas prácticas: duplicación, sobreingeniería (`ponytail-review`), errores tragados, N+1, validación de entradas (`validacion-input-protegido`), seguridad (`owasp-top-10-testing`) y pruebas;
+- corrección de los hallazgos que no requieran tu decisión; los demás se anotan para que decidas.
+
 ## Pendiente técnico conocido
 - El PDF debe dibujar las formas editadas por puntos y los radios por esquina. Hoy usa la copia del path.
 - La rama `chore/next-upgrade` hay que ponerla al día con la feature antes del próximo pase.
