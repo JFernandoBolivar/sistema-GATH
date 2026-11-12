@@ -406,18 +406,18 @@ export function AuditoriaPage() {
           tituloFiltrosMovil="Filtros avanzados de auditoría"
           accionesSuperiores={
             puedeExportar ? (
-              <div className="flex items-center gap-1.5">
+              <div className="flex w-full items-center gap-1.5 sm:w-auto">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   disabled={exportando !== null}
                   onClick={() => exportar("pdf")}
-                  className="h-10 flex-1 sm:flex-none px-3 text-sm font-medium gap-1.5"
+                  className="h-10 min-w-0 flex-1 sm:flex-none px-3 text-sm font-medium gap-1.5"
                   title="Exportar registros filtrados a documento PDF"
                 >
                   <FileText className="size-4" aria-hidden="true" />
-                  <span>{exportando === "pdf" ? `PDF · ${exportacion.texto}` : "Exportar PDF"}</span>
+                  <span className="truncate">{exportando === "pdf" ? `PDF · ${exportacion.texto}` : "Exportar PDF"}</span>
                 </Button>
                 <Button
                   type="button"
@@ -425,11 +425,11 @@ export function AuditoriaPage() {
                   size="sm"
                   disabled={exportando !== null}
                   onClick={() => exportar("excel")}
-                  className="h-10 flex-1 sm:flex-none px-3 text-sm font-medium gap-1.5"
+                  className="h-10 min-w-0 flex-1 sm:flex-none px-3 text-sm font-medium gap-1.5"
                   title="Exportar registros filtrados a hoja de cálculo Excel"
                 >
                   <FileSpreadsheet className="size-4" aria-hidden="true" />
-                  <span>{exportando === "excel" ? `Excel · ${exportacion.texto}` : "Exportar Excel"}</span>
+                  <span className="truncate">{exportando === "excel" ? `Excel · ${exportacion.texto}` : "Exportar Excel"}</span>
                 </Button>
               </div>
             ) : undefined

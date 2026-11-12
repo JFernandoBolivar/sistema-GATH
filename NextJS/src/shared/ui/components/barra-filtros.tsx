@@ -110,7 +110,7 @@ export function BarraFiltros({
             ) : null}
 
             {/* Acciones y Conteo en fila superior */}
-            <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
+            <div className="flex flex-wrap items-center justify-between gap-2 min-w-0 sm:flex-nowrap sm:justify-end sm:shrink-0">
               {totalResultados !== undefined && (
                 <Badge
                   variant="outline"
