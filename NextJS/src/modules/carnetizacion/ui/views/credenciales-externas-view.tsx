@@ -96,6 +96,8 @@ export default function CredencialesExternasView({ grupo }: Props) {
   const [busquedaPersona, setBusquedaPersona] = useState("");
   const [resultadosPersona, setResultadosPersona] = useState<EmployeeCarnet[]>([]);
   const [buscandoPersona, setBuscandoPersona] = useState(false);
+  // Último texto cuya búsqueda ya terminó (para distinguir «sin resultados» de «aún no buscó»).
+  const [ultimaBusquedaPersona, setUltimaBusquedaPersona] = useState<string | null>(null);
   const [personaAbierta, setPersonaAbierta] = useState(false);
 
   const etiquetas = useMemo(
@@ -133,18 +135,24 @@ export default function CredencialesExternasView({ grupo }: Props) {
   useEffect(() => {
     if (temporal || busquedaPersona.trim().length < 2) {
       setResultadosPersona([]);
+      setUltimaBusquedaPersona(null);
       return;
     }
     let activo = true;
     const timer = setTimeout(async () => {
       setBuscandoPersona(true);
+      const texto = busquedaPersona.trim();
       try {
-        const res = await buscarPersonalCarnetAction(busquedaPersona.trim());
+        const res = await buscarPersonalCarnetAction(texto);
         if (activo && Array.isArray(res)) setResultadosPersona(res as EmployeeCarnet[]);
+        else if (activo) setResultadosPersona([]);
       } catch {
         if (activo) setResultadosPersona([]);
       } finally {
-        if (activo) setBuscandoPersona(false);
+        if (activo) {
+          setBuscandoPersona(false);
+          setUltimaBusquedaPersona(texto);
+        }
       }
     }, 300);
     return () => {
@@ -226,6 +234,7 @@ export default function CredencialesExternasView({ grupo }: Props) {
       setPersonaEmpleado(null);
       setBusquedaPersona("");
       setResultadosPersona([]);
+      setUltimaBusquedaPersona(null);
       cargar();
     });
   };
@@ -407,6 +416,20 @@ export default function CredencialesExternasView({ grupo }: Props) {
                       />
                     </div>
                     <div className="space-y-1.5">
+                      <Label htmlFor="cred-correo">Correo del visitante (opcional)</Label>
+                      <Input
+                        id="cred-correo"
+                        type="email"
+                        value={form.correo}
+                        onChange={(e) => setForm({ ...form, correo: e.target.value })}
+                        placeholder="correo@ejemplo.com"
+                        className="h-11"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Se le enviará la credencial a este correo
+                      </p>
+                    </div>
+                    <div className="space-y-1.5">
                       <Label htmlFor="cred-contrato">Contrato / referencia</Label>
                       <Input
                         id="cred-contrato"
@@ -459,9 +482,11 @@ export default function CredencialesExternasView({ grupo }: Props) {
                             />
                             <CommandList className="max-h-64 overflow-y-auto">
                               <CommandEmpty>
-                                {buscandoPersona
-                                  ? "Buscando…"
-                                  : "No se encontraron trabajadores."}
+                                {busquedaPersona.trim().length < 2
+                                  ? "Escriba al menos 2 caracteres del nombre o la cédula"
+                                  : buscandoPersona || ultimaBusquedaPersona !== busquedaPersona.trim()
+                                    ? "Buscando…"
+                                    : "No se encontraron trabajadores."}
                               </CommandEmpty>
                               <CommandGroup>
                                 {resultadosPersona.map((emp) => (
@@ -544,24 +569,7 @@ export default function CredencialesExternasView({ grupo }: Props) {
                   </div>
                 </div>
               </section>
-            ) : (
-              <section className="space-y-3 border-t border-border pt-5">
-                <h3 className="text-sm font-semibold text-foreground">Notificación</h3>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="cred-correo">Correo (opcional)</Label>
-                    <Input
-                      id="cred-correo"
-                      type="email"
-                      value={form.correo}
-                      onChange={(e) => setForm({ ...form, correo: e.target.value })}
-                      placeholder="correo@ejemplo.com"
-                      className="h-11"
-                    />
-                  </div>
-                </div>
-              </section>
-            )}
+            ) : null}
 
             <div className="flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-muted-foreground">
