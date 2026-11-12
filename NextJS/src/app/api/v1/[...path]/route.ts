@@ -13,6 +13,8 @@ import { DJANGO_API_SERVER } from "@/shared/commons/api";
  */
 const RUTAS_PERMITIDAS: readonly RegExp[] = [
   /^configuracion\/visual\/logo\/(logo-principal|logo-secundario|cintillo-pie)\/?$/,
+  // Miniaturas de «Versiones anteriores» del cintillo (Django exige sesión).
+  /^configuracion\/visual\/logo\/(logo-principal|logo-secundario|cintillo-pie)\/versiones\/[0-9a-f-]{36}\/?$/,
   /^personal\/[^/]+\/foto\/?$/,
   /^familiares\/[^/]+\/documentos\/[^/]+\/archivo\/?$/,
   /^carnetizacion\/plantillas\/\d+\/imagen\/?$/,

@@ -78,6 +78,8 @@ describe("proxy /api/v1 (archivos autenticados)", () => {
     "autogestion/soportes/no-es-uuid/archivo/",
     "autogestion/solicitudes/0197c9a0-1b2c-7d3e-8f40-123456789abc/",
     "autogestion/mi-expediente/",
+    "configuracion/visual/logo/logo-principal/versiones/",
+    "configuracion/visual/logo/logo-principal/versiones/no-es-uuid/",
   ])("rechaza rutas fuera de la lista blanca: %s", async (ruta) => {
     const res = await pedir(ruta, "tok");
     expect(res.status).toBe(404);
@@ -86,6 +88,7 @@ describe("proxy /api/v1 (archivos autenticados)", () => {
 
   it.each([
     "configuracion/visual/logo/logo-principal/",
+    "configuracion/visual/logo/cintillo-pie/versiones/0197c9a0-1b2c-7d3e-8f40-123456789abc/",
     "familiares/9/documentos/4/archivo/",
     "puntocuenta/7/documento/archivo/",
     "autogestion/soportes/0197c9a0-1b2c-7d3e-8f40-123456789abc/archivo/",
