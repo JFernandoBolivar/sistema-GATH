@@ -1,6 +1,5 @@
 "use client";
 
-import { ContadorCampo } from "@/components/contador-caracteres";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { useForm, Controller } from "react-hook-form";
@@ -154,7 +153,6 @@ export default function NuevaSolicitudPage() {
               aria-describedby={errors.motivo ? "motivo-error" : undefined}
               {...register("motivo")}
             />
-            <ContadorCampo control={control} name="motivo" max={MOTIVO_MAX_CARACTERES} />
             <p className="text-sm text-muted-foreground">{MOTIVO_MIN_MSG}.</p>
             {errors.motivo ? (
               <p id="motivo-error" className="text-sm font-medium text-danger">

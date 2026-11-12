@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 
 import PageLayout from "@/components/layout/page-layout";
-import { CEDULA_FAMILIAR_MAX } from "../domain/value-objects/cedula-familiar-vo";
+import { CEDULA_FAMILIAR_MAX, maxOrdenHijo } from "../domain/value-objects/cedula-familiar-vo";
 import { Button } from "@/shared/ui/components/button";
 import { Calendar } from "@/shared/ui/components/calendar";
 import { Card, CardContent } from "@/shared/ui/components/card";
@@ -176,11 +176,7 @@ export default function FamiliarRegistrarPage() {
   }, [parentescoSeleccionado]);
 
   // H2: la cédula sintética debe caber en varchar(10): <titular>-<orden>.
-  const maxOrden = useMemo(() => {
-    const cedula = employee?.cedulaidentidad ?? "";
-    if (!cedula) return 0;
-    return Math.max(0, Math.min(27, CEDULA_FAMILIAR_MAX - cedula.length - 1));
-  }, [employee]);
+  const maxOrden = useMemo(() => maxOrdenHijo(employee?.cedulaidentidad), [employee]);
 
   // Fecha actual para el popover
   const fechaNac = form.watch("fechaNacimiento");
@@ -595,14 +591,19 @@ export default function FamiliarRegistrarPage() {
                       </Field>
 
                       {esHijo && (
-                        <Field className="col-span-1">
+                        <Field className="col-span-1" data-invalid={!!form.formState.errors.ordenHijo}>
                           <Label className="cursor-pointer">Orden de nacimiento *</Label>
                           <Select
                             disabled={maxOrden === 0}
                             value={form.watch("ordenHijo") ? String(form.watch("ordenHijo")) : ""}
-                            onValueChange={(val) => form.setValue("ordenHijo", Number(val))}
+                            onValueChange={(val) =>
+                              form.setValue("ordenHijo", Number(val), { shouldValidate: true })
+                            }
                           >
-                            <SelectTrigger className="w-full truncate">
+                            <SelectTrigger
+                              className="w-full truncate"
+                              aria-invalid={!!form.formState.errors.ordenHijo}
+                            >
                               <SelectValue placeholder="Seleccione Un Orden De Nacimiento" />
                             </SelectTrigger>
                             <SelectContent>
@@ -613,6 +614,17 @@ export default function FamiliarRegistrarPage() {
                               ))}
                             </SelectContent>
                           </Select>
+                          {maxOrden === 0 && !form.formState.errors.ordenHijo && (
+                            <p className="text-xs text-muted-foreground">
+                              La cédula del titular es demasiado larga para generar la cédula del hijo
+                              menor; registre al hijo con su propia cédula.
+                            </p>
+                          )}
+                          {form.formState.errors.ordenHijo && (
+                            <p role="alert" className="text-sm text-destructive">
+                              {form.formState.errors.ordenHijo.message}
+                            </p>
+                          )}
                         </Field>
                       )}
 

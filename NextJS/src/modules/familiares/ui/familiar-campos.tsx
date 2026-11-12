@@ -6,6 +6,7 @@
  * de detalle, por bloque: `identidad` (datos personales), `parentesco` o
  * `todos` (paridad con los diálogos modulares de Personal).
  */
+import { maxOrdenHijo } from "../domain/value-objects/cedula-familiar-vo";
 import { useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import { format } from "date-fns";
@@ -36,10 +37,7 @@ export function FamiliarCampos({
 }) {
   const [down, setDown] = useState(false);
   const fechaNac = form.watch("fechaNacimiento");
-  const maxOrden = Math.max(
-    0,
-    Math.min(27, 10 - String(form.watch("empleadoCedula") ?? "").length - 1),
-  );
+  const maxOrden = maxOrdenHijo(form.watch("empleadoCedula"));
   const parentescoId = form.watch("parentescoId");
   const parentescoNombre =
     catalogos?.parentescos.find((p) => p.id === Number(parentescoId))?.nombre ?? "";
