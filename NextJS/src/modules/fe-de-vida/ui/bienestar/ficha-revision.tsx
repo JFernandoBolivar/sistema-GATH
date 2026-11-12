@@ -15,19 +15,19 @@ function InsigniaCambio({ tipo }: { tipo: "nuevo" | "modificado" }) {
 function Dato({ dato }: { dato: DatoRevision }) {
   const marca: MarcaCambio | undefined = dato.marca;
   return (
-    <div className="flex flex-col gap-0.5">
+    <div className="flex min-w-0 flex-col gap-0.5">
       <dt className="text-sm font-medium text-muted-foreground">{dato.etiqueta}</dt>
       <dd className="flex flex-col gap-1">
         <span className="flex flex-wrap items-center gap-2">
           {dato.valor ? (
-            <span className="break-words text-base font-medium text-foreground">{dato.valor}</span>
+            <span className="min-w-0 [overflow-wrap:anywhere] text-base font-medium text-foreground">{dato.valor}</span>
           ) : (
             <span className="text-base text-muted-foreground">Sin dato</span>
           )}
           {marca ? <InsigniaCambio tipo={marca.tipo} /> : null}
         </span>
         {marca?.tipo === "modificado" ? (
-          <span className="break-words text-sm text-muted-foreground">Antes: {marca.anterior}</span>
+          <span className="min-w-0 [overflow-wrap:anywhere] text-sm text-muted-foreground">Antes: {marca.anterior}</span>
         ) : null}
         {dato.conflicto ? (
           <span className="flex items-start gap-1.5 text-sm text-warning">
@@ -112,7 +112,7 @@ export function FichaRevision({ secciones }: { secciones: readonly SeccionRevisi
             {s.titulo}
           </h2>
           {s.datos.length > 0 ? (
-            <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+            <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2 [&>*]:min-w-0">
               {s.datos.map((d) => (
                 <Dato key={d.clave} dato={d} />
               ))}
