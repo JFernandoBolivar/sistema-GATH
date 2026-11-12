@@ -402,6 +402,9 @@ export function ConfiguracionPuntoCuentaPage() {
 
   const handleVistaPrevia = async () => {
     setIsPreviewPending(true);
+    // La pestaña se abre en el mismo clic: si se abre después del `await`, el
+    // bloqueador de ventanas emergentes la descarta sin avisar.
+    const ventana = window.open("", "_blank");
     try {
       let procesoParam: string | undefined = undefined;
       if (tabActiva !== PLANTILLA_GENERAL_KEY) {
@@ -451,8 +454,19 @@ export function ConfiguracionPuntoCuentaPage() {
 
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
-      window.open(url, "_blank");
+      if (ventana && !ventana.closed) {
+        ventana.location.href = url;
+      } else {
+        // Bloqueada igual: se descarga el PDF para que el clic no quede sin efecto.
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "vista-previa-punto-de-cuenta.pdf";
+        a.click();
+        toast.info("El navegador bloqueó la pestaña; se descargó la vista previa.");
+      }
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
     } catch (err: unknown) {
+      ventana?.close();
       toast.error(err instanceof Error ? err.message : "Error al generar la vista previa");
     } finally {
       setIsPreviewPending(false);
