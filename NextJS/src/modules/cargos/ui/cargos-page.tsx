@@ -364,7 +364,7 @@ export default function CargosPage() {
   const columnas = construirColumnasCargos(puedeVerDetalle, onVerDetalle, onActualizar);
 
   return (
-    <Card className="bg-white">
+    <Card className="w-full min-w-0 max-w-full bg-white">
       <CardHeader>
         <CardTitle>
           <h1 className="text-2xl font-semibold">Listado De Cargos</h1>
@@ -373,10 +373,10 @@ export default function CargosPage() {
           Listado Detallado De Cargos Registrados En El Sistema
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="min-w-0">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSearch)}>
-            <div className="flex flex-row items-center gap-2 w-full flex-1">
+            <div className="flex w-full min-w-0 flex-1 flex-row flex-wrap items-center gap-2">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 w-full min-w-0">
                 <FormField
                   name="codigo"
@@ -595,7 +595,7 @@ export default function CargosPage() {
         {isPending && !pagina ? (
           <Loading className="mt-6 border-none shadow-none" promiseMessage="Cargando Cargos..." />
         ) : (
-          <div className="mt-4 w-full">
+          <div className="mt-4 w-full min-w-0 max-w-full">
             <DataTable
               columns={columnas}
               data={cargos}

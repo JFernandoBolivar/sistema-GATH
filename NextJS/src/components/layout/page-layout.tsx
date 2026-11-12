@@ -14,7 +14,7 @@ export default function PageLayout({
     <Card className="flex h-full min-w-0 border-none rounded-none">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <main className="min-h-0 min-w-0 flex-1 bg-muted/30">
-          <ScrollArea className="h-full">
+          <ScrollArea className="h-full [&>[data-slot=scroll-area-viewport]>div]:!block">
             <div className="p-6">
               <div>
                 <h1 className="text-3xl font-bold text-foreground">{title}</h1>
