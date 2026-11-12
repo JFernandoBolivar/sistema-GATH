@@ -320,7 +320,7 @@ export function DisenadorReglasColorPanel({
             )}
 
             {filtradas.length > 0 && (
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <label className="flex items-center gap-1.5 text-xs font-medium">
                   <Checkbox
                     checked={todosFiltradosMarcados}
@@ -417,11 +417,11 @@ export function DisenadorReglasColorPanel({
             {cargandoSugerencias && (
               <p className="text-[10px] text-muted-foreground">Cargando sugerencias…</p>
             )}
-            <div className="flex items-center gap-1 pt-1">
+            <div className="flex flex-wrap items-center gap-1 pt-1">
               <Input
                 placeholder={criterio === "nomina" ? "Nuevo valor (ej. Pasante)" : "Nuevo valor (ej. Analista)"}
                 list="sugerencias-criterio-color"
-                className="h-7 text-xs"
+                className="h-7 min-w-[110px] flex-1 text-xs"
                 value={nuevoValorNombre}
                 onChange={(e) => onCambiarNuevoValorNombre(e.target.value)}
               />

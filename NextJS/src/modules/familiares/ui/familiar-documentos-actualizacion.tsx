@@ -75,17 +75,26 @@ export function FamiliarDocumentosActualizacion({ familiarId }: { familiarId: nu
 
   const onAgregar = () => {
     if (!archivoNuevo) return;
+    const reemplazaAhora = documentos?.some((d) => d.tipoDocumento === tipoNuevo) ?? false;
     startTransition(async () => {
       const resultado = await subirDocumentoFamiliarAction(familiarId, tipoNuevo, archivoNuevo);
       if (resultado && typeof resultado === "object" && "error" in resultado) {
         toast.error((resultado as { error: string }).error || "No fue posible agregar el documento.");
         return;
       }
-      toast.success("Documento agregado exitosamente");
+      toast.success(
+        reemplazaAhora
+          ? "Documento reemplazado exitosamente"
+          : "Documento agregado exitosamente",
+      );
       setArchivoNuevo(null);
       cargar();
     });
   };
+
+  const documentoDelTipo = documentos?.some((d) => d.tipoDocumento === tipoNuevo) ?? false;
+  const nombreDocumento =
+    tipoNuevo === "cedula" ? "una cédula" : "una partida de nacimiento";
 
   return (
     <section aria-label="Documentos del familiar" className="flex flex-col gap-3 rounded-sm border p-3">
@@ -188,20 +197,27 @@ export function FamiliarDocumentosActualizacion({ familiarId }: { familiarId: nu
           })}
         </div>
         <FileUpload label="Archivo del documento" value={archivoNuevo} onChange={setArchivoNuevo} />
+        {documentoDelTipo ? (
+          <p
+            role="note"
+            className="rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200"
+          >
+            Ya hay {nombreDocumento} cargada; se reemplazará.
+          </p>
+        ) : null}
         <div className="flex justify-end">
           <Button
             type="button"
             className="w-full sm:w-auto"
             disabled={!archivoNuevo || isPending}
             onClick={onAgregar}
-            aria-label="Agregar"
           >
             {isPending ? (
               <Loader2 className="mr-1 size-4 animate-spin" aria-hidden="true" />
             ) : (
               <Upload className="mr-1 size-4" aria-hidden="true" />
             )}
-            Agregar documento
+            {documentoDelTipo ? "Reemplazar documento" : "Agregar documento"}
           </Button>
         </div>
       </div>

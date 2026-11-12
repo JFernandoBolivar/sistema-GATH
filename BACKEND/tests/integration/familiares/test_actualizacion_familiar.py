@@ -175,12 +175,17 @@ def test_reemplazar_documento_cambia_el_archivo_y_conserva_el_registro(
 ):
     familiar, documento = familiar_con_documento
     subidas = []
+    eliminadas = []
 
     from apps.familiares.presentation.views import familiares_views as vistas
 
     monkeypatch.setattr(
         vistas.SeaweedFSStorage, 'subir',
         lambda self, clave, contenido, mime: subidas.append((clave, contenido, mime)),
+    )
+    monkeypatch.setattr(
+        vistas.SeaweedFSStorage, 'eliminar',
+        lambda self, clave: eliminadas.append(clave),
     )
 
     respuesta = _cliente().patch(
@@ -197,6 +202,7 @@ def test_reemplazar_documento_cambia_el_archivo_y_conserva_el_registro(
     assert respuesta.json()['data']['id'] == documento.pk
     assert respuesta.json()['data']['tipo_documento'] == 'cedula'
     assert len(subidas) == 1
+    assert eliminadas == ['familiares/1/version-anterior.pdf']
 
 
 def test_reemplazar_documento_exige_permiso_de_edicion(familiar_con_documento):
@@ -230,3 +236,61 @@ def test_reemplazar_documento_de_otro_familiar_es_404(familiar_con_documento):
     )
 
     assert respuesta.status_code == 404
+
+
+def test_subir_la_cedula_dos_veces_deja_un_solo_documento(datos, monkeypatch):
+    """Un familiar solo puede tener una cédula: la segunda subida reemplaza la primera."""
+    familiar = EmployeefamilyModel.objects.create(
+        employeecedula_id=CEDULA,
+        cedulaFamiliar='12345679',
+        primer_nombre='FAMILIAR',
+        primer_apellido='PEREZ',
+        parentesco_id=datos['hijo'].pk,
+        fechanacimiento=datetime.date(2001, 1, 1),
+        sexo_id=datos['sexo'].pk,
+    )
+    subidas: list[str] = []
+    eliminadas: list[str] = []
+
+    from apps.familiares.presentation.views import familiares_views as vistas
+
+    monkeypatch.setattr(
+        vistas.SeaweedFSStorage, 'subir',
+        lambda self, clave, contenido, mime: subidas.append(clave),
+    )
+    monkeypatch.setattr(
+        vistas.SeaweedFSStorage, 'eliminar',
+        lambda self, clave: eliminadas.append(clave),
+    )
+
+    api = _cliente()
+    url = f'/api/v1/familiares/{familiar.pk}/documentos/'
+    primera = api.post(url, {'tipo_documento': 'cedula', 'file': _pdf('cedula-1.pdf')}, format='multipart')
+    segunda = api.post(url, {'tipo_documento': 'cedula', 'file': _pdf('cedula-2.pdf')}, format='multipart')
+
+    assert primera.status_code == 200, primera.content
+    assert segunda.status_code == 200, segunda.content
+    assert segunda.json()['data']['id'] == primera.json()['data']['id']
+    assert FamilyDocumentModel.objects.filter(
+        familymember_id=familiar.pk, document_type='cedula',
+    ).count() == 1
+    assert len(subidas) == 2
+    assert eliminadas == [subidas[0]]
+
+    # La partida de nacimiento es otro tipo y no reemplaza a la cédula.
+    partida = api.post(
+        url, {'tipo_documento': 'partida_nacimiento', 'file': _pdf('partida.pdf')},
+        format='multipart',
+    )
+    assert partida.status_code == 200, partida.content
+    assert FamilyDocumentModel.objects.filter(familymember_id=familiar.pk).count() == 2
+    assert partida.json()['data']['id'] != primera.json()['data']['id']
+
+    # La operación queda auditada como reemplazo de la cédula.
+    from core.infrastructure.models.auditoria import AuditoriaLog
+
+    assert AuditoriaLog.objects.filter(
+        accion='familiares.documento_reemplazado',
+        recurso_tipo='documento_familiar',
+        recurso_id=str(primera.json()['data']['id']),
+    ).exists()

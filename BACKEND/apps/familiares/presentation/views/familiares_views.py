@@ -2,6 +2,9 @@
 Vistas delgadas de Familiares (Reglas B4, B7).
 Con Envelope unificado `ok()` / `fail()` y permisos PBAC.
 """
+import uuid
+
+from django.db import transaction
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema
@@ -16,6 +19,7 @@ from core.infrastructure.storage.validacion_archivo import (
     validar_archivo,
 )
 from core.presentation.archivos import respuesta_archivo
+from core.presentation.audit import origen_de_peticion, registrar_auditoria
 from core.presentation.envelope import fail, ok
 from core.presentation.permissions import HasPermission
 from apps.familiares.application.use_cases.gestionar_familiar import (
@@ -111,6 +115,27 @@ def _guardar_archivo(familiar_id: int, archivo) -> str:
     return clave
 
 
+def _auditar_documento(request, dto, *, reemplazo: bool) -> None:
+    registrar_auditoria(
+        trace_id=getattr(request, 'trace_id', None) or uuid.uuid4().hex,
+        actor_id=getattr(request.user, 'pk', None),
+        actor_cedula=str(getattr(request.user, 'cedula_id', '') or ''),
+        accion=(
+            'familiares.documento_reemplazado' if reemplazo
+            else 'familiares.documento_subido'
+        ),
+        modulo='familiares',
+        recurso_tipo='documento_familiar',
+        recurso_id=str(dto.id),
+        estado_nuevo={
+            'familiar_id': dto.familiar_id,
+            'tipo_documento': dto.tipo_documento,
+            'reemplazo': reemplazo,
+        },
+        **origen_de_peticion(request),
+    )
+
+
 class DocumentosFamiliarListView(APIView):
     def get_permissions(self):
         if self.request.method == 'POST':
@@ -133,10 +158,21 @@ class DocumentosFamiliarListView(APIView):
         if not archivo:
             return fail('No se proporcionó ningún archivo', status=400)
 
-        clave = _guardar_archivo(familiar_id, archivo)
-
         repo = RepoFamiliaresORM()
-        dto = subir_documento_familiar(repo, familiar_id=familiar_id, tipo_documento=tipo_documento, clave=clave)
+        if repo.obtener_instancia(familiar_id) is None:
+            return fail('Familiar no encontrado.', status=404)
+
+        # Un familiar solo tiene una cédula y una partida: si ya existe ese tipo,
+        # se reemplaza el archivo del mismo registro y se borra el objeto viejo.
+        with transaction.atomic():
+            clave_previa = repo.obtener_clave_documento_por_tipo(familiar_id, tipo_documento)
+            clave = _guardar_archivo(familiar_id, archivo)
+            dto = subir_documento_familiar(repo, familiar_id=familiar_id, tipo_documento=tipo_documento, clave=clave)
+            _auditar_documento(request, dto, reemplazo=bool(clave_previa))
+            # Al final: si el almacén falla, se revierte el reemplazo y el registro
+            # anterior sigue apuntando a su archivo.
+            if clave_previa:
+                SeaweedFSStorage().eliminar(clave_previa)
         return ok(DocumentoFamiliarSerializer(dto).data)
 
 
@@ -163,13 +199,18 @@ class DocumentoFamiliarDetailView(APIView):
 
         # Primero se comprueba que el documento sea de ese familiar: si no,
         # 404 sin subir nada al almacenamiento.
-        obtener_clave_documento_familiar(
-            RepoFamiliaresORM(), familiar_id=familiar_id, documento_id=documento_id,
+        repo = RepoFamiliaresORM()
+        clave_anterior = obtener_clave_documento_familiar(
+            repo, familiar_id=familiar_id, documento_id=documento_id,
         )
-        clave = _guardar_archivo(familiar_id, archivo)
-        dto = reemplazar_documento_familiar(
-            RepoFamiliaresORM(), familiar_id=familiar_id, documento_id=documento_id, clave=clave,
-        )
+        with transaction.atomic():
+            clave = _guardar_archivo(familiar_id, archivo)
+            dto = reemplazar_documento_familiar(
+                repo, familiar_id=familiar_id, documento_id=documento_id, clave=clave,
+            )
+            _auditar_documento(request, dto, reemplazo=True)
+            # Al final: si el almacén falla, se revierte el reemplazo.
+            SeaweedFSStorage().eliminar(clave_anterior)
         return ok(DocumentoFamiliarSerializer(dto).data)
 
 

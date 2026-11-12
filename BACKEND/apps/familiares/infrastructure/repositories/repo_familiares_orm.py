@@ -198,6 +198,30 @@ class RepoFamiliaresORM:
         )
         return documento_familiar_a_entidad(obj)
 
+    def obtener_documento_por_tipo(
+        self, familiar_id: int, tipo_documento: str
+    ) -> DocumentoFamiliar | None:
+        fila = (
+            FamilyDocumentModel.objects.filter(
+                familymember_id=familiar_id, document_type=tipo_documento,
+            )
+            .order_by('-uploaded_at', '-pk')
+            .first()
+        )
+        return documento_familiar_a_entidad(fila) if fila else None
+
+    def obtener_clave_documento_por_tipo(
+        self, familiar_id: int, tipo_documento: str
+    ) -> str | None:
+        return (
+            FamilyDocumentModel.objects.filter(
+                familymember_id=familiar_id, document_type=tipo_documento,
+            )
+            .order_by('-uploaded_at', '-pk')
+            .values_list('file', flat=True)
+            .first()
+        ) or None
+
     def reemplazar_documento(self, familiar_id: int, documento_id: int, clave: str) -> DocumentoFamiliar:
         obj = FamilyDocumentModel.objects.filter(
             pk=documento_id, familymember_id=familiar_id,

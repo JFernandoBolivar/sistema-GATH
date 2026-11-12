@@ -22,6 +22,7 @@
  */
 import { useState } from "react";
 import { ESTATUS_ACTIVO } from "@/shared/domain/catalogos";
+import { camposViviendaVisibles } from "@/shared/domain/vivienda-ubicacion";
 import {
   Ambulance,
   ContactRound,
@@ -129,6 +130,13 @@ export default function EmpleadoDetalleSheet({
       : empleado.contratoActual
         ? [empleado.contratoActual]
         : [];
+
+  // El país de la vivienda decide qué bloque mostrar (misma regla que el portal
+  // y la revisión de fe de vida).
+  const visibilidadVivienda = camposViviendaVisibles(
+    detalle.vivienda ? { es_venezuela: detalle.vivienda.paisEsVenezuela } : null,
+    Boolean(detalle.vivienda),
+  );
 
   const antecedentesList = detalle.antecedentes;
   const asignacionesList = empleado.asignaciones ?? [];
@@ -517,27 +525,34 @@ export default function EmpleadoDetalleSheet({
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 place-content-center gap-y-2 text-sm">
-                  {permitirPais ||
-                  (detalle.vivienda?.pais && detalle.vivienda.pais !== "Venezuela") ? (
+                  {visibilidadVivienda.mostrarPais ? (
                     <>
                       <div className="font-medium text-muted-foreground">País:</div>
                       <div>{detalle.vivienda?.pais ?? "N/A"}</div>
+                    </>
+                  ) : null}
+                  {visibilidadVivienda.mostrarCiudadRegion ? (
+                    <>
                       <div className="font-medium text-muted-foreground">Ciudad o Región:</div>
                       <div>{detalle.vivienda?.ciudadRegion ?? "N/A"}</div>
                     </>
                   ) : null}
-                  <div className="font-medium text-muted-foreground">Estado:</div>
-                  <div>{detalle.vivienda?.estado ?? "N/A"}</div>
-                  <div className="font-medium text-muted-foreground">Municipio:</div>
-                  <div>{detalle.vivienda?.municipio ?? "N/A"}</div>
-                  <div className="font-medium text-muted-foreground">Parroquia:</div>
-                  <div>{detalle.vivienda?.parroquia ?? "N/A"}</div>
+                  {visibilidadVivienda.mostrarUbicacionVenezuela ? (
+                    <>
+                      <div className="font-medium text-muted-foreground">Estado:</div>
+                      <div>{detalle.vivienda?.estado ?? "N/A"}</div>
+                      <div className="font-medium text-muted-foreground">Municipio:</div>
+                      <div>{detalle.vivienda?.municipio ?? "N/A"}</div>
+                      <div className="font-medium text-muted-foreground">Parroquia:</div>
+                      <div>{detalle.vivienda?.parroquia ?? "N/A"}</div>
+                      <div className="font-medium text-muted-foreground">Código Postal:</div>
+                      <div>{detalle.vivienda?.codigoPostal ?? "N/A"}</div>
+                    </>
+                  ) : null}
                   <div className="font-medium text-muted-foreground">Condicion De Vivienda:</div>
                   <div>{detalle.vivienda?.condicion ?? "N/A"}</div>
                   <div className="font-medium text-muted-foreground">Direccion De Habitación:</div>
                   <div>{detalle.vivienda?.direccionExacta ?? "N/A"}</div>
-                  <div className="font-medium text-muted-foreground">Código Postal:</div>
-                  <div>{detalle.vivienda?.codigoPostal ?? "N/A"}</div>
                 </div>
               </CardContent>
             </Card>

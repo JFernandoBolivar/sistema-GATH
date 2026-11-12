@@ -21,6 +21,7 @@ const SIN_DATO = "N/A";
 
 export interface DetalleViviendaVM {
   pais: string;
+  paisEsVenezuela: boolean | null;
   ciudadRegion: string;
   estado: string;
   municipio: string;
@@ -237,6 +238,7 @@ export function construirDetalleExpediente(
             catalogos?.paises,
             empleado.datosVivienda.paisId,
           ),
+          paisEsVenezuela: empleado.datosVivienda.paisEsVenezuela ?? null,
           ciudadRegion: empleado.datosVivienda.ciudadRegion || SIN_DATO,
           estado: nombre(
             empleado.datosVivienda.estadoNombre,

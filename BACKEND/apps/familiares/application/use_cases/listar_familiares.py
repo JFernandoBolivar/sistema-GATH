@@ -69,7 +69,22 @@ def listar_documentos_familiar(
 def subir_documento_familiar(
     repo: RepoFamiliares, familiar_id: int, tipo_documento: str, clave: str
 ) -> DocumentoFamiliarDTO:
-    entidad = repo.crear_documento(familiar_id=familiar_id, tipo_documento=tipo_documento, clave=clave)
+    """Carga un documento del familiar; si ya hay uno del mismo tipo, lo reemplaza.
+
+    Un familiar solo puede tener una cédula y una partida de nacimiento: el
+    registro existente conserva su id y recibe el archivo nuevo. La vista borra
+    del almacenamiento la clave anterior después de persistir el cambio.
+    """
+    existente = repo.obtener_documento_por_tipo(familiar_id, tipo_documento)
+    entidad = (
+        repo.reemplazar_documento(
+            familiar_id=familiar_id, documento_id=existente.id, clave=clave,
+        )
+        if existente
+        else repo.crear_documento(
+            familiar_id=familiar_id, tipo_documento=tipo_documento, clave=clave,
+        )
+    )
     return _documento_a_dto(entidad)
 
 

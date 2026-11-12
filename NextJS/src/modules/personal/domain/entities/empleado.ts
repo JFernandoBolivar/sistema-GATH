@@ -13,6 +13,7 @@
 export interface DatosVivienda {
   paisId?: number | null;
   paisNombre?: string | null;
+  paisEsVenezuela?: boolean | null;
   ciudadRegion?: string | null;
   estadoId?: number | null;
   estadoNombre?: string | null;

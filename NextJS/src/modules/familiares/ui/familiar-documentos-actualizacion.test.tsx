@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 const { getDocumentos } = vi.hoisted(() => ({ getDocumentos: vi.fn() }));
 
@@ -40,9 +40,50 @@ describe("FamiliarDocumentosActualizacion", () => {
 
     render(<FamiliarDocumentosActualizacion familiarId={7} />);
 
-    expect(await screen.findByRole("button", { name: /reemplazar/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^agregar$/i })).toBeDisabled();
+    expect(await screen.findByRole("button", { name: /^reemplazar$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /reemplazar documento/i })).toBeDisabled();
     expect(screen.getByLabelText("Nueva versión del documento")).toHaveAttribute("type", "file");
+  });
+
+  it("con una cédula ya cargada avisa que se reemplazará", async () => {
+    getDocumentos.mockResolvedValue([DOCUMENTO]);
+
+    render(<FamiliarDocumentosActualizacion familiarId={7} />);
+
+    expect(
+      await screen.findByText("Ya hay una cédula cargada; se reemplazará."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reemplazar documento" })).toBeDisabled();
+  });
+
+  it("si el tipo elegido aún no tiene documento mantiene «Agregar documento»", async () => {
+    getDocumentos.mockResolvedValue([]);
+
+    render(<FamiliarDocumentosActualizacion familiarId={7} />);
+
+    expect(
+      await screen.findByText("No hay documentos registrados para este familiar."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/se reemplazará/i)).toBeNull();
+    expect(screen.getByRole("button", { name: "Agregar documento" })).toBeDisabled();
+  });
+
+  it("al elegir un tipo que ya existe cambia a «Reemplazar documento» y avisa", async () => {
+    getDocumentos.mockResolvedValue([
+      { ...DOCUMENTO, id: 2, tipoDocumento: "partida_nacimiento", nombreArchivo: "partida.pdf" },
+    ]);
+
+    render(<FamiliarDocumentosActualizacion familiarId={7} />);
+
+    await screen.findByText(/partida\.pdf/);
+    expect(screen.getByRole("button", { name: "Agregar documento" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("radio", { name: /partida de nacimiento/i }));
+
+    expect(
+      screen.getByText("Ya hay una partida de nacimiento cargada; se reemplazará."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reemplazar documento" })).toBeInTheDocument();
   });
 
   it("muestra el mensaje del servidor si no puede listar", async () => {

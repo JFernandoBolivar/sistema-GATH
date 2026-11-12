@@ -41,3 +41,46 @@ export function camposAVaciar(campoCambiado: string, nuevoPaisEsVenezuela?: bool
   }
   return [...(DEPENDIENTES[campoCambiado] ?? [])];
 }
+
+/** Qué bloques de la vivienda se muestran según el país efectivo (propuesto o actual). */
+export interface CamposViviendaVisibles {
+  /** El país solo se muestra cuando la vivienda está fuera de Venezuela. */
+  mostrarPais: boolean;
+  /** Ciudad o región sustituye a la geografía venezolana en el exterior. */
+  mostrarCiudadRegion: boolean;
+  /** Estado, municipio, parroquia y código postal. */
+  mostrarUbicacionVenezuela: boolean;
+}
+
+/**
+ * Regla única de las pantallas de vivienda: fuera de Venezuela se ven país,
+ * ciudad o región, dirección y condición; en Venezuela, la geografía nacional
+ * (estado, municipio, parroquia y código postal) y nunca ciudad o región.
+ */
+export function camposViviendaVisibles(
+  pais: PaisUbicacion | null | undefined,
+  hayVivienda = true,
+): CamposViviendaVisibles {
+  const venezuela = esViviendaVenezuela(pais, hayVivienda);
+  return {
+    mostrarPais: !venezuela,
+    mostrarCiudadRegion: !venezuela,
+    mostrarUbicacionVenezuela: venezuela,
+  };
+}
+
+/**
+ * Interpreta el nombre de un país ya formateado (catálogo). Devuelve `null`
+ * mientras el nombre no se pudo resolver («Cargando…», «—» o «Código N»).
+ */
+export function nombreEsVenezuela(nombre: string | null | undefined): boolean | null {
+  const limpio = (nombre ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toUpperCase();
+  if (!limpio || limpio === "—" || limpio === "-" || limpio.startsWith("CARGANDO")) return null;
+  if (/^CODIGO\s+\d+$/.test(limpio)) return null;
+  return limpio === "VENEZUELA";
+}
+

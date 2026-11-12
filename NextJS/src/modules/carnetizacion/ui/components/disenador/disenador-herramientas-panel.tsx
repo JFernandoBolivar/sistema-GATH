@@ -103,7 +103,7 @@ export function DisenadorHerramientasPanel({
             <Button
               variant="outline"
               size="sm"
-              className="h-10 justify-start gap-2 text-xs"
+              className="h-auto min-h-10 justify-start gap-2 whitespace-normal py-1.5 text-left text-xs leading-tight"
               onClick={() =>
                 onAnadirElemento({
                   t: "rect",
@@ -129,7 +129,7 @@ export function DisenadorHerramientasPanel({
             <Button
               variant="outline"
               size="sm"
-              className="h-10 justify-start gap-2 text-xs"
+              className="h-auto min-h-10 justify-start gap-2 whitespace-normal py-1.5 text-left text-xs leading-tight"
               onClick={() =>
                 onAnadirElemento({
                   t: "circle",
@@ -155,7 +155,7 @@ export function DisenadorHerramientasPanel({
             <Button
               variant="outline"
               size="sm"
-              className="h-10 justify-start gap-2 text-xs"
+              className="h-auto min-h-10 justify-start gap-2 whitespace-normal py-1.5 text-left text-xs leading-tight"
               onClick={() =>
                 onAnadirElemento({
                   t: "tri",
@@ -181,7 +181,7 @@ export function DisenadorHerramientasPanel({
             <Button
               variant="outline"
               size="sm"
-              className="h-10 justify-start gap-2 text-xs"
+              className="h-auto min-h-10 justify-start gap-2 whitespace-normal py-1.5 text-left text-xs leading-tight"
               onClick={() =>
                 onAnadirElemento({
                   t: "diag",
@@ -207,7 +207,7 @@ export function DisenadorHerramientasPanel({
             <Button
               variant="outline"
               size="sm"
-              className="h-10 justify-start gap-2 text-xs"
+              className="h-auto min-h-10 justify-start gap-2 whitespace-normal py-1.5 text-left text-xs leading-tight"
               onClick={() =>
                 onAnadirElemento({
                   t: "path",
@@ -234,7 +234,7 @@ export function DisenadorHerramientasPanel({
             <Button
               variant="outline"
               size="sm"
-              className="h-10 justify-start gap-2 text-xs"
+              className="h-auto min-h-10 justify-start gap-2 whitespace-normal py-1.5 text-left text-xs leading-tight"
               onClick={() =>
                 onAnadirElemento({
                   t: "path",
@@ -261,7 +261,7 @@ export function DisenadorHerramientasPanel({
             <Button
               variant="outline"
               size="sm"
-              className="h-10 justify-start gap-2 text-xs"
+              className="h-auto min-h-10 justify-start gap-2 whitespace-normal py-1.5 text-left text-xs leading-tight"
               onClick={() =>
                 onAnadirElemento({
                   t: "path",
@@ -300,7 +300,7 @@ export function DisenadorHerramientasPanel({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-auto flex-col items-stretch gap-1.5 px-2 py-2 text-xs"
+                className="h-auto flex-col items-stretch gap-1.5 whitespace-normal px-2 py-2 text-xs leading-tight"
                 title={`${forma.nombre} (${forma.cara})`}
                 onClick={() => onAnadirElemento(crearElementoDeForma(forma, caraActual))}
               >
@@ -312,7 +312,7 @@ export function DisenadorHerramientasPanel({
                     proporcion={forma.elemento.w / forma.elemento.h}
                   />
                 </span>
-                <span className="truncate text-center">{forma.nombre}</span>
+                <span className="text-center leading-tight">{forma.nombre}</span>
               </Button>
             ))}
           </div>
@@ -325,7 +325,7 @@ export function DisenadorHerramientasPanel({
             <Button
               variant="outline"
               size="sm"
-              className="h-10 justify-start gap-2 text-xs"
+              className="h-auto min-h-10 justify-start gap-2 whitespace-normal py-1.5 text-left text-xs leading-tight"
               onClick={() =>
                 onAnadirElemento({
                   t: "text",
@@ -418,7 +418,7 @@ export function DisenadorHerramientasPanel({
             <Button
               variant="outline"
               size="sm"
-              className="h-10 justify-start gap-2 text-xs"
+              className="h-auto min-h-10 justify-start gap-2 whitespace-normal py-1.5 text-left text-xs leading-tight"
               onClick={() =>
                 onAnadirElemento({
                   t: "photo",
@@ -444,7 +444,7 @@ export function DisenadorHerramientasPanel({
             <Button
               variant="outline"
               size="sm"
-              className="h-10 justify-start gap-2 text-xs"
+              className="h-auto min-h-10 justify-start gap-2 whitespace-normal py-1.5 text-left text-xs leading-tight"
               onClick={() =>
                 onAnadirElemento({
                   t: "qr",

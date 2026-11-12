@@ -23,7 +23,11 @@ import { CLASE_CONTROL, SelectorCatalogo } from "./selector-catalogo";
 import { opcionesCatalogo } from "./opciones-catalogo";
 import { valorATexto } from "../schema/schema-solicitud";
 import { cn } from "@/lib/utils";
-import { CAMPOS_UBICACION_VENEZUELA, camposAVaciar } from "@/shared/domain/vivienda-ubicacion";
+import {
+  CAMPOS_UBICACION_VENEZUELA,
+  camposAVaciar,
+  camposViviendaVisibles,
+} from "@/shared/domain/vivienda-ubicacion";
 
 type Valores = Record<string, unknown>;
 
@@ -136,10 +140,13 @@ export function FormularioRegistro({
       )
     : campos;
   if (esVivienda) {
+    const visibles = camposViviendaVisibles({ es_venezuela: esVenezuela });
     camposVisibles = camposVisibles.filter((c) =>
-      esVenezuela
-        ? c.campo !== "ciudad_region"
-        : !camposDeUbicacionVenezuela.has(c.campo),
+      camposDeUbicacionVenezuela.has(c.campo)
+        ? visibles.mostrarUbicacionVenezuela
+        : c.campo === "ciudad_region"
+          ? visibles.mostrarCiudadRegion
+          : true,
     );
   }
 
