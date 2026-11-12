@@ -45,14 +45,14 @@ class RepoDatosComplementariosORM:
             from apps.personal.infrastructure.models.personal_models import EmployeeModel
             propio = EmployeeModel.objects.filter(cedulaidentidad=cedula).values_list('correo', flat=True).first()
             if propio and propio.strip().lower() == alt_propuesto:
-                from core.domain.exceptions import BusinessRuleError
-                raise BusinessRuleError("El correo alternativo debe ser distinto del institucional.", campo="correo_alternativo")
+                from core.domain.exceptions import ValidationError
+                raise ValidationError("El correo alternativo debe ser distinto del institucional.", campo="correo_alternativo")
             if EmployeeModel.objects.filter(correo__iexact=alt_propuesto).exists():
-                from core.domain.exceptions import BusinessRuleError
-                raise BusinessRuleError("El correo alternativo ya está en uso como correo institucional.", campo="correo_alternativo")
+                from core.domain.exceptions import ValidationError
+                raise ValidationError("El correo alternativo ya está en uso como correo institucional.", campo="correo_alternativo")
             if DatosComplementariosTrabajadorModel.objects.filter(correo_alternativo__iexact=alt_propuesto).exclude(cedula=cedula).exists():
-                from core.domain.exceptions import BusinessRuleError
-                raise BusinessRuleError("El correo alternativo ya está en uso por otro trabajador.", campo="correo_alternativo")
+                from core.domain.exceptions import ValidationError
+                raise ValidationError("El correo alternativo ya está en uso por otro trabajador.", campo="correo_alternativo")
 
         m, _ = DatosComplementariosTrabajadorModel.objects.update_or_create(
             cedula=cedula, defaults={**validos, 'actualizado_por': actor_cedula},
