@@ -42,6 +42,7 @@ export async function listarDocumentosFamiliar(
     tipoDocumento: e.tipoDocumento,
     rutaArchivo: e.rutaArchivo,
     fechaSubida: e.fechaSubida,
+    nombreArchivo: e.nombreArchivo,
   }));
 }
 
@@ -58,5 +59,23 @@ export async function subirDocumentoFamiliar(
     tipoDocumento: e.tipoDocumento,
     rutaArchivo: e.rutaArchivo,
     fechaSubida: e.fechaSubida,
+    nombreArchivo: e.nombreArchivo,
+  };
+}
+
+export async function reemplazarDocumentoFamiliar(
+  repo: RepoFamiliares,
+  familiarId: number,
+  documentoId: number,
+  archivo: File,
+): Promise<DocumentoFamiliarDTO> {
+  const e = await repo.reemplazarDocumento(familiarId, documentoId, archivo);
+  return {
+    id: e.id,
+    familiarId: e.familiarId,
+    tipoDocumento: e.tipoDocumento,
+    rutaArchivo: e.rutaArchivo,
+    fechaSubida: e.fechaSubida,
+    nombreArchivo: e.nombreArchivo,
   };
 }

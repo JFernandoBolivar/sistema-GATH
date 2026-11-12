@@ -34,3 +34,4 @@ class DocumentoFamiliarDTO:
     tipo_documento: str
     ruta_archivo: str
     fecha_subida: str
+    nombre_archivo: str = ''

@@ -20,6 +20,7 @@ import {
 import {
   listarDocumentosFamiliar,
   listarFamiliaresPorEmpleado,
+  reemplazarDocumentoFamiliar,
   subirDocumentoFamiliar,
 } from "../../application/use-cases/listar-familiares";
 import { listarCatalogosFamiliar } from "../../application/use-cases/listar-catalogos-familiar";
@@ -28,7 +29,7 @@ import { resolverAltasInlineFamiliar } from "../../application/use-cases/resolve
 import { repoFamiliaresApi } from "../repositories/repo-familiares-api";
 import { repoCatalogosDependientesFamiliarApi } from "../repositories/repo-catalogos-dependientes-familiar-api";
 import { repoCatalogosAltaInlineFamiliarApi } from "../repositories/repo-catalogos-alta-inline-familiar-api";
-import { familiaresPorEmpleadoSchema, familiarIdSchema, familiarSchema } from "../../ui/schema/schema-familiar";
+import { familiaresPorEmpleadoSchema, familiarIdSchema, familiarSchema, familiarUpdateSchema } from "../../ui/schema/schema-familiar";
 
 export async function getFamiliaresPorEmpleadoAction(cedula: string) {
   const validation = familiaresPorEmpleadoSchema.safeParse({ cedula });
@@ -73,7 +74,7 @@ export async function actualizarFamiliarAction(
   data: Partial<GuardarFamiliarInputDTO>
 ) {
   const idValido = familiarIdSchema.safeParse({ familiarId: id });
-  const dataValida = familiarSchema.partial().safeParse(data);
+  const dataValida = familiarUpdateSchema.safeParse(data);
   if (!idValido.success || !dataValida.success) {
     return { error: "Datos del familiar inválidos. Revise los campos ingresados." };
   }
@@ -238,5 +239,36 @@ export async function subirDocumentoFamiliarAction(familiarId: number, tipoDocum
     await logAudit({ traceId, action: "subirDocumentoFamiliarAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return { error: error instanceof Error && error.message ? error.message : "No fue posible subir el documento." };
+  }
+}
+
+const reemplazarDocumentoFamiliarSchema = z.object({
+  familiarId: z.number().int().positive({ message: "Familiar inválido" }),
+  documentoId: z.number().int().positive({ message: "Documento inválido" }),
+});
+
+/** Reemplaza el archivo de un documento ya cargado (nueva versión, multipart). */
+export async function reemplazarDocumentoFamiliarAction(familiarId: number, documentoId: number, archivo: File) {
+  const validation = reemplazarDocumentoFamiliarSchema.safeParse({ familiarId, documentoId });
+  if (!validation.success) {
+    return { error: "Familiar o documento inválido." };
+  }
+  if (!(archivo instanceof File) || archivo.size === 0) {
+    return { error: "Seleccione un archivo válido." };
+  }
+  if (archivo.size > TAMANO_MAXIMO_DOCUMENTO_BYTES) {
+    return { error: "El tamaño máximo del archivo es 5MB." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await reemplazarDocumentoFamiliar(repoFamiliaresApi, validation.data.familiarId, validation.data.documentoId, archivo);
+    await logAudit({ traceId, action: "reemplazarDocumentoFamiliarAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "reemplazarDocumentoFamiliarAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return { error: error instanceof Error && error.message ? error.message : "No fue posible reemplazar el documento." };
   }
 }

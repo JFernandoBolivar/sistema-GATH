@@ -3,6 +3,8 @@ Mappers de Familiares.
 """
 from django.urls import reverse
 
+from pathlib import Path
+
 from apps.familiares.domain.entities.documento_familiar import DocumentoFamiliar
 from apps.familiares.domain.entities.familiar import Familiar
 from apps.familiares.infrastructure.models.familiar_models import (
@@ -71,10 +73,14 @@ def documento_familiar_a_entidad(modelo: FamilyDocumentModel) -> DocumentoFamili
             'familiares:documento-archivo',
             kwargs={'familiar_id': modelo.familymember_id, 'documento_id': modelo.pk},
         )
+    # `file` es un FileField con `.name`; en dobles de prueba puede ser un str.
+    archivo = modelo.file
+    nombre = archivo.name if isinstance(getattr(archivo, 'name', None), str) else str(archivo or '')
     return DocumentoFamiliar(
         id=modelo.pk,
         familiar_id=modelo.familymember_id,
         tipo_documento=modelo.document_type,
         ruta_archivo=ruta,
         fecha_subida=str(modelo.uploaded_at),
+        nombre_archivo=Path(nombre).name,
     )

@@ -16,6 +16,7 @@ from apps.familiares.application.use_cases.contexto_validacion_familiar import (
     titular_del_familiar,
 )
 from apps.familiares.application.use_cases.validaciones_familiar import (
+    MENSAJE_CEDULA_TITULAR,
     ORDEN_HIJO_MAX,
     ORDEN_HIJO_MIN,
     resolver_cedula_familiar,
@@ -43,6 +44,8 @@ from apps.familiares.infrastructure.modelos_externos import (
 CEDULA_MIN, CEDULA_MAX = 5, 9
 NOMBRE_MIN, NOMBRE_MAX = 2, 60
 OBSERVACIONES_MAX = OBSERVACION_MAX
+# El grupo sanguíneo es obligatorio al registrar y al actualizar un familiar.
+MENSAJE_GRUPO_SANGUINEO = 'Seleccione el grupo sanguíneo'
 
 
 def _nombre(value, *, edicion: bool, etiqueta: str):
@@ -181,9 +184,16 @@ class RegistrarFamiliarInputSerializer(serializers.Serializer):
     """
     empleado_cedula = serializers.CharField(required=True, max_length=20)
     primer_nombre = serializers.CharField(required=True, max_length=NOMBRE_MAX)
-    segundo_nombre = serializers.CharField(required=False, allow_blank=True, max_length=NOMBRE_MAX)
+    # El formulario envía `null` cuando el segundo nombre/apellido está vacío
+    # (así lo arma `repo-familiares-api.ts`): sin `allow_null` DRF devolvía dos
+    # errores que el formulario no pintaba ("Hay 2 datos por corregir").
+    segundo_nombre = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True, max_length=NOMBRE_MAX,
+    )
     primer_apellido = serializers.CharField(required=True, max_length=NOMBRE_MAX)
-    segundo_apellido = serializers.CharField(required=False, allow_blank=True, max_length=NOMBRE_MAX)
+    segundo_apellido = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True, max_length=NOMBRE_MAX,
+    )
     cedula_familiar = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=20)  # sintética '<cédula>-<n>' en edición
     orden_hijo = serializers.IntegerField(
         required=False, allow_null=True,
@@ -232,6 +242,17 @@ class RegistrarFamiliarInputSerializer(serializers.Serializer):
         return value
 
     def validate(self, attrs):
+        # El grupo sanguíneo es obligatorio en el alta y en la edición. Se
+        # valida aquí (no en el serializer anidado) para que el error viaje
+        # como `perfil_salud.grupo_sanguineo_id` y el formulario lo marque en
+        # su campo.
+        perfil_salud = attrs.get('perfil_salud')
+        grupo_sanguineo_id = (perfil_salud or {}).get('grupo_sanguineo_id')
+        if grupo_sanguineo_id is None:
+            raise serializers.ValidationError({
+                'perfil_salud': {'grupo_sanguineo_id': [MENSAJE_GRUPO_SANGUINEO]},
+            })
+
         lector = LectorValidacionFamiliarORM()
         empleado_cedula = attrs.get('empleado_cedula') or self.context.get('empleado_cedula')
         titular = titular_del_familiar(lector, empleado_cedula)
@@ -241,6 +262,17 @@ class RegistrarFamiliarInputSerializer(serializers.Serializer):
 
         excluir_id = self.instance.pk if self.instance else None
         cedula_familiar = (attrs.get('cedula_familiar') or '').strip() or None
+        # OC 2026-11-11: el familiar no puede compartir la cédula con su titular
+        # (incluye filas legadas que ya quedaron así: al editarlas se rechaza
+        # hasta que se corrija el dato).
+        cedula_efectiva = cedula_familiar or (
+            (getattr(self.instance, 'cedulaFamiliar', None) or '').strip()
+            if self.instance is not None else ''
+        )
+        if cedula_efectiva and cedula_efectiva == cedula_empleado.strip():
+            raise serializers.ValidationError(
+                {'cedula_familiar': [MENSAJE_CEDULA_TITULAR]}
+            )
         toca_identidad = not self.partial or {
             'cedula_familiar', 'parentesco_id', 'fecha_nacimiento', 'sexo_id',
         } & set(attrs.keys())
@@ -315,3 +347,4 @@ class DocumentoFamiliarSerializer(serializers.Serializer):
     tipo_documento = serializers.CharField(read_only=True)
     ruta_archivo = serializers.CharField(read_only=True)
     fecha_subida = serializers.CharField(read_only=True)
+    nombre_archivo = serializers.CharField(read_only=True)

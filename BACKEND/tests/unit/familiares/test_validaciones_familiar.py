@@ -7,6 +7,7 @@ from datetime import date
 import pytest
 
 from apps.familiares.application.use_cases.validaciones_familiar import (
+    ReglaParentescoFamiliar,
     es_menor_de_9_anios,
     resolver_cedula_familiar,
     validar_cedula_no_duplicada,
@@ -34,7 +35,7 @@ def test_resolver_cedula_familiar_usa_la_cedula_dada():
 
 
 def test_resolver_cedula_familiar_rechaza_igual_al_empleado():
-    with pytest.raises(ValueError, match="No se puede generar la cédula del hijo"):
+    with pytest.raises(ValueError, match="no puede ser la misma del titular"):
         resolver_cedula_familiar(
             cedula_familiar="12345678",
             cedula_empleado="12345678",
@@ -42,6 +43,19 @@ def test_resolver_cedula_familiar_rechaza_igual_al_empleado():
             fecha_nacimiento=None,
             orden_hijo=1,
         )
+
+
+def test_resolver_cedula_familiar_acepta_la_sintetica_del_titular():
+    """OC 2026-11-11: la comparación es exacta; `<titular>-<n>` sigue permitida."""
+    cedula = resolver_cedula_familiar(
+        cedula_familiar=None,
+        cedula_empleado="12345678",
+        es_hijo=True,
+        fecha_nacimiento=date(2022, 1, 1),
+        orden_hijo=1,
+        regla=ReglaParentescoFamiliar(es_hijo=True, sin_cedula_hasta_edad=9),
+    )
+    assert cedula == "12345678-1"
 
 
 def test_resolver_cedula_familiar_genera_sintetica_para_hijo_menor():

@@ -8,6 +8,7 @@ from apps.catalogos.infrastructure.models.catalogo_models import ParentescoModel
 from apps.familiares.presentation.serializers.familiares_serializers import (
     RegistrarFamiliarInputSerializer,
 )
+from apps.personal.infrastructure.models.catalogos_soporte_models import GrupoSanguineoModel
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from core.domain.exceptions import ValidationError
 
@@ -146,6 +147,12 @@ def test_registrar_familiar_rechaza_parentesco_con_aplica_familiar_false(parente
         'parentesco_id': parentescos_base['vecino'].pk,  # aplica_familiar = False
         'fecha_nacimiento': '2000-01-01',
         'sexo_id': 1,
+        # OC 2026-11-11: el grupo sanguíneo es obligatorio.
+        'perfil_salud': {
+            'grupo_sanguineo_id': GrupoSanguineoModel.objects.get_or_create(
+                GrupoSanguineo='O+',
+            )[0].pk,
+        },
     }
     serializer = RegistrarFamiliarInputSerializer(data=datos)
     assert not serializer.is_valid()

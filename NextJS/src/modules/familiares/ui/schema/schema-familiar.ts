@@ -51,19 +51,23 @@ export const formacionAcademicaFamiliarSchema = z
   .optional();
 
 /**
- * Validación del perfil de salud del familiar (paridad con el legado
- * `perfil_salud_familiar`): grupo sanguíneo obligatorio solo si se aporta el
- * objeto; alergias/patologías/discapacidades son arreglos opcionales de ids.
+ * Validación del perfil de salud del familiar: el grupo sanguíneo es
+ * **obligatorio** tanto en el registro como en la actualización (regla de
+ * negocio 2026-11-11); alergias/patologías/discapacidades son arreglos
+ * opcionales de ids.
  */
-export const perfilSaludFamiliarSchema = z
-  .object({
-    grupoSanguineoId: z.number().positive({ message: "Debe seleccionar un grupo sanguíneo" }),
-    alergias: z.array(z.number()).optional().default([]),
-    patologiasCronicas: z.array(z.number()).optional().default([]),
-    discapacidades: z.array(z.number()).optional().default([]),
-  })
-  .nullable()
-  .optional();
+export const perfilSaludFamiliarSchema = z.object({
+  grupoSanguineoId: z
+    .number({
+      required_error: "Seleccione el grupo sanguíneo",
+      invalid_type_error: "Seleccione el grupo sanguíneo",
+    })
+    .int()
+    .positive({ message: "Seleccione el grupo sanguíneo" }),
+  alergias: z.array(z.number()).optional().default([]),
+  patologiasCronicas: z.array(z.number()).optional().default([]),
+  discapacidades: z.array(z.number()).optional().default([]),
+});
 
 /**
  * Validación del perfil físico del familiar (paridad con el legado
@@ -81,7 +85,7 @@ export const perfilFisicoFamiliarSchema = z
   .nullable()
   .optional();
 
-export const familiarSchema = z.object({
+export const familiarCamposSchema = z.object({
   empleadoCedula: z
     .string()
     .trim()
@@ -92,7 +96,7 @@ export const familiarSchema = z.object({
     .nullable()
     .optional()
     .transform((v) => (v ? v : null))
-    .refine((v) => v === null || /^\d{5,9}$/.test(v), {
+    .refine((v) => v === null || /^\d{5,9}$/.test(v) || /^\d{5,9}-\d+$/.test(v), {
       message: "La cédula del familiar solo admite números (5 a 9 dígitos)",
     }),
   primerNombre: z
@@ -146,6 +150,32 @@ export const familiarSchema = z.object({
   perfilSalud: perfilSaludFamiliarSchema,
   perfilFisico: perfilFisicoFamiliarSchema,
 });
+
+/**
+ * OC 2026-11-11: un familiar no puede tener la misma cédula que su titular.
+ * Se comprueba en el formulario y en la revalidación de las Server Actions.
+ */
+function cedulaDistintaDelTitular(
+  data: { empleadoCedula?: string; cedulaFamiliar?: string | null },
+  ctx: z.RefinementCtx,
+) {
+  const titular = (data.empleadoCedula ?? "").trim();
+  const familiar = (data.cedulaFamiliar ?? "").trim();
+  if (titular && familiar && familiar === titular) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["cedulaFamiliar"],
+      message: "La cédula del familiar no puede ser la misma del titular",
+    });
+  }
+}
+
+export const familiarSchema = familiarCamposSchema.superRefine(cedulaDistintaDelTitular);
+
+/** Edición parcial (mismos campos y la misma regla de cédula cuando vienen). */
+export const familiarUpdateSchema = familiarCamposSchema
+  .partial()
+  .superRefine(cedulaDistintaDelTitular);
 
 export type FamiliarFormType = z.infer<typeof familiarSchema>;
 

@@ -36,3 +36,7 @@ class RepoFamiliares(Protocol):
 
     def crear_documento(self, familiar_id: int, tipo_documento: str, clave: str) -> DocumentoFamiliar:
         ...
+
+    def reemplazar_documento(self, familiar_id: int, documento_id: int, clave: str) -> DocumentoFamiliar:
+        """Sustituye el archivo de un documento existente del familiar."""
+        ...

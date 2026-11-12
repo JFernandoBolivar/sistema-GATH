@@ -11,6 +11,7 @@ from apps.catalogos.infrastructure.models.catalogo_models import (
     SexoModel,
 )
 from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
+from apps.personal.infrastructure.models.catalogos_soporte_models import GrupoSanguineoModel
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from core.domain.exceptions import ValidationError
 
@@ -56,6 +57,12 @@ def _cuerpo(datos, *, orden=2, cedula=None, nacimiento='2022-01-01'):
         'fecha_nacimiento': nacimiento,
         'sexo_id': datos['sexo'].pk,
         'orden_hijo': orden,
+        # OC 2026-11-11: el grupo sanguíneo es obligatorio.
+        'perfil_salud': {
+            'grupo_sanguineo_id': GrupoSanguineoModel.objects.get_or_create(
+                GrupoSanguineo='O+',
+            )[0].pk,
+        },
         **({'cedula_familiar': cedula} if cedula else {}),
     }
 

@@ -39,5 +39,6 @@ export interface RepoFamiliares {
   eliminarFamiliar(id: number): Promise<void>;
   listarDocumentos(familiarId: number): Promise<DocumentoFamiliar[]>;
   subirDocumento(familiarId: number, tipoDocumento: TipoDocumentoFamiliar, archivo: File): Promise<DocumentoFamiliar>;
+  reemplazarDocumento(familiarId: number, documentoId: number, archivo: File): Promise<DocumentoFamiliar>;
   listarCatalogos(): Promise<CatalogosFamiliar>;
 }

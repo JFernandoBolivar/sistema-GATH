@@ -69,6 +69,7 @@ export interface DocumentoFamiliarApiItem {
   tipo_documento: string;
   ruta_archivo: string;
   fecha_subida: string;
+  nombre_archivo?: string;
 }
 
 export interface CatalogoInlineFamiliarApiItem {
@@ -143,6 +144,15 @@ export const familiaresApi = {
     (
       await apiClient.postForm<ApiResponse<DocumentoFamiliarApiItem>>(
         `/api/v1/familiares/${familiarId}/documentos/`,
+        formData,
+      )
+    ).data,
+
+  /** Reemplaza el archivo de un documento ya cargado (nueva versión). */
+  reemplazarDocumento: async (familiarId: number, documentoId: number, formData: FormData) =>
+    (
+      await apiClient.patchForm<ApiResponse<DocumentoFamiliarApiItem>>(
+        `/api/v1/familiares/${familiarId}/documentos/${documentoId}/`,
         formData,
       )
     ).data,

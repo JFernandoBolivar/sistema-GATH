@@ -197,3 +197,13 @@ class RepoFamiliaresORM:
             familymember_id=familiar_id, document_type=tipo_documento, file=clave,
         )
         return documento_familiar_a_entidad(obj)
+
+    def reemplazar_documento(self, familiar_id: int, documento_id: int, clave: str) -> DocumentoFamiliar:
+        obj = FamilyDocumentModel.objects.filter(
+            pk=documento_id, familymember_id=familiar_id,
+        ).first()
+        if obj is None:
+            raise NotFoundError('Documento no encontrado.')
+        obj.file = clave
+        obj.save(update_fields=['file'])
+        return documento_familiar_a_entidad(obj)

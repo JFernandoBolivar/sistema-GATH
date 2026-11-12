@@ -28,6 +28,7 @@ from apps.familiares.application.use_cases.listar_familiares import (
     listar_familiares_por_empleado,
     obtener_clave_documento_familiar,
     obtener_familiar_por_id,
+    reemplazar_documento_familiar,
     subir_documento_familiar,
 )
 from apps.familiares.infrastructure.repositories.repo_familiares_orm import RepoFamiliaresORM
@@ -102,6 +103,14 @@ class FamiliarDetailView(APIView):
 _TIPOS_DOCUMENTO_VALIDOS = {'cedula', 'partida_nacimiento'}
 
 
+def _guardar_archivo(familiar_id: int, archivo) -> str:
+    """Valida el archivo, lo sube al almacenamiento y devuelve su clave."""
+    contenido, tipo, ext = validar_archivo(archivo, TIPOS_DOCUMENTO, MAX_BYTES_DOCUMENTO)
+    clave = clave_segura(f"familiares/{familiar_id}", ext)
+    SeaweedFSStorage().subir(clave, contenido, tipo.mime)
+    return clave
+
+
 class DocumentosFamiliarListView(APIView):
     def get_permissions(self):
         if self.request.method == 'POST':
@@ -124,12 +133,43 @@ class DocumentosFamiliarListView(APIView):
         if not archivo:
             return fail('No se proporcionó ningún archivo', status=400)
 
-        contenido, tipo, ext = validar_archivo(archivo, TIPOS_DOCUMENTO, MAX_BYTES_DOCUMENTO)
-        clave = clave_segura(f"familiares/{familiar_id}", ext)
-        SeaweedFSStorage().subir(clave, contenido, tipo.mime)
+        clave = _guardar_archivo(familiar_id, archivo)
 
         repo = RepoFamiliaresORM()
         dto = subir_documento_familiar(repo, familiar_id=familiar_id, tipo_documento=tipo_documento, clave=clave)
+        return ok(DocumentoFamiliarSerializer(dto).data)
+
+
+class DocumentoFamiliarDetailView(APIView):
+    """PATCH .../documentos/<documento_id>/ — reemplaza el archivo (nueva versión)."""
+
+    permission_classes = [IsAuthenticated, HasPermission('familiares.editar')]
+
+    @extend_schema(
+        tags=['Familiares'],
+        summary='Reemplazar el archivo de un documento anexo del familiar',
+        request={
+            'multipart/form-data': {
+                'type': 'object',
+                'properties': {'file': {'type': 'string', 'format': 'binary'}},
+            },
+        },
+        responses={200: DocumentoFamiliarSerializer},
+    )
+    def patch(self, request, familiar_id: int, documento_id: int):
+        archivo = request.FILES.get('file')
+        if not archivo:
+            return fail('No se proporcionó ningún archivo', status=400)
+
+        # Primero se comprueba que el documento sea de ese familiar: si no,
+        # 404 sin subir nada al almacenamiento.
+        obtener_clave_documento_familiar(
+            RepoFamiliaresORM(), familiar_id=familiar_id, documento_id=documento_id,
+        )
+        clave = _guardar_archivo(familiar_id, archivo)
+        dto = reemplazar_documento_familiar(
+            RepoFamiliaresORM(), familiar_id=familiar_id, documento_id=documento_id, clave=clave,
+        )
         return ok(DocumentoFamiliarSerializer(dto).data)
 
 

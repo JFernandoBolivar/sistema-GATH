@@ -22,6 +22,9 @@ from apps.familiares.domain.value_objects.regla_parentesco import (  # noqa: F40
 # pero se conserva el helper para no romper pruebas o integraciones externas.
 PREFIJO_PARENTESCO_HIJO = 'HIJO'
 
+# El familiar no puede compartir la cédula con su titular (OC 2026-11-11).
+MENSAJE_CEDULA_TITULAR = 'La cédula del familiar no puede ser la misma del titular'
+
 EDAD_MAXIMA_HIJO_SIN_CEDULA = 9
 ORDEN_HIJO_MIN = 1
 ORDEN_HIJO_MAX = 99
@@ -204,10 +207,7 @@ def resolver_cedula_familiar(
     cedula = (cedula_familiar or '').strip() or None
     if cedula:
         if cedula == cedula_empleado.strip():
-            raise ValueError(
-                'No se puede generar la cédula del hijo con la cédula del titular; '
-                'registre la cédula propia del hijo.'
-            )
+            raise ValueError(MENSAJE_CEDULA_TITULAR)
         if re.search(r'\d+-\d+', cedula) or ('-' in cedula and not cedula.startswith(('V-', 'E-', 'v-', 'e-'))):
             raise ValueError(
                 'El formato de cédula correlativa (titular-orden) solo se genera '

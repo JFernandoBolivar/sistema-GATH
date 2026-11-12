@@ -86,6 +86,16 @@ export function FamiliarFormacionAcademica({
       }
     | undefined;
 
+  // OC 2026-11-11: si el error cae en un campo de «Más detalles», la sección
+  // se muestra abierta para que el mensaje quede visible junto a su campo.
+  const hayErroresDetalle = Boolean(
+    errores?.nuevaCarreraNombre ||
+      errores?.nuevaMencionNombre ||
+      errores?.nuevaInstitucionNombre ||
+      errores?.institucionId,
+  );
+  const mostrarDetalle = showMoreDetails || hayErroresDetalle;
+
   return (
     <fieldset className="min-w-0 border grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2 p-2 border-blue-700 rounded-sm">
       <legend className="flex gap-2 text-primary font-bold items-center">
@@ -129,7 +139,7 @@ export function FamiliarFormacionAcademica({
         )}
       </div>
 
-      {showMoreDetails && (
+      {mostrarDetalle && (
         <>
           <div className="md:col-span-1 flex flex-col gap-2">
             <Field>

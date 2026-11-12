@@ -22,6 +22,7 @@ from apps.configuracion.infrastructure.models.regla_parentesco_model import (
     ReglaParentescoModel,
 )
 from apps.familiares.application.use_cases.validaciones_familiar import (
+    MENSAJE_CEDULA_TITULAR,
     ReglaParentescoFamiliar,
     es_menor_de_edad,
     regla_por_defecto,
@@ -422,6 +423,11 @@ class LectorFichaORM:
         if not cedula_final:
             raise ValidationError(
                 'La cédula del familiar es obligatoria.', campo='cedula_familiar',
+            )
+        # OC 2026-11-11: un familiar no puede tener la misma cédula que su titular.
+        if cedula_final == str(cedula).strip():
+            raise ValidationError(
+                MENSAJE_CEDULA_TITULAR, campo='cedula_familiar',
             )
         es_correlativa = bool(
             re.fullmatch(rf'{re.escape(cedula.strip())}-\d+', cedula_final)
