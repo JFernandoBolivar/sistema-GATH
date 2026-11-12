@@ -15,7 +15,7 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 | ✅ Completado | 39 |
 | ⏳ En proceso | 16 |
 | ❓ Respondida | 8 |
-| 🟡 Espera tu decisión | 3 |
+| 🟡 Espera tu decisión | 0 |
 
 ## Cambios urgentes y administración
 
@@ -69,6 +69,9 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 | 74 | Ficha de pasivos: no deben salir Grado, «Cargo cubierto por encargaduría» ni Encargadurías | ✅ | Ocultos en la ficha de pasivos | (pendiente de commit) |
 | 75 | Familiares: menú de acciones como el de Personal y botón de editar por bloque en Ver detalle | ⏳ | OpenCode, después de lo de Familiares | — |
 | 76 | Movimientos (contrato con error 500, buscador de cargo, asteriscos, código especial) | ✅ | Ver los puntos 65 a 68 | `4b7ff4fb` |
+| 77 | ¿La regla «familiar con la misma cédula del titular» afecta a los hijos menores con cédula «titular-n»? | ❓ | No: solo bloquea cuando las cédulas son exactamente iguales. «5132733-1» sigue permitida y se agregó una prueba | — |
+| 78 | Autogestión: la vivienda como un solo bloque «Actualizar mi vivienda», respetando la cascada país → estado → municipio → parroquia | ⏳ | Aprobado. En curso | — |
+| 79 | «Mi carnet» en autogestión muestra un diseño fijo, no la plantilla configurada | ⏳ | Se mostrará la imagen real del carnet con la plantilla vigente y el QR verdadero. En cola | — |
 | 30 | Familiares: grupo sanguíneo obligatorio, errores que no se marcan, error en el flujo de registro y actualización, documentos en la actualización | ⏳ | OpenCode lo está corrigiendo | — |
 
 ## Carnetización
@@ -98,9 +101,9 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 | 51 | Agregar invitados sin escribir: buscar y seleccionar (todos, activos, pasivos, por dependencia, externos) | ⏳ | Diálogo de búsqueda con selección | — |
 | 52 | «PDF Gafetes» da error y abre una página en blanco; zonas y categorías; utilidad de «Importar lista» | ⏳ | Se corrige el botón, se pueden gestionar zonas y categorías, e «Importar externos (Excel)» queda para los no registrados | — |
 | 53 | Fondos Fijos (Clásico): ¿qué es?, mejorar el diseño, paginar plantillas, fondos y biblioteca | ⏳ | Explicación, rediseño y paginación | — |
-| 54 | Eventos: ¿los trabajadores entran con su carnet o con un gafete del evento? | 🟡 | Recomendado: con su carnet institucional | — |
-| 55 | Campos personalizados: no tienen de dónde sacar el dato | 🟡 | Hoy salen vacíos. Opciones: a) elegir el origen del dato del expediente (recomendado); b) quitarlos | — |
-| 56 | ¿Se puede emitir el carnet cuantas veces se quiera? | 🟡 | Hoy sí, y cada emisión anula la anterior. Propuesta: aviso «ya tiene carnet vigente» y motivo obligatorio para reemitir | — |
+| 54 | Eventos: ¿los trabajadores entran con su carnet o con un gafete del evento? | ⏳ | Decidido: con su carnet institucional. En cola | — |
+| 55 | Campos personalizados: no tienen de dónde sacar el dato | ⏳ | Hoy salen vacíos. Decidido: a) elegir el origen del dato del expediente, con un permiso propio asignable por rol. En cola | — |
+| 56 | ¿Se puede emitir el carnet cuantas veces se quiera? | ⏳ | Hoy sí, y cada emisión anula la anterior. Decidido: aviso «ya tiene carnet vigente», motivo obligatorio y registro en la bitácora. En cola | — |
 | 57 | ¿Autogestión muestra el carnet nuevo? | ❓ | Sí, siempre muestra el vigente | — |
 
 ## Pendiente técnico conocido
