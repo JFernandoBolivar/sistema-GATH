@@ -283,12 +283,16 @@ input[type="datetime-local"] {
 input[type="date"]::-webkit-datetime-edit,
 input[type="datetime-local"]::-webkit-datetime-edit {
   padding: 0;
+  /* El texto de la fecha ocupa el ancho y empuja el ícono al extremo derecho. */
+  flex: 1 1 auto;
+  text-align: left;
 }
 input[type="date"]::-webkit-calendar-picker-indicator,
 input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   width: 1.25rem;
   height: 1.25rem;
-  margin-inline-start: 0.5rem;
+  margin-inline-start: auto;
+  flex: none;
   padding: 0;
   /* FIX-AUD8: la flecha nativa de Android se sustituye por el mismo glifo de
      calendario en todos los navegadores; currentColor respeta tema claro/oscuro

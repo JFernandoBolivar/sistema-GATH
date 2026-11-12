@@ -8,13 +8,15 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from django.db import transaction
 from django.http import HttpResponse
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 
 from core.presentation.validadores_personas import validar_serial_carnet_patria
+from core.domain.paginacion import Paginacion
 from core.presentation.envelope import ok, fail
 from core.presentation.permissions import EsPropiaCedulaOTienePermiso, HasPermission
 from apps.autogestion.application.use_cases.obtener_mi_expediente import (
     obtener_mi_carnet_pdf,
+    obtener_mi_carnet_vista_previa,
     obtener_mi_expediente,
     solicitar_mi_carnet,
 )
@@ -155,17 +157,32 @@ class CensoEmpleadoView(APIView):
 
 class CensoConsultarView(APIView):
     """
-    Consultar todos los censos o buscar por cédula.
-    Paridad con /censo-vivienda/consultar/ y /censo-vivienda/consultar/<cedula>/
+    Consultar los censos. Con la cédula en la ruta devuelve su lista (1 elemento).
+    Sin ella, el listado va paginado en el servidor: `?pagina=`, `?page_size=`
+    (10 por defecto, tope 50) y `?cedula=`; responde
+    `{resultados, total, pagina, tamano, total_paginas}`.
     """
     permission_classes = [IsAuthenticated, HasPermission('autogestion.censo_ver_todos')]
 
-    @extend_schema(tags=['Autogestión'], summary='Consultar todos los censos o filtrar por cédula')
+    @extend_schema(
+        tags=['Autogestión'],
+        summary='Consultar los censos (paginado) o el de una cédula',
+        parameters=[
+            OpenApiParameter('pagina', int, required=False),
+            OpenApiParameter('page_size', int, required=False),
+            OpenApiParameter('cedula', str, required=False),
+        ],
+    )
     def get(self, request, cedula: str | None = None):
         repo = RepoAutogestionORM()
-        target_cedula = cedula or request.query_params.get('cedula')
-        resultados = repo.consultar_todos_censos(cedula=target_cedula)
-        return ok(resultados)
+        if cedula:
+            return ok(repo.consultar_todos_censos(cedula=cedula))
+        paginacion = Paginacion.desde_parametros(request.query_params.dict())
+        filtro = (request.query_params.get('cedula') or '').strip() or None
+        resultados, total = repo.consultar_censos_paginado(
+            paginacion.offset, paginacion.tamano, cedula=filtro
+        )
+        return ok(paginacion.envolver(resultados, total))
 
 
 class ReporteCensoDependenciasView(APIView):
@@ -298,6 +315,27 @@ class SolicitarCarnetView(APIView):
             message="Carnet institucional generado exitosamente",
             status=status.HTTP_201_CREATED,
         )
+
+
+class MiCarnetVistaPreviaView(APIView):
+    """
+    GET /api/v1/autogestion/mi-carnet/vista-previa/
+    Devuelve la imagen PNG del carnet vigente del trabajador autenticado.
+    Zero-IDOR: solo usa `request.user.cedula_id`, igual que `MiCarnetPdfView`.
+    """
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(tags=['Autogestión'], summary='Vista previa PNG del carnet activo (Zero-IDOR)')
+    def get(self, request):
+        cedula = getattr(request.user, 'cedula_id', None)
+        if not cedula:
+            return fail("El usuario no tiene expediente asociado.", status=404)
+
+        png = obtener_mi_carnet_vista_previa(RepoPortalTrabajadorORM(), str(cedula))
+        respuesta = HttpResponse(png, content_type='image/png')
+        respuesta['X-Content-Type-Options'] = 'nosniff'
+        respuesta['Cache-Control'] = 'private, no-store'
+        return respuesta
 
 
 class MiCarnetAccesoView(APIView):

@@ -4,6 +4,7 @@ Consolida datos de personal (básicos, cargo/laboral, vivienda, salud, educació
 cargas familiares y carnets. Todo se lee exclusivamente para la cédula del
 usuario autenticado (Zero-IDOR) a través del puerto `RepoPortalTrabajador`.
 """
+import base64
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -13,6 +14,7 @@ from core.domain.exceptions import NotFoundError, PermissionDeniedError, Validat
 MOTIVO_PRIMERA_EMISION = 1
 MOTIVO_REPOSICION = 2
 OBSERVACION_SOLICITUD_PORTAL = 'Solicitud desde Portal de Autogestión CONATEL'
+
 
 
 def _es_primera_emision(motivo: dict) -> bool:
@@ -92,3 +94,21 @@ def obtener_mi_carnet_pdf(repo: RepoPortalTrabajador, cedula: str) -> bytes:
     if pdf is None:
         raise NotFoundError("No posee carnet activo emitido.")
     return pdf
+
+
+def obtener_mi_carnet_vista_previa(repo: RepoPortalTrabajador, cedula: str) -> bytes:
+    """PNG del carnet vigente del propio trabajador (Zero-IDOR).
+
+    Reutiliza la vista previa de carnetización (rasteriza el PDF a 110 dpi) que
+    devuelve un `data:image/png;base64,...`; aquí solo se decodifica.
+    """
+    cedula = _cedula_limpia(cedula)
+    if hasattr(repo, 'puede_ver_carnet') and not repo.puede_ver_carnet(cedula):
+        raise PermissionDeniedError("El módulo de carnet institucional no está habilitado para su usuario.")
+    if not repo.tiene_carnet_activo(cedula):
+        raise NotFoundError("No posee carnet activo emitido.")
+    data_url = repo.generar_vista_previa_carnet_activo(cedula)
+    if not data_url:
+        raise NotFoundError("No posee carnet activo emitido.")
+    _, _, codificado = data_url.partition(',')
+    return base64.b64decode(codificado)

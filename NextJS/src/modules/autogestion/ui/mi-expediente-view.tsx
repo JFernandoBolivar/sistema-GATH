@@ -7,6 +7,7 @@ import {
 } from "@/shared/domain/etiquetas-carnet-patria";
 import { LIMITES_TEXTO } from "@/shared/validation/limites-texto";
 import { ESTATUS_ACTIVO } from "@/shared/domain/catalogos";
+import { camposViviendaVisibles } from "@/shared/domain/vivienda-ubicacion";
 import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -219,6 +220,12 @@ export default function MiExpedienteView({ initialTab = "personal" }: MiExpedien
   const { empleado, familiares, carnet_activo, carnets = [], motivos_carnet = [] } = data;
   const mostrarCarnet = Boolean(data.puede_ver_carnet);
   const vivienda = empleado.datos_vivienda;
+  const visibilidadVivienda = camposViviendaVisibles(
+    vivienda
+      ? { es_venezuela: vivienda.pais?.es_venezuela ?? vivienda.pais_es_venezuela }
+      : null,
+    Boolean(vivienda),
+  );
   const salud = empleado.perfil_salud;
   const fisico = empleado.perfil_fisico;
   const contratoActual = empleado.contrato_actual;
@@ -577,40 +584,44 @@ export default function MiExpedienteView({ initialTab = "personal" }: MiExpedien
                 </CardDescription>
               </CardHeader>
               <CardContent className="divide-y divide-border/40 pt-2">
-                {vivienda?.pais && (!vivienda.pais.es_venezuela || vivienda.ciudad_region) ? (
+                {visibilidadVivienda.mostrarPais ? (
+                  <InfoRow label="País" value={vivienda?.pais?.nombre ?? vivienda?.pais_nombre ?? null} />
+                ) : null}
+                {visibilidadVivienda.mostrarCiudadRegion ? (
+                  <InfoRow label="Ciudad o Región" value={vivienda?.ciudad_region || null} />
+                ) : null}
+                {visibilidadVivienda.mostrarUbicacionVenezuela ? (
                   <>
-                    <InfoRow label="País" value={vivienda.pais.nombre} />
-                    <InfoRow label="Ciudad o Región" value={vivienda.ciudad_region || null} />
+                    <InfoRow
+                      label="Estado"
+                      value={
+                        vivienda?.estado_nombre ||
+                        (vivienda?.estado_id ? `Estado #${vivienda.estado_id}` : null)
+                      }
+                    />
+                    <InfoRow
+                      label="Municipio"
+                      value={
+                        vivienda?.municipio_nombre ||
+                        (vivienda?.municipio_id ? `Municipio #${vivienda.municipio_id}` : null)
+                      }
+                    />
+                    <InfoRow
+                      label="Parroquia"
+                      value={
+                        vivienda?.parroquia_nombre ||
+                        (vivienda?.parroquia_id ? `Parroquia #${vivienda.parroquia_id}` : null)
+                      }
+                    />
+                    <InfoRow
+                      label="Código Postal"
+                      value={
+                        vivienda?.codigo_postal_nombre ||
+                        (vivienda?.codigo_postal_id ? String(vivienda.codigo_postal_id) : null)
+                      }
+                    />
                   </>
                 ) : null}
-                <InfoRow
-                  label="Estado"
-                  value={
-                    vivienda?.estado_nombre ||
-                    (vivienda?.estado_id ? `Estado #${vivienda.estado_id}` : null)
-                  }
-                />
-                <InfoRow
-                  label="Municipio"
-                  value={
-                    vivienda?.municipio_nombre ||
-                    (vivienda?.municipio_id ? `Municipio #${vivienda.municipio_id}` : null)
-                  }
-                />
-                <InfoRow
-                  label="Parroquia"
-                  value={
-                    vivienda?.parroquia_nombre ||
-                    (vivienda?.parroquia_id ? `Parroquia #${vivienda.parroquia_id}` : null)
-                  }
-                />
-                <InfoRow
-                  label="Código Postal"
-                  value={
-                    vivienda?.codigo_postal_nombre ||
-                    (vivienda?.codigo_postal_id ? String(vivienda.codigo_postal_id) : null)
-                  }
-                />
                 <InfoRow
                   label="Condición de Vivienda"
                   value={

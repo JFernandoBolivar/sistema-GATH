@@ -61,7 +61,12 @@ const FICHA: FichaPasivoEntity = {
   tieneHijos: true,
 };
 
-const NOMBRES: Record<string, string> = { "5": "BARINAS", "9": "HIJO (A)" };
+const NOMBRES: Record<string, string> = {
+  "1": "Venezuela",
+  "2": "ALBANIA",
+  "5": "BARINAS",
+  "9": "HIJO (A)",
+};
 const formatear: Formateador = (v, campo) =>
   campo.startsWith("telefono")
     ? formatearTelefono(String(v))
@@ -105,7 +110,6 @@ describe("construirSecciones", () => {
     ]);
     const viv = datos(secs, "vivienda");
     expect(viv.map((d) => [d.etiqueta, d.valor])).toEqual([
-      ["País", "Venezuela"],
       ["Estado", "MIRANDA"],
       ["Municipio", "LANDER"],
       ["Parroquia", "LA DEMOCRACIA"],
@@ -141,8 +145,55 @@ describe("construirSecciones", () => {
       hoy: HOY,
     });
     const viv = datos(secs, "vivienda");
+    expect(viv.map((d) => d.etiqueta)).toEqual([
+      "País",
+      "Ciudad o región",
+      "Dirección",
+      "Condición de la vivienda",
+    ]);
     expect(dato(viv, "datos_vivienda.pais_id").valor).toBe("Chile");
     expect(dato(viv, "datos_vivienda.ciudad_region").valor).toBe("Santiago");
+  });
+
+  it("si propone cambiar de Venezuela al exterior, manda el país propuesto", () => {
+    const secs = construirSecciones({
+      ficha: FICHA,
+      cambios: [
+        cambio({
+          id: "v1",
+          seccion: "vivienda",
+          entidad: "datos_vivienda",
+          campo: "pais_id",
+          valorPropuesto: 2,
+          valorActual: 1,
+        }),
+        cambio({
+          id: "v2",
+          seccion: "vivienda",
+          entidad: "datos_vivienda",
+          campo: "ciudad_region",
+          valorPropuesto: "Tirana",
+          valorActual: null,
+        }),
+      ],
+      formatear,
+      hoy: HOY,
+    });
+    const viv = datos(secs, "vivienda");
+    expect(viv.map((d) => d.etiqueta)).toEqual([
+      "País",
+      "Ciudad o región",
+      "Dirección",
+      "Condición de la vivienda",
+    ]);
+    expect(dato(viv, "datos_vivienda.pais_id")).toMatchObject({
+      valor: "ALBANIA",
+      marca: { tipo: "modificado", anterior: "Venezuela" },
+    });
+    expect(dato(viv, "datos_vivienda.ciudad_region").valor).toBe("Tirana");
+    // Ciudad o región queda en Vivienda, no en «Otros datos propuestos».
+    expect(secs.some((s) => s.id === "otros")).toBe(false);
+    expect(JSON.stringify(secs)).not.toContain("Estado");
   });
 
   it("calcula edad, oficina de adscripción (nivel más específico) y fechas civiles sin correr el día", () => {

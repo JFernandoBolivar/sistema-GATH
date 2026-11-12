@@ -16,7 +16,6 @@ from apps.personal.application.dtos.reporte_error_dtos import (
 from apps.personal.application.use_cases.gestionar_reportes_error_laboral import (
     atender_reporte_error_laboral,
     listar_reportes_error_laboral,
-    obtener_reporte_error_laboral,
 )
 from apps.personal.application.use_cases.reportar_error_laboral import (
     crear_reporte_error_laboral,

@@ -16,6 +16,10 @@ import { emitirCarnet, listarCarnets } from "./emitir-carnet";
 import { obtenerEstadisticas } from "./obtener-estadisticas";
 import { validarCarnetPorHash } from "./validar-qr";
 
+function paginaVaciaPrueba<T>() {
+  return { resultados: [] as T[], total: 0, pagina: 1, tamano: 12, totalPaginas: 1 };
+}
+
 class RepoCarnetizacionMemoria implements RepoCarnetizacion {
   carnets: Carnet[] = [
     {
@@ -128,6 +132,20 @@ class RepoCarnetizacionMemoria implements RepoCarnetizacion {
     ];
   }
 
+  async obtenerSugerenciasReglasColor() {
+    return { cargos: [], oficinas: [] };
+  }
+
+  async listarPlantillasMotorPagina() {
+    return paginaVaciaPrueba<PlantillaMotor>();
+  }
+  async listarFondosFijos() {
+    return paginaVaciaPrueba<PlantillaCarnet>();
+  }
+  async eliminarFondoFijo(): Promise<void> {}
+  async listarBibliotecaPagina() {
+    return paginaVaciaPrueba<ElementoBiblioteca>();
+  }
   async listarPlantillasMotor(): Promise<PlantillaMotor[]> {
     return [];
   }
@@ -301,6 +319,7 @@ class RepoCarnetizacionMemoria implements RepoCarnetizacion {
     sensible?: boolean;
     descripcion?: string;
     valor_ejemplo?: string;
+    origen: string;
   }): Promise<CampoCredencial> {
     const c: CampoCredencial = {
       codigo: campo.codigo,
@@ -311,8 +330,20 @@ class RepoCarnetizacionMemoria implements RepoCarnetizacion {
       es_personalizado: true,
       descripcion: campo.descripcion || "",
       valor_ejemplo: campo.valor_ejemplo || "",
+      origen: campo.origen,
     };
     this.campos.push(c);
+    return c;
+  }
+
+  async actualizarCampoPersonalizado(
+    codigo: string,
+    campo: { etiqueta: string; origen: string },
+  ): Promise<CampoCredencial> {
+    const c = this.campos.find((x) => x.codigo === codigo);
+    if (!c) throw new Error("no existe");
+    c.etiqueta = campo.etiqueta;
+    c.origen = campo.origen;
     return c;
   }
 

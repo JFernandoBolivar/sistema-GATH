@@ -112,6 +112,13 @@ export const repoFamiliaresApi: RepoFamiliares = {
     return documentoFamiliarApiAEntidad(raw);
   },
 
+  async reemplazarDocumento(familiarId, documentoId, archivo) {
+    const formData = new FormData();
+    formData.append("file", archivo);
+    const raw = await familiaresApi.reemplazarDocumento(familiarId, documentoId, formData);
+    return documentoFamiliarApiAEntidad(raw);
+  },
+
   async listarCatalogos() {
     const results = await Promise.allSettled([
       familiaresApi.getParentescos(),

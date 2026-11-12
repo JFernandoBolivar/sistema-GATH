@@ -31,7 +31,6 @@ from apps.carnetizacion.infrastructure.repositories.repo_carnetizacion_orm impor
     vencimiento_segun_parametros,
 )
 from apps.carnetizacion.infrastructure.pdf.carnet_pdf import (
-    DatosCarnetPdf,
     generar_carnet_pdf_fiel,
 )
 from apps.carnetizacion.infrastructure.pdf.carnet_pdf_lote import generar_pdf_lote
@@ -308,7 +307,10 @@ class RepoCredencialesExternasORM:
             'cedula': cedula,
             'cargo': cargo,
             'departamento': departamento,
-            'nomina': fila.tipo_credencial_id,
+            # El código del tipo hace de «nómina» (VISITANTE, CONTRATISTA...) para que las
+            # Reglas de Color del diseñador puedan asignar colores propios a cada tipo.
+            'nomina': str(fila.tipo_credencial_id or '').upper(),
+            'externo': fila.empleado_id is None,
             'security_hash': fila.security_hash,
             'tipo_credencial': fila.tipo_credencial_id,
             'motivo': fila.motivo,

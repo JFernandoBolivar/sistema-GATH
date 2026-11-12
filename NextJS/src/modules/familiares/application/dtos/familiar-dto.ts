@@ -55,6 +55,7 @@ export interface DocumentoFamiliarDTO {
   tipoDocumento: string;
   rutaArchivo: string;
   fechaSubida: string;
+  nombreArchivo?: string;
 }
 
 export type { TipoDocumentoFamiliar } from "../../domain/entities/familiar";

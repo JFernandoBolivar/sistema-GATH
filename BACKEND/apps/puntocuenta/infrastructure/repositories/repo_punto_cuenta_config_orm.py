@@ -49,13 +49,10 @@ class RepoConfiguracionPuntoCuentaORM:
 
     def guardar_generar(self, generar: bool, usuario_id: int | None) -> None:
         # Import entre módulos en infrastructure (patrón B16 del proyecto).
-        from apps.configuracion.application.use_cases.guardar_parametro import guardar_parametro
+        from apps.configuracion.application.use_cases.gestionar_parametros import actualizar_parametro
         from apps.configuracion.infrastructure.repositories.repo_parametros_orm import RepoParametrosORM
         from core.domain.configuracion import CLAVE_GENERAR_PUNTOS_CUENTA
 
-        guardar_parametro(
-            repo=RepoParametrosORM(),
-            clave=CLAVE_GENERAR_PUNTOS_CUENTA,
-            valor_nuevo='true' if generar else 'false',
-            usuario_id=usuario_id,
+        actualizar_parametro(
+            RepoParametrosORM(), CLAVE_GENERAR_PUNTOS_CUENTA, 'true' if generar else 'false', usuario_id,
         )

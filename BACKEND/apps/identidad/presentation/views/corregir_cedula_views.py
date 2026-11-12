@@ -36,6 +36,7 @@ from apps.identidad.presentation.serializers.corregir_cedula_serializers import 
     VistaPreviaCorreccionCedulaSerializer,
     VistaPreviaCorreccionRespuestaSerializer,
 )
+from apps.configuracion.domain.parametros import definicion_de
 from core.domain.configuracion import CLAVE_PASSWORD_INICIAL_DIAS
 from core.infrastructure.providers import obtener_lector_configuracion
 from core.presentation.audit import origen_de_peticion, registrar_auditoria
@@ -47,7 +48,7 @@ PERMISO = 'personal.corregir_cedula'
 PERMISOS = [IsAuthenticated, HasPermission(PERMISO)]
 TAG = 'Identidad · Corregir cédula'
 ACCION_AUDITORIA = 'identidad.cedula_corregida'
-DIAS_POR_DEFECTO = 7
+DIAS_POR_DEFECTO = int(definicion_de(CLAVE_PASSWORD_INICIAL_DIAS).defecto)
 
 _ERRORES = {400: MensajeRespuestaSerializer, 403: MensajeRespuestaSerializer,
             404: MensajeRespuestaSerializer, 409: MensajeRespuestaSerializer}

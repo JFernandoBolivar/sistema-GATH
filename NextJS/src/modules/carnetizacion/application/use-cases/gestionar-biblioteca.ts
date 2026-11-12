@@ -1,7 +1,7 @@
 /**
  * Casos de uso para la Biblioteca compartida de medios (O44 - E4).
  */
-import type { CategoriaBiblioteca, ElementoBiblioteca } from "../../domain/entities/carnet";
+import type { CategoriaBiblioteca, ElementoBiblioteca, PaginaCarnet, ParamsPagina } from "../../domain/entities/carnet";
 import type { RepoCarnetizacion } from "../../domain/ports/repo-carnetizacion";
 
 export async function listarBiblioteca(
@@ -9,6 +9,14 @@ export async function listarBiblioteca(
   categoria?: CategoriaBiblioteca
 ): Promise<ElementoBiblioteca[]> {
   return repo.listarBiblioteca(categoria);
+}
+
+export async function listarBibliotecaPagina(
+  repo: RepoCarnetizacion,
+  categoria: CategoriaBiblioteca | undefined,
+  params: ParamsPagina,
+): Promise<PaginaCarnet<ElementoBiblioteca>> {
+  return repo.listarBibliotecaPagina(categoria, params);
 }
 
 export async function subirElementoBiblioteca(

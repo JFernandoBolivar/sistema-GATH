@@ -5,6 +5,8 @@ import type {
   CampoCredencial,
   Carnet,
   CategoriaBiblioteca,
+  PaginaCarnet,
+  ParamsPagina,
   DatosCarnetEmpleado,
   ElementoBiblioteca,
   EstadisticasCarnet,
@@ -42,7 +44,11 @@ export interface RepoCarnetizacion {
 
   // Motor de Plantillas y Catálogo (O44 - E3)
   listarTiposCredencial(grupo?: string): Promise<TipoCredencial[]>;
+  obtenerSugerenciasReglasColor(): Promise<{ cargos: string[]; oficinas: string[] }>;
   listarPlantillasMotor(tipo?: string, estado?: string, activas?: boolean): Promise<PlantillaMotor[]>;
+  listarPlantillasMotorPagina(tipo: string | undefined, params: ParamsPagina): Promise<PaginaCarnet<PlantillaMotor>>;
+  listarFondosFijos(params: ParamsPagina): Promise<PaginaCarnet<PlantillaCarnet>>;
+  eliminarFondoFijo(id: number | string): Promise<void>;
   obtenerPlantillaMotor(id: string): Promise<PlantillaMotor>;
   crearPlantillaBorrador(input: CrearPlantillaBorradorInput): Promise<PlantillaMotor>;
   actualizarPlantillaBorrador(id: string, input: Partial<CrearPlantillaBorradorInput>): Promise<PlantillaMotor>;
@@ -54,6 +60,7 @@ export interface RepoCarnetizacion {
 
   // Biblioteca Compartida de Medios (O44 - E4)
   listarBiblioteca(categoria?: string): Promise<ElementoBiblioteca[]>;
+  listarBibliotecaPagina(categoria: string | undefined, params: ParamsPagina): Promise<PaginaCarnet<ElementoBiblioteca>>;
   subirElementoBiblioteca(nombre: string, categoria: CategoriaBiblioteca, archivo: File, descripcion?: string): Promise<ElementoBiblioteca>;
   eliminarElementoBiblioteca(id: string): Promise<boolean>;
 
@@ -67,7 +74,18 @@ export interface RepoCarnetizacion {
     sensible?: boolean;
     descripcion?: string;
     valor_ejemplo?: string;
+    origen: string;
   }): Promise<CampoCredencial>;
+  actualizarCampoPersonalizado(
+    codigo: string,
+    campo: {
+      etiqueta: string;
+      origen: string;
+      sensible?: boolean;
+      descripcion?: string;
+      valor_ejemplo?: string;
+    },
+  ): Promise<CampoCredencial>;
   eliminarCampoPersonalizado(codigo: string): Promise<boolean>;
 
   // QR y Privacidad por Dato (O44 - E9)

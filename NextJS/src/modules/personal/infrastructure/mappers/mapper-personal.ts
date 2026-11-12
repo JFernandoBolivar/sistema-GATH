@@ -28,6 +28,7 @@ function viviendaAPIADto(raw: Record<string, unknown>): DatosVivienda {
   return {
     paisId: (raw.pais_id as number | null) ?? null,
     paisNombre: textoValido(raw.pais_nombre),
+    paisEsVenezuela: (raw.pais_es_venezuela as boolean | null) ?? null,
     ciudadRegion: (raw.ciudad_region as string | null) ?? null,
     estadoId: (raw.estado_id as number | null) ?? null,
     estadoNombre: textoValido(raw.estado_nombre),
@@ -187,6 +188,7 @@ export function empleadoApiAEntidad(raw: EmpleadoApiItem): Empleado {
     sexoNombre: raw.sexo_nombre,
     correo: raw.correo,
     correoAlternativo: raw.correo_alternativo ?? null,
+    tieneHijos: raw.tiene_hijos ?? null,
     telefonoMovil: raw.telefono_movil,
     telefonoHabitacion: raw.telefono_habitacion,
     fechaNacimiento: raw.fecha_nacimiento,

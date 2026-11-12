@@ -5,12 +5,14 @@
  */
 "use server";
 
+import { unstable_rethrow } from "next/navigation";
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { ApiHttpError, handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import {
   calcularRestablecimientoBloque,
   consultarRestablecimientoBloque,
+  descargarExcelRestablecimientoBloque,
   ejecutarRestablecimientoBloque,
 } from "../../application/use-cases/restablecer-acceso-bloque";
 import { repoRestablecimientoBloqueApi } from "../repositories/repo-restablecimiento-bloque-api";
@@ -36,6 +38,7 @@ async function conAuditoria<T>(
     await logAudit({ traceId, action: accion, status: "SUCCESS", durationMs: Date.now() - startedAt });
     return resultado;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: accion, status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     if (error instanceof ApiHttpError) {
@@ -68,6 +71,16 @@ export async function ejecutarRestablecimientoBloqueAction(entrada: unknown) {
   const { confirmacion, ...solicitud } = valida.data;
   return conAuditoria("ejecutarRestablecimientoBloqueAction", () =>
     ejecutarRestablecimientoBloque(repoRestablecimientoBloqueApi, solicitud, confirmacion),
+  );
+}
+
+export async function descargarExcelRestablecimientoBloqueAction(entrada: unknown) {
+  const valida = solicitudBloqueSchema.safeParse(entrada);
+  if (!valida.success) {
+    return { error: valida.error.issues[0]?.message ?? "Datos no válidos.", status: 400 } as ErrorBloque;
+  }
+  return conAuditoria("descargarExcelRestablecimientoBloqueAction", () =>
+    descargarExcelRestablecimientoBloque(repoRestablecimientoBloqueApi, valida.data),
   );
 }
 

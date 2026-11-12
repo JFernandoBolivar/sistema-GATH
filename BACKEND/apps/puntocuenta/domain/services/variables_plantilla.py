@@ -29,7 +29,7 @@ def formatear_fecha_larga(fecha: str | datetime | date | None) -> str:
             try:
                 dt = datetime.strptime(str_val[:19], fmt)
                 break
-            except Exception:
+            except ValueError:
                 continue
         if dt is None:
             dt = datetime.now()

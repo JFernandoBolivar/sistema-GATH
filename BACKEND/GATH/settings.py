@@ -77,6 +77,7 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'core.presentation.trace_middleware.TraceIDMiddleware',
+    'core.presentation.auditoria_middleware.OrigenAuditoriaMiddleware',
     'core.presentation.security_headers.SecurityHeadersMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -202,6 +203,7 @@ CLAMAV_PORT = config('CLAMAV_PORT', default=3310, cast=int)
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
+LANGUAGE_CODE = 'es'
 TIME_ZONE = 'America/Caracas'
 USE_TZ = True
 USE_I18N = True

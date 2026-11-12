@@ -156,3 +156,13 @@ El log trae la duración de cada paso: hay que mirar los que pasan de 1 minuto.
 - No usar `--no-cache` en cada despliegue, para aprovechar la caché de capas: si solo cambia el código, las capas de dependencias se reutilizan.
 
 **Decisión pendiente del usuario.** Son cambios de Docker y de compose.
+
+### Actualización del 11/11: causa probable del build de 2 horas
+- En QA, un build sin cambios tardó segundos, porque todo salió de la caché (`CACHED`).
+- El despliegue de producción del 10/11 fue, con mucha probabilidad, **el primer build en ese servidor**: sin caché y descargando las imágenes base. Eso explica las 2 horas. Los siguientes builds reutilizan la caché.
+- **Ojo:** el comando habitual, `docker compose up -d --force-recreate django celery_worker celery_beat nextjs`, **no reconstruye** si la imagen ya existe, así que el código nuevo no entraría. Comando recomendado para cada despliegue:
+  ```bash
+  cd /opt/gath && git pull
+  docker compose -p gath up -d --build --force-recreate django celery_worker celery_beat nextjs
+  ```
+- Para medir un build con cambios: `time docker compose -p gath --progress=plain build 2>&1 | tee /tmp/build.log`.

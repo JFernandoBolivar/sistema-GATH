@@ -2,6 +2,11 @@ import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
+// Radix Select llama `scrollIntoView`, que jsdom no implementa.
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = vi.fn();
+}
+
 import { ConsolaEmisionView } from "./consola-emision-view";
 import { SolicitudesCarnetView } from "./solicitudes-carnet-view";
 
@@ -31,6 +36,7 @@ vi.mock("../../infrastructure/actions/carnetizacion-actions", () => ({
       telefono: "04121234567",
       total_solicitudes: 1,
       tiene_carnet: true,
+      carnet_activo_emitido_en: "2026-11-01T10:00:00+00:00",
     },
   ]),
   getMotivosCarnetAction: vi.fn().mockResolvedValue([
@@ -126,5 +132,79 @@ describe("Bandeja Centralizada de Solicitudes de Carnet (O51 - 2.2)", () => {
 
     expect(screen.getByText(/RAMÍREZ, ODALIS/i)).toBeInTheDocument();
     expect(screen.queryByText(/BOLÍVAR HERNÁNDEZ, JOSÉ FERNANDO/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("T2: motivo de reemisión en la consola", () => {
+  async function seleccionarTrabajador() {
+    render(<ConsolaEmisionView />);
+    const input = screen.getByPlaceholderText(/Buscar por cédula, nombre o código/i);
+    fireEvent.change(input, { target: { value: "18456789" } });
+    const resultado = await screen.findByText(
+      /BOLÍVAR HERNÁNDEZ/i,
+      {},
+      { timeout: 3000 },
+    );
+    fireEvent.click(resultado);
+    await screen.findByText(/Parámetros de Emisión Oficial/i);
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("avisa del carnet vigente y exige el motivo antes de emitir", async () => {
+    await seleccionarTrabajador();
+
+    expect(
+      await screen.findByText(/Ya tiene un carnet vigente emitido el/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/01\/11\/2026/)).toBeInTheDocument();
+
+    const emitir = screen.getByRole("button", { name: /Emitir y Descargar PDF/i });
+    expect(emitir).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("combobox", { name: /Motivo de la reemisión/i }));
+    fireEvent.click(await screen.findByRole("option", { name: "Pérdida o robo" }));
+
+    await waitFor(() => expect(emitir).toBeEnabled());
+  });
+
+  it("con «Otro» exige un detalle de 10 caracteres", async () => {
+    await seleccionarTrabajador();
+
+    fireEvent.click(screen.getByRole("combobox", { name: /Motivo de la reemisión/i }));
+    fireEvent.click(await screen.findByRole("option", { name: "Otro" }));
+
+    const detalle = screen.getByLabelText(/Detalle de la reemisión/i);
+    const emitir = screen.getByRole("button", { name: /Emitir y Descargar PDF/i });
+
+    fireEvent.change(detalle, { target: { value: "corto" } });
+    expect(emitir).toBeDisabled();
+
+    fireEvent.change(detalle, { target: { value: "Se dañó el carnet" } });
+    await waitFor(() => expect(emitir).toBeEnabled());
+  });
+
+  it("maneja el 409 del backend mostrando el aviso", async () => {
+    const acciones = await import("../../infrastructure/actions/carnetizacion-actions");
+    vi.mocked(acciones.generarCarnetPdfAction).mockResolvedValueOnce({
+      success: false,
+      message: "El carnet sigue vigente: elija el motivo e intente de nuevo.",
+      data: null,
+      status: 409,
+    });
+
+    await seleccionarTrabajador();
+    fireEvent.click(screen.getByRole("combobox", { name: /Motivo de la reemisión/i }));
+    fireEvent.click(await screen.findByRole("option", { name: "Deterioro" }));
+
+    const emitir = screen.getByRole("button", { name: /Emitir y Descargar PDF/i });
+    await waitFor(() => expect(emitir).toBeEnabled());
+    fireEvent.click(emitir);
+
+    expect(
+      await screen.findByText("El carnet sigue vigente: elija el motivo e intente de nuevo."),
+    ).toBeInTheDocument();
   });
 });

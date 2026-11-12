@@ -5,10 +5,22 @@ import re
 
 from apps.carnetizacion.domain.entities.campo_credencial import (
     CAMPOS_AUTORIZADOS_EXPEDIENTE,
+    ORIGENES_CAMPO_PERSONALIZADO,
     CampoCredencial,
 )
 from apps.carnetizacion.domain.ports.repo_carnetizacion import RepoCarnetizacion
 from core.domain.exceptions import ValidationError
+
+
+def validar_origen_campo(origen: str) -> str:
+    """El origen debe ser uno de la lista cerrada de datos del expediente."""
+    limpio = (origen or "").strip()
+    if limpio not in ORIGENES_CAMPO_PERSONALIZADO:
+        raise ValidationError(
+            "Elija el origen del dato de la lista: " + ", ".join(ORIGENES_CAMPO_PERSONALIZADO.values()) + ".",
+            campo="origen",
+        )
+    return limpio
 
 
 def listar_campos_credencial_uc(
@@ -31,6 +43,7 @@ def crear_campo_personalizado_uc(
     sensible: bool = False,
     descripcion: str = "",
     valor_ejemplo: str = "",
+    origen: str = "",
 ) -> CampoCredencial:
     """
     Registra un campo personalizado validando que su slug no colisione con campos existentes.
@@ -51,6 +64,8 @@ def crear_campo_personalizado_uc(
     if not etiqueta.strip():
         raise ValidationError("La etiqueta del campo es obligatoria.")
 
+    origen_valido = validar_origen_campo(origen)
+
     return repo.crear_campo_personalizado(
         codigo=slug,
         etiqueta=etiqueta.strip(),
@@ -59,6 +74,33 @@ def crear_campo_personalizado_uc(
         sensible=sensible,
         descripcion=descripcion.strip(),
         valor_ejemplo=valor_ejemplo.strip(),
+        origen=origen_valido,
+    )
+
+
+def actualizar_campo_personalizado_uc(
+    repo: RepoCarnetizacion,
+    codigo: str,
+    etiqueta: str,
+    origen: str,
+    descripcion: str = "",
+    valor_ejemplo: str = "",
+    sensible: bool = False,
+) -> CampoCredencial:
+    """Edita un campo personalizado (etiqueta, origen del dato, ejemplo). El código no cambia."""
+    slug = codigo.strip().lower()
+    codigos_expediente = {c.codigo for c in CAMPOS_AUTORIZADOS_EXPEDIENTE}
+    if slug in codigos_expediente:
+        raise ValidationError("No se puede editar un campo reservado del expediente.")
+    if not etiqueta.strip():
+        raise ValidationError("La etiqueta del campo es obligatoria.", campo="etiqueta")
+    return repo.actualizar_campo_personalizado(
+        codigo=slug,
+        etiqueta=etiqueta.strip(),
+        origen=validar_origen_campo(origen),
+        descripcion=descripcion.strip(),
+        valor_ejemplo=valor_ejemplo.strip(),
+        sensible=sensible,
     )
 
 

@@ -22,6 +22,7 @@ def pasivo_a_dto(p: Pasivo) -> PasivoDTO:
         observaciones=p.observaciones,
         correo=p.correo,
         correo_alternativo=p.correo_alternativo,
+        tiene_hijos=p.tiene_hijos,
         telefono_movil=p.telefono_movil,
         telefono_habitacion=p.telefono_habitacion,
         carnet_patria=p.carnet_patria,

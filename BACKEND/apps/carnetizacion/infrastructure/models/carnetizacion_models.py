@@ -1,12 +1,10 @@
 """
 Modelos ORM de Carnetización (Regla B26, O44 - E3).
 """
-import hashlib
 from django.conf import settings
 from django.db import models
 
 from core.infrastructure.models.base import BaseModel
-from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
 
 
 class MotivosEmisionModel(models.Model):
@@ -208,6 +206,8 @@ class CampoPersonalizadoModel(BaseModel):
     sensible = models.BooleanField(default=False)
     descripcion = models.TextField(blank=True, default='')
     valor_ejemplo = models.CharField(max_length=255, blank=True, default='')
+    # Origen del dato (lista cerrada del dominio). Vacío = campo anterior, sin origen: se imprime vacío.
+    origen = models.CharField(max_length=40, blank=True, default='')
 
     class Meta:
         db_table = 'CarnetCampoPersonalizado'
@@ -252,6 +252,8 @@ class BitacoraAccesoQrModel(BaseModel):
     class Meta:
         db_table = 'CarnetBitacoraAcceso'
         ordering = ['-created_at']
+        # S5-04: la auditoría de accesos al QR filtra por IP (crece con SILOG).
+        indexes = [models.Index(fields=['ip'], name='carnet_bitacora_ip_idx')]
         verbose_name = 'bitácora de acceso qr'
         verbose_name_plural = 'bitácora de accesos qr'
 
@@ -416,6 +418,10 @@ class EventoInvitadoModel(BaseModel):
     class Meta:
         db_table = 'CarnetEventoInvitado'
         ordering = ['nombre_completo']
+        # S5-04: búsqueda de un invitado por documento dentro de su evento.
+        indexes = [
+            models.Index(fields=['evento', 'documento_identidad'], name='carnet_invitado_evento_doc_idx'),
+        ]
         verbose_name = 'invitado de evento'
         verbose_name_plural = 'invitados de evento'
 

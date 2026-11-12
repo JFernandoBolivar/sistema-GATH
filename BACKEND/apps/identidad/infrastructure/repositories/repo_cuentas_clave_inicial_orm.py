@@ -1,6 +1,6 @@
 """Adaptador ORM de cuentas activas y cuentas con clave inicial (U2)."""
+from datetime import datetime
 from typing import Sequence
-
 
 from apps.identidad.domain.entities.restablecimiento_bloque import CuentaClaveInicial
 from apps.identidad.infrastructure.models.cuenta_models import CuentaModel
@@ -37,6 +37,22 @@ class RepoCuentasClaveInicialORM:
                 CuentaModel.objects.filter(
                     is_active=True,
                     pk__in=PasswordInicialModel.objects.values('cuenta_id'),
+                )
+                .values_list('pk', 'cedula_id')
+                .order_by('pk')
+            )
+            if cedula not in (None, '')
+        ]
+
+    def vencidas(self, ahora: datetime) -> Sequence[CuentaClaveInicial]:
+        """Cuentas activas cuya contraseña inicial ya venció (una sola consulta)."""
+        return [
+            CuentaClaveInicial(cuenta_id=cuenta_id, cedula=str(cedula))
+            for cuenta_id, cedula in (
+                CuentaModel.objects.filter(
+                    is_active=True,
+                    pk__in=PasswordInicialModel.objects.filter(vence_en__lte=ahora)
+                    .values('cuenta_id'),
                 )
                 .values_list('pk', 'cedula_id')
                 .order_by('pk')

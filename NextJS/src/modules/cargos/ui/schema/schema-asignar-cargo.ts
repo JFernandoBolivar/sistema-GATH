@@ -10,7 +10,10 @@ export const cargosFiltroSchema = z.object({
   direccionLineaId: z.number().int().positive().optional().nullable(),
   coordinacionId: z.number().int().positive().optional().nullable(),
   codigo: z.string().trim().max(20, ERROR.MAX_LENGTH(20)).optional().nullable(),
+  busqueda: z.string().trim().max(100).optional(),
   soloVacantes: z.boolean().optional(),
+  pagina: z.number().int().min(1).optional(),
+  pageSize: z.number().int().min(1).max(50).optional(),
 });
 
 /** Identificador de cargo (desasignar/trasladar/gestionar estatus) (zero-trust R7). */
@@ -83,7 +86,7 @@ export const crearCargoSchema = z.object({
   especificaId: z.number().int().positive({ message: "Seleccione una denominación de cargo específico" }),
   tipoNominaId: z.number().int().positive({ message: "Seleccione un tipo de nómina" }),
   // Un código no puede crearse solo con el Nivel: exige también la Oficina/Gerencia.
-  dependenciaId: z.number({ message: "Seleccione el Nivel (Dependencia)" }).int().positive({ message: "Seleccione el Nivel (Dependencia)" }),
+  dependenciaId: z.number({ message: "Seleccione el Nivel" }).int().positive({ message: "Seleccione el Nivel" }),
   direccionGeneralId: z
     .number({ message: "Seleccione la Dirección / Gerencia / Oficina" })
     .int()

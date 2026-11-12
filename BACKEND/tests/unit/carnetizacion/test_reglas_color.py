@@ -122,3 +122,31 @@ def test_resolver_color_criterio_cargo_u_oficina():
     }
     res_ofi = resolver_color_carnet(definicion_oficina, {'oficina': 'Oficina de Gestión Humana'})
     assert res_ofi['primario'] == '#1e3a8a'
+
+
+def _definicion_nomina():
+    return {
+        'reglas': {
+            'criterio': 'nomina',
+            'respaldo': {'primario': '#1f3a5f', 'acento': '#1273bd', 'texto': '#ffffff'},
+            'valores': {'VISITANTE': {'primario': '#aa0000', 'acento': '#bb0000', 'texto': '#ffffff'}},
+        }
+    }
+
+
+def test_credencial_de_visitante_aplica_la_regla_visitante():
+    from apps.carnetizacion.domain.services.resolver_color import resolver_color_carnet
+
+    persona = {'nomina': 'VISITANTE', 'tipo_credencial': 'visitante', 'externo': True, 'cargo': 'ACME'}
+    assert resolver_color_carnet(_definicion_nomina(), persona)['primario'] == '#aa0000'
+    # Con criterio cargo, el tipo de credencial también hace de valor para un externo.
+    definicion = _definicion_nomina()
+    definicion['reglas']['criterio'] = 'cargo'
+    assert resolver_color_carnet(definicion, persona)['primario'] == '#aa0000'
+
+
+def test_credencial_de_visitante_sin_regla_usa_el_color_de_respaldo():
+    from apps.carnetizacion.domain.services.resolver_color import resolver_color_carnet
+
+    persona = {'nomina': 'CONTRATISTA', 'tipo_credencial': 'contratista', 'externo': True}
+    assert resolver_color_carnet(_definicion_nomina(), persona)['primario'] == '#1f3a5f'

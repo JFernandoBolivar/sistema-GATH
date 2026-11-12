@@ -34,6 +34,18 @@ class RepoCarnetizacion(Protocol):
         """Lista las plantillas disponibles."""
         ...
 
+    def listar_plantillas_paginado(
+        self,
+        codigo_tipo: str | None = None,
+        estado: str | None = None,
+        solo_activas: bool = False,
+        busqueda: str = "",
+        offset: int = 0,
+        limite: int = 12,
+    ) -> tuple[list[PlantillaCarnet], int]:
+        """Una página de plantillas del motor y el total que cumple los filtros."""
+        ...
+
     def obtener_plantilla(self, plantilla_id: str | int) -> PlantillaCarnet | None:
         """Obtiene una plantilla específica por su ID."""
         ...
@@ -110,6 +122,16 @@ class RepoCarnetizacion(Protocol):
         """Compatibilidad con subida legacy de imagen de fondo."""
         ...
 
+    def listar_fondos_fijos(
+        self, busqueda: str = "", offset: int = 0, limite: int = 12,
+    ) -> tuple[list[PlantillaCarnet], int]:
+        """Una página de fondos fijos (clásicos) y el total."""
+        ...
+
+    def eliminar_fondo_fijo(self, fondo_id: int | str) -> None:
+        """Elimina un fondo fijo inactivo; el activo (en uso) está protegido."""
+        ...
+
     def ruta_imagen_plantilla(self, plantilla_id: int | str) -> str:
         """Ruta local de la imagen de la plantilla legacy; NotFoundError si no existe."""
         ...
@@ -122,6 +144,18 @@ class RepoCarnetizacion(Protocol):
         ...
 
     def obtener_por_id(self, carnet_id: int) -> Carnet | None:
+        ...
+
+    def obtener_carnet_vigente(self, empleado_cedula: str) -> Carnet | None:
+        """Carnet activo (vigente) del empleado, o None si no tiene."""
+        ...
+
+    def motivo_id_para_reemision(self, motivo_reemision: str) -> int | None:
+        """Id del catálogo `MotivosEmision` que corresponde al motivo de reemisión."""
+        ...
+
+    def sugerencias_reglas_color(self) -> dict[str, list[str]]:
+        """Cargos y oficinas reales del último cargo activo de cada titular."""
         ...
 
     def emitir_carnet(
@@ -155,6 +189,16 @@ class RepoCarnetizacion(Protocol):
     # --- Biblioteca de Medios (O44 - E4) ---
     def listar_elementos_biblioteca(self, categoria: str | None = None) -> list[ElementoBiblioteca]:
         """Obtiene la lista de logos, firmas e imágenes institucionales."""
+        ...
+
+    def listar_elementos_biblioteca_paginado(
+        self,
+        categoria: str | None = None,
+        busqueda: str = "",
+        offset: int = 0,
+        limite: int = 12,
+    ) -> tuple[list[ElementoBiblioteca], int]:
+        """Una página de recursos de la biblioteca y el total que cumple los filtros."""
         ...
 
     def obtener_elemento_biblioteca(self, elemento_id: str | int) -> ElementoBiblioteca:
@@ -191,8 +235,21 @@ class RepoCarnetizacion(Protocol):
         sensible: bool = False,
         descripcion: str = "",
         valor_ejemplo: str = "",
+        origen: str = "",
     ) -> CampoCredencial:
         """Registra un nuevo campo personalizado para usar en las credenciales."""
+        ...
+
+    def actualizar_campo_personalizado(
+        self,
+        codigo: str,
+        etiqueta: str,
+        origen: str,
+        descripcion: str = "",
+        valor_ejemplo: str = "",
+        sensible: bool = False,
+    ) -> CampoCredencial:
+        """Edita un campo personalizado existente (el código no cambia)."""
         ...
 
     def eliminar_campo_personalizado(self, codigo: str) -> bool:

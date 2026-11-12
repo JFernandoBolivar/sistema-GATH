@@ -42,7 +42,7 @@ from django.conf import settings
 
 # A2-19: el titular del superadministrador se configura por entorno; el valor
 # histórico se conserva como respaldo para no cambiar el despliegue actual.
-CEDULA_SUPERADMIN = getattr(settings, 'SUPERADMIN_CEDULA', '30799436')
+CEDULA_SUPERADMIN = settings.SUPERADMIN_CEDULA
 CLAVE_BOOTSTRAP = 'produccion'
 DIAS_PASSWORD_INICIAL = 7
 

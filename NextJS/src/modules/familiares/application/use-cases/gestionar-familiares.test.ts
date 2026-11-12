@@ -62,6 +62,16 @@ class RepoFamiliaresMemoria implements RepoFamiliares {
     };
   }
 
+  async reemplazarDocumento(familiarId: number, documentoId: number, _archivo: File) {
+    return {
+      id: documentoId,
+      familiarId,
+      tipoDocumento: "cedula" as const,
+      rutaArchivo: "https://example.com/doc.pdf",
+      fechaSubida: "2026-01-01",
+    };
+  }
+
   async listarCatalogos() {
     return {
       parentescos: [],

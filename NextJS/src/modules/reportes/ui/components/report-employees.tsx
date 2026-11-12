@@ -38,7 +38,7 @@ import {
   getGruposCapacitacion,
   getMencion,
   getMunicipalitys,
-  getNominaGeneral,
+  getNominaPorCategoria,
   getOrganismosAds,
   getOrganismosAdsFather,
   getPaises,
@@ -131,8 +131,8 @@ export default function ReportEmployee({
   );
   const { data: cargo, isLoading: isLoadingCargo } = useSWR("cargo", async () => await getCargo());
   const { data: nomina, isLoading: isLoadingNomina } = useSWR(
-    "nominaGeneral",
-    async () => await getNominaGeneral(),
+    ["nominaPorCategoria", categoria],
+    async () => await getNominaPorCategoria(categoria),
   );
   const { data: grado, isLoading: isLoadingGrado } = useSWR("grado", async () => await getGrado());
 
@@ -452,9 +452,10 @@ export default function ReportEmployee({
                       </fieldset>
                     )}
 
-                    <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2">
+                    {/* Mampostería: las tarjetas fluyen por columnas sin dejar huecos. */}
+                    <div className="columns-1 gap-3 md:columns-2">
                       {categoria === "pasivos" ? (
-                        <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-blue-800">
+                        <fieldset className="mb-3 flex break-inside-avoid flex-col gap-3 border-2 p-3 rounded-sm border-blue-800">
                           <legend className="text-blue-900 font-semibold px-1">
                             Información de Pasivo
                           </legend>
@@ -494,7 +495,7 @@ export default function ReportEmployee({
                           />
                         </fieldset>
                       ) : (
-                        <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-red-800">
+                        <fieldset className="mb-3 flex break-inside-avoid flex-col gap-3 border-2 p-3 rounded-sm border-red-800">
                         <legend className="text-red-900 font-semibold px-1">
                           Información De Cargo
                         </legend>
@@ -650,7 +651,7 @@ export default function ReportEmployee({
                       </fieldset>
                       )}
 
-                      <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-violet-800">
+                      <fieldset className="mb-3 flex break-inside-avoid flex-col gap-3 border-2 p-3 rounded-sm border-violet-800">
                         <legend className="text-violet-900 font-semibold px-1">
                           Información De Salud
                         </legend>
@@ -760,7 +761,7 @@ export default function ReportEmployee({
                         />
                       </fieldset>
 
-                      <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-blue-900">
+                      <fieldset className="mb-3 flex break-inside-avoid flex-col gap-3 border-2 p-3 rounded-sm border-blue-900">
                         <legend className="text-blue-900 font-semibold px-1">
                           Información Académica
                         </legend>
@@ -866,7 +867,7 @@ export default function ReportEmployee({
                         />
                       </fieldset>
 
-                      <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-purple-700">
+                      <fieldset className="mb-3 flex break-inside-avoid flex-col gap-3 border-2 p-3 rounded-sm border-purple-700">
                         <legend className="text-purple-700 font-semibold px-1">
                           Formación Complementaria
                         </legend>
@@ -954,7 +955,7 @@ export default function ReportEmployee({
                         />
                       </fieldset>
 
-                      <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-black">
+                      <fieldset className="mb-3 flex break-inside-avoid flex-col gap-3 border-2 p-3 rounded-sm border-black">
                         <legend className="text-black font-semibold px-1">
                           Información Básica
                         </legend>
@@ -1029,7 +1030,7 @@ export default function ReportEmployee({
                         />
                       </fieldset>
 
-                      <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-amber-700">
+                      <fieldset className="mb-3 flex break-inside-avoid flex-col gap-3 border-2 p-3 rounded-sm border-amber-700">
                         <legend className="text-amber-900 font-semibold px-1">
                           Fechas De Ingresos/APN
                         </legend>
@@ -1165,7 +1166,7 @@ export default function ReportEmployee({
                             backend se conserva. «Años APN» no se toca. */}
                       </fieldset>
 
-                      <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-emerald-800">
+                      <fieldset className="mb-3 flex break-inside-avoid flex-col gap-3 border-2 p-3 rounded-sm border-emerald-800">
                         <legend className="text-emerald-800 font-semibold px-1">
                           Dirección De Habitaciones
                         </legend>

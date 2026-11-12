@@ -13,12 +13,16 @@ import { DJANGO_API_SERVER } from "@/shared/commons/api";
  */
 const RUTAS_PERMITIDAS: readonly RegExp[] = [
   /^configuracion\/visual\/logo\/(logo-principal|logo-secundario|cintillo-pie)\/?$/,
+  // Miniaturas de «Versiones anteriores» del cintillo (Django exige sesión).
+  /^configuracion\/visual\/logo\/(logo-principal|logo-secundario|cintillo-pie)\/versiones\/[0-9a-f-]{36}\/?$/,
   /^personal\/[^/]+\/foto\/?$/,
   /^familiares\/[^/]+\/documentos\/[^/]+\/archivo\/?$/,
   /^carnetizacion\/plantillas\/\d+\/imagen\/?$/,
   /^carnetizacion\/biblioteca\/[^/]+\/archivo\/?$/,
   // QR de la credencial para la vista móvil de Mi carnet (O45-A).
   /^carnetizacion\/public\/qr\/[^/]+\/imagen\/?$/,
+  // PNG del carnet vigente del usuario autenticado (Zero-IDOR: Django usa request.user).
+  /^autogestion\/mi-carnet\/vista-previa\/?$/,
   /^puntocuenta\/[^/]+\/documento\/archivo\/?$/,
   // Soportes de las solicitudes de actualización de datos (Django valida dueño o Bienestar).
   /^autogestion\/soportes\/[0-9a-f-]{36}\/archivo\/?$/,

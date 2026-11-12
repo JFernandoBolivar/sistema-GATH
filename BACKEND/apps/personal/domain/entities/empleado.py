@@ -16,6 +16,8 @@ class Empleado:
     correo: str | None = None
     # Vive en autogestión (datos complementarios); solo se puebla en el detalle.
     correo_alternativo: str | None = None
+    # Vive en los datos complementarios (autogestión); True/False o None si no hay dato. Solo en el detalle.
+    tiene_hijos: bool | None = None
     telefono_movil: str | None = None
     telefono_habitacion: str | None = None
     fecha_nacimiento: str | None = None

@@ -370,8 +370,8 @@ class RepoReglasCatalogosORM(RepoReglasCatalogos):
         """Verifica si el motivo está siendo utilizado en algún registro histórico o de movimiento."""
         # 1. Movimientos
         try:
-            from apps.movimientos.infrastructure.models.movimiento_models import HistorialMovimiento
-            if HistorialMovimiento.objects.filter(motivo_movimiento_id=motivo_id).exists():
+            from apps.movimientos.infrastructure.models.movimiento_models import EmployeeMovementHistoryModel
+            if EmployeeMovementHistoryModel.objects.filter(motivo_id=motivo_id).exists():
                 return True
         except Exception:
             logger.warning(
@@ -381,8 +381,8 @@ class RepoReglasCatalogosORM(RepoReglasCatalogos):
 
         # 2. Préstamos de cargo
         try:
-            from apps.cargos.infrastructure.models.prestamo_models import PrestamoModel
-            if PrestamoModel.objects.filter(motivo_prestamo_id=motivo_id).exists():
+            from apps.cargos.infrastructure.models.prestamo_models import PrestamoCargoModel
+            if PrestamoCargoModel.objects.filter(motivo_id=motivo_id).exists():
                 return True
         except Exception:
             logger.warning(

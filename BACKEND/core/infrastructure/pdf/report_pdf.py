@@ -122,7 +122,9 @@ def generar_reporte_pdf(
         fem = sum(1 for f in filas if str(f.get('sexo', '')).strip().upper() in ('F', 'FEMENINO'))
         stats = {'Total Empleados': total, 'Masculino': masc, 'Femenino': fem}
     elif 'tipo_pasivo' in columnas:
-        stats = {'Total Pasivos': len(filas)}
+        masc = sum(1 for f in filas if str(f.get('sexo', '')).strip().upper() in ('M', 'MASCULINO'))
+        fem = sum(1 for f in filas if str(f.get('sexo', '')).strip().upper() in ('F', 'FEMENINO'))
+        stats = {'Total Pasivos': len(filas), 'Masculino': masc, 'Femenino': fem}
     elif 'motivo_egreso' in columnas or 'fecha_egreso' in columnas:
         stats = {'Total Egresados': len(filas)}
     elif 'codigo' in columnas and 'estatus' in columnas:

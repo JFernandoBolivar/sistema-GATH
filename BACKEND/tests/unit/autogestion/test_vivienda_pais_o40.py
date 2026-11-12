@@ -88,3 +88,19 @@ def test_error_vivienda_condicional_usa_etiquetas_legibles_sin_id():
     assert 'Municipio' in msg
     assert 'Parroquia' in msg
 
+
+
+def test_otro_pais_rechaza_estado_municipio_y_parroquia():
+    """Un país distinto de Venezuela no acepta geografía venezolana (mensaje claro)."""
+    with pytest.raises(ValidationError) as exc:
+        validar_vivienda_condicional(
+            {**EXTERIOR, 'estado_id': 2, 'municipio_id': 3, 'parroquia_id': 4},
+            es_venezuela=False,
+        )
+    msg = str(exc.value)
+    assert 'fuera de Venezuela' in msg
+    assert 'estado' in msg and 'municipio' in msg and 'parroquia' in msg
+    with pytest.raises(ValidationError):
+        validar_registro_nuevo(
+            'vivienda', 'datos_vivienda', {**EXTERIOR, 'estado_id': 2}, es_venezuela=False,
+        )

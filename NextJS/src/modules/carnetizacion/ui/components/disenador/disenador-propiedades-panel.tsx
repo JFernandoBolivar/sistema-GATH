@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { CampoCredencial } from "../../../domain/entities/carnet";
+import type { CampoCredencial, ElementoBiblioteca } from "../../../domain/entities/carnet";
 import {
   ladoQrMasGrandeMm,
   QR_MINIMO_MM_DEFECTO,
@@ -16,6 +16,21 @@ import {
 } from "../../../domain/entities/disenador";
 import { DisenadorPropiedadesGeometria } from "./disenador-propiedades-geometria";
 import { DisenadorPropiedadesEstilo } from "./disenador-propiedades-estilo";
+import { DisenadorQrEstilo } from "./disenador-qr-estilo";
+import {
+  DisenadorPropiedadesForma,
+  TIPOS_CON_FORMA,
+  type ControlForma,
+} from "./disenador-propiedades-forma";
+
+/** Colores propios (hex) que ya usa la plantilla, sin repetir, para ofrecerlos como muestras. */
+function coloresPlantilla(elementos: readonly ElementoKonva[]): string[] {
+  const vistos = new Set<string>();
+  for (const e of elementos) {
+    if (/^#[0-9a-f]{6}$/i.test(e.fill)) vistos.add(e.fill.toLowerCase());
+  }
+  return [...vistos].slice(0, 8);
+}
 
 interface DisenadorPropiedadesPanelProps {
   elementoSeleccionado: ElementoKonva | null;
@@ -26,6 +41,10 @@ interface DisenadorPropiedadesPanelProps {
   onDuplicarElemento: () => void;
   onEliminarElemento: () => void;
   onAlinearElemento: (pos: PosicionAlineacion) => void;
+  /** Biblioteca de Medios: de ahí salen los logos que se pueden poner en el centro del QR. */
+  mediosBiblioteca?: readonly ElementoBiblioteca[];
+  /** Modo «Editar puntos» de las formas (radios, vértices). */
+  controlForma?: ControlForma;
 }
 
 export function DisenadorPropiedadesPanel({
@@ -36,6 +55,8 @@ export function DisenadorPropiedadesPanel({
   onDuplicarElemento,
   onEliminarElemento,
   onAlinearElemento,
+  mediosBiblioteca = [],
+  controlForma,
 }: DisenadorPropiedadesPanelProps) {
   if (!elementoSeleccionado) {
     return (
@@ -77,7 +98,7 @@ export function DisenadorPropiedadesPanel({
         </div>
       </CardHeader>
 
-      <CardContent className="p-3 space-y-4 text-xs">
+      <CardContent className="space-y-3 p-3 text-xs">
         {/* Banner de Aviso de Dato Sensible */}
         {campoSeleccionadoMeta?.sensible && (
           <div className="p-2 rounded bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-300 flex items-start gap-1.5">
@@ -103,9 +124,9 @@ export function DisenadorPropiedadesPanel({
 
         {/* Nombre de la capa */}
         <div className="space-y-1">
-          <Label className="text-[11px]">Nombre de capa</Label>
+          <Label className="text-xs font-medium">Nombre de capa</Label>
           <Input
-            className="h-7 text-xs"
+            className="h-9 text-xs"
             value={el.name}
             onChange={(e) => onActualizarElemento(el.id, { name: e.target.value })}
           />
@@ -114,30 +135,22 @@ export function DisenadorPropiedadesPanel({
         {/* Si es Texto */}
         {el.t === "text" && (
           <div className="space-y-1">
-            <Label className="text-[11px]">Texto</Label>
+            <Label className="text-xs font-medium">Texto</Label>
             <Input
-              className="h-7 text-xs"
+              className="h-9 text-xs"
               value={el.text || ""}
               onChange={(e) => onActualizarElemento(el.id, { text: e.target.value })}
             />
           </div>
         )}
 
-        {/* Forma libre: SVG path normalizado en una caja de 0..100 */}
-        {el.t === "path" && (
-          <div className="space-y-1">
-            <Label className="text-[11px]">Forma SVG (caja 0–100)</Label>
-            <textarea
-              className="w-full min-h-24 rounded-md border border-input bg-background p-2 font-mono text-[11px] leading-relaxed focus:outline-none focus:ring-1 focus:ring-ring"
-              value={el.path || ""}
-              onChange={(e) => onActualizarElemento(el.id, { path: e.target.value })}
-              placeholder="M 0 0 H 100 V 40 C 70 60 30 20 0 50 Z"
-              spellCheck={false}
-            />
-            <p className="text-[10px] text-muted-foreground">
-              Comandos M, L, H, V, C, Q y Z. Se escala al ancho y alto del elemento.
-            </p>
-          </div>
+        {/* Forma: radio por esquina, «Editar puntos» y código SVG avanzado */}
+        {TIPOS_CON_FORMA.includes(el.t as (typeof TIPOS_CON_FORMA)[number]) && (
+          <DisenadorPropiedadesForma
+            elemento={el}
+            control={controlForma}
+            onActualizarElemento={onActualizarElemento}
+          />
         )}
 
         {/* Coordenadas, Dimensiones y Alineación */}
@@ -147,10 +160,20 @@ export function DisenadorPropiedadesPanel({
           onAlinearElemento={onAlinearElemento}
         />
 
+        {/* Estilo del QR: forma, colores, ojos y logo (se guarda en props.qr_estilo) */}
+        {el.t === "qr" && (
+          <DisenadorQrEstilo
+            elemento={el}
+            onActualizarElemento={onActualizarElemento}
+            mediosBiblioteca={mediosBiblioteca}
+          />
+        )}
+
         {/* Tipografía, Colores, Opacidad y Sombra */}
         <DisenadorPropiedadesEstilo
           elemento={el}
           onActualizarElemento={onActualizarElemento}
+          coloresPlantilla={coloresPlantilla(elementos)}
         />
       </CardContent>
     </Card>

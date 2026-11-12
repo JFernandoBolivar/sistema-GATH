@@ -183,10 +183,10 @@ class ValidadorCambiosActaORM:
         leer = getattr(self._lector, 'valores_vivienda', None)
         valores = dict(leer(cedula)) if callable(leer) else {}
         for cambio in de_vivienda:
-            if cambio.accion in (Accion.CREAR.value, Accion.MODIFICAR.value) and isinstance(
-                cambio.valor_propuesto, dict
-            ):
+            if cambio.accion == Accion.CREAR.value and isinstance(cambio.valor_propuesto, dict):
                 valores.update(cambio.valor_propuesto)
+            elif cambio.accion == Accion.MODIFICAR.value:
+                valores[cambio.campo] = cambio.valor_propuesto
         limpios = {k: v for k, v in valores.items() if v not in (None, '')}
         es_venezuela = self._lector.es_pais_venezuela(limpios.get('pais_id'))
         validar_vivienda_condicional(limpios, es_venezuela)

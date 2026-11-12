@@ -2,71 +2,49 @@
 
 /**
  * Definición de columnas del listado de cargas familiares para `DataTable`
- * (tanstack). Réplica de paridad estructural con el legado
- * (`tableFamilys/columns.tsx`): cédula, primer nombre/apellido, parentesco,
- * fecha de nacimiento, heredero (badge) y una columna de acciones con menú
- * desplegable (copiar cédula, ver detalle) en vez de botones sueltos. El
- * legado no mostraba "eliminar" en este menú; se agrega aquí porque
- * `familiares.eliminar` sí es una capacidad real y ya implementada del
- * backend nuevo (a diferencia de estado civil/formación/salud, que se
- * documentó como brecha nunca funcional — ver `detalle-familiar.tsx`).
+ * (tanstack). El menú de acciones usa el componente compartido
+ * `AccionesListadoMenu` — la misma estructura, orden y estilo que Personal
+ * activo y pasivo: sección «Acciones» (copiar cédula), sección «Extras»
+ * (eliminar, si el usuario tiene el permiso) y el botón principal «Ver
+ * detalle». La tabla conserva las mismas columnas del legado.
  */
 import type { ColumnDef } from "@tanstack/react-table";
-import { Copy, Eye, MoreHorizontal, Trash2 } from "lucide-react";
 
-import { formatearFecha } from "@/shared/lib/formato-fecha";
 import { Badge } from "@/shared/ui/components/badge";
-import { Button } from "@/shared/ui/components/button";
-import { DataTableColumnHeader } from "@/shared/ui/components/data-table-column-header";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/shared/ui/components/dropdown-menu";
+  AccionesListadoMenu,
+  type ItemAccionListado,
+} from "@/shared/ui/components/acciones-listado-menu";
+import { DataTableColumnHeader } from "@/shared/ui/components/data-table-column-header";
+import { formatearFecha } from "@/shared/lib/formato-fecha";
 
 import type { FamiliarDTO } from "../application/dtos/familiar-dto";
 
-function AccionesCell({ familiar, puedeEliminar, onVerDetalle, onEliminar }: {
+export function AccionesCell({ familiar, puedeEliminar, onVerDetalle, onEliminar }: {
   familiar: FamiliarDTO;
   puedeEliminar: boolean;
   onVerDetalle: (familiar: FamiliarDTO) => void;
   onEliminar: (familiar: FamiliarDTO) => void;
 }) {
+  const extras: ItemAccionListado[] = puedeEliminar
+    ? [{ etiqueta: "Eliminar", onSelect: () => onEliminar(familiar) }]
+    : [];
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="size-8 p-0">
-          <span className="sr-only">Abrir menú</span>
-          <MoreHorizontal className="size-4" aria-hidden="true" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-        <DropdownMenuItem
-          onClick={() => navigator.clipboard.writeText(familiar.cedulaFamiliar ?? "")}
-          disabled={!familiar.cedulaFamiliar}
-        >
-          <Copy className="size-4" aria-hidden="true" /> Copiar cédula
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onVerDetalle(familiar)}>
-          <Eye className="size-4" aria-hidden="true" /> Ver detalle
-        </DropdownMenuItem>
-        {puedeEliminar && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="text-destructive focus:text-destructive"
-              onClick={() => onEliminar(familiar)}
-            >
-              <Trash2 className="size-4" aria-hidden="true" /> Eliminar
-            </DropdownMenuItem>
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <AccionesListadoMenu
+      acciones={[
+        {
+          etiqueta: "Copiar cédula",
+          onSelect: () => navigator.clipboard.writeText(familiar.cedulaFamiliar ?? ""),
+          deshabilitado: !familiar.cedulaFamiliar,
+        },
+      ]}
+      extras={extras}
+      accionPrincipal={{
+        etiqueta: "Ver detalle",
+        onSelect: () => onVerDetalle(familiar),
+      }}
+    />
   );
 }
 

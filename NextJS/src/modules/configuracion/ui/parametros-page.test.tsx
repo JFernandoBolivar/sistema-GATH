@@ -99,6 +99,7 @@ vi.mock("../infrastructure/actions/restablecimiento-bloque-actions", () => ({
   calcularRestablecimientoBloqueAction: vi.fn(),
   ejecutarRestablecimientoBloqueAction: vi.fn(),
   estadoRestablecimientoBloqueAction: vi.fn(),
+  descargarExcelRestablecimientoBloqueAction: vi.fn(),
 }));
 
 describe("ParametrosPage", () => {

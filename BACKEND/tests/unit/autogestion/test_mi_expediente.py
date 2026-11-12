@@ -14,13 +14,15 @@ from apps.autogestion.application.use_cases.obtener_mi_expediente import (
 class RepoPortalMemoria:
     """Doble en memoria del puerto `RepoPortalTrabajador`."""
 
-    def __init__(self, empleados=None, familiares=None, carnets=None, previo=False, pdf=None, puede_ver=True):
+    def __init__(self, empleados=None, familiares=None, carnets=None, previo=False, pdf=None, puede_ver=True, activo=None, vista_previa=None):
         self.empleados = empleados or {}
         self.familiares = familiares or {}
         self.carnets = carnets or {}
         self.previo = previo
         self.pdf = pdf
         self.puede_ver = puede_ver
+        self.activo = previo if activo is None else activo
+        self.vista_previa = vista_previa
         self.emitidos = []
 
     def puede_ver_carnet(self, cedula):
@@ -50,6 +52,12 @@ class RepoPortalMemoria:
 
     def generar_pdf_carnet_activo(self, cedula):
         return self.pdf
+
+    def tiene_carnet_activo(self, cedula):
+        return self.activo
+
+    def generar_vista_previa_carnet_activo(self, cedula):
+        return self.vista_previa
 
 
 def test_obtener_mi_expediente_exitoso():
@@ -255,3 +263,81 @@ def test_politica_mi_carnet_evaluacion_reglas():
     assert puede_acceder_mi_carnet('usuarios_especificos', 'PASIVO', '87654321', usuarios) is True
     assert puede_acceder_mi_carnet('usuarios_especificos', 'ACTIVO', '11111111', usuarios) is False
 
+
+
+# ==============================================================================
+# T1 (OC 2026-11-11): vista previa PNG real del carnet vigente
+# ==============================================================================
+
+def test_obtener_mi_carnet_vista_previa_decodifica_el_png():
+    import base64
+
+    from apps.autogestion.application.use_cases.obtener_mi_expediente import (
+        obtener_mi_carnet_vista_previa,
+    )
+
+    png = b"\x89PNG\r\n\x1a\ncontenido"
+    data_url = "data:image/png;base64," + base64.b64encode(png).decode()
+    repo = RepoPortalMemoria(activo=True, vista_previa=data_url)
+
+    assert obtener_mi_carnet_vista_previa(repo, "V-1") == png
+
+
+def test_obtener_mi_carnet_vista_previa_sin_carnet_activo_lanza_not_found():
+    from apps.autogestion.application.use_cases.obtener_mi_expediente import (
+        obtener_mi_carnet_vista_previa,
+    )
+
+    with pytest.raises(NotFoundError):
+        obtener_mi_carnet_vista_previa(RepoPortalMemoria(activo=False), "V-1")
+
+
+def test_obtener_mi_carnet_vista_previa_respeta_la_politica_del_modulo():
+    from apps.autogestion.application.use_cases.obtener_mi_expediente import (
+        obtener_mi_carnet_vista_previa,
+    )
+    from core.domain.exceptions import PermissionDeniedError
+
+    with pytest.raises(PermissionDeniedError):
+        obtener_mi_carnet_vista_previa(
+            RepoPortalMemoria(activo=True, puede_ver=False), "V-1",
+        )
+
+
+@patch("apps.autogestion.presentation.views.autogestion_views.obtener_mi_carnet_vista_previa")
+def test_vista_vista_previa_devuelve_png_de_la_cedula_de_la_sesion(mock_uc):
+    """Zero-IDOR: la vista usa `request.user.cedula_id`, no un parámetro."""
+    from rest_framework.test import APIRequestFactory, force_authenticate
+    from apps.autogestion.presentation.views.autogestion_views import MiCarnetVistaPreviaView
+
+    mock_uc.return_value = b"\x89PNG\r\n\x1a\nimagen"
+    user = MagicMock()
+    user.pk = 1
+    user.is_authenticated = True
+    user.cedula_id = "V-12345678"
+
+    request = APIRequestFactory().get("/api/v1/autogestion/mi-carnet/vista-previa/")
+    force_authenticate(request, user=user)
+    response = MiCarnetVistaPreviaView.as_view()(request)
+
+    assert response.status_code == 200
+    assert response["Content-Type"] == "image/png"
+    assert response["Cache-Control"] == "private, no-store"
+    assert response.content.startswith(b"\x89PNG")
+    assert mock_uc.call_args.args[1] == "V-12345678"
+
+
+def test_vista_vista_previa_sin_cedula_retorna_404():
+    from rest_framework.test import APIRequestFactory, force_authenticate
+    from apps.autogestion.presentation.views.autogestion_views import MiCarnetVistaPreviaView
+
+    user = MagicMock()
+    user.pk = 1
+    user.is_authenticated = True
+    user.cedula_id = None
+
+    request = APIRequestFactory().get("/api/v1/autogestion/mi-carnet/vista-previa/")
+    force_authenticate(request, user=user)
+    response = MiCarnetVistaPreviaView.as_view()(request)
+
+    assert response.status_code == 404

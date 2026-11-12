@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { toast } from "sonner";
@@ -26,6 +26,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { formatearFecha } from "@/shared/lib/formato-fecha";
 import {
   Select,
   SelectContent,
@@ -70,6 +71,16 @@ function downloadPdfBase64(base64: string, filename: string) {
 
 type FiltroRapido = "todos" | "activos" | "pasivos" | "sin_carnet";
 
+const MOTIVOS_REEMISION = [
+  { value: "PERDIDA_ROBO", label: "Pérdida o robo" },
+  { value: "DETERIORO", label: "Deterioro" },
+  { value: "CAMBIO_DATOS", label: "Cambio de datos" },
+  { value: "CAMBIO_CARGO", label: "Cambio de cargo" },
+  { value: "OTRO", label: "Otro" },
+] as const;
+
+const DETALLE_REEMISION_MIN = 10;
+
 export function ConsolaEmisionView() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -84,9 +95,16 @@ export function ConsolaEmisionView() {
   const [motivoId, setMotivoId] = useState<number>(0);
   const [plantillaId, setPlantillaId] = useState<string>("activa");
   const [observaciones, setObservaciones] = useState("");
+  const [motivoReemision, setMotivoReemision] = useState<string>("");
+  const [detalleReemision, setDetalleReemision] = useState("");
+  const [avisoReemision, setAvisoReemision] = useState<string | null>(null);
   const [vistaPreviaRaster, setVistaPreviaRaster] = useState<string>("");
   const [isPendingEmision, startTransitionEmision] = useTransition();
-  const [isPendingPreview, startTransitionPreview] = useTransition();
+  // Cédula con vista previa en curso (ref: evita lanzar una segunda petición para la misma
+  // cédula) y cédula actualmente seleccionada (para descartar respuestas de otra selección).
+  const [generandoPreview, setGenerandoPreview] = useState(false);
+  const previewEnCursoRef = useRef<string | null>(null);
+  const cedulaActualRef = useRef<string | null>(null);
 
   // Debounce para búsqueda en vivo
   useEffect(() => {
@@ -136,6 +154,18 @@ export function ConsolaEmisionView() {
   // Motivo efectivo derivado del catálogo
   const motivoEfectivoId = motivoId || (listaMotivos?.[0]?.id ?? 1);
 
+  // T2: si la persona ya tiene un carnet vigente hay que indicar el motivo.
+  const tieneCarnetVigente = Boolean(trabajadorSeleccionado?.tiene_carnet);
+  const requiereDetalleReemision = motivoReemision === "OTRO";
+  const reemisionCompleta =
+    !tieneCarnetVigente ||
+    (Boolean(motivoReemision) &&
+      (!requiereDetalleReemision ||
+        detalleReemision.trim().length >= DETALLE_REEMISION_MIN));
+  const fechaCarnetVigente = trabajadorSeleccionado?.carnet_activo_emitido_en
+    ? formatearFecha(trabajadorSeleccionado.carnet_activo_emitido_en)
+    : null;
+
   // Si viene con parámetro ?cedula=, preseleccionar automáticamente al trabajador
   useEffect(() => {
     let activo = true;
@@ -152,20 +182,35 @@ export function ConsolaEmisionView() {
     };
   }, [cedulaParam, trabajadorSeleccionado]);
 
+  // Genera la vista previa (≈ segundos): una sola petición por cédula a la vez.
+  const solicitarVistaPrevia = useCallback(
+    async (cedula: string, nombreCompleto: string): Promise<boolean | null> => {
+      if (previewEnCursoRef.current === cedula) return null;
+      previewEnCursoRef.current = cedula;
+      setGenerandoPreview(true);
+      try {
+        const res = await actualizarVistaPreviaAction(cedula, truncarNombre(nombreCompleto));
+        const ok = Boolean(res.success && res.vista_previa);
+        if (ok && cedulaActualRef.current === cedula) {
+          setVistaPreviaRaster(res.vista_previa as string);
+        }
+        return ok;
+      } finally {
+        if (previewEnCursoRef.current === cedula) {
+          previewEnCursoRef.current = null;
+          setGenerandoPreview(false);
+        }
+      }
+    },
+    [],
+  );
+
   // Actualizar vista previa rasterizada cuando se selecciona un trabajador
   useEffect(() => {
+    cedulaActualRef.current = trabajadorSeleccionado?.cedula ?? null;
     if (!trabajadorSeleccionado) return;
-    let activo = true;
-    const nombre = truncarNombre(trabajadorSeleccionado.nombre_completo);
-    actualizarVistaPreviaAction(trabajadorSeleccionado.cedula, nombre).then((res) => {
-      if (activo && res.success && res.vista_previa) {
-        setVistaPreviaRaster(res.vista_previa);
-      }
-    });
-    return () => {
-      activo = false;
-    };
-  }, [trabajadorSeleccionado]);
+    void solicitarVistaPrevia(trabajadorSeleccionado.cedula, trabajadorSeleccionado.nombre_completo);
+  }, [trabajadorSeleccionado, solicitarVistaPrevia]);
 
   // Filtrado rápido sobre los resultados
   const resultadosFiltrados = useMemo(() => {
@@ -191,6 +236,9 @@ export function ConsolaEmisionView() {
     setTrabajadorSeleccionado(emp);
     setBusqueda(emp.cedula);
     setDebouncedQuery(emp.cedula);
+    setMotivoReemision("");
+    setDetalleReemision("");
+    setAvisoReemision(null);
   };
 
   const handleLimpiarSeleccion = () => {
@@ -198,29 +246,37 @@ export function ConsolaEmisionView() {
     setBusqueda("");
     setDebouncedQuery("");
     setVistaPreviaRaster("");
+    setMotivoReemision("");
+    setDetalleReemision("");
+    setAvisoReemision(null);
   };
 
-  const handleActualizarPreview = () => {
-    if (!trabajadorSeleccionado) return;
-    startTransitionPreview(async () => {
-      const nombre = truncarNombre(trabajadorSeleccionado.nombre_completo);
-      const res = await actualizarVistaPreviaAction(trabajadorSeleccionado.cedula, nombre);
-      if (res.success && res.vista_previa) {
-        setVistaPreviaRaster(res.vista_previa);
-        toast.success("Vista previa actualizada con los datos vigentes.");
-      } else {
-        toast.info("Vista previa vectorial en vivo activa.");
-      }
-    });
+  const handleActualizarPreview = async () => {
+    if (!trabajadorSeleccionado || generandoPreview || isPendingEmision) return;
+    const ok = await solicitarVistaPrevia(
+      trabajadorSeleccionado.cedula,
+      trabajadorSeleccionado.nombre_completo,
+    );
+    if (ok === null) return;
+    if (ok) {
+      toast.success("Vista previa actualizada con los datos vigentes.");
+    } else {
+      toast.info("Vista previa vectorial en vivo activa.");
+    }
   };
 
   const handleEmitirCarnet = () => {
+    if (isPendingEmision) return;
     if (!trabajadorSeleccionado) {
       toast.error("Seleccione un trabajador antes de emitir.");
       return;
     }
     if (!motivoEfectivoId) {
       toast.error("Seleccione un motivo de emisión válido.");
+      return;
+    }
+    if (!reemisionCompleta) {
+      toast.error("Indique el motivo de la reemisión para continuar.");
       return;
     }
 
@@ -234,14 +290,28 @@ export function ConsolaEmisionView() {
           motivoEfectivoId,
           nombre,
           plantillaId === "activa" ? undefined : plantillaId,
+          {
+            motivoReemision: tieneCarnetVigente ? motivoReemision : undefined,
+            detalle:
+              tieneCarnetVigente && requiereDetalleReemision
+                ? detalleReemision.trim()
+                : undefined,
+            observaciones: observaciones.trim() || undefined,
+          },
         );
         if (!result.success || !result.data) {
+          if (result.status === 409) {
+            setAvisoReemision(result.message);
+          }
           toast.error(result.message || "No fue posible generar el carnet oficial.");
           return;
         }
 
         downloadPdfBase64(result.data, `carnet_CONATEL_${cedula}.pdf`);
         toast.success(`Carnet emitido y descargado exitosamente para C.I. ${cedula}.`);
+        setAvisoReemision(null);
+        setMotivoReemision("");
+        setDetalleReemision("");
 
         // Actualizar el estado local para reflejar la nueva emisión
         setTrabajadorSeleccionado((prev) =>
@@ -250,6 +320,7 @@ export function ConsolaEmisionView() {
                 ...prev,
                 tiene_carnet: true,
                 total_solicitudes: (prev.total_solicitudes || 0) + 1,
+                carnet_activo_emitido_en: new Date().toISOString(),
               }
             : null,
         );
@@ -588,6 +659,78 @@ export function ConsolaEmisionView() {
                     </div>
                   </div>
 
+                  {tieneCarnetVigente && (
+                    <div className="space-y-3 rounded-lg border border-amber-300 bg-amber-50/60 p-3 dark:border-amber-700/60 dark:bg-amber-950/20">
+                      <p
+                        role="alert"
+                        className="flex items-start gap-2 text-xs font-medium text-amber-800 dark:text-amber-300"
+                      >
+                        <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                        <span>
+                          Ya tiene un carnet vigente emitido el{" "}
+                          {fechaCarnetVigente ?? "día registrado"}.
+                        </span>
+                      </p>
+
+                      {avisoReemision && (
+                        <p role="alert" className="text-xs text-destructive">
+                          {avisoReemision}
+                        </p>
+                      )}
+
+                      <div>
+                        <Label htmlFor="motivo-reemision" className="text-xs font-semibold">
+                          Motivo de la reemisión *
+                        </Label>
+                        <Select
+                          value={motivoReemision}
+                          onValueChange={(val) => {
+                            setMotivoReemision(val);
+                            if (val !== "OTRO") setDetalleReemision("");
+                          }}
+                        >
+                          <SelectTrigger
+                            id="motivo-reemision"
+                            className="mt-1 h-10 text-xs"
+                            aria-invalid={!motivoReemision}
+                          >
+                            <SelectValue placeholder="Seleccione el motivo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {MOTIVOS_REEMISION.map((opcion) => (
+                              <SelectItem key={opcion.value} value={opcion.value} className="text-xs">
+                                {opcion.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {requiereDetalleReemision && (
+                        <div>
+                          <Label htmlFor="detalle-reemision" className="text-xs font-semibold">
+                            Detalle de la reemisión *
+                          </Label>
+                          <Textarea
+                            id="detalle-reemision"
+                            value={detalleReemision}
+                            onChange={(e) => setDetalleReemision(e.target.value)}
+                            placeholder="Explique brevemente el motivo (mínimo 10 caracteres)"
+                            maxLength={300}
+                            className="mt-1"
+                            aria-invalid={
+                              detalleReemision.trim().length < DETALLE_REEMISION_MIN
+                            }
+                          />
+                          <p className="mt-1 text-[11px] text-muted-foreground">
+                            {detalleReemision.trim().length}/{DETALLE_REEMISION_MIN} caracteres
+                            mínimos
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div>
                     <Label htmlFor="observaciones-emision" className="text-xs font-semibold">
                       Observaciones Administrativas
@@ -615,21 +758,23 @@ export function ConsolaEmisionView() {
                         variant="outline"
                         size="sm"
                         onClick={handleActualizarPreview}
-                        disabled={isPendingPreview}
+                        disabled={generandoPreview || isPendingEmision}
                         className="text-xs min-h-11 px-3"
                       >
-                        {isPendingPreview ? (
+                        {generandoPreview ? (
                           <Loader2 className="size-3.5 animate-spin mr-1.5" />
                         ) : (
                           <Eye className="size-3.5 mr-1.5" />
                         )}
-                        Refrescar Vista
+                        {generandoPreview ? "Generando vista previa…" : "Refrescar Vista"}
                       </Button>
 
                       <Button
                         type="button"
                         onClick={handleEmitirCarnet}
-                        disabled={isPendingEmision || !motivoEfectivoId}
+                        disabled={
+                          isPendingEmision || generandoPreview || !motivoEfectivoId || !reemisionCompleta
+                        }
                         className="text-xs font-semibold min-h-11 px-5 shadow-sm"
                       >
                         {isPendingEmision ? (
@@ -804,6 +949,17 @@ export function ConsolaEmisionView() {
                         </>
                       )}
                     </div>
+                  )}
+
+                  {(generandoPreview || isPendingEmision) && (
+                    <p
+                      role="status"
+                      aria-live="polite"
+                      className="mt-3 flex items-center justify-center gap-1.5 text-xs font-medium text-primary"
+                    >
+                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                      {isPendingEmision ? "Emitiendo…" : "Generando vista previa…"}
+                    </p>
                   )}
 
                   <p className="text-[11px] text-muted-foreground mt-3 text-center">

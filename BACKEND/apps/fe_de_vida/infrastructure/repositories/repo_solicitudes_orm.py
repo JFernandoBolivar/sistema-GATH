@@ -96,6 +96,6 @@ class RepoSolicitudesFeDeVidaORM:
             qs = qs.filter(fecha_envio__date__gte=filtro.desde)
         if filtro.hasta:
             qs = qs.filter(fecha_envio__date__lte=filtro.hasta)
-        qs = qs.order_by('-fecha_envio', '-created_at')
+        qs = qs.order_by(F('fecha_envio').desc(nulls_last=True), '-created_at')
         total = qs.count()
         return [solicitud_a_entidad(m) for m in qs[desplazamiento:desplazamiento + limite]], total

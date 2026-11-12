@@ -421,6 +421,8 @@ class RepoReportesORM:
                 'nombres': e.nombres or '',
                 'apellidos': e.apellidos or '',
                 'nombre_completo': f"{e.nombres or ''} {e.apellidos or ''}".strip(),
+                # No es columna: alimenta el total por sexo del encabezado del PDF.
+                'sexo': e.sexoid.sexo if e.sexoid else '',
                 'tipo_pasivo': tipo_pasivo,
                 'pais': pais,
                 'fecha_egreso': f_egr,

@@ -16,11 +16,13 @@
  * 6. Formaciones Académicas (GraduationCap + botón Actualizar).
  * 7. Formación Complementaria (tabla con horas, fechas, institución + botón Actualizar).
  * 8. Contacto de Emergencia (mejora documentada en el Sheet).
+ * 8b. Grupo Familiar (¿Tiene hijos? + botón Actualizar).
  * 9. Información de Vestimenta (Shirt + botón Actualizar).
  * 10. Información de Salud (Ambulance + Tipo de sangre + tablas categorizadas de patologías, discapacidades, alergias).
  */
 import { useState } from "react";
 import { ESTATUS_ACTIVO } from "@/shared/domain/catalogos";
+import { camposViviendaVisibles } from "@/shared/domain/vivienda-ubicacion";
 import {
   Ambulance,
   ContactRound,
@@ -28,7 +30,9 @@ import {
   GraduationCap,
   House,
   Loader2,
+  PhoneCall,
   Shirt,
+  Users,
 } from "lucide-react";
 
 import { Badge } from "@/shared/ui/components/badge";
@@ -37,12 +41,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/components
 
 import { ScrollArea } from "@/shared/ui/components/scroll-area";
 import { Separator } from "@/shared/ui/components/separator";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/shared/ui/components/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/shared/ui/components/sheet";
 import {
   Table,
   TableBody,
@@ -62,6 +61,7 @@ import FormDwellingUpdateDialog from "./dialogs/form-dwelling-update-dialog";
 import FormEmergencyContactsUpdateDialog from "./dialogs/form-emergency-contacts-update-dialog";
 import FormHealthProfileUpdateDialog from "./dialogs/form-health-profile-update-dialog";
 import FormPhysicalProfileUpdateDialog from "./dialogs/form-physical-profile-update-dialog";
+import FormTieneHijosUpdateDialog from "./dialogs/form-tiene-hijos-update-dialog";
 import FormSupplementaryTrainingUpdateDialog from "./dialogs/form-supplementary-training-update-dialog";
 import type { DetalleExpedienteViewModel } from "./expediente-detalle-view-model";
 
@@ -79,11 +79,15 @@ interface EmpleadoDetalleSheetProps {
   puedeEditar: boolean;
   /** Permiso `personal.corregir_cedula`: la cédula se edita en «Actualizar Información Básica». */
   puedeCorregirCedula?: boolean;
+  /** Permiso `personal.editar_nacionalidad`: habilita el select de Nacionalidad del modal. */
+  puedeEditarNacionalidad?: boolean;
   onCedulaCorregida?: (cedulaNueva: string) => void;
   /** Cambia con cada carga del expediente; reinicia diálogos con valores frescos. */
   revision?: number;
   /** O40: el alta/edición de vivienda de pasivos permite país distinto de Venezuela. */
   permitirPais?: boolean;
+  /** Ficha de un pasivo: oculta grado, cargo cubierto por encargaduría y encargadurías. */
+  esPasivo?: boolean;
 }
 
 export default function EmpleadoDetalleSheet({
@@ -98,9 +102,11 @@ export default function EmpleadoDetalleSheet({
   puedeExportarPdf,
   puedeEditar,
   puedeCorregirCedula = false,
+  puedeEditarNacionalidad = false,
   onCedulaCorregida,
   revision = 0,
   permitirPais = false,
+  esPasivo = false,
 }: EmpleadoDetalleSheetProps) {
   const [versionFoto, setVersionFoto] = useState(0);
   if (!detalle || !empleado) {
@@ -118,9 +124,19 @@ export default function EmpleadoDetalleSheet({
     );
   }
 
-  const contratosList = empleado.contratos && empleado.contratos.length > 0
-    ? empleado.contratos
-    : (empleado.contratoActual ? [empleado.contratoActual] : []);
+  const contratosList =
+    empleado.contratos && empleado.contratos.length > 0
+      ? empleado.contratos
+      : empleado.contratoActual
+        ? [empleado.contratoActual]
+        : [];
+
+  // El país de la vivienda decide qué bloque mostrar (misma regla que el portal
+  // y la revisión de fe de vida).
+  const visibilidadVivienda = camposViviendaVisibles(
+    detalle.vivienda ? { es_venezuela: detalle.vivienda.paisEsVenezuela } : null,
+    Boolean(detalle.vivienda),
+  );
 
   const antecedentesList = detalle.antecedentes;
   const asignacionesList = empleado.asignaciones ?? [];
@@ -132,10 +148,22 @@ export default function EmpleadoDetalleSheet({
         <ScrollArea key={`${empleado.cedula}:${revision}`} className="h-full p-3.5 sm:p-6">
           <SheetHeader className="mb-4 px-0 pb-0 pt-2 pr-12 sm:pt-0 sm:pr-16">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <SheetTitle className="text-base sm:text-lg">Información Detallada Del Trabajador</SheetTitle>
+              <SheetTitle className="text-base sm:text-lg">
+                Información Detallada Del Trabajador
+              </SheetTitle>
               {puedeExportarPdf && (
-                <Button size="sm" variant="outline" onClick={onExportarPdf} disabled={exportandoPdf} className="mt-1 w-full sm:mt-0 sm:w-auto">
-                  {exportandoPdf ? <Loader2 className="size-4 animate-spin mr-1" /> : <FileDown className="size-4 mr-1" />}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={onExportarPdf}
+                  disabled={exportandoPdf}
+                  className="mt-1 w-full sm:mt-0 sm:w-auto"
+                >
+                  {exportandoPdf ? (
+                    <Loader2 className="size-4 animate-spin mr-1" />
+                  ) : (
+                    <FileDown className="size-4 mr-1" />
+                  )}
                   Exportar PDF
                 </Button>
               )}
@@ -170,6 +198,7 @@ export default function EmpleadoDetalleSheet({
                     onGuardado();
                   }}
                   puedeCorregirCedula={puedeCorregirCedula}
+                  puedeEditarNacionalidad={puedeEditarNacionalidad}
                   onCedulaCorregida={onCedulaCorregida}
                   triggerLabel="Actualizar Información Básica"
                   triggerClassName="w-full cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm whitespace-normal h-auto py-2 px-3 text-center leading-snug"
@@ -212,37 +241,59 @@ export default function EmpleadoDetalleSheet({
                           <div className="font-medium text-muted-foreground">Nivel:</div>
                           <div>{asig.dependencia || "N/A"}</div>
 
-                          <div className="font-medium text-muted-foreground">Dirección / Gerencia / Oficina:</div>
+                          <div className="font-medium text-muted-foreground">
+                            Dirección / Gerencia / Oficina:
+                          </div>
                           <div>{asig.direccionGeneral || "N/A"}</div>
 
-                          <div className="font-medium text-muted-foreground">División / Coordinación:</div>
+                          <div className="font-medium text-muted-foreground">
+                            División / Coordinación:
+                          </div>
                           <div>{asig.direccionLinea || "N/A"}</div>
 
                           <div className="font-medium text-muted-foreground">Coordinación:</div>
                           <div>{asig.coordinacion || "N/A"}</div>
 
-                          <div className="font-medium text-muted-foreground">Grado:</div>
-                          <div>{asig.grado || "N/A"}</div>
+                          {!esPasivo && (
+                            <>
+                              <div className="font-medium text-muted-foreground">Grado:</div>
+                              <div>{asig.grado || "N/A"}</div>
+                            </>
+                          )}
 
                           <div className="font-medium text-muted-foreground">Estatus:</div>
                           <div>
-                            <Badge variant={asig.estatus === ESTATUS_ACTIVO ? "default" : "destructive"}>
+                            <Badge
+                              variant={asig.estatus === ESTATUS_ACTIVO ? "default" : "destructive"}
+                            >
                               {asig.estatus || "N/A"}
                             </Badge>
                           </div>
 
-                          <div className="font-medium text-muted-foreground">Organismo Adscrito:</div>
+                          <div className="font-medium text-muted-foreground">
+                            Organismo Adscrito:
+                          </div>
                           <div>{asig.organismoAdscrito || "N/A"}</div>
 
                           <div className="font-medium text-muted-foreground">Tipo Procedencia:</div>
                           <div>{asig.tipoProcedencia || "N/A"}</div>
 
-                          <div className="font-medium text-muted-foreground">Cargo Cubierto por una Encargaduría:</div>
-                          <div>
-                            <Badge variant={asig.cargoCubiertoEncargaduria ? "default" : "destructive"}>
-                              {asig.cargoCubiertoEncargaduria ? "SÍ" : "NO"}
-                            </Badge>
-                          </div>
+                          {!esPasivo && (
+                            <>
+                              <div className="font-medium text-muted-foreground">
+                                Cargo Cubierto por una Encargaduría:
+                              </div>
+                              <div>
+                                <Badge
+                                  variant={
+                                    asig.cargoCubiertoEncargaduria ? "default" : "destructive"
+                                  }
+                                >
+                                  {asig.cargoCubiertoEncargaduria ? "SÍ" : "NO"}
+                                </Badge>
+                              </div>
+                            </>
+                          )}
 
                           <Separator className="col-span-2 my-2" />
                         </div>
@@ -253,49 +304,55 @@ export default function EmpleadoDetalleSheet({
               </CardContent>
             </Card>
 
-            {/* Encargadurías */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Encargadurías</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {detalle.encargadurias.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Sin encargadurías registradas</p>
-                ) : (
-                  <div className="w-full overflow-x-auto">
-                    <Table className="w-full min-w-[500px]">
-                      <TableCaption>Lista De Encargadurías Del Trabajador</TableCaption>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-[50px]">#</TableHead>
-                          <TableHead>Cargo Encargado</TableHead>
-                          <TableHead>Titular</TableHead>
-                          <TableHead>Fecha Inicio</TableHead>
-                          <TableHead>Fecha Fin</TableHead>
-                          <TableHead>Estatus</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {detalle.encargadurias.map((enc, idx) => (
-                          <TableRow key={enc.id || idx}>
-                            <TableCell className="font-medium">{idx + 1}</TableCell>
-                            <TableCell>{enc.cargoEncargado}</TableCell>
-                            <TableCell>{enc.titular}</TableCell>
-                            <TableCell>{enc.fechaInicio}</TableCell>
-                            <TableCell>{enc.fechaFin}</TableCell>
-                            <TableCell>
-                              <Badge variant={enc.estatus === ESTATUS_ACTIVO ? "default" : "destructive"}>
-                                {enc.estatus}
-                              </Badge>
-                            </TableCell>
+            {/* Encargadurías (no aplica a pasivos) */}
+            {!esPasivo && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Encargadurías</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {detalle.encargadurias.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Sin encargadurías registradas</p>
+                  ) : (
+                    <div className="w-full overflow-x-auto">
+                      <Table className="w-full min-w-[500px]">
+                        <TableCaption>Lista De Encargadurías Del Trabajador</TableCaption>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[50px]">#</TableHead>
+                            <TableHead>Cargo Encargado</TableHead>
+                            <TableHead>Titular</TableHead>
+                            <TableHead>Fecha Inicio</TableHead>
+                            <TableHead>Fecha Fin</TableHead>
+                            <TableHead>Estatus</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                        </TableHeader>
+                        <TableBody>
+                          {detalle.encargadurias.map((enc, idx) => (
+                            <TableRow key={enc.id || idx}>
+                              <TableCell className="font-medium">{idx + 1}</TableCell>
+                              <TableCell>{enc.cargoEncargado}</TableCell>
+                              <TableCell>{enc.titular}</TableCell>
+                              <TableCell>{enc.fechaInicio}</TableCell>
+                              <TableCell>{enc.fechaFin}</TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={
+                                    enc.estatus === ESTATUS_ACTIVO ? "default" : "destructive"
+                                  }
+                                >
+                                  {enc.estatus}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* 3. Antecedentes */}
             {antecedentesList.length > 0 ? (
@@ -328,9 +385,13 @@ export default function EmpleadoDetalleSheet({
                       <TableBody>
                         {antecedentesList.map((ant, i) => (
                           <TableRow key={i}>
-                            <TableCell className="font-medium">{ant.fechaIngreso || "N/A"}</TableCell>
+                            <TableCell className="font-medium">
+                              {ant.fechaIngreso || "N/A"}
+                            </TableCell>
                             <TableCell>{ant.fechaEgreso || "Presente"}</TableCell>
-                            <TableCell className="truncate max-w-[200px]">{ant.organismo || "N/A"}</TableCell>
+                            <TableCell className="truncate max-w-[200px]">
+                              {ant.organismo || "N/A"}
+                            </TableCell>
                           </TableRow>
                         ))}
                         <TableRow>
@@ -350,7 +411,10 @@ export default function EmpleadoDetalleSheet({
                         </TableRow>
                         {detalle.apnIncompleto ? (
                           <TableRow>
-                            <TableCell colSpan={3} className="text-right text-sm font-medium text-danger">
+                            <TableCell
+                              colSpan={3}
+                              className="text-right text-sm font-medium text-danger"
+                            >
                               Fecha de ingreso pendiente: el total APN está incompleto.
                             </TableCell>
                           </TableRow>
@@ -405,7 +469,10 @@ export default function EmpleadoDetalleSheet({
                       <TableBody>
                         {contratosList.map((c, i) => {
                           const estatus = c.estatusNombre || (c.esFijo ? "FIJO" : "ACTIVO");
-                          const politica = c.politicaNombre ?? catalogos?.politicas.find((p) => p.id === c.politicaId)?.nombre ?? "N/A";
+                          const politica =
+                            c.politicaNombre ??
+                            catalogos?.politicas.find((p) => p.id === c.politicaId)?.nombre ??
+                            "N/A";
                           return (
                             <TableRow key={c.id || i}>
                               <TableCell className="font-medium">{c.nContrato || "N/A"}</TableCell>
@@ -458,27 +525,34 @@ export default function EmpleadoDetalleSheet({
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 place-content-center gap-y-2 text-sm">
-                  {permitirPais ||
-                  (detalle.vivienda?.pais && detalle.vivienda.pais !== "Venezuela") ? (
+                  {visibilidadVivienda.mostrarPais ? (
                     <>
                       <div className="font-medium text-muted-foreground">País:</div>
                       <div>{detalle.vivienda?.pais ?? "N/A"}</div>
+                    </>
+                  ) : null}
+                  {visibilidadVivienda.mostrarCiudadRegion ? (
+                    <>
                       <div className="font-medium text-muted-foreground">Ciudad o Región:</div>
                       <div>{detalle.vivienda?.ciudadRegion ?? "N/A"}</div>
                     </>
                   ) : null}
-                  <div className="font-medium text-muted-foreground">Estado:</div>
-                  <div>{detalle.vivienda?.estado ?? "N/A"}</div>
-                  <div className="font-medium text-muted-foreground">Municipio:</div>
-                  <div>{detalle.vivienda?.municipio ?? "N/A"}</div>
-                  <div className="font-medium text-muted-foreground">Parroquia:</div>
-                  <div>{detalle.vivienda?.parroquia ?? "N/A"}</div>
+                  {visibilidadVivienda.mostrarUbicacionVenezuela ? (
+                    <>
+                      <div className="font-medium text-muted-foreground">Estado:</div>
+                      <div>{detalle.vivienda?.estado ?? "N/A"}</div>
+                      <div className="font-medium text-muted-foreground">Municipio:</div>
+                      <div>{detalle.vivienda?.municipio ?? "N/A"}</div>
+                      <div className="font-medium text-muted-foreground">Parroquia:</div>
+                      <div>{detalle.vivienda?.parroquia ?? "N/A"}</div>
+                      <div className="font-medium text-muted-foreground">Código Postal:</div>
+                      <div>{detalle.vivienda?.codigoPostal ?? "N/A"}</div>
+                    </>
+                  ) : null}
                   <div className="font-medium text-muted-foreground">Condicion De Vivienda:</div>
                   <div>{detalle.vivienda?.condicion ?? "N/A"}</div>
                   <div className="font-medium text-muted-foreground">Direccion De Habitación:</div>
                   <div>{detalle.vivienda?.direccionExacta ?? "N/A"}</div>
-                  <div className="font-medium text-muted-foreground">Código Postal:</div>
-                  <div>{detalle.vivienda?.codigoPostal ?? "N/A"}</div>
                 </div>
               </CardContent>
             </Card>
@@ -520,7 +594,9 @@ export default function EmpleadoDetalleSheet({
                             <TableCell className="font-medium">{fa.nivelAcademico}</TableCell>
                             <TableCell className="truncate max-w-[150px]">{fa.carrera}</TableCell>
                             <TableCell>{fa.mencion}</TableCell>
-                            <TableCell className="truncate max-w-[200px]">{fa.institucion}</TableCell>
+                            <TableCell className="truncate max-w-[200px]">
+                              {fa.institucion}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -569,10 +645,14 @@ export default function EmpleadoDetalleSheet({
                       <TableBody>
                         {detalle.formacionComplementaria.map((fc, i) => (
                           <TableRow key={i}>
-                            <TableCell className="font-medium truncate max-w-[180px]">{fc.capacitacion}</TableCell>
+                            <TableCell className="font-medium truncate max-w-[180px]">
+                              {fc.capacitacion}
+                            </TableCell>
                             <TableCell>{fc.fechaInicio}</TableCell>
                             <TableCell>{fc.fechaFin}</TableCell>
-                            <TableCell className="truncate max-w-[150px]">{fc.institucion}</TableCell>
+                            <TableCell className="truncate max-w-[150px]">
+                              {fc.institucion}
+                            </TableCell>
                             <TableCell>{fc.procedencia}</TableCell>
                             <TableCell>{fc.grupo}</TableCell>
                             <TableCell>{fc.horasCompletadas}</TableCell>
@@ -599,20 +679,27 @@ export default function EmpleadoDetalleSheet({
             <Card>
               <CardHeader>
                 <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
-                  <span className="text-sm font-semibold">Contacto de emergencia</span>
+                  <div className="flex flex-row items-center gap-2">
+                    Contacto De Emergencia <PhoneCall className="size-5" />
+                  </div>
                   {puedeEditar && (
                     <FormEmergencyContactsUpdateDialog
                       empleado={empleado}
                       catalogos={catalogos}
                       onGuardado={onGuardado}
-                      triggerLabel={detalle.contactoEmergencia.length === 0 ? "Agregar" : "Actualizar"}
+                      triggerLabel={
+                        detalle.contactoEmergencia.length === 0 ? "Agregar" : "Actualizar"
+                      }
+                      triggerClassName="w-full sm:w-auto cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm"
                     />
                   )}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {detalle.contactoEmergencia.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Sin contactos de emergencia registrados.</p>
+                  <p className="text-sm text-muted-foreground">
+                    Sin contactos de emergencia registrados.
+                  </p>
                 ) : (
                   <div className="w-full overflow-x-auto">
                     <Table className="w-full min-w-[360px]">
@@ -635,6 +722,38 @@ export default function EmpleadoDetalleSheet({
                     </Table>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+
+            {/* 8b. Grupo Familiar: ¿tiene hijos? (dato complementario de la ficha) */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+                  <div className="flex flex-row items-center gap-2">
+                    Grupo Familiar <Users className="size-5" />
+                  </div>
+                  {puedeEditar && (
+                    <FormTieneHijosUpdateDialog
+                      cedula={empleado.cedula}
+                      tieneHijos={empleado.tieneHijos}
+                      onGuardado={onGuardado}
+                      triggerLabel="Actualizar"
+                      triggerClassName="w-full sm:w-auto cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm"
+                    />
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 place-content-center gap-y-2 text-sm">
+                  <div className="font-medium text-muted-foreground">¿Tiene Hijos?:</div>
+                  <div>
+                    {empleado.tieneHijos === true
+                      ? "Sí"
+                      : empleado.tieneHijos === false
+                        ? "No"
+                        : "Sin dato"}
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
@@ -693,27 +812,28 @@ export default function EmpleadoDetalleSheet({
                   <div className="font-medium text-muted-foreground">Tipo De Sangre:</div>
                   <div className="font-semibold">{detalle.salud?.grupoSanguineo ?? "N/A"}</div>
 
-                  {detalle.salud?.patologiasCronicas && detalle.salud.patologiasCronicas.length > 0 && (
-                    <div className="col-span-1 sm:col-span-2 w-full overflow-x-auto">
-                      <Table className="w-full min-w-[320px]">
-                        <TableCaption>Lista De Patologias Del Trabajador</TableCaption>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Categoria</TableHead>
-                            <TableHead>Patología</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {detalle.salud.patologiasCronicas.map((p, i) => (
-                            <TableRow key={i}>
-                              <TableCell className="font-medium">{p.categoria}</TableCell>
-                              <TableCell>{p.nombre}</TableCell>
+                  {detalle.salud?.patologiasCronicas &&
+                    detalle.salud.patologiasCronicas.length > 0 && (
+                      <div className="col-span-1 sm:col-span-2 w-full overflow-x-auto">
+                        <Table className="w-full min-w-[320px]">
+                          <TableCaption>Lista De Patologias Del Trabajador</TableCaption>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Categoria</TableHead>
+                              <TableHead>Patología</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
+                          </TableHeader>
+                          <TableBody>
+                            {detalle.salud.patologiasCronicas.map((p, i) => (
+                              <TableRow key={i}>
+                                <TableCell className="font-medium">{p.categoria}</TableCell>
+                                <TableCell>{p.nombre}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
 
                   {detalle.salud?.discapacidades && detalle.salud.discapacidades.length > 0 && (
                     <div className="col-span-1 sm:col-span-2 w-full overflow-x-auto">

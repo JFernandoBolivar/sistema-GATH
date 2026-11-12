@@ -25,7 +25,6 @@ import {
   SelectValue,
 } from "@/shared/ui/components/select";
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
-import { MotivoSelect } from "@/modules/cargos/ui/components/motivo-select";
 
 import type { CatalogoPasivoDTO, PasivoDTO } from "../application/dtos/pasivos-dto";
 import { DetallePasivo } from "./detalle-pasivo";
@@ -70,9 +69,13 @@ export default function PasivosPage() {
     });
   }, []);
 
-  const { data, error: errorLista, isLoading, mutate: recargarLista } = useSWR(
-    ["pasivos-paginados", JSON.stringify(filtros)],
-    () => getPasivosPaginadosAction(filtros),
+  const {
+    data,
+    error: errorLista,
+    isLoading,
+    mutate: recargarLista,
+  } = useSWR(["pasivos-paginados", JSON.stringify(filtros)], () =>
+    getPasivosPaginadosAction(filtros),
   );
 
   const pagina =
@@ -185,21 +188,6 @@ export default function PasivosPage() {
                     </Select>
                   </div>
                   <div className="flex flex-col gap-1.5 min-w-0">
-                    <Label htmlFor="filtro-motivo">Tipo de Jubilación / Pensión</Label>
-                    <MotivoSelect
-                      operacion="pase_a_pasivo"
-                      value={borrador.motivoId || null}
-                      onChange={(id) =>
-                        setBorrador((p) => ({
-                          ...p,
-                          motivoId: id ? Number(id) : undefined,
-                        }))
-                      }
-                      id="filtro-motivo"
-                      placeholder="Todos los tipos"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5 min-w-0">
                     <Label htmlFor="filtro-cuenta">Cuenta de acceso</Label>
                     <Select
                       value={sinCuentaAFiltroCuenta(borrador.sinCuenta)}
@@ -230,7 +218,11 @@ export default function PasivosPage() {
                   >
                     Limpiar <Eraser className="size-4 ml-1" />
                   </Button>
-                  <Button type="submit" className="w-full sm:w-auto cursor-pointer" disabled={isPending}>
+                  <Button
+                    type="submit"
+                    className="w-full sm:w-auto cursor-pointer"
+                    disabled={isPending}
+                  >
                     {isPending ? (
                       <Loader2 className="size-4 animate-spin mr-1" aria-hidden="true" />
                     ) : (

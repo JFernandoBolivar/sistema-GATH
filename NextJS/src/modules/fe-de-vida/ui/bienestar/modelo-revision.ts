@@ -1,4 +1,5 @@
 import { formatearTelefono } from "@/shared/domain/validation/telefono";
+import { camposViviendaVisibles, nombreEsVenezuela } from "@/shared/domain/vivienda-ubicacion";
 import { etiquetaCampo } from "@/modules/autogestion/domain/value-objects/campos-seccion";
 import type { CambioEntity, FichaPasivoEntity } from "../../domain/entities/fe-de-vida";
 import { edadEn, oficinaDeAdscripcion } from "../../domain/services/reglas";
@@ -121,6 +122,11 @@ class Constructor {
     return this.registros.filter((c) => c.entidad === entidad);
   }
 
+  /** Cambio declarado de una entidad única (o `undefined` si no propuso ese campo). */
+  propuesta(clave: string): CambioEntity | undefined {
+    return this.unicos.get(clave);
+  }
+
   sinUsar(): CambioEntity[] {
     return [
       ...[...this.unicos.entries()].filter(([clave]) => !this.usados.has(clave)).map(([, c]) => c),
@@ -145,6 +151,22 @@ function lineaDeCambio(c: CambioEntity, formatear: Formateador): string {
 
 function objeto(v: unknown): Record<string, unknown> {
   return v && typeof v === "object" ? (v as Record<string, unknown>) : {};
+}
+
+/**
+ * País que manda en la vivienda: el **propuesto** si el pasivo propuso cambiarlo;
+ * si no, el vigente. El nombre formateado del propuesto permite decidir aunque
+ * todavía no haya cargado el catálogo (en ese caso se conserva el actual).
+ */
+function esViviendaVenezolana(
+  k: Constructor,
+  entrada: EntradaModelo,
+  esVenezuelaActual: boolean,
+): boolean {
+  const cambio = k.propuesta("datos_vivienda.pais_id");
+  if (!cambio || vacio(cambio.valorPropuesto)) return esVenezuelaActual;
+  const nombre = entrada.formatear(cambio.valorPropuesto, "pais_id");
+  return nombreEsVenezuela(nombre) ?? esVenezuelaActual;
 }
 
 function tablaFamiliares(k: Constructor, e: EntradaModelo): TablaRevision {
@@ -329,24 +351,42 @@ export function construirSecciones(entrada: EntradaModelo): SeccionRevision[] {
     tablas: [tablaEmergencia(k, entrada)],
   };
 
+  const esVenezuela = esViviendaVenezolana(k, entrada, v?.esVenezuela ?? true);
+  const visibles = camposViviendaVisibles({ es_venezuela: esVenezuela });
+  // Todos los datos se consumen con `k.dato` (aunque el país oculte un bloque)
+  // para que un campo propuesto no acabe en «Otros datos propuestos».
+  const pais = k.dato("datos_vivienda.pais_id", "País", limpio(v?.pais));
+  const ciudad = k.dato(
+    "datos_vivienda.ciudad_region",
+    "Ciudad o región",
+    limpio(v?.ciudadRegion),
+  );
+  const estado = k.dato("datos_vivienda.estado_id", "Estado", limpio(v?.estado));
+  const municipio = k.dato("datos_vivienda.municipio_id", "Municipio", limpio(v?.municipio));
+  const parroquia = k.dato("datos_vivienda.parroquia_id", "Parroquia", limpio(v?.parroquia));
+  const codigoPostal = k.dato(
+    "datos_vivienda.codigo_postal_id",
+    "Código postal",
+    limpio(v?.codigoPostal),
+  );
+  const direccion = k.dato("datos_vivienda.direccion_exacta", "Dirección", limpio(v?.direccion));
+  const condicion = k.dato(
+    "datos_vivienda.condicion_vivienda_id",
+    "Condición de la vivienda",
+    limpio(v?.condicion),
+  );
+
   const vivienda: SeccionRevision = {
     id: "vivienda",
     titulo: "Vivienda",
     datos: [
-      k.dato("datos_vivienda.pais_id", "País", limpio(v?.pais)),
-      ...(v?.esVenezuela === false
-        ? [k.dato("datos_vivienda.ciudad_region", "Ciudad o región", limpio(v?.ciudadRegion))]
+      ...(visibles.mostrarPais ? [pais] : []),
+      ...(visibles.mostrarCiudadRegion ? [ciudad] : []),
+      ...(visibles.mostrarUbicacionVenezuela
+        ? [estado, municipio, parroquia, codigoPostal]
         : []),
-      k.dato("datos_vivienda.estado_id", "Estado", limpio(v?.estado)),
-      k.dato("datos_vivienda.municipio_id", "Municipio", limpio(v?.municipio)),
-      k.dato("datos_vivienda.parroquia_id", "Parroquia", limpio(v?.parroquia)),
-      k.dato("datos_vivienda.codigo_postal_id", "Código postal", limpio(v?.codigoPostal)),
-      k.dato("datos_vivienda.direccion_exacta", "Dirección", limpio(v?.direccion)),
-      k.dato(
-        "datos_vivienda.condicion_vivienda_id",
-        "Condición de la vivienda",
-        limpio(v?.condicion),
-      ),
+      direccion,
+      condicion,
     ],
     tablas: [],
   };

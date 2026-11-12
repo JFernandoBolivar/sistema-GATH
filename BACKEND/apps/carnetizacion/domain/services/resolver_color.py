@@ -14,7 +14,7 @@ RESPALDO_DEFECTO: dict[str, str] = {
 }
 
 
-def _normalizar_clave(texto: str) -> str:
+def normalizar_clave(texto: str) -> str:
     """Normaliza una cadena para comparación agnóstica de acentos y caracteres."""
     if not texto:
         return ''
@@ -44,6 +44,17 @@ def resolver_color_carnet(definicion: dict[str, Any], persona: dict[str, Any] | 
             'primario': respaldo.get('primario', RESPALDO_DEFECTO['primario']),
             'acento': respaldo.get('acento', RESPALDO_DEFECTO['acento']),
             'texto': respaldo.get('texto', RESPALDO_DEFECTO['texto']),
+        }
+
+    # Credencial externa sin trabajador vinculado (visitante, contratista...): ni cargo ni
+    # oficina ni nómina aplican, así que el código del tipo de credencial hace de valor.
+    if persona.get('externo') and persona.get('tipo_credencial'):
+        persona = {
+            **persona,
+            'nomina': str(persona['tipo_credencial']).upper(),
+            'cargo': str(persona['tipo_credencial']).upper(),
+            'oficina': str(persona['tipo_credencial']).upper(),
+            'departamento': str(persona['tipo_credencial']).upper(),
         }
 
     # Extraer valor de la persona según el criterio
@@ -76,8 +87,8 @@ def resolver_color_carnet(definicion: dict[str, Any], persona: dict[str, Any] | 
         }
 
     # Búsqueda directa o normalizada
-    clave_norm = _normalizar_clave(valor_persona)
-    mapa_normalizado = {_normalizar_clave(k): v for k, v in valores.items() if isinstance(v, dict)}
+    clave_norm = normalizar_clave(valor_persona)
+    mapa_normalizado = {normalizar_clave(k): v for k, v in valores.items() if isinstance(v, dict)}
 
     regla_encontrada = mapa_normalizado.get(clave_norm)
     if regla_encontrada:

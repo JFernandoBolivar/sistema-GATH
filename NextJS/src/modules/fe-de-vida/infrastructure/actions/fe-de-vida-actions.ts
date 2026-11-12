@@ -1,5 +1,6 @@
 "use server";
 
+import { unstable_rethrow } from "next/navigation";
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
@@ -102,6 +103,7 @@ async function ejecutar<T>(
     await logAudit({ traceId, action: nombre, status: "SUCCESS", durationMs: Date.now() - inicio });
     return { ok: true, mensaje: mensajeOk, datos };
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: nombre, status: "FAILED", durationMs: Date.now() - inicio });
     handleSessionExpired(error);
     const err = errorDeAccion(error, mensajeError);

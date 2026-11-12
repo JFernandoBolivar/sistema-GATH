@@ -29,6 +29,11 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { CampoCredencial } from "../../../domain/entities/carnet";
 import type { ElementoKonva } from "../../../domain/entities/disenador";
+import {
+  crearElementoDeForma,
+  FORMAS_INSTITUCIONALES,
+} from "../../../domain/entities/formas-institucionales";
+import { colorParaMiniatura, MiniaturaForma } from "./miniatura-forma";
 
 interface DisenadorHerramientasPanelProps {
   caraActual: "anverso" | "reverso";
@@ -98,7 +103,7 @@ export function DisenadorHerramientasPanel({
             <Button
               variant="outline"
               size="sm"
-              className="h-10 justify-start gap-2 text-xs"
+              className="h-auto min-h-10 justify-start gap-2 whitespace-normal py-1.5 text-left text-xs leading-tight"
               onClick={() =>
                 onAnadirElemento({
                   t: "rect",
@@ -124,7 +129,7 @@ export function DisenadorHerramientasPanel({
             <Button
               variant="outline"
               size="sm"
-              className="h-10 justify-start gap-2 text-xs"
+              className="h-auto min-h-10 justify-start gap-2 whitespace-normal py-1.5 text-left text-xs leading-tight"
               onClick={() =>
                 onAnadirElemento({
                   t: "circle",
@@ -150,7 +155,7 @@ export function DisenadorHerramientasPanel({
             <Button
               variant="outline"
               size="sm"
-              className="h-10 justify-start gap-2 text-xs"
+              className="h-auto min-h-10 justify-start gap-2 whitespace-normal py-1.5 text-left text-xs leading-tight"
               onClick={() =>
                 onAnadirElemento({
                   t: "tri",
@@ -176,7 +181,7 @@ export function DisenadorHerramientasPanel({
             <Button
               variant="outline"
               size="sm"
-              className="h-10 justify-start gap-2 text-xs"
+              className="h-auto min-h-10 justify-start gap-2 whitespace-normal py-1.5 text-left text-xs leading-tight"
               onClick={() =>
                 onAnadirElemento({
                   t: "diag",
@@ -202,7 +207,7 @@ export function DisenadorHerramientasPanel({
             <Button
               variant="outline"
               size="sm"
-              className="h-10 justify-start gap-2 text-xs"
+              className="h-auto min-h-10 justify-start gap-2 whitespace-normal py-1.5 text-left text-xs leading-tight"
               onClick={() =>
                 onAnadirElemento({
                   t: "path",
@@ -229,7 +234,7 @@ export function DisenadorHerramientasPanel({
             <Button
               variant="outline"
               size="sm"
-              className="h-10 justify-start gap-2 text-xs"
+              className="h-auto min-h-10 justify-start gap-2 whitespace-normal py-1.5 text-left text-xs leading-tight"
               onClick={() =>
                 onAnadirElemento({
                   t: "path",
@@ -256,7 +261,7 @@ export function DisenadorHerramientasPanel({
             <Button
               variant="outline"
               size="sm"
-              className="h-10 justify-start gap-2 text-xs"
+              className="h-auto min-h-10 justify-start gap-2 whitespace-normal py-1.5 text-left text-xs leading-tight"
               onClick={() =>
                 onAnadirElemento({
                   t: "path",
@@ -283,6 +288,36 @@ export function DisenadorHerramientasPanel({
           </div>
         </div>
 
+        {/* Formas institucionales: calcadas de la propuesta oficial del carnet */}
+        <div className="space-y-2">
+          <span className="block text-xs font-medium text-muted-foreground">
+            Formas institucionales
+          </span>
+          <div className="grid grid-cols-2 gap-2">
+            {FORMAS_INSTITUCIONALES.map((forma) => (
+              <Button
+                key={forma.id}
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-auto flex-col items-stretch gap-1.5 whitespace-normal px-2 py-2 text-xs leading-tight"
+                title={`${forma.nombre} (${forma.cara})`}
+                onClick={() => onAnadirElemento(crearElementoDeForma(forma, caraActual))}
+              >
+                <span className="flex h-10 items-center justify-center rounded bg-muted/40">
+                  <MiniaturaForma
+                    path={forma.elemento.path ?? ""}
+                    color={colorParaMiniatura(forma.elemento.fill)}
+                    tamano={36}
+                    proporcion={forma.elemento.w / forma.elemento.h}
+                  />
+                </span>
+                <span className="text-center leading-tight">{forma.nombre}</span>
+              </Button>
+            ))}
+          </div>
+        </div>
+
         {/* Texto y campos */}
         <div className="space-y-2">
           <span className="block text-xs font-medium text-muted-foreground">Texto y datos</span>
@@ -290,7 +325,7 @@ export function DisenadorHerramientasPanel({
             <Button
               variant="outline"
               size="sm"
-              className="h-10 justify-start gap-2 text-xs"
+              className="h-auto min-h-10 justify-start gap-2 whitespace-normal py-1.5 text-left text-xs leading-tight"
               onClick={() =>
                 onAnadirElemento({
                   t: "text",
@@ -383,7 +418,7 @@ export function DisenadorHerramientasPanel({
             <Button
               variant="outline"
               size="sm"
-              className="h-10 justify-start gap-2 text-xs"
+              className="h-auto min-h-10 justify-start gap-2 whitespace-normal py-1.5 text-left text-xs leading-tight"
               onClick={() =>
                 onAnadirElemento({
                   t: "photo",
@@ -409,7 +444,7 @@ export function DisenadorHerramientasPanel({
             <Button
               variant="outline"
               size="sm"
-              className="h-10 justify-start gap-2 text-xs"
+              className="h-auto min-h-10 justify-start gap-2 whitespace-normal py-1.5 text-left text-xs leading-tight"
               onClick={() =>
                 onAnadirElemento({
                   t: "qr",

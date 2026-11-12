@@ -23,12 +23,14 @@ from apps.configuracion.infrastructure.repositories.repo_politica_correo_acceso_
 )
 from core.domain.notificaciones import CorreoSolicitado, SolicitudNotificacion
 from core.infrastructure.providers import obtener_notificador
+from core.infrastructure.auditoria_contexto import con_origen_de_tarea
 from core.presentation.audit import registrar_auditoria
 
 logger = logging.getLogger('gath.tasks')
 
 
 @shared_task(name='configuracion.aplicar_correo_acceso_lote', acks_late=True)
+@con_origen_de_tarea
 def aplicar_correo_acceso_lote(grupo: str, motivo: str, incluir_excepciones: bool = False) -> dict:
     trace_id = uuid.uuid4().hex
     actor = {
