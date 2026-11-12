@@ -4,7 +4,7 @@ Usa exactamente los mismos filtros y el mismo criterio de proceso que la bandeja
 (proceso pedido, histórico de cerrados o abiertos), con subconsultas para los
 datos del trabajador y el número de constancia: sin N+1.
 """
-from django.db.models import OuterRef, Subquery
+from django.db.models import F, OuterRef, Subquery
 
 from apps.fe_de_vida.domain.entities.bandeja_exportacion import PasivoBandeja
 from apps.fe_de_vida.domain.entities.filtros import FiltroBandeja
@@ -38,7 +38,7 @@ class RepoBandejaExportacionORM:
             qs = qs.filter(fecha_envio__date__gte=filtro.desde)
         if filtro.hasta:
             qs = qs.filter(fecha_envio__date__lte=filtro.hasta)
-        qs = qs.order_by('-fecha_envio', '-created_at')
+        qs = qs.order_by(F('fecha_envio').desc(nulls_last=True), '-created_at')
         total = qs.count()
         filas = qs.annotate(
             nombres=Subquery(empleado.values('nombres')[:1]),
