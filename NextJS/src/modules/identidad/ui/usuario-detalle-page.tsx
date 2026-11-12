@@ -11,7 +11,16 @@
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { ArrowLeft, KeyRound, Loader2, Mail, Power, Save, ShieldCheck, UserCog } from "lucide-react";
+import {
+  ArrowLeft,
+  KeyRound,
+  Loader2,
+  Mail,
+  Power,
+  Save,
+  ShieldCheck,
+  UserCog,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
@@ -19,7 +28,13 @@ import { CONDICION_PASIVO } from "@/shared/domain/catalogos";
 
 import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/components/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/shared/ui/components/card";
 import { Field } from "@/shared/ui/components/field";
 import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
@@ -59,7 +74,9 @@ import {
 function fechaLegible(iso: string | null): string {
   if (!iso) return "—";
   const fecha = new Date(iso);
-  return Number.isNaN(fecha.getTime()) ? "—" : fecha.toLocaleString("es-VE", { dateStyle: "short", timeStyle: "short" });
+  return Number.isNaN(fecha.getTime())
+    ? "—"
+    : fecha.toLocaleString("es-VE", { dateStyle: "short", timeStyle: "short" });
 }
 
 /** Iniciales para el avatar del encabezado; nunca queda vacío. */
@@ -68,7 +85,39 @@ export function inicialesDe(nombres: string, apellidos: string): string {
   return iniciales.trim() || "?";
 }
 
-
+/** Foto del trabajador si existe; si no hay foto (404) o no hay permiso, sus iniciales. */
+function AvatarUsuario({
+  cedula,
+  nombres,
+  apellidos,
+}: {
+  cedula: string;
+  nombres: string;
+  apellidos: string;
+}) {
+  const [sinFoto, setSinFoto] = useState(false);
+  const clase =
+    "flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-lg font-semibold text-primary";
+  if (sinFoto || !cedula) {
+    return (
+      <div aria-hidden="true" className={clase}>
+        {inicialesDe(nombres, apellidos)}
+      </div>
+    );
+  }
+  return (
+    <div className={clase}>
+      {/* Foto autenticada del mismo origen; `next/image` no reenvía cookies al optimizador. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={`/api/v1/personal/${encodeURIComponent(cedula)}/foto/`}
+        alt={`Foto de ${nombres} ${apellidos}`}
+        className="size-full object-cover"
+        onError={() => setSinFoto(true)}
+      />
+    </div>
+  );
+}
 
 export default function UsuarioDetallePage({ id }: { id: number }) {
   const { data: session } = useSession();
@@ -91,7 +140,9 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
   const [motivoRol, setMotivoRol] = useState("");
   const [motivoEstado, setMotivoEstado] = useState("");
   const [motivoAcceso, setMotivoAcceso] = useState("");
-  const [fuenteCorreo, setFuenteCorreo] = useState<"INSTITUCIONAL" | "ALTERNATIVO" | "OTRO">("INSTITUCIONAL");
+  const [fuenteCorreo, setFuenteCorreo] = useState<"INSTITUCIONAL" | "ALTERNATIVO" | "OTRO">(
+    "INSTITUCIONAL",
+  );
   const [correoOtro, setCorreoOtro] = useState("");
   const [motivoCorreo, setMotivoCorreo] = useState("");
   const [allow, setAllow] = useState<string[]>([]);
@@ -170,7 +221,10 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
   if (!puedeVer) {
     return (
       <section className="px-6 py-4">
-        <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
+        <p
+          role="alert"
+          className="rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive"
+        >
           No tiene el permiso «identidad.ver_usuarios» para consultar este usuario.
         </p>
       </section>
@@ -211,7 +265,8 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
       const resultado = await cambiarEstadoUsuarioAction(detalle.id, nuevo, motivoEstado);
       if (resultado && typeof resultado === "object" && "error" in resultado) {
         const fallo = resultado as { error: string; errores?: Record<string, string[]> };
-        if (!ponerError("motivoEstado", mensajeDe(fallo.errores, "motivo"))) toast.error(fallo.error);
+        if (!ponerError("motivoEstado", mensajeDe(fallo.errores, "motivo")))
+          toast.error(fallo.error);
         return;
       }
       toast.success(nuevo ? "Cuenta activada." : "Cuenta desactivada.");
@@ -223,7 +278,10 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
   const restablecer = () => {
     if (!detalle) return;
     if (motivoAcceso.trim().length < 10) {
-      ponerError("motivoAcceso", "Indique el motivo del restablecimiento (al menos 10 caracteres).");
+      ponerError(
+        "motivoAcceso",
+        "Indique el motivo del restablecimiento (al menos 10 caracteres).",
+      );
       return;
     }
     limpiarError("motivoAcceso");
@@ -231,7 +289,8 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
       const resultado = await restablecerAccesoAction(detalle.id, motivoAcceso);
       if (resultado && typeof resultado === "object" && "error" in resultado) {
         const fallo = resultado as { error: string; errores?: Record<string, string[]> };
-        if (!ponerError("motivoAcceso", mensajeDe(fallo.errores, "motivo"))) toast.error(fallo.error);
+        if (!ponerError("motivoAcceso", mensajeDe(fallo.errores, "motivo")))
+          toast.error(fallo.error);
       } else {
         toast.success("Acceso restablecido: la contraseña inicial es la cédula.");
         setMotivoAcceso("");
@@ -243,7 +302,10 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
   const cambiarCorreo = () => {
     if (!detalle) return;
     if (motivoCorreo.trim().length < 10) {
-      ponerError("motivoCorreo", "Indique el motivo del cambio de correo (al menos 10 caracteres).");
+      ponerError(
+        "motivoCorreo",
+        "Indique el motivo del cambio de correo (al menos 10 caracteres).",
+      );
       return;
     }
     limpiarError("motivoCorreo");
@@ -277,10 +339,15 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
     }
     limpiarError("motivoOverrides");
     startTransition(async () => {
-      const resultado = await guardarOverridesAction(detalle.id, { allow, deny, motivo: motivoOverrides });
+      const resultado = await guardarOverridesAction(detalle.id, {
+        allow,
+        deny,
+        motivo: motivoOverrides,
+      });
       if (resultado && typeof resultado === "object" && "error" in resultado) {
         const fallo = resultado as { error: string; errores?: Record<string, string[]> };
-        if (!ponerError("motivoOverrides", mensajeDe(fallo.errores, "motivo"))) toast.error(fallo.error);
+        if (!ponerError("motivoOverrides", mensajeDe(fallo.errores, "motivo")))
+          toast.error(fallo.error);
         return;
       }
       toast.success("Permisos individuales actualizados.");
@@ -342,7 +409,10 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
       </div>
 
       {error && (
-        <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+        <p
+          role="alert"
+          className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+        >
           {error}
         </p>
       )}
@@ -356,22 +426,29 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
           <Card className="overflow-hidden">
             <CardContent className="flex flex-col gap-4 p-5">
               <div className="flex min-w-0 items-start gap-4">
-                <div
-                  aria-hidden="true"
-                  className="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary/10 text-lg font-semibold text-primary"
-                >
-                  {inicialesDe(detalle.nombres, detalle.apellidos)}
-                </div>
+                <AvatarUsuario
+                  cedula={detalle.cedula}
+                  nombres={detalle.nombres}
+                  apellidos={detalle.apellidos}
+                />
                 <div className="min-w-0">
                   <h2 className="truncate text-2xl font-semibold tracking-tight text-foreground">
                     {detalle.nombres} {detalle.apellidos}
                   </h2>
                   <p className="text-sm text-muted-foreground">Cédula {detalle.cedula}</p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <Badge variant="secondary">{detalle.permisos.rolNombreVisible ?? detalle.permisos.rolNombre ?? detalle.rolNombreVisible ?? detalle.rolNombre ?? "Sin rol"}</Badge>
+                    <Badge variant="secondary">
+                      {detalle.permisos.rolNombreVisible ??
+                        detalle.permisos.rolNombre ??
+                        detalle.rolNombreVisible ??
+                        detalle.rolNombre ??
+                        "Sin rol"}
+                    </Badge>
                     <Badge
                       variant={detalle.isActive ? "default" : "outline"}
-                      className={cn(detalle.isActive && "bg-emerald-600 text-white hover:bg-emerald-600")}
+                      className={cn(
+                        detalle.isActive && "bg-emerald-600 text-white hover:bg-emerald-600",
+                      )}
                     >
                       {detalle.isActive ? "Activo" : "Inactivo"}
                     </Badge>
@@ -442,10 +519,17 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                         aria-invalid={!!erroresCampo.motivoRol}
                       />
                       {erroresCampo.motivoRol && (
-                        <p role="alert" className="text-sm text-destructive">{erroresCampo.motivoRol}</p>
+                        <p role="alert" className="text-sm text-destructive">
+                          {erroresCampo.motivoRol}
+                        </p>
                       )}
                     </Field>
-                    <Button type="button" onClick={guardarRol} disabled={cargando} className="self-start">
+                    <Button
+                      type="button"
+                      onClick={guardarRol}
+                      disabled={cargando}
+                      className="self-start"
+                    >
                       <Save className="size-4" aria-hidden="true" /> Guardar rol
                     </Button>
                   </>
@@ -473,7 +557,9 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                       <span className="text-muted-foreground">Estado actual:</span>
                       <Badge
                         variant={detalle.isActive ? "default" : "outline"}
-                        className={cn(detalle.isActive && "bg-emerald-600 text-white hover:bg-emerald-600")}
+                        className={cn(
+                          detalle.isActive && "bg-emerald-600 text-white hover:bg-emerald-600",
+                        )}
                       >
                         {detalle.isActive ? "Activo" : "Inactivo"}
                       </Badge>
@@ -493,7 +579,9 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                         aria-invalid={!!erroresCampo.motivoEstado}
                       />
                       {erroresCampo.motivoEstado && (
-                        <p role="alert" className="text-sm text-destructive">{erroresCampo.motivoEstado}</p>
+                        <p role="alert" className="text-sm text-destructive">
+                          {erroresCampo.motivoEstado}
+                        </p>
                       )}
                     </Field>
                     <div
@@ -554,7 +642,9 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="INSTITUCIONAL">Correo institucional actual</SelectItem>
-                          <SelectItem value="ALTERNATIVO">Correo alternativo del trabajador</SelectItem>
+                          <SelectItem value="ALTERNATIVO">
+                            Correo alternativo del trabajador
+                          </SelectItem>
                           <SelectItem value="OTRO">Otro correo</SelectItem>
                         </SelectContent>
                       </Select>
@@ -574,7 +664,9 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                           aria-invalid={!!erroresCampo.correoOtro}
                         />
                         {erroresCampo.correoOtro && (
-                          <p role="alert" className="text-sm text-destructive">{erroresCampo.correoOtro}</p>
+                          <p role="alert" className="text-sm text-destructive">
+                            {erroresCampo.correoOtro}
+                          </p>
                         )}
                       </Field>
                     )}
@@ -593,15 +685,24 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                         aria-invalid={!!erroresCampo.motivoCorreo}
                       />
                       {erroresCampo.motivoCorreo && (
-                        <p role="alert" className="text-sm text-destructive">{erroresCampo.motivoCorreo}</p>
+                        <p role="alert" className="text-sm text-destructive">
+                          {erroresCampo.motivoCorreo}
+                        </p>
                       )}
                     </Field>
-                    <Button type="button" onClick={cambiarCorreo} disabled={cargando} className="self-start">
+                    <Button
+                      type="button"
+                      onClick={cambiarCorreo}
+                      disabled={cargando}
+                      className="self-start"
+                    >
                       Guardar correo
                     </Button>
                   </>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No tiene permiso para cambiar el correo de acceso.</p>
+                  <p className="text-sm text-muted-foreground">
+                    No tiene permiso para cambiar el correo de acceso.
+                  </p>
                 )}
               </CardContent>
             </Card>
@@ -633,7 +734,9 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                         aria-invalid={!!erroresCampo.motivoAcceso}
                       />
                       {erroresCampo.motivoAcceso && (
-                        <p role="alert" className="text-sm text-destructive">{erroresCampo.motivoAcceso}</p>
+                        <p role="alert" className="text-sm text-destructive">
+                          {erroresCampo.motivoAcceso}
+                        </p>
                       )}
                     </Field>
                     <Button
@@ -646,7 +749,8 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                       <KeyRound className="size-4" aria-hidden="true" /> Restablecer acceso
                     </Button>
                     <p className="text-xs text-muted-foreground">
-                      La contraseña vuelve a ser la cédula, se revocan las sesiones y se avisa por correo.
+                      La contraseña vuelve a ser la cédula, se revocan las sesiones y se avisa por
+                      correo.
                     </p>
                   </>
                 ) : (
@@ -673,11 +777,17 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="text-muted-foreground">Rol:</span>
                   <strong className="font-semibold text-foreground">
-                    {detalle.permisos.rolNombreVisible ?? detalle.permisos.rolNombre ?? detalle.rolNombreVisible ?? detalle.rolNombre ?? "Sin rol"}
+                    {detalle.permisos.rolNombreVisible ??
+                      detalle.permisos.rolNombre ??
+                      detalle.rolNombreVisible ??
+                      detalle.rolNombre ??
+                      "Sin rol"}
                   </strong>
                   <span className="text-muted-foreground">—</span>
                   <Link
-                    href={detalle.rolId ? `/usuarios/matriz?rolId=${detalle.rolId}` : "/usuarios/matriz"}
+                    href={
+                      detalle.rolId ? `/usuarios/matriz?rolId=${detalle.rolId}` : "/usuarios/matriz"
+                    }
                     className="inline-flex items-center text-primary font-medium hover:underline underline-offset-4"
                   >
                     ver permisos del rol en la Matriz →
@@ -719,7 +829,10 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                               {nombrePermiso(codigo)}
                             </TableCell>
                             <TableCell>
-                              <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                              <Badge
+                                variant="secondary"
+                                className="text-xs bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+                              >
                                 Concedido
                               </Badge>
                             </TableCell>
@@ -727,7 +840,9 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                               {detalle.permisos.motivo || "Excepción individual aprobada"}
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground">
-                              {fechaLegible(detalle.permisos.fechaActualizacion ?? detalle.ultimoAcceso)}
+                              {fechaLegible(
+                                detalle.permisos.fechaActualizacion ?? detalle.ultimoAcceso,
+                              )}
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground">
                               {detalle.permisos.asignadoPor || "Administrador del sistema"}
@@ -748,7 +863,9 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                               {detalle.permisos.motivo || "Restricción individual aprobada"}
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground">
-                              {fechaLegible(detalle.permisos.fechaActualizacion ?? detalle.ultimoAcceso)}
+                              {fechaLegible(
+                                detalle.permisos.fechaActualizacion ?? detalle.ultimoAcceso,
+                              )}
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground">
                               {detalle.permisos.asignadoPor || "Administrador del sistema"}
@@ -781,7 +898,9 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                     <div>
                       <p className="mb-2 text-sm font-medium">Conceder</p>
                       {allow.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">Sin concesiones individuales.</p>
+                        <p className="text-sm text-muted-foreground">
+                          Sin concesiones individuales.
+                        </p>
                       ) : (
                         <ul className="flex flex-wrap gap-2">
                           {allow.map((codigo) => (
@@ -824,7 +943,9 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                     <div>
                       <p className="mb-2 text-sm font-medium">Denegar</p>
                       {deny.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">Sin denegaciones individuales.</p>
+                        <p className="text-sm text-muted-foreground">
+                          Sin denegaciones individuales.
+                        </p>
                       ) : (
                         <ul className="flex flex-wrap gap-2">
                           {deny.map((codigo) => (
@@ -880,10 +1001,17 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                       aria-invalid={!!erroresCampo.motivoOverrides}
                     />
                     {erroresCampo.motivoOverrides && (
-                      <p role="alert" className="text-sm text-destructive">{erroresCampo.motivoOverrides}</p>
+                      <p role="alert" className="text-sm text-destructive">
+                        {erroresCampo.motivoOverrides}
+                      </p>
                     )}
                   </Field>
-                  <Button type="button" onClick={guardarOverrides} disabled={cargando} className="self-start">
+                  <Button
+                    type="button"
+                    onClick={guardarOverrides}
+                    disabled={cargando}
+                    className="self-start"
+                  >
                     <Save className="size-4" aria-hidden="true" /> Guardar permisos
                   </Button>
                 </div>
