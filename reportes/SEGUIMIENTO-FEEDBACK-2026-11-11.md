@@ -13,9 +13,9 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 | Estado | Cantidad |
 |---|---|
 | ✅ Completado | 39 |
-| ⏳ En proceso | 15 |
+| ⏳ En proceso | 16 |
 | ❓ Respondida | 7 |
-| 🟡 Espera tu decisión | 4 |
+| 🟡 Espera tu decisión | 5 |
 
 ## Cambios urgentes y administración
 
@@ -52,8 +52,8 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 | 29 | Auditoría: el rol no aparece | ✅ | Se guarda desde ahora; en los registros viejos se muestra el rol actual | `e27125db` |
 | 58 | El campo «Escriba la cédula nueva para confirmar» aceptaba letras | ✅ | Ese campo y el de la cédula solo aceptan números | `f33fc3fb` |
 | 59 | Nacionalidad con permiso propio, separado del de la cédula | ⏳ | Permiso «Actualizar nacionalidad del trabajador» | — |
-| 60 | El familiar registrado en una fe de vida aprobada no aparece en Familiares del pasivo | ⏳ | Investigando si al aprobar se agregan los familiares nuevos | — |
-| 61 | «¿Tiene hijos?» de la fe de vida debe actualizar el expediente y verse y editarse en la ficha de activos y pasivos | ⏳ | Analizando dónde se guarda hoy y dónde debe ir | — |
+| 60 | El familiar registrado en una fe de vida aprobada no aparece en Familiares del pasivo | 🟡 | Revisado: al aprobar, los familiares **sí se guardan**. En la solicitud que mirabas (99000320 / 5132733) los familiares existen (ids 5659 y 5642); fueron **modificaciones**, no altas. Hallazgo: el familiar 5642 tiene **la misma cédula que el titular (5132733)**, y eso no debería permitirse. Necesito saber qué cédula buscaste para confirmar | — |
+| 61 | «¿Tiene hijos?» de la fe de vida debe actualizar el expediente y verse y editarse en la ficha de activos y pasivos | ⏳ | Ya se guarda en el expediente al validar (datos complementarios). Falta mostrarlo y editarlo en la ficha de activos y pasivos; no hace falta migración | — |
 | 62 | Botón «Contacto de emergencia» distinto a los demás | ✅ | Mismo estilo e ícono que las otras secciones | `0dcb8f4d` |
 | 63 | Organización: el encabezado azul de la tabla se sale del recuadro redondeado | ✅ | El encabezado queda dentro del recuadro | `a9e0d523` |
 | 64 | Cargos: la página no se adapta al ancho de la pantalla | ✅ | Las tablas anchas se desplazan dentro de su tarjeta; corregido para todas las páginas | `a9e0d523` |
@@ -63,6 +63,8 @@ Rama: `feature/fe-de-vida-pasivos`. Se actualiza a medida que avanza el trabajo.
 | 68 | Al guardar el contrato: «Ha ocurrido un error interno» | ⏳ | Causa: el estatus del contrato no existe en el catálogo. Se corrige, y si falla dará un mensaje claro | — |
 | 69 | ¿Se corrigió que no se pudiera reenviar ni regenerar la constancia después de unos días, y que no llegara el correo? | ❓ | Sí, en `b268731a` (cada reenvío tiene su propia clave y se agregó la recuperación). Aún no está en producción: entra con el próximo pase. En local no llegó porque el pasivo de prueba no tiene correo (el log dice «sin correo para enviar») | `b268731a` |
 | 70 | Reporte de pasivos: subir los grupos de filtros para quitar los espacios en blanco y verificar que todos los filtros se apliquen en el PDF | ⏳ | Diseño en columnas sin huecos y revisión de cada filtro | — |
+| 71 | «Tipo de Pasivo» en el reporte debe listar solo los tipos de pasivo | ⏳ | Mismo filtro que se usa al pasar a pasivo | — |
+| 72 | El PDF de pasivos perdió los totales de femeninos y masculinos | ⏳ | Se recupera el conteo por sexo sobre el resultado filtrado | — |
 | 30 | Familiares: grupo sanguíneo obligatorio, errores que no se marcan, error en el flujo de registro y actualización, documentos en la actualización | ⏳ | OpenCode lo está corrigiendo | — |
 
 ## Carnetización
