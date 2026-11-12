@@ -271,9 +271,11 @@ def _validar_vivienda_del_borrador(
     else:
         valores = {}
     for cambio in de_vivienda:
-        if cambio.accion in (Accion.CREAR.value, Accion.MODIFICAR.value):
-            if isinstance(cambio.valor_propuesto, dict):
-                valores.update(cambio.valor_propuesto)
+        if cambio.accion == Accion.CREAR.value and isinstance(cambio.valor_propuesto, dict):
+            valores.update(cambio.valor_propuesto)
+        elif cambio.accion == Accion.MODIFICAR.value:
+            # Un MODIFICAR lleva un solo campo (valor escalar), no un diccionario.
+            valores[cambio.campo] = cambio.valor_propuesto
     limpios = {k: v for k, v in valores.items() if v not in (None, '')}
     es_venezuela = getattr(lector, 'es_pais_venezuela', lambda _pais: True)(
         limpios.get('pais_id'),

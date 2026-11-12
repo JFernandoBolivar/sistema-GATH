@@ -53,7 +53,7 @@ export const PROCESOS_METADATA: Record<keyof ProcesosHabilitados, { titulo: stri
   },
   cambio_nivel: {
     titulo: "Cambio de Nivel",
-    descripcion: "Cambio en el campo Nivel (Dependencia).",
+    descripcion: "Cambio en el campo Nivel.",
   },
   cambio_division: {
     titulo: "Cambio de División / Coordinación",

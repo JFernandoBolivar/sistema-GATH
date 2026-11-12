@@ -6,13 +6,19 @@ geometría vectorial y tipografía embebida con fallback métrico exacto).
 
 Mantiene total compatibilidad con DatosCarnetPdf y la API previa de generar_carnet_pdf.
 """
+import hashlib
+import json
 import logging
-from dataclasses import dataclass
+import math
+import os
+from dataclasses import dataclass, field
 from io import BytesIO
 from typing import Any
 
-from apps.carnetizacion.infrastructure.qr_institucional import generar_qr_png
+from apps.carnetizacion.domain.services.qr_estilo import normalizar_estilo
+from apps.carnetizacion.infrastructure.qr_institucional import LOGO_QR, generar_qr_png
 from django.conf import settings
+from django.core.cache import cache
 from PIL import Image
 from core.infrastructure.pdf.fuentes import FUENTE, FUENTE_NEGRITA
 from core.infrastructure.pdf.pdf_components import ruta_asset
@@ -41,6 +47,98 @@ CARNET_HEIGHT = 85.6 * MM_A_PT
 _TEXTO_MAX_ANCHO = 2.5 * cm
 _TEXTO_MIN_FUENTE = 5
 
+# La foto se dibuja en un recuadro de ~2 cm: basta con 300 ppp de impresión. El piso de
+# 600 px evita perder calidad en recuadros pequeños y es la clave de tamaño de la caché.
+LADO_FOTO_MIN_PX = 600
+_CALIDAD_JPEG_FOTO = 88
+_TTL_QR_SEGUNDOS = 300
+
+
+MARGEN_TARJETA_PT = 0.8 * MM_A_PT
+
+
+def _limitar_caja_a_tarjeta(x_pt: float, w_pt: float, ancho_tarjeta_pt: float) -> tuple[float, float]:
+    """Recorta la caja horizontal para que quede dentro de la tarjeta (con un margen mínimo)."""
+    izquierda = min(max(x_pt, 0.0), max(ancho_tarjeta_pt - MARGEN_TARJETA_PT, 0.0))
+    derecha = min(x_pt + w_pt, ancho_tarjeta_pt - MARGEN_TARJETA_PT)
+    return izquierda, max(derecha - izquierda, 1.0)
+
+
+def _recortar_con_puntos(texto: str, fuente: str, tamano: float, ancho: float) -> str:
+    """Recorta el texto con «…» hasta que quepa en `ancho`."""
+    if stringWidth(texto, fuente, tamano) <= ancho:
+        return texto
+    while texto and stringWidth(texto + '…', fuente, tamano) > ancho:
+        texto = texto[:-1]
+    return (texto.rstrip() + '…') if texto else ''
+
+
+def _partir_en_dos(texto: str, fuente: str, tamano: float, ancho: float) -> list[str] | None:
+    """Reparte el texto en 2 líneas por palabras; None si alguna línea no cabe."""
+    palabras = texto.split()
+    mejor: list[str] | None = None
+    for corte in range(1, len(palabras)):
+        lineas = [' '.join(palabras[:corte]), ' '.join(palabras[corte:])]
+        if all(stringWidth(ln, fuente, tamano) <= ancho for ln in lineas):
+            if mejor is None or max(map(len, lineas)) < max(map(len, mejor)):
+                mejor = lineas
+    return mejor
+
+
+def ajustar_texto(
+    texto: str, fuente: str, tamano: float, ancho: float, alto: float,
+) -> tuple[list[str], float]:
+    """Líneas y tamaño con los que el texto cabe en la caja (`ancho` x `alto`, en puntos).
+
+    1) Reduce la letra hasta `_TEXTO_MIN_FUENTE` pt; 2) si aun así no cabe y la caja tiene
+    alto para 2 líneas, parte por palabras; 3) si no, recorta con «…». Un texto con saltos
+    de línea explícitos conserva sus líneas y solo se reduce/recorta.
+    """
+    if not texto or ancho <= 0:
+        return [texto or ''], tamano
+    lineas = texto.split('\n')
+    ancho_max = max(stringWidth(ln, fuente, tamano) for ln in lineas)
+    if ancho_max > ancho:
+        tamano = max(_TEXTO_MIN_FUENTE if tamano > _TEXTO_MIN_FUENTE else tamano, tamano * ancho / ancho_max)
+    # La reducción proporcional puede quedar un pelo corta por el redondeo de métricas.
+    while tamano > _TEXTO_MIN_FUENTE and max(stringWidth(ln, fuente, tamano) for ln in lineas) > ancho:
+        tamano = max(_TEXTO_MIN_FUENTE, tamano - 0.1)
+    if all(stringWidth(ln, fuente, tamano) <= ancho for ln in lineas):
+        return lineas, tamano
+    if len(lineas) == 1 and alto >= 2 * tamano * 1.15:
+        dos = _partir_en_dos(lineas[0], fuente, tamano, ancho)
+        if dos:
+            return dos, tamano
+    return [_recortar_con_puntos(ln, fuente, tamano, ancho) for ln in lineas], tamano
+
+
+def _tiene_transparencia(img: Image.Image) -> bool:
+    return img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info)
+
+
+def _lado_maximo_px(ancho_pt: float, alto_pt: float) -> int:
+    """Lado largo a 300 ppp del recuadro (puntos -> pulgadas), con piso de LADO_FOTO_MIN_PX."""
+    return max(LADO_FOTO_MIN_PX, math.ceil(max(ancho_pt, alto_pt) / 72.0 * 300))
+
+
+def _codificar_foto(img: Image.Image) -> bytes:
+    """JPEG q88 en RGB; PNG (ya reducido) solo si la foto trae transparencia."""
+    salida = BytesIO()
+    if _tiene_transparencia(img):
+        img.convert('RGBA').save(salida, format='PNG')
+    else:
+        img.convert('RGB').save(salida, format='JPEG', quality=_CALIDAD_JPEG_FOTO)
+    return salida.getvalue()
+
+
+def reducir_foto_carnet(foto_bytes: bytes, lado_max: int = LADO_FOTO_MIN_PX) -> bytes:
+    """Reduce la foto a un lado largo <= lado_max y la recodifica (JPEG, o PNG con alfa)."""
+    with Image.open(BytesIO(foto_bytes)) as img:
+        img.load()
+        if max(img.size) > lado_max:
+            img.thumbnail((lado_max, lado_max), Image.LANCZOS)
+        return _codificar_foto(img)
+
 
 @dataclass(frozen=True)
 class DatosCarnetPdf:
@@ -53,6 +151,8 @@ class DatosCarnetPdf:
     plantilla_path: str | None = None
     foto_bytes: bytes | None = None
     vence: str = ''
+    # Valores de los campos personalizados ya resueltos por su origen: {codigo_del_campo: valor}.
+    campos_extra: dict[str, str] = field(default_factory=dict)
 
 
 def _hex_seguro(valor: str | None, defecto: str = '#111827') -> HexColor:
@@ -68,6 +168,70 @@ def _hex_seguro(valor: str | None, defecto: str = '#111827') -> HexColor:
         return HexColor(defecto)
 
 
+def logo_qr_de_biblioteca(medio_id: str | None) -> bytes | None:
+    """Bytes del logo elegido en la Biblioteca de Medios (misma vía que el resto de sus
+    archivos: `obtener_archivo_biblioteca`); None si no hay medio o no se puede leer."""
+    if not medio_id:
+        return None
+    clave = f"carnet:qr-logo:{medio_id}"
+    try:
+        guardado = cache.get(clave)
+        if guardado:
+            return guardado
+    except Exception:
+        logger.warning("Caché no disponible al leer el logo del QR.", exc_info=True)
+    try:
+        from apps.carnetizacion.infrastructure.repositories.repo_carnetizacion_orm import (
+            RepoCarnetizacionORM,
+        )
+
+        datos, _mime, _nombre = RepoCarnetizacionORM().obtener_archivo_biblioteca(medio_id)
+    except Exception:
+        logger.warning("No se pudo leer el logo %s de la biblioteca; se usa el de CONATEL.", medio_id)
+        return None
+    try:
+        cache.set(clave, datos, _TTL_QR_SEGUNDOS)
+    except Exception:
+        logger.warning("Caché no disponible al guardar el logo del QR.", exc_info=True)
+    return datos
+
+
+def _qr_png_cacheado(contenido: str, con_logo: bool, estilo: dict[str, Any] | None = None) -> bytes:
+    """QR cacheado: la clave cubre el contenido (que lleva el security_hash), el estilo
+    normalizado y la versión del logo (mtime y tamaño del archivo de CONATEL, o el id del
+    medio de la biblioteca), así que un cambio de estilo o de logo invalida."""
+    estilo = normalizar_estilo(estilo)
+    medio_id = estilo['logo']['medio_id'] if con_logo and estilo['logo']['activo'] else None
+    sello_logo = f"medio:{medio_id}" if medio_id else ''
+    if con_logo and not medio_id:
+        try:
+            ruta = ruta_asset(LOGO_QR)
+            if ruta:
+                st = os.stat(ruta)
+                sello_logo = f"{st.st_mtime_ns}-{st.st_size}"
+        except Exception:
+            sello_logo = ''
+    huella = hashlib.sha256(
+        f"{contenido}|{int(con_logo)}|{sello_logo}|{json.dumps(estilo, sort_keys=True)}".encode()
+    ).hexdigest()
+    clave = f"carnet:qr:{huella}"
+    try:
+        guardado = cache.get(clave)
+        if guardado:
+            return guardado
+    except Exception:
+        logger.warning("Caché no disponible al leer el QR del carnet.", exc_info=True)
+    png = generar_qr_png(
+        contenido, box_size=4, border=2, con_logo=con_logo, estilo=estilo,
+        logo_bytes=logo_qr_de_biblioteca(medio_id),
+    )
+    try:
+        cache.set(clave, png, _TTL_QR_SEGUNDOS)
+    except Exception:
+        logger.warning("Caché no disponible al guardar el QR del carnet.", exc_info=True)
+    return png
+
+
 def _dibujar_qr(
     c: canvas.Canvas,
     datos: DatosCarnetPdf | dict[str, Any],
@@ -75,26 +239,19 @@ def _dibujar_qr(
     y: float,
     tamano: float = 1.2 * cm,
     con_logo: bool = True,
+    estilo: dict[str, Any] | None = None,
 ) -> None:
     """Genera y dibuja el código QR seguro con el logo institucional al centro."""
     sec_hash = getattr(datos, 'security_hash', None) or (datos.get('security_hash') if isinstance(datos, dict) else '')
     cedula = getattr(datos, 'cedula', None) or (datos.get('cedula') if isinstance(datos, dict) else '')
     nombre = getattr(datos, 'nombre_completo', None) or (datos.get('nombre_completo') if isinstance(datos, dict) else '')
 
-    base_frontend = str(getattr(settings, 'FRONTEND_URL', '') or '').rstrip('/')
-    if base_frontend:
-        # La cámara del teléfono abre directamente la ficha pública de verificación.
-        contenido = f"{base_frontend}/carnet/{sec_hash}"
-    else:
-        # Respaldo legible para entornos sin FRONTEND_URL configurada.
-        contenido = (
-            f"GATH-ID: {sec_hash}\n"
-            f"CI: {cedula}\n"
-            f"Titular: {str(nombre)[:30]}\n"
-        )
+    from apps.carnetizacion.infrastructure.qr_institucional import contenido_qr_carnet
+
+    contenido = contenido_qr_carnet(sec_hash, cedula, nombre)
 
     c.drawImage(
-        ImageReader(BytesIO(generar_qr_png(contenido, box_size=4, border=1, con_logo=con_logo))),
+        ImageReader(BytesIO(_qr_png_cacheado(contenido, con_logo, estilo))),
         x, y, tamano, tamano,
     )
 
@@ -135,10 +292,15 @@ def _dibujar_foto(c: canvas.Canvas, foto_bytes: bytes | None, x: float, y: float
                 offset = (img_height - nuevo_alto) // 2
                 pil_image = pil_image.crop((0, offset, img_width, offset + nuevo_alto))
 
-            recorte_buffer = BytesIO()
-            pil_image.save(recorte_buffer, format="PNG")
-            recorte_buffer.seek(0)
-            c.drawImage(ImageReader(recorte_buffer), x, y, ancho, alto, preserveAspectRatio=True, anchor="c")
+            # Reducir al tamaño útil de impresión (300 ppp) ANTES de recodificar: a tamaño
+            # completo, guardar como PNG y recomprimir en drawImage costaba ~12 s.
+            lado_max = _lado_maximo_px(ancho, alto)
+            if max(pil_image.size) > lado_max:
+                pil_image.thumbnail((lado_max, lado_max), Image.LANCZOS)
+            c.drawImage(
+                ImageReader(BytesIO(_codificar_foto(pil_image))),
+                x, y, ancho, alto, preserveAspectRatio=True, anchor="c",
+            )
             return
         except Exception:
             logger.warning("No se pudo procesar la foto del carnet; usando silueta de respaldo.", exc_info=True)
@@ -164,6 +326,109 @@ def _extraer_valor_campo(campo: str, datos: DatosCarnetPdf | dict[str, Any]) -> 
     if isinstance(datos, dict):
         return str(datos.get(campo, '') or '')
     return ''
+
+
+def _num_path(valor: float) -> str:
+    """Número como lo escribe el diseñador: dos decimales sin ceros sobrantes."""
+    texto = f'{valor:.2f}'.rstrip('0').rstrip('.')
+    return '0' if texto in ('', '-0') else texto
+
+
+def _puntos_validos(valor: Any) -> list[dict[str, float]] | None:
+    """Lee `props.puntos` ({x, y, r} en la caja 0..100); None si no es una lista usable."""
+    if not isinstance(valor, list) or len(valor) < 3:
+        return None
+    lista: list[dict[str, float]] = []
+    for p in valor:
+        if not isinstance(p, dict):
+            return None
+        try:
+            x, y = float(p.get('x')), float(p.get('y'))
+            r = float(p.get('r') or 0)
+        except (TypeError, ValueError):
+            return None
+        if not (math.isfinite(x) and math.isfinite(y) and math.isfinite(r)):
+            return None
+        lista.append({'x': min(100.0, max(0.0, x)), 'y': min(100.0, max(0.0, y)), 'r': max(0.0, r)})
+    return lista
+
+
+def path_desde_puntos(puntos: list[dict[str, float]], w_mm: float, h_mm: float) -> str:
+    """Path SVG (caja 0..100) de una forma por vértices; igual a `generarPathDesdePuntos` del diseñador.
+
+    Cada vértice con `r` > 0 se redondea con una curva Q cuyo control es el vértice; el radio
+    (mm) se limita a la mitad de la más corta de sus dos aristas.
+    """
+    n = len(puntos)
+    if n < 3 or not (w_mm > 0) or not (h_mm > 0):
+        return ''
+    mm = [(p['x'] * w_mm / 100, p['y'] * h_mm / 100) for p in puntos]
+
+    def caja(x: float, y: float) -> str:
+        return f'{_num_path(x * 100 / w_mm)} {_num_path(y * 100 / h_mm)}'
+
+    partes: list[str] = []
+    for i, (px_, py_) in enumerate(mm):
+        orden = 'M' if i == 0 else 'L'
+        r = puntos[i]['r']
+        tramo = None
+        if r > 0:
+            prev, nxt = mm[(i - 1) % n], mm[(i + 1) % n]
+            lp = math.hypot(prev[0] - px_, prev[1] - py_)
+            ln = math.hypot(nxt[0] - px_, nxt[1] - py_)
+            if lp != 0 and ln != 0:
+                d = min(r, lp / 2, ln / 2)
+                tramo = (
+                    (px_ + (prev[0] - px_) / lp * d, py_ + (prev[1] - py_) / lp * d),
+                    (px_ + (nxt[0] - px_) / ln * d, py_ + (nxt[1] - py_) / ln * d),
+                )
+        if tramo is None:
+            partes.append(f'{orden} {caja(px_, py_)}')
+        else:
+            ini, fin = tramo
+            partes.append(f'{orden} {caja(*ini)} Q {caja(px_, py_)} {caja(*fin)}')
+    return ' '.join(partes) + ' Z'
+
+
+def _radios_esquinas_mm(valor: Any, w_mm: float, h_mm: float) -> list[float] | None:
+    """`props.radios` [sup-izq, sup-der, inf-der, inf-izq] en mm, acotados a la mitad del lado menor."""
+    if not isinstance(valor, (list, tuple)) or len(valor) != 4:
+        return None
+    try:
+        radios = [float(r) for r in valor]
+    except (TypeError, ValueError):
+        return None
+    if not all(math.isfinite(r) for r in radios):
+        return None
+    tope = max(0.0, min(w_mm, h_mm) / 2)
+    return [min(tope, max(0.0, r)) for r in radios]
+
+
+def _dibujar_rect_radios(
+    c: canvas.Canvas, x: float, y: float, w: float, h: float, radios_pt: list[float], relleno: bool, borde: bool,
+) -> None:
+    """Rectángulo con un radio por esquina [sup-izq, sup-der, inf-der, inf-izq] (cada esquina es una Q)."""
+    tl, tr, br, bl = radios_pt
+    path = c.beginPath()
+
+    def esquina(p0: tuple[float, float], ctrl: tuple[float, float], p1: tuple[float, float]) -> None:
+        path.curveTo(
+            p0[0] + 2 / 3 * (ctrl[0] - p0[0]), p0[1] + 2 / 3 * (ctrl[1] - p0[1]),
+            p1[0] + 2 / 3 * (ctrl[0] - p1[0]), p1[1] + 2 / 3 * (ctrl[1] - p1[1]),
+            p1[0], p1[1],
+        )
+
+    path.moveTo(x + tl, y + h)
+    path.lineTo(x + w - tr, y + h)
+    esquina((x + w - tr, y + h), (x + w, y + h), (x + w, y + h - tr))
+    path.lineTo(x + w, y + br)
+    esquina((x + w, y + br), (x + w, y), (x + w - br, y))
+    path.lineTo(x + bl, y)
+    esquina((x + bl, y), (x, y), (x, y + bl))
+    path.lineTo(x, y + h - tl)
+    esquina((x, y + h - tl), (x, y + h), (x + tl, y + h))
+    path.close()
+    c.drawPath(path, fill=1 if relleno else 0, stroke=1 if borde else 0)
 
 
 def _dibujar_svg_path(
@@ -306,6 +571,8 @@ def generar_carnet_pdf_fiel(definicion: dict[str, Any], datos: DatosCarnetPdf | 
             'security_hash': datos.security_hash,
             'vence': datos.vence,
         }
+        # Los campos personalizados nunca pisan los datos base del titular.
+        datos_dict = {**datos.campos_extra, **datos_dict}
         foto_bytes = datos.foto_bytes
     else:
         datos_dict = datos
@@ -391,7 +658,13 @@ def generar_carnet_pdf_fiel(definicion: dict[str, Any], datos: DatosCarnetPdf | 
 
             # Renderizado por tipo de primitiva gráfica
             if tipo in ('rect', 'forma'):
-                c.roundRect(x_pt, y_pt, w_pt, h_pt, rad_pt, fill=1, stroke=1 if tiene_stroke else 0)
+                radios_mm = _radios_esquinas_mm(props.get('radios') or el.get('radios'), w_mm, h_mm)
+                if radios_mm is not None:
+                    _dibujar_rect_radios(
+                        c, x_pt, y_pt, w_pt, h_pt, [r * MM_A_PT for r in radios_mm], True, bool(tiene_stroke),
+                    )
+                else:
+                    c.roundRect(x_pt, y_pt, w_pt, h_pt, rad_pt, fill=1, stroke=1 if tiene_stroke else 0)
 
             elif tipo in ('circle', 'ellipse'):
                 c.ellipse(x_pt, y_pt, x_pt + w_pt, y_pt + h_pt, fill=1, stroke=1 if tiene_stroke else 0)
@@ -425,9 +698,11 @@ def generar_carnet_pdf_fiel(definicion: dict[str, Any], datos: DatosCarnetPdf | 
                 c.drawPath(path, fill=1, stroke=1 if tiene_stroke else 0)
 
             elif tipo == 'path':
+                puntos = _puntos_validos(props.get('puntos'))
+                path_forma = path_desde_puntos(puntos, w_mm, h_mm) if puntos else ''
                 _dibujar_svg_path(
                     c,
-                    el.get('path') or props.get('d'),
+                    path_forma or el.get('path') or props.get('d'),
                     x_pt, y_pt, w_pt, h_pt,
                     fill_color,
                     stroke_raw if tiene_stroke else None,
@@ -447,6 +722,7 @@ def generar_carnet_pdf_fiel(definicion: dict[str, Any], datos: DatosCarnetPdf | 
                     c, datos_dict, x_pt, y_pt,
                     tamano=min(w_pt, h_pt),
                     con_logo=bool(props.get('logo', True)),
+                    estilo=props.get('qr_estilo'),
                 )
 
             elif tipo == 'image':
@@ -488,45 +764,29 @@ def generar_carnet_pdf_fiel(definicion: dict[str, Any], datos: DatosCarnetPdf | 
                 bold = bool(el.get('bold', False))
                 fuente_elegida = FUENTE_NEGRITA if bold else FUENTE
 
-                # Ajuste automático: si el texto no cabe en el ancho declarado, se
-                # reduce el tamaño (mínimo 3.5 pt) en vez de desbordar la tarjeta.
-                def _tamano_ajustado(texto: str, tamano: float) -> float:
-                    if not texto or w_pt <= 0:
-                        return tamano
-                    ancho_texto = stringWidth(texto, fuente_elegida, tamano)
-                    if ancho_texto <= w_pt:
-                        return tamano
-                    return max(3.5, tamano * (w_pt / ancho_texto))
-
-                if '\n' not in texto_render:
-                    font_size = _tamano_ajustado(texto_render, font_size)
+                # La caja nunca pasa del borde de la tarjeta (menos el margen).
+                x_txt, w_txt = _limitar_caja_a_tarjeta(x_pt, w_pt, ancho_pt)
+                lineas, font_size = ajustar_texto(
+                    texto_render, fuente_elegida, font_size, w_txt, h_pt,
+                )
                 c.setFont(fuente_elegida, font_size)
                 c.setFillColor(fill_color)
 
                 align = el.get('align', 'left')
-
-                # Si el texto es multilínea (ej. Normas de uso)
-                if '\n' in texto_render:
-                    lineas = texto_render.split('\n')
-                    interlineado = font_size * 1.2
+                interlineado = font_size * 1.2
+                if len(lineas) > 1:
                     total_h = len(lineas) * interlineado
                     y_actual = y_pt + h_pt - (h_pt - total_h) / 2 - font_size
-                    for linea in lineas:
-                        if align == 'center':
-                            c.drawCentredString(x_pt + w_pt / 2, y_actual, linea)
-                        elif align == 'right':
-                            c.drawRightString(x_pt + w_pt, y_actual, linea)
-                        else:
-                            c.drawString(x_pt, y_actual, linea)
-                        y_actual -= interlineado
                 else:
-                    y_base = y_pt + (h_pt - font_size) / 2 + 0.5
+                    y_actual = y_pt + (h_pt - font_size) / 2 + 0.5
+                for linea in lineas:
                     if align == 'center':
-                        c.drawCentredString(x_pt + w_pt / 2, y_base, texto_render)
+                        c.drawCentredString(x_txt + w_txt / 2, y_actual, linea)
                     elif align == 'right':
-                        c.drawRightString(x_pt + w_pt, y_base, texto_render)
+                        c.drawRightString(x_txt + w_txt, y_actual, linea)
                     else:
-                        c.drawString(x_pt, y_base, texto_render)
+                        c.drawString(x_txt, y_actual, linea)
+                    y_actual -= interlineado
 
             c.restoreState()
 
@@ -568,7 +828,6 @@ def generar_carnet_pdf(datos: DatosCarnetPdf, definicion: dict[str, Any] | None 
         _dibujar_foto(c, datos.foto_bytes, x_foto, y_foto, photo_width, photo_height)
 
         center_x = CARNET_WIDTH / 2
-        max_text_width = CARNET_WIDTH - 0.80 * cm
         text_start_y = y_foto - 0.3 * cm
         c.setFont(FUENTE_NEGRITA, 7)
         c.drawCentredString(center_x, text_start_y, datos.nombre_completo.upper()[:30])

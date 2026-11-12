@@ -13,6 +13,7 @@ import {
   elementoBibliotecaApiAEntidad,
   campoCredencialApiAEntidad,
   fichaQrApiAEntidad,
+  paginaApiAEntidad,
 } from "../mappers/mapper-carnetizacion";
 
 export const repoCarnetizacionApi: RepoCarnetizacion = {
@@ -82,9 +83,27 @@ export const repoCarnetizacionApi: RepoCarnetizacion = {
     return raw.map(tipoCredencialApiAEntidad);
   },
 
+  async obtenerSugerenciasReglasColor() {
+    return carnetizacionApi.getSugerenciasReglasColor();
+  },
+
   async listarPlantillasMotor(tipo, estado, activas) {
     const raw = await carnetizacionApi.getPlantillasMotor(tipo, estado, activas);
     return raw.map(plantillaMotorApiAEntidad);
+  },
+
+  async listarPlantillasMotorPagina(tipo, params) {
+    const raw = await carnetizacionApi.getPlantillasMotorPagina(tipo, params);
+    return paginaApiAEntidad(raw, plantillaMotorApiAEntidad);
+  },
+
+  async listarFondosFijos(params) {
+    const raw = await carnetizacionApi.getFondosFijos(params);
+    return paginaApiAEntidad(raw, plantillaCarnetApiAEntidad);
+  },
+
+  async eliminarFondoFijo(id) {
+    await carnetizacionApi.eliminarFondoFijo(id);
   },
 
   async obtenerPlantillaMotor(id) {
@@ -132,6 +151,11 @@ export const repoCarnetizacionApi: RepoCarnetizacion = {
     return raw.map(elementoBibliotecaApiAEntidad);
   },
 
+  async listarBibliotecaPagina(categoria, params) {
+    const raw = await carnetizacionApi.getBibliotecaPagina(categoria, params);
+    return paginaApiAEntidad(raw, elementoBibliotecaApiAEntidad);
+  },
+
   async subirElementoBiblioteca(nombre, categoria, archivo, descripcion) {
     const formData = new FormData();
     formData.append("nombre", nombre);
@@ -156,6 +180,11 @@ export const repoCarnetizacionApi: RepoCarnetizacion = {
 
   async crearCampoPersonalizado(campo) {
     const raw = await carnetizacionApi.crearCampoPersonalizado(campo as unknown as Record<string, unknown>);
+    return campoCredencialApiAEntidad(raw);
+  },
+
+  async actualizarCampoPersonalizado(codigo, campo) {
+    const raw = await carnetizacionApi.actualizarCampoPersonalizado(codigo, campo as unknown as Record<string, unknown>);
     return campoCredencialApiAEntidad(raw);
   },
 

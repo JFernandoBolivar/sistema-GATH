@@ -11,7 +11,7 @@ export const schemaUpdateCodeTable = z.object({
   // `.catch(0)` evita mostrar el mensaje técnico de Zod («Expected number,
   // received nan») cuando el selector queda vacío.
   Dependencia: z.number().catch(0).refine((v) => v > 0, {
-    message: "Seleccione el Nivel (Dependencia)",
+    message: "Seleccione el Nivel",
   }),
   OrganismoAdscritoid: z.number().optional().nullable(),
   DireccionGeneral: z.number().catch(0).refine((v) => v > 0, {

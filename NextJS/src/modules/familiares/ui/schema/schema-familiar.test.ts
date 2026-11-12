@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { familiarSchema } from "./schema-familiar";
+import { familiarSchema, familiarUpdateSchema } from "./schema-familiar";
+
+const perfilSalud = { grupoSanguineoId: 1, alergias: [], patologiasCronicas: [], discapacidades: [] };
 
 describe("Schema de Cargas Familiares", () => {
   it("valida familiar con datos completos", () => {
@@ -12,6 +14,7 @@ describe("Schema de Cargas Familiares", () => {
       sexoId: 2,
       mismoEnte: false,
       heredero: true,
+      perfilSalud,
     });
     expect(res.success).toBe(true);
   });
@@ -26,6 +29,7 @@ describe("Schema de Cargas Familiares", () => {
       sexoId: 2,
       mismoEnte: false,
       heredero: true,
+      perfilSalud,
     });
     expect(res.success).toBe(false);
   });
@@ -41,6 +45,7 @@ describe("Schema de Cargas Familiares", () => {
       sexoId: 2,
       mismoEnte: false,
       heredero: true,
+      perfilSalud,
     });
     expect(res.success).toBe(true);
     if (res.success) expect(res.data.cedulaFamiliar).toBeNull();
@@ -57,6 +62,7 @@ describe("Schema de Cargas Familiares", () => {
       mismoEnte: false,
       heredero: true,
       ordenHijo: 2,
+      perfilSalud,
     };
     expect(familiarSchema.safeParse(base).success).toBe(true);
     expect(familiarSchema.safeParse({ ...base, fechaNacimiento: "2099-01-01" }).success).toBe(false);
@@ -75,6 +81,7 @@ describe("Schema de Cargas Familiares", () => {
       sexoId: 2,
       mismoEnte: false,
       heredero: true,
+      perfilSalud,
     });
     expect(res.success).toBe(false);
   });
@@ -89,8 +96,62 @@ describe("Schema de Cargas Familiares", () => {
       sexoId: 2,
       mismoEnte: false,
       heredero: true,
+      perfilSalud,
     });
     expect(res.success).toBe(false);
+  });
+
+  it("exige el grupo sanguíneo en el registro (OC 2026-11-11)", () => {
+    const base = {
+      empleadoCedula: "12345678",
+      primerNombre: "María",
+      primerApellido: "Pérez",
+      parentescoId: 1,
+      fechaNacimiento: "2015-05-10",
+      sexoId: 2,
+      mismoEnte: false,
+      heredero: false,
+    };
+
+    const sinPerfil = familiarSchema.safeParse(base);
+    expect(sinPerfil.success).toBe(false);
+
+    const sinSeleccion = familiarSchema.safeParse({
+      ...base,
+      perfilSalud: { grupoSanguineoId: 0 },
+    });
+    expect(sinSeleccion.success).toBe(false);
+    if (!sinSeleccion.success) {
+      expect(sinSeleccion.error.issues[0]?.path).toEqual(["perfilSalud", "grupoSanguineoId"]);
+      expect(sinSeleccion.error.issues[0]?.message).toBe("Seleccione el grupo sanguíneo");
+    }
+
+    expect(familiarSchema.safeParse({ ...base, perfilSalud }).success).toBe(true);
+  });
+
+  it("rechaza la cédula exacta del titular y acepta la sintética (OC 2026-11-11)", () => {
+    const base = {
+      empleadoCedula: "5132733",
+      primerNombre: "María",
+      primerApellido: "Pérez",
+      parentescoId: 1,
+      fechaNacimiento: "2015-05-10",
+      sexoId: 2,
+      mismoEnte: false,
+      heredero: false,
+      perfilSalud,
+    };
+
+    const igual = familiarSchema.safeParse({ ...base, cedulaFamiliar: "5132733" });
+    expect(igual.success).toBe(false);
+    if (!igual.success) {
+      const issue = igual.error.issues.find((i) => i.path[0] === "cedulaFamiliar");
+      expect(issue?.message).toBe("La cédula del familiar no puede ser la misma del titular");
+    }
+
+    // La hija/hijo menor sin cédula usa la sintética del titular: se permite.
+    expect(familiarSchema.safeParse({ ...base, cedulaFamiliar: "5132733-1" }).success).toBe(true);
+    expect(familiarUpdateSchema.safeParse({ ...base, cedulaFamiliar: "5132733-1" }).success).toBe(true);
   });
 });
 
@@ -104,6 +165,7 @@ describe("Longitudes del familiar (QA 2026-11-04)", () => {
     sexoId: 2,
     mismoEnte: false,
     heredero: false,
+    perfilSalud,
   };
   const pasa = (c: Record<string, unknown>) => familiarSchema.safeParse({ ...base, ...c }).success;
 

@@ -40,6 +40,7 @@ class RepoCamposMemoria:
         sensible: bool = False,
         descripcion: str = "",
         valor_ejemplo: str = "",
+        origen: str = "",
     ) -> CampoCredencial:
         campo = CampoCredencial(
             codigo=codigo,
@@ -50,6 +51,7 @@ class RepoCamposMemoria:
             es_personalizado=True,
             descripcion=descripcion,
             valor_ejemplo=valor_ejemplo,
+            origen=origen,
         )
         self.personalizados[codigo] = campo
         return campo
@@ -122,6 +124,7 @@ def test_crear_campo_personalizado_valida_etiqueta_obligatoria():
             repo,
             codigo="valido_slug",
             etiqueta="   ",
+            origen="sexo",
         )
 
 
@@ -143,6 +146,7 @@ def test_orm_guardar_listar_y_eliminar_campo_personalizado():
         sensible=False,
         descripcion="Horario asignado",
         valor_ejemplo="Diurno (8am - 4pm)",
+        origen="sexo",
     )
     assert campo.codigo == "turno_laboral"
     assert campo.es_personalizado is True

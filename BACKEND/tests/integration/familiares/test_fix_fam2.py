@@ -20,6 +20,7 @@ from apps.familiares.application.use_cases.validaciones_familiar import (
     resolver_cedula_familiar,
 )
 from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
+from apps.personal.infrastructure.models.catalogos_soporte_models import GrupoSanguineoModel
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from core.domain.exceptions import ValidationError
 
@@ -72,6 +73,12 @@ def _cuerpo(parentesco, sexo, nacimiento, orden=1):
         'fecha_nacimiento': nacimiento,
         'sexo_id': sexo.pk,
         'orden_hijo': orden,
+        # OC 2026-11-11: el grupo sanguíneo es obligatorio.
+        'perfil_salud': {
+            'grupo_sanguineo_id': GrupoSanguineoModel.objects.get_or_create(
+                GrupoSanguineo='O+',
+            )[0].pk,
+        },
     }
 
 

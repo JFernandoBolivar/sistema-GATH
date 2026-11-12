@@ -17,6 +17,7 @@ def _empleado_a_dto(e: Empleado) -> EmpleadoDTO:
         sexo_nombre=e.sexo_nombre,
         correo=e.correo,
         correo_alternativo=e.correo_alternativo,
+        tiene_hijos=e.tiene_hijos,
         telefono_movil=e.telefono_movil,
         telefono_habitacion=e.telefono_habitacion,
         fecha_nacimiento=e.fecha_nacimiento,

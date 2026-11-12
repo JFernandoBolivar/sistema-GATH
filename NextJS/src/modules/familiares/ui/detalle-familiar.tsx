@@ -12,7 +12,7 @@
  *   5. Información De Salud (Heart) + Botón Editar
  *   6. Documentos Del Familiar (FileText) con visor/descarga y subidor de documentos.
  */
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   FileDown,
   FileText,
@@ -23,7 +23,6 @@ import {
   Shirt,
   UserRound,
 } from "lucide-react";
-import { toast } from "sonner";
 
 import { formatearFecha } from "@/shared/lib/formato-fecha";
 import { Badge } from "@/shared/ui/components/badge";
@@ -31,7 +30,6 @@ import { Button } from "@/shared/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
 import { ScrollArea } from "@/shared/ui/components/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/shared/ui/components/sheet";
-import { FileUpload } from "@/shared/ui/components/file-upload";
 
 import {
   CATALOGOS_FAMILIAR_VACIOS,
@@ -42,7 +40,6 @@ import {
 import {
   getCatalogosFamiliarAction,
   getDocumentosFamiliarAction,
-  subirDocumentoFamiliarAction,
 } from "../infrastructure/actions/familiares-actions";
 import { etiquetaDocumento } from "./detalle-familiar-view-model";
 import { FamiliarFormDialog } from "./familiar-form-dialog";
@@ -55,52 +52,6 @@ interface DetalleFamiliarProps {
   onOpenChange: (open: boolean) => void;
   puedeEditar: boolean;
   onGuardado: (familiar: FamiliarDTO) => void;
-}
-
-function FamilyDocumentUploader({
-  familiarId,
-  documentType,
-  label,
-  onUploaded,
-}: {
-  familiarId: number;
-  documentType: "cedula" | "partida_nacimiento";
-  label: string;
-  onUploaded: () => void;
-}) {
-  const [file, setFile] = useState<File | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  const handleUpload = () => {
-    if (!file) return;
-    startTransition(async () => {
-      const result = await subirDocumentoFamiliarAction(familiarId, documentType, file);
-      if (result && typeof result === "object" && "error" in result) {
-        toast.error((result as { error: string }).error || "Error al subir el documento");
-      } else {
-        toast.success("Documento actualizado exitosamente");
-        setFile(null);
-        onUploaded();
-      }
-    });
-  };
-
-  return (
-    <div className="flex flex-col gap-2">
-      <FileUpload label={label} value={file} onChange={setFile} />
-      {file && (
-        <Button
-          type="button"
-          size="sm"
-          className="cursor-pointer self-start"
-          disabled={isPending}
-          onClick={handleUpload}
-        >
-          {isPending ? "Subiendo..." : "Guardar documento"}
-        </Button>
-      )}
-    </div>
-  );
 }
 
 export function DetalleFamiliar({
@@ -195,10 +146,6 @@ export function DetalleFamiliar({
     .map((id) => catalogos?.alergias.find((a) => a.id === id)?.nombre)
     .filter(Boolean);
 
-  const esHijo =
-    familiar.parentescoNombre?.toUpperCase().includes("HIJO") ||
-    familiar.parentescoNombre?.toUpperCase().includes("HIJA");
-
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full overflow-hidden sm:max-w-xl">
@@ -208,7 +155,7 @@ export function DetalleFamiliar({
 
         <ScrollArea className="gap-5 h-[90%] pr-2">
           <div className="flex flex-col gap-4 py-4">
-            {/* Header del familiar con botón Editar */}
+            {/* Header del familiar (la edición vive en el botón de cada bloque) */}
             <div className="flex items-center justify-between gap-2 p-2 rounded-md bg-muted/30">
               <div className="flex items-center gap-2">
                 <UserRound className="size-6 text-muted-foreground" aria-hidden="true" />
@@ -222,7 +169,6 @@ export function DetalleFamiliar({
                   </p>
                 </div>
               </div>
-              {puedeEditar && <FamiliarFormDialog familiar={familiar} onGuardado={onGuardado} />}
             </div>
 
             {/* 1. INFORMACIÓN BÁSICA */}
@@ -231,6 +177,13 @@ export function DetalleFamiliar({
                 <div className="flex flex-row items-center gap-2 font-bold text-sm">
                   Información Basica <PersonStanding className="size-4" />
                 </div>
+                {puedeEditar && (
+                  <FamiliarFormDialog
+                    familiar={familiar}
+                    onGuardado={onGuardado}
+                    bloque="identidad"
+                  />
+                )}
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-y-2 text-sm">
@@ -264,6 +217,13 @@ export function DetalleFamiliar({
                 <div className="flex flex-row items-center gap-2 font-bold text-sm">
                   Relacion/Parentesco <PersonStanding className="size-4" />
                 </div>
+                {puedeEditar && (
+                  <FamiliarFormDialog
+                    familiar={familiar}
+                    onGuardado={onGuardado}
+                    bloque="parentesco"
+                  />
+                )}
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-y-2 text-sm">
@@ -295,6 +255,13 @@ export function DetalleFamiliar({
                 <CardTitle className="flex flex-row items-center gap-2 font-bold text-sm">
                   Formaciones Academicas <GraduationCap className="size-4" />
                 </CardTitle>
+                {puedeEditar && (
+                  <FamiliarFormDialog
+                    familiar={familiar}
+                    onGuardado={onGuardado}
+                    bloque="formacion"
+                  />
+                )}
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-y-2 text-sm">
@@ -319,6 +286,13 @@ export function DetalleFamiliar({
                 <CardTitle className="flex flex-row items-center gap-2 font-bold text-sm">
                   Información De Vestimenta <Shirt className="size-4" />
                 </CardTitle>
+                {puedeEditar && (
+                  <FamiliarFormDialog
+                    familiar={familiar}
+                    onGuardado={onGuardado}
+                    bloque="vestimenta"
+                  />
+                )}
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-y-2 text-sm">
@@ -347,6 +321,13 @@ export function DetalleFamiliar({
                 <CardTitle className="flex flex-row items-center gap-2 font-bold text-sm">
                   Información De Salud <Heart className="size-4" />
                 </CardTitle>
+                {puedeEditar && (
+                  <FamiliarFormDialog
+                    familiar={familiar}
+                    onGuardado={onGuardado}
+                    bloque="salud"
+                  />
+                )}
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-y-2 text-sm">
@@ -387,10 +368,17 @@ export function DetalleFamiliar({
 
             {/* 6. DOCUMENTOS DEL FAMILIAR */}
             <Card>
-              <CardHeader className="pb-2">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm font-bold">
                   <FileText className="size-4" /> Documentos Del Familiar
                 </CardTitle>
+                {puedeEditar && (
+                  <FamiliarFormDialog
+                    familiar={familiar}
+                    onGuardado={onGuardado}
+                    bloque="documentos"
+                  />
+                )}
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
                 {cargandoDocs ? (
@@ -428,28 +416,6 @@ export function DetalleFamiliar({
                         )}
                       </div>
                     ))}
-                  </div>
-                )}
-
-                {puedeEditar && (
-                  <div className="border-t pt-3 flex flex-col gap-3">
-                    <h4 className="text-xs font-semibold uppercase text-muted-foreground">
-                      Subir nuevo documento
-                    </h4>
-                    <FamilyDocumentUploader
-                      familiarId={familiar.id}
-                      documentType="cedula"
-                      label="Foto o PDF de la Cédula"
-                      onUploaded={cargarDocumentos}
-                    />
-                    {esHijo && (
-                      <FamilyDocumentUploader
-                        familiarId={familiar.id}
-                        documentType="partida_nacimiento"
-                        label="Partida de Nacimiento"
-                        onUploaded={cargarDocumentos}
-                      />
-                    )}
                   </div>
                 )}
               </CardContent>

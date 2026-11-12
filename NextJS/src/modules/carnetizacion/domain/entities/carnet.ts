@@ -39,6 +39,7 @@ export interface EstadisticasCarnet {
   revocados: number;
   emitidosHoy: number;
   emitidosMes: number;
+  ultimos?: UltimoCarnet[];
   porMotivo: EstadisticaMotivoCarnet[];
 }
 
@@ -74,6 +75,8 @@ export interface EmployeeCarnet {
   telefono: string;
   total_solicitudes: number;
   tiene_carnet: boolean;
+  /** ISO de la emisión del carnet vigente; null si no tiene. */
+  carnet_activo_emitido_en?: string | null;
 }
 
 export interface MotivoOption {
@@ -146,6 +149,8 @@ export interface CampoCredencial {
   es_personalizado: boolean;
   descripcion: string;
   valor_ejemplo: string;
+  /** Solo en personalizados: de dónde sale el valor al imprimir. Vacío = campo viejo sin origen. */
+  origen?: string;
 }
 
 export interface Plantilla {
@@ -156,6 +161,24 @@ export interface Plantilla {
   activo: boolean;
   creado: string;
 }
+
+/** Página de resultados paginada en el servidor ({resultados, total, pagina, tamano, total_paginas}). */
+export interface PaginaCarnet<T> {
+  resultados: T[];
+  total: number;
+  pagina: number;
+  tamano: number;
+  totalPaginas: number;
+}
+
+/** Parámetros de paginación y búsqueda que viajan al servidor. */
+export interface ParamsPagina {
+  pagina: number;
+  tamano: number;
+  busqueda?: string;
+}
+
+export const TAMANOS_PAGINA = [12, 24, 48] as const;
 
 export interface UltimoCarnet {
   nombre: string;

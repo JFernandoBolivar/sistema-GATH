@@ -59,4 +59,5 @@ export interface DocumentoFamiliar {
   tipoDocumento: string;
   rutaArchivo: string;
   fechaSubida: string;
+  nombreArchivo?: string;
 }

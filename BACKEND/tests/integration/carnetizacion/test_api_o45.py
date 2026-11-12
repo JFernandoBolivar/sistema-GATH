@@ -17,6 +17,7 @@ from apps.catalogos.infrastructure.models.catalogo_models import (
     SexoModel,
 )
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
+from core.infrastructure.models.auditoria import AuditoriaLog
 
 pytestmark = pytest.mark.django_db
 
@@ -174,7 +175,11 @@ def test_emision_con_pdf_fallido_no_deja_carnet_ni_desactiva_el_anterior(datos_b
     monkeypatch.setattr(carnetizacion_views, "emitir_carnet_y_pdf", explota)
 
     # El handler central traduce la excepción a 500 (no se propaga al cliente).
-    respuesta = api.post(f"{BASE}/generar/V-1/", {"motivo_id": previo.motivo_id}, format="json")
+    respuesta = api.post(
+        f"{BASE}/generar/V-1/",
+        {"motivo_id": previo.motivo_id, "motivo_reemision": "CAMBIO_DATOS"},
+        format="json",
+    )
     assert respuesta.status_code == 500, respuesta.content
 
     previo.refresh_from_db()
@@ -335,7 +340,7 @@ def test_flujo_evento_invitado_y_control_entrada(datos_base):
 
     listado = api.get(f"{BASE}/eventos/{evento['id']}/invitados/")
     assert listado.status_code == 200
-    fila = next(f for f in listado.json()["data"] if str(f["id"]) == str(invitado_id))
+    fila = next(f for f in listado.json()["data"]["resultados"] if str(f["id"]) == str(invitado_id))
     codigo = fila.get("security_hash") or fila.get("codigo_credencial")
     assert codigo
 
@@ -379,6 +384,7 @@ def test_generar_carnet_devuelve_pdf_binario(datos_base):
         f"{BASE}/generar/V-1/",
         {
             "motivo_id": datos_base["carnet"].motivo_id,
+            "motivo_reemision": "CAMBIO_DATOS",
             "observaciones": "O46-A",
             "datos_editados": {"nombre": "ANA API", "cedula": "V-1"},
         },
@@ -428,3 +434,167 @@ def test_ficha_qr_publica_recorta_ip_y_user_agent(datos_base):
     assert len(bitacora.ip) <= 45
     assert len(bitacora.user_agent) <= 500
 
+
+
+def test_estadisticas_cuentan_los_carnets_emitidos(datos_base):
+    """Con 2 carnets emitidos las estadisticas dan total=2 (antes el panel mostraba 0)."""
+    empleado = datos_base["empleado"]
+    CarnetEmitidoModel.objects.create(
+        employee=empleado,
+        motivo=datos_base["carnet"].motivo,
+        security_hash="HashApiO45Estad_-abcdef1",
+        activo=True,
+    )
+    resp = datos_base["api"].get(f"{BASE}/estadisticas/")
+    assert resp.status_code == 200
+    d = resp.json()["data"]
+    assert d["total"] == 2
+    assert d["activos"] == 2
+    assert d["emitidos_hoy"] == 2 and d["emitidos_mes"] == 2
+    assert len(d["ultimos"]) == 2
+    assert d["ultimos"][0]["cedula"] == "V-1" and d["ultimos"][0]["nombre"] == "ANA API"
+    assert d["por_motivo"][0]["total"] == 2
+
+
+@pytest.mark.django_db
+def test_listado_de_eventos_paginado_pagina_1_y_2():
+    api = APIClient()
+    api.force_authenticate(user=_UsuarioPaginacion())
+    ahora = timezone.now()
+    for n in range(1, 6):
+        r = api.post(
+            f"{BASE}/eventos/",
+            {
+                "nombre": f"Evento paginado {n}",
+                "lugar": "Sala",
+                "fecha_inicio": (ahora + timedelta(days=n)).isoformat(),
+                "fecha_fin": (ahora + timedelta(days=n, hours=3)).isoformat(),
+            },
+            format="json",
+        )
+        assert r.status_code == 201, r.content
+    p1 = api.get(f"{BASE}/eventos/", {"pagina": 1, "page_size": 2, "busqueda": "Evento paginado"}).json()["data"]
+    p2 = api.get(f"{BASE}/eventos/", {"pagina": 2, "page_size": 2, "busqueda": "Evento paginado"}).json()["data"]
+    assert (p1["total"], p1["tamano"], p1["total_paginas"], p1["pagina"]) == (5, 2, 3, 1)
+    assert p2["pagina"] == 2 and len(p1["resultados"]) == len(p2["resultados"]) == 2
+    assert not {e["id"] for e in p1["resultados"]} & {e["id"] for e in p2["resultados"]}
+    assert p1["resumen"]["eventos"] >= 5 and p1["resumen"]["proximos"] >= 5
+    proximos = api.get(f"{BASE}/eventos/", {"pagina": 1, "page_size": 50, "estado": "proximo"}).json()["data"]
+    assert proximos["total"] >= 5
+    en_curso = api.get(f"{BASE}/eventos/", {"pagina": 1, "page_size": 50, "estado": "activo", "busqueda": "Evento paginado"}).json()["data"]
+    assert en_curso["total"] == 0
+
+
+class _UsuarioPaginacion:
+    is_authenticated = True
+    is_active = True
+    pk = 1
+    id = None
+    cedula_id = "V-1"
+    rol_id = None
+
+    def tiene_permiso(self, codigo):
+        return True
+
+
+# ==============================================================================
+# T2 (OC 2026-11-11): motivo obligatorio para reemitir el carnet
+# ==============================================================================
+
+def _generar(api: APIClient, cuerpo: dict):
+    return api.post(f"{BASE}/generar/V-1/", cuerpo, format="json")
+
+
+def test_emision_sin_carnet_vigente_no_exige_motivo(datos_base):
+    """Sin carnet vigente se emite sin `motivo_reemision`."""
+    carnet = datos_base["carnet"]
+    carnet.activo = False
+    carnet.save(update_fields=["activo"])
+
+    respuesta = _generar(
+        datos_base["api"],
+        {"motivo_id": datos_base["carnet"].motivo_id, "datos_editados": {"nombre": "ANA API", "cedula": "V-1"}},
+    )
+
+    assert respuesta.status_code == 200, respuesta.content
+    assert respuesta.content[:5] == b"%PDF-"
+    assert CarnetEmitidoModel.objects.filter(
+        employee=datos_base["empleado"], activo=True,
+    ).count() == 1
+
+
+def test_reemision_con_carnet_vigente_y_sin_motivo_da_409(datos_base):
+    """409 con el resumen del carnet vigente y el mensaje en español."""
+    respuesta = _generar(datos_base["api"], {"motivo_id": datos_base["carnet"].motivo_id})
+
+    assert respuesta.status_code == 409, respuesta.content
+    cuerpo = respuesta.json()
+    assert "Indique el motivo de la reemisión" in cuerpo["message"]
+    vigente = cuerpo["data"]["carnet_vigente"]
+    assert vigente["id"] == datos_base["carnet"].id
+    assert vigente["numero"] == datos_base["carnet"].id
+    assert vigente["emitido_en"]
+
+
+def test_reemision_con_motivo_valido_emite_y_audita(datos_base):
+    respuesta = _generar(
+        datos_base["api"],
+        {
+            "motivo_id": datos_base["carnet"].motivo_id,
+            "motivo_reemision": "OTRO",
+            "detalle": "Se deterioró el carnet en la lavadora",
+        },
+    )
+
+    assert respuesta.status_code == 200, respuesta.content
+    nuevo = CarnetEmitidoModel.objects.filter(
+        employee=datos_base["empleado"], activo=True,
+    ).get()
+    assert "Reemisión: OTRO" in (nuevo.observaciones or "")
+    assert "Se deterioró el carnet en la lavadora" in (nuevo.observaciones or "")
+
+    auditoria = AuditoriaLog.objects.filter(
+        accion="carnetizacion.carnet_reemitido", recurso_id=str(nuevo.pk),
+    ).first()
+    assert auditoria is not None
+    assert auditoria.actor_cedula == "V-1"
+    assert auditoria.estado_nuevo["motivo_reemision"] == "OTRO"
+    assert "lavadora" in auditoria.estado_nuevo["detalle"]
+
+
+def test_reemision_rechaza_motivo_invalido_y_detalle_corto(datos_base):
+    invalido = _generar(
+        datos_base["api"], {"motivo_id": datos_base["carnet"].motivo_id, "motivo_reemision": "CAMBIO_DE_PUESTO"},
+    )
+    assert invalido.status_code == 400, invalido.content
+
+    corto = _generar(
+        datos_base["api"],
+        {"motivo_id": datos_base["carnet"].motivo_id, "motivo_reemision": "OTRO", "detalle": "corto"},
+    )
+    assert corto.status_code == 400, corto.content
+    assert "detalle" in str(corto.json())
+
+
+def test_resumen_panel_evento_agrega_por_grupo_y_no_por_fila(datos_base, django_assert_max_num_queries):
+    """N+1 corregido: 3 categorías y 2 zonas no deben sumar consultas por fila."""
+    from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
+        EventoCategoriaModel,
+        EventoZonaModel,
+    )
+    from apps.carnetizacion.infrastructure.repositories.repo_eventos_orm import RepoEventosORM
+
+    api = datos_base["api"]
+    evento = _crear_evento(api)
+    for i in range(3):
+        EventoCategoriaModel.objects.create(evento_id=evento["id"], nombre=f"Categoría {i}")
+    for i in range(2):
+        EventoZonaModel.objects.create(evento_id=evento["id"], nombre=f"Zona {i}")
+
+    with django_assert_max_num_queries(8):
+        resumen = RepoEventosORM().obtener_resumen_panel(evento["id"])
+
+    # El evento nace con categorías por defecto (Staff, Prensa…): basta con que estén las nuevas.
+    assert set(resumen.por_categoria) >= {f"Categoría {i}" for i in range(3)}
+    assert set(resumen.por_zona) >= {f"Zona {i}" for i in range(2)}
+    assert all(valor == 0 for valor in resumen.por_categoria.values())

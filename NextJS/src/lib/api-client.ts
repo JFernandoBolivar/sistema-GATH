@@ -6,6 +6,7 @@ import { cache } from "react";
 import { DJANGO_API_SERVER } from "@/shared/commons/api";
 import { authCookieSecure } from "@/shared/commons/auth-cookies";
 import { ipDelCliente } from "@/shared/infrastructure/http/ip-cliente";
+import { userAgentDelCliente } from "@/shared/infrastructure/http/user-agent";
 
 const AUTH_COOKIE_PREFIXES = [
   "authjs.session-token",
@@ -137,6 +138,9 @@ async function getAuthHeaders(): Promise<Record<string, string> | null> {
   // de Django (el valor lo pone el proxy de entrada; solo se toma el primero).
   const ip = await ipDelCliente();
   if (ip) cabeceras["X-Forwarded-For"] = ip;
+  // La auditoría de Django registra el dispositivo del navegador, no el de node.
+  const userAgent = await userAgentDelCliente();
+  if (userAgent) cabeceras["User-Agent"] = userAgent;
   return cabeceras;
 }
 

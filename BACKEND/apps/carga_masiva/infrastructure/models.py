@@ -43,6 +43,8 @@ class CargaMasivaModel(BaseModel):
     class Meta:
         db_table = 'carga_masiva'
         ordering = ['-created_at']
+        # S5-04: la bandeja de cargas filtra por estado y ordena por fecha.
+        indexes = [models.Index(fields=['estado', '-created_at'], name='carga_masiva_estado_idx')]
 
     @property
     def modulo(self) -> str:

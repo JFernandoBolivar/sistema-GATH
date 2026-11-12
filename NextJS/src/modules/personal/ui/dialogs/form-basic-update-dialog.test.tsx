@@ -90,7 +90,8 @@ describe("FormBasicUpdateDialog: corrección de cédula (personal.corregir_cedul
     fireEvent.click(screen.getByRole("button", { name: /Guardar/ }));
 
     expect(await screen.findByTestId("tabla-afectados")).toHaveTextContent("Asignación de cargo");
-    expect(screen.getByText(/Si su clave sigue siendo la cédula/)).toBeInTheDocument();
+    expect(screen.getByText(/Se cerrarán sus sesiones abiertas/)).toBeInTheDocument();
+    expect(screen.getByText(/Ver detalle/)).toBeInTheDocument();
     const boton = screen.getByRole("button", { name: /Corregir cédula y guardar/ });
     expect(boton).toBeDisabled();
     fireEvent.change(screen.getByLabelText(/Motivo/), { target: { value: "Error de transcripción" } });
@@ -114,5 +115,40 @@ describe("FormBasicUpdateDialog: corrección de cédula (personal.corregir_cedul
     fireEvent.click(screen.getByRole("button", { name: /Guardar/ }));
     expect(await screen.findByText("La cédula nueva ya existe.")).toBeInTheDocument();
     expect(screen.queryByTestId("tabla-afectados")).toBeNull();
+  });
+});
+
+describe("FormBasicUpdateDialog: nacionalidad (personal.editar_nacionalidad)", () => {
+  const catalogos = {
+    nacionalidades: [
+      { id: 1, codigo: "V", nombre: "Venezolana" },
+      { id: 2, codigo: "E", nombre: "Extranjera" },
+    ],
+  } as unknown as Parameters<typeof FormBasicUpdateDialog>[0]["catalogos"];
+
+  async function abrir(permiso: boolean) {
+    render(
+      <FormBasicUpdateDialog
+        empleado={{ ...empleado, estadoCivilId: 1, nombres: "JUAN" } as EmpleadoDTO}
+        catalogos={catalogos}
+        onGuardado={vi.fn()}
+        puedeEditarNacionalidad={permiso}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Actualizar Informaci/i }));
+  }
+
+  it("sin el permiso el select está deshabilitado, con el valor visible y la ayuda", async () => {
+    await abrir(false);
+    const select = screen.getByRole("combobox", { name: /Nacionalidad/i });
+    expect(select).toBeDisabled();
+    expect(select).toHaveTextContent("V - Venezolana");
+    expect(screen.getByText("Requiere permiso para modificar la nacionalidad")).toBeInTheDocument();
+  });
+
+  it("con el permiso el select está habilitado y sin ayuda", async () => {
+    await abrir(true);
+    expect(screen.getByRole("combobox", { name: /Nacionalidad/i })).toBeEnabled();
+    expect(screen.queryByText("Requiere permiso para modificar la nacionalidad")).toBeNull();
   });
 });

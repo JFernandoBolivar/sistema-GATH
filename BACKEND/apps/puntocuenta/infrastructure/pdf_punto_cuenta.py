@@ -11,21 +11,18 @@ from io import BytesIO
 from typing import Any
 from xml.sax.saxutils import escape
 
-from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT, TA_RIGHT
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
-from reportlab.platypus import HRFlowable, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from apps.configuracion.infrastructure.pdf_config import construir_config_pdf
 from apps.puntocuenta.application.dtos.punto_cuenta_dto import PuntoCuentaDTO
 from apps.puntocuenta.domain.services.variables_plantilla import (
-    DICCIONARIO_VARIABLES,
     formatear_fecha_larga,
 )
 from core.infrastructure.pdf.fuentes import FUENTE, FUENTE_NEGRITA
 from core.infrastructure.pdf.paleta import (
-    AZUL_CONATEL,
     GRIS_BORDE,
     GRIS_FONDO,
     GRIS_MUTED,

@@ -164,3 +164,39 @@ def test_ficha_qr_externa_es_valida_y_no_expone_salud():
     assert ficha.datos is not None
     assert ficha.datos['nombre'] == 'VISITANTE QR'
     assert 'salud' not in ficha.datos
+
+
+def _pdf_de_visitante(valores: dict) -> bytes:
+    """PDF de un visitante con una plantilla cuyo rectángulo usa `rule:primario` por nómina."""
+    from apps.carnetizacion.infrastructure.models.credencial_externa_model import CredencialExternaModel
+
+    _tipo('visitante', 'externo')
+    repo = RepoCredencialesExternasORM()
+    ahora = timezone.now()
+    fila = repo.crear(
+        tipo_codigo='visitante', grupo_esperado='externo', nombre='VISITANTE COLOR',
+        documento='V-90000009', motivo='Visita', vigencia_desde=ahora,
+        vigencia_hasta=ahora + timedelta(hours=2),
+    )
+    CredencialExternaModel.objects.filter(pk=fila.id).update(plantilla_snapshot={
+        'ancho_mm': 54, 'alto_mm': 85.6, 'bg': {},
+        'reglas': {
+            'criterio': 'nomina',
+            'respaldo': {'primario': '#0000FF', 'acento': '#0000FF', 'texto': '#ffffff'},
+            'valores': valores,
+        },
+        'anverso': [{'tipo': 'rect', 'x': 0, 'y': 0, 'w': 50, 'h': 20, 'fill': 'rule:primario'}],
+        'reverso': [],
+    })
+    return repo.generar_pdf(fila.id)
+
+
+def test_pdf_de_visitante_aplica_el_color_de_la_regla_visitante():
+    pdf = _pdf_de_visitante({'VISITANTE': {'primario': '#AA0000', 'acento': '#AA0000', 'texto': '#ffffff'}})
+    assert b'.666667 0 0 rg' in pdf  # #AA0000
+
+
+def test_pdf_de_visitante_sin_regla_usa_el_color_de_respaldo():
+    pdf = _pdf_de_visitante({'CONTRATISTA': {'primario': '#AA0000', 'acento': '#AA0000', 'texto': '#ffffff'}})
+    assert b'.666667 0 0 rg' not in pdf
+    assert b'0 0 1 rg' in pdf  # #0000FF

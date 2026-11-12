@@ -10,6 +10,7 @@ la que empuja su implementación al `core.infrastructure.providers`.
 from core.infrastructure.providers import (
     registrar_resolutor_condicion,
     registrar_resolutor_permisos,
+    registrar_resolutor_rol_actor,
 )
 
 from apps.identidad.application.dtos.permisos_dto import ActorSesionDTO
@@ -23,6 +24,7 @@ from apps.identidad.infrastructure.cache.permisos_cache import (
 from apps.identidad.application.use_cases.obtener_condicion_trabajador import (
     obtener_condicion_trabajador,
 )
+from apps.identidad.infrastructure.providers.resolutor_rol_actor import ResolutorRolActorORM
 from apps.identidad.infrastructure.repositories.repo_condicion_trabajador_orm import (
     RepoCondicionTrabajadorORM,
 )
@@ -81,3 +83,4 @@ def registrar_resolutor_en_kernel() -> None:
     """Registra la implementación del módulo en el provider del kernel."""
     registrar_resolutor_permisos(ResolutorIdentidad())
     registrar_resolutor_condicion(ResolutorCondicionIdentidad())
+    registrar_resolutor_rol_actor(ResolutorRolActorORM())

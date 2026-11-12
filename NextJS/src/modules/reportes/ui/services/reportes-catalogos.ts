@@ -40,6 +40,8 @@ import {
   getEstatusCargoAction,
 } from "@/shared/infrastructure/actions/catalog-actions";
 
+import { getTiposNominaAction as getTiposNominaPasivosAction } from "@/modules/pasivos/infrastructure/actions/pasivos-actions";
+import { getTiposNominaAction as getTiposNominaActivosAction } from "@/modules/cargos/infrastructure/actions/cargos-actions";
 import { getDistribucionNominaAction } from "@/modules/reportes/infrastructure/actions/reportes-actions";
 import { archivoDeRespuesta, type OpcionesExportacion } from "@/shared/lib/exportaciones-asincronas";
 
@@ -138,6 +140,25 @@ export const getCargoEspecifico = async () => {
 
 export const getNominaGeneral = async () => {
   const items = await getTiposNominaAction();
+  return wrap(
+    items.map((n) => ({
+      id: n.id,
+      nomina: n.nombre,
+      nombre: n.nombre,
+    })),
+  );
+};
+
+/**
+ * Tipos de nómina del filtro «Tipo de Nómina / Tipo de Pasivo». Mismo criterio que
+ * Movimientos y el registro de pasivos: pasivos = `es_activo = false`
+ * (`solo_pasivos`); activos = `es_activo = true` (`solo_activos`).
+ */
+export const getNominaPorCategoria = async (categoria: "empleados" | "pasivos") => {
+  const items =
+    categoria === "pasivos"
+      ? await getTiposNominaPasivosAction(true)
+      : await getTiposNominaActivosAction();
   return wrap(
     items.map((n) => ({
       id: n.id,

@@ -15,7 +15,7 @@ import {
 } from "@/shared/ui/components/table";
 
 import type { TipoCredencial } from "../../domain/entities/carnet";
-import type { CredencialExternaApiItem } from "../../infrastructure/http/credenciales-externas-api";
+import type { CredencialExterna as CredencialExternaApiItem } from "../../domain/entities/credencial-externa";
 import { generarLoteCredencialesPdfAction, getCredencialesExternasAction } from "../../infrastructure/actions/credenciales-externas-actions";
 import { getTiposCredencialAction } from "../../infrastructure/actions/carnetizacion-actions";
 

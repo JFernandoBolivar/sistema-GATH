@@ -2,6 +2,9 @@
 Vistas delgadas de Carnetización (Reglas B4, B7, O44 - E3).
 Con Envelope unificado `ok()` / `fail()` y permisos PBAC.
 """
+import logging
+import uuid
+
 from django.db import transaction
 from django.http import HttpResponse
 from rest_framework.views import APIView
@@ -12,8 +15,12 @@ from drf_spectacular.utils import extend_schema
 
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
 from core.domain.exceptions import ValidationError
+from core.infrastructure.storage.imagenes import reducir_foto_perfil
 from core.infrastructure.storage.validacion_archivo import MAX_BYTES_IMAGEN, TIPOS_IMAGEN, clave_segura, validar_archivo
+from core.presentation.audit import origen_de_peticion, registrar_auditoria
 from core.presentation.envelope import fail, ok
+from apps.carnetizacion.domain.exceptions import ReemisionSinMotivoError
+from apps.carnetizacion.domain.value_objects.paginacion import Paginacion
 from core.presentation.permissions import HasPermission
 from apps.carnetizacion.application.use_cases.consultar_qr import (
     consultar_ficha_qr_uc,
@@ -26,12 +33,14 @@ from apps.carnetizacion.application.use_cases.emitir_carnet import (
 )
 from apps.carnetizacion.application.use_cases.generar_pdf_carnet import generar_pdf_carnet
 from apps.carnetizacion.application.use_cases.gestionar_campos import (
+    actualizar_campo_personalizado_uc,
     crear_campo_personalizado_uc,
     eliminar_campo_personalizado_uc,
     listar_campos_credencial_uc,
 )
 from apps.carnetizacion.application.use_cases.gestionar_biblioteca import (
     eliminar_elemento_biblioteca_uc,
+    listar_elementos_biblioteca_paginado_uc,
     listar_elementos_biblioteca_uc,
     subir_elemento_biblioteca_uc,
 )
@@ -40,20 +49,31 @@ from apps.carnetizacion.application.use_cases.gestionar_plantillas import (
     activar_plantilla_motor,
     actualizar_borrador_plantilla,
     crear_plantilla_borrador,
+    eliminar_fondo_fijo,
     eliminar_plantilla_motor,
+    listar_fondos_fijos,
     listar_plantillas,
     listar_plantillas_motor,
+    listar_plantillas_motor_paginado,
     listar_tipos_credencial,
     listar_versiones_plantilla,
     obtener_plantilla_activa,
     obtener_plantilla_detalle,
     publicar_plantilla,
 )
-from apps.carnetizacion.application.use_cases.listar_carnets import emitir_carnet, listar_carnets
+from apps.carnetizacion.application.use_cases.listar_carnets import listar_carnets
 from apps.carnetizacion.application.use_cases.revocar_carnet import revocar_carnet
 from apps.carnetizacion.application.use_cases.validar_carnet import (
     validar_carnet_por_hash,
     validar_carnet_por_id,
+)
+from apps.carnetizacion.application.use_cases.sugerencias_reglas_color import (
+    sugerencias_reglas_color,
+)
+from apps.carnetizacion.infrastructure.pdf.carnet_pdf import logo_qr_de_biblioteca
+from apps.carnetizacion.infrastructure.qr_institucional import (
+    generar_qr_png,
+    verificar_lectura_estilos,
 )
 from apps.carnetizacion.infrastructure.repositories.repo_carnetizacion_orm import (
     RepoCarnetizacionORM,
@@ -62,6 +82,7 @@ from apps.carnetizacion.presentation.serializers.carnetizacion_serializers impor
     ActualizarPlantillaBorradorInputSerializer,
     CampoCredencialSerializer,
     CarnetSerializer,
+    ActualizarCampoPersonalizadoInputSerializer,
     CrearCampoPersonalizadoInputSerializer,
     CrearPlantillaBorradorInputSerializer,
     ElementoBibliotecaSerializer,
@@ -155,7 +176,6 @@ class EstadisticasCarnetsView(APIView):
     def get(self, request):
         repo = RepoCarnetizacionORM()
         data = repo.obtener_estadisticas_carnets()
-        data['ultimos_emitidos'] = CarnetSerializer(data.get('ultimos_emitidos', []), many=True).data
         return ok(data)
 
 
@@ -188,6 +208,19 @@ class PlantillaMotorListView(APIView):
         estado = request.query_params.get('estado')
         solo_activas = request.query_params.get('activas', '').lower() in ('1', 'true')
         repo = RepoCarnetizacionORM()
+        if Paginacion.solicitada(request.query_params):
+            # Con ?pagina= se pagina en el servidor (?page_size= 12/24/48, ?busqueda= por nombre).
+            paginacion = Paginacion.desde_parametros(request.query_params.dict())
+            pagina, total = listar_plantillas_motor_paginado(
+                repo,
+                paginacion,
+                codigo_tipo=codigo_tipo,
+                estado=estado,
+                solo_activas=solo_activas,
+                busqueda=request.query_params.get('busqueda', ''),
+            )
+            return ok(paginacion.sobre(PlantillaMotorDetalleSerializer(pagina, many=True).data, total))
+        # Sin ?pagina= devuelve todo (selectores que necesitan la lista completa).
         plantillas = listar_plantillas_motor(
             repo,
             codigo_tipo=codigo_tipo,
@@ -281,8 +314,29 @@ class PlantillaMotorPublicarView(APIView):
             plantilla_id=plantilla_id,
             activar=serializer.validated_data.get('activar', True),
             publicado_por=str(request.user.id) if request.user and request.user.is_authenticated else None,
+            verificador_qr=verificar_lectura_estilos,
         )
         return ok(PlantillaMotorDetalleSerializer(plantilla).data, f'Plantilla publicada como versión {plantilla.version}.')
+
+
+class QrVistaPreviaView(APIView):
+    """PNG del QR con un estilo dado (`qr_estilo`), para la vista previa fiel del diseñador."""
+    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.disenar')]
+
+    @extend_schema(tags=['Carnetización'], summary='Vista previa del estilo del QR (PNG)', responses={200: OpenApiTypes.BINARY})
+    def post(self, request):
+        estilo = request.data.get('qr_estilo') if isinstance(request.data, dict) else None
+        if estilo is not None and not isinstance(estilo, dict):
+            return fail('El estilo del QR debe ser un objeto.', status=400)
+        medio_id = ((estilo or {}).get('logo') or {}).get('medio_id') if isinstance((estilo or {}).get('logo'), dict) else None
+        png = generar_qr_png(
+            'https://gath.conatel.gob.ve/carnet/VistaPreviaDelEstiloQR',
+            box_size=6, border=2, con_logo=True, estilo=estilo,
+            logo_bytes=logo_qr_de_biblioteca(str(medio_id)) if medio_id else None,
+        )
+        respuesta = HttpResponse(png, content_type='image/png')
+        respuesta['Cache-Control'] = 'no-store'
+        return respuesta
 
 
 class PlantillaMotorActivarView(APIView):
@@ -342,6 +396,17 @@ class ElementoBibliotecaListView(APIView):
     def get(self, request):
         categoria = request.query_params.get('categoria')
         repo = RepoCarnetizacionORM()
+        if Paginacion.solicitada(request.query_params):
+            # Con ?pagina= se pagina en el servidor (?page_size= 12/24/48, ?busqueda=, ?categoria=).
+            paginacion = Paginacion.desde_parametros(request.query_params.dict())
+            pagina, total = listar_elementos_biblioteca_paginado_uc(
+                repo,
+                paginacion,
+                categoria=categoria,
+                busqueda=request.query_params.get('busqueda', ''),
+            )
+            return ok(paginacion.sobre(ElementoBibliotecaSerializer(pagina, many=True).data, total))
+        # Sin ?pagina= devuelve todo (selector de logos del diseñador).
         elementos = listar_elementos_biblioteca_uc(repo, categoria=categoria)
         return ok(ElementoBibliotecaSerializer(elementos, many=True).data)
 
@@ -349,11 +414,11 @@ class ElementoBibliotecaListView(APIView):
     def post(self, request):
         serializer = SubirElementoBibliotecaInputSerializer(data=request.data)
         if not serializer.is_valid():
-            return fail(serializer.errors, 'Datos inválidos', 400)
+            return fail('Datos inválidos', status=400, data=serializer.errors)
 
         archivo = request.FILES.get('archivo')
         if not archivo:
-            return fail({'archivo': ['Debe adjuntar un archivo gráfico.']}, 'Archivo requerido', 400)
+            return fail('Archivo requerido', status=400, data={'archivo': ['Debe adjuntar un archivo gráfico.']})
 
         contenido = archivo.read()
         repo = RepoCarnetizacionORM()
@@ -420,13 +485,13 @@ class CampoPersonalizadoCreateView(APIView):
     """
     Creación de campos personalizados para credenciales (O44 - E5).
     """
-    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.disenar')]
+    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.campos_personalizados')]
 
     @extend_schema(tags=['Carnetización'], summary='Registrar campo personalizado', request=CrearCampoPersonalizadoInputSerializer)
     def post(self, request):
         serializer = CrearCampoPersonalizadoInputSerializer(data=request.data)
         if not serializer.is_valid():
-            return fail(serializer.errors, 'Datos del campo inválidos', 400)
+            return fail('Datos del campo inválidos', status=400, data=serializer.errors)
 
         repo = RepoCarnetizacionORM()
         creado = crear_campo_personalizado_uc(
@@ -438,15 +503,33 @@ class CampoPersonalizadoCreateView(APIView):
             sensible=serializer.validated_data.get('sensible', False),
             descripcion=serializer.validated_data.get('descripcion', ''),
             valor_ejemplo=serializer.validated_data.get('valor_ejemplo', ''),
+            origen=serializer.validated_data['origen'],
         )
         return ok(CampoCredencialSerializer(creado).data, 'Campo personalizado registrado.', 201)
 
 
 class CampoPersonalizadoDetailView(APIView):
     """
-    Eliminación de campo personalizado (O44 - E5).
+    Edición y eliminación de campo personalizado (O44 - E5).
     """
-    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.disenar')]
+    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.campos_personalizados')]
+
+    @extend_schema(tags=['Carnetización'], summary='Editar campo personalizado', request=ActualizarCampoPersonalizadoInputSerializer)
+    def patch(self, request, codigo: str):
+        serializer = ActualizarCampoPersonalizadoInputSerializer(data=request.data)
+        if not serializer.is_valid():
+            return fail('Datos del campo inválidos', status=400, data=serializer.errors)
+        datos = serializer.validated_data
+        actualizado = actualizar_campo_personalizado_uc(
+            RepoCarnetizacionORM(),
+            codigo=codigo,
+            etiqueta=datos['etiqueta'],
+            origen=datos['origen'],
+            descripcion=datos.get('descripcion', ''),
+            valor_ejemplo=datos.get('valor_ejemplo', ''),
+            sensible=datos.get('sensible', False),
+        )
+        return ok(CampoCredencialSerializer(actualizado).data, 'Campo personalizado actualizado.')
 
     @extend_schema(tags=['Carnetización'], summary='Eliminar campo personalizado')
     def delete(self, request, codigo: str):
@@ -467,6 +550,33 @@ class PlantillasListView(APIView):
         repo = RepoCarnetizacionORM()
         dtos = listar_plantillas(repo)
         return ok(PlantillaCarnetSerializer(dtos, many=True).data)
+
+
+class FondosFijosListView(APIView):
+    """Fondos fijos (clásicos): listado paginado en el servidor con búsqueda por nombre."""
+    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.ver')]
+
+    @extend_schema(
+        tags=['Carnetización'],
+        summary='Listar fondos fijos (paginado)',
+        description='Paginación: ?pagina= y ?page_size= (12, 24 o 48; 12 por defecto). Búsqueda: ?busqueda= por nombre.',
+    )
+    def get(self, request):
+        paginacion = Paginacion.desde_parametros(request.query_params.dict())
+        pagina, total = listar_fondos_fijos(
+            RepoCarnetizacionORM(), paginacion, busqueda=request.query_params.get('busqueda', ''),
+        )
+        return ok(paginacion.sobre(PlantillaCarnetSerializer(pagina, many=True).data, total))
+
+
+class FondoFijoDetalleView(APIView):
+    """Eliminación de un fondo fijo; el fondo activo (en uso) está protegido."""
+    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.disenar')]
+
+    @extend_schema(tags=['Carnetización'], summary='Eliminar un fondo fijo inactivo')
+    def delete(self, request, fondo_id: int):
+        eliminar_fondo_fijo(RepoCarnetizacionORM(), fondo_id)
+        return ok(None, 'Fondo fijo eliminado.')
 
 
 class PlantillaImagenView(APIView):
@@ -561,6 +671,7 @@ class CarnetSubirFotoView(APIView):
             return fail(f"Empleado con cédula {cedula} no encontrado", status=404)
 
         contenido, tipo, ext = validar_archivo(archivo, TIPOS_IMAGEN, MAX_BYTES_IMAGEN)
+        contenido, tipo, ext = reducir_foto_perfil(contenido)
         clave = clave_segura('perfiles', ext)
         SeaweedFSStorage().subir(clave, contenido, tipo.mime)
         repo.registrar_foto_perfil(cedula, clave)
@@ -584,6 +695,8 @@ class CarnetGenerarView(APIView):
         plantilla_id = request.data.get('plantilla_id')
         datos_editados = request.data.get('datos_editados', {})
         nombre_override = datos_editados.get('nombre') if isinstance(datos_editados, dict) else None
+        motivo_reemision = request.data.get('motivo_reemision')
+        detalle = request.data.get('detalle')
 
         try:
             motivo = int(motivo_id) if motivo_id else 1
@@ -594,17 +707,51 @@ class CarnetGenerarView(APIView):
 
         # L2-18: emisión y PDF en la misma transacción: si el PDF falla no queda
         # un carnet nuevo con el anterior ya anulado.
-        with transaction.atomic():
-            pdf_bytes = emitir_carnet_y_pdf(
-                RepoCarnetizacionORM(),
-                empleado_cedula=cedula,
-                motivo_id=motivo,
-                observaciones=observaciones,
-                plantilla_id=plantilla_id,
-                nombre_override=nombre_override,
+        try:
+            with transaction.atomic():
+                emision = emitir_carnet_y_pdf(
+                    RepoCarnetizacionORM(),
+                    empleado_cedula=cedula,
+                    motivo_id=motivo,
+                    observaciones=observaciones,
+                    plantilla_id=plantilla_id,
+                    nombre_override=nombre_override,
+                    motivo_reemision=motivo_reemision,
+                    detalle=detalle,
+                )
+        except ReemisionSinMotivoError as exc:
+            # T2: 409 con el resumen del carnet vigente para que la consola
+            # muestre la fecha y exija el motivo.
+            return fail(
+                str(exc),
+                status=409,
+                data={'carnet_vigente': exc.carnet_vigente},
             )
+
+        if emision.motivo_reemision:
+            try:
+                registrar_auditoria(
+                    trace_id=getattr(request, 'trace_id', None) or uuid.uuid4().hex,
+                    actor_id=getattr(request.user, 'pk', None),
+                    actor_cedula=str(getattr(request.user, 'cedula_id', '') or ''),
+                    accion='carnetizacion.carnet_reemitido',
+                    modulo='carnetizacion',
+                    recurso_tipo='CarnetEmitido',
+                    recurso_id=str(emision.carnet.id),
+                    estado_nuevo={
+                        'motivo_reemision': emision.motivo_reemision,
+                        'detalle': emision.detalle,
+                        'carnet_id': emision.carnet.id,
+                    },
+                    **origen_de_peticion(request),
+                )
+            except Exception:  # noqa: BLE001 - la auditoría no debe tumbar la emisión
+                logging.getLogger('security_backend').exception(
+                    'No se pudo auditar la reemisión del carnet %s', emision.carnet.id,
+                )
+
         # O46-A: el endpoint debe devolver el PDF binario, no un sobre JSON en base64.
-        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response = HttpResponse(emision.pdf, content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="carnet_{cedula}.pdf"'
         return response
 
@@ -703,7 +850,7 @@ class AutogestionPrivacidadCarnetView(APIView):
             return fail("El usuario autenticado no tiene un expediente asociado.", status=400)
         serializer = PreferenciasPrivacidadInputSerializer(data=request.data)
         if not serializer.is_valid():
-            return fail(serializer.errors, "Datos de preferencias inválidos", 400)
+            return fail("Datos de preferencias inválidos", status=400, data=serializer.errors)
 
         repo = RepoCarnetizacionORM()
         actualizadas = guardar_privacidad_por_cedula_uc(
@@ -712,3 +859,17 @@ class AutogestionPrivacidadCarnetView(APIView):
             preferencias=serializer.validated_data['preferencias'],
         )
         return ok(actualizadas, "Preferencias de privacidad guardadas.")
+
+
+class SugerenciasReglasColorView(APIView):
+    """GET /api/v1/carnetizacion/reglas-color/sugerencias/ — cargos y oficinas reales."""
+
+    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.disenar')]
+
+    @extend_schema(
+        tags=['Carnetización'],
+        summary='Valores reales de cargo y oficina para las reglas de color',
+        responses={200: None},
+    )
+    def get(self, request):
+        return ok(sugerencias_reglas_color(RepoCarnetizacionORM()))

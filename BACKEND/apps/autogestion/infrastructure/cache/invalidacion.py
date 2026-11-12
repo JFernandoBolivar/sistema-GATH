@@ -13,16 +13,6 @@ from apps.cargos.domain.events import cargo_movimiento_ejecutado
 from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
 from apps.carnetizacion.infrastructure.models.carnetizacion_models import CarnetEmitidoModel
 from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
-from apps.personal.infrastructure.models.expediente_models import (
-    AntecedenteServicioModel,
-    ContactoEmergenciaModel,
-    ContratoModel,
-    DatosViviendaModel,
-    FormacionAcademicaModel,
-    FormacionComplementariaModel,
-    PerfilFisicoModel,
-    PerfilSaludModel,
-)
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 
 from .mi_expediente_cache import invalidar_mi_expediente

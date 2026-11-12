@@ -6,7 +6,6 @@ visible, el historial, el resumen con conteos por estado y las filas del
 detalle. Las consultas son las mismas, en el mismo orden, para que las
 respuestas de la API no cambien.
 """
-from django.http import Http404
 from django.shortcuts import get_object_or_404
 
 from apps.carga_masiva.infrastructure.models import CargaMasivaFilaModel, CargaMasivaModel

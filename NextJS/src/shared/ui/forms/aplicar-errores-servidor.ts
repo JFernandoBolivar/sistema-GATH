@@ -35,10 +35,24 @@ function existe<T extends FieldValues>(form: UseFormReturn<T>, nombre: string): 
   const montados = (form.control as unknown as { _names?: { mount?: Set<string> } })._names?.mount;
   if (montados?.has(nombre)) return true;
   try {
-    return form.getValues(nombre as Path<T>) !== undefined;
+    if (form.getValues(nombre as Path<T>) !== undefined) return true;
   } catch {
-    return false;
+    /* noop: la ruta no pertenece al formulario */
   }
+  // Ruta anidada (`perfilSalud.grupoSanguineoId`): el objeto puede estar vacío
+  // todavía, pero si su raíz existe en el formulario el error se puede marcar.
+  const raiz = nombre.split(".")[0];
+  if (raiz !== nombre) {
+    if (montados && [...montados].some((n) => n === raiz || n.startsWith(`${raiz}.`))) {
+      return true;
+    }
+    try {
+      return form.getValues(raiz as Path<T>) !== undefined;
+    } catch {
+      return false;
+    }
+  }
+  return false;
 }
 
 export function aplicarErroresServidor<T extends FieldValues>(

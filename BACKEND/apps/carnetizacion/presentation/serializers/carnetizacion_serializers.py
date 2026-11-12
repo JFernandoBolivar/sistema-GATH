@@ -1,6 +1,7 @@
 """
 Serializers de Presentación de Carnetización (Regla B5, O44 - E3).
 """
+from apps.carnetizacion.domain.entities.campo_credencial import ORIGENES_CAMPO_PERSONALIZADO
 from core.domain.limites_texto import OBSERVACION_MIN, OBSERVACION_MAX, mensajes_texto
 from rest_framework import serializers
 
@@ -137,6 +138,7 @@ class CampoCredencialSerializer(serializers.Serializer):
     es_personalizado = serializers.BooleanField(read_only=True)
     descripcion = serializers.CharField(read_only=True)
     valor_ejemplo = serializers.CharField(read_only=True)
+    origen = serializers.CharField(read_only=True)
 
 
 class CrearCampoPersonalizadoInputSerializer(serializers.Serializer):
@@ -144,6 +146,15 @@ class CrearCampoPersonalizadoInputSerializer(serializers.Serializer):
     etiqueta = serializers.CharField(max_length=100, min_length=2)
     grupo = serializers.CharField(max_length=50, required=False, default='personalizado')
     tipo_credencial = serializers.CharField(max_length=50, required=False, default='todos')
+    sensible = serializers.BooleanField(required=False, default=False)
+    descripcion = serializers.CharField(required=False, default='', allow_blank=True)
+    valor_ejemplo = serializers.CharField(required=False, default='', allow_blank=True)
+    origen = serializers.ChoiceField(choices=list(ORIGENES_CAMPO_PERSONALIZADO))
+
+
+class ActualizarCampoPersonalizadoInputSerializer(serializers.Serializer):
+    etiqueta = serializers.CharField(max_length=100, min_length=2)
+    origen = serializers.ChoiceField(choices=list(ORIGENES_CAMPO_PERSONALIZADO))
     sensible = serializers.BooleanField(required=False, default=False)
     descripcion = serializers.CharField(required=False, default='', allow_blank=True)
     valor_ejemplo = serializers.CharField(required=False, default='', allow_blank=True)

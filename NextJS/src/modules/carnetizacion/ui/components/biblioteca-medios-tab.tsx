@@ -8,7 +8,9 @@ import {
   Filter,
   ImagePlus,
   Loader2,
+  ImageOff,
   PlusCircle,
+  Search,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -34,9 +36,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { CategoriaBiblioteca, ElementoBiblioteca } from "../../domain/entities/carnet";
+import { useBusquedaDiferida } from "../hooks/use-busqueda-diferida";
+import { PaginadorServidor } from "./paginador-servidor";
 import {
   eliminarElementoBibliotecaAction,
-  getBibliotecaAction,
+  getBibliotecaPaginaAction,
   subirElementoBibliotecaAction,
 } from "../../infrastructure/actions/carnetizacion-actions";
 
@@ -54,7 +58,12 @@ function formatearBytes(bytes: number): string {
 }
 
 export function BibliotecaMediosTab() {
-  const [categoriaFiltro, setCategoriaFiltro] = useState<string>("todas");
+  const [categoriaFiltro, setCategoriaFiltroCruda] = useState<string>("todas");
+  // Paginación, categoría y búsqueda se resuelven en el servidor.
+  const [pagina, setPagina] = useState(1);
+  const [tamano, setTamano] = useState(12);
+  const [busqueda, setBusquedaCruda] = useState("");
+  const busquedaAplicada = useBusquedaDiferida(busqueda);
   const [modalSubirOpen, setModalSubirOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -64,7 +73,10 @@ export function BibliotecaMediosTab() {
   const [subirDescripcion, setSubirDescripcion] = useState("");
   const [subirArchivo, setSubirArchivo] = useState<File | null>(null);
   const [previewSubida, setPreviewSubida] = useState<string | null>(null);
-  const [dimensionesArchivo, setDimensionesArchivo] = useState<{ ancho: number; alto: number } | null>(null);
+  const [dimensionesArchivo, setDimensionesArchivo] = useState<{
+    ancho: number;
+    alto: number;
+  } | null>(null);
 
   // Estados de eliminación
   const [elementoAEliminar, setElementoAEliminar] = useState<ElementoBiblioteca | null>(null);
@@ -78,12 +90,19 @@ export function BibliotecaMediosTab() {
     isLoading,
     mutate,
   } = useSWR(
-    ["biblioteca-medios", categoriaParam],
-    () => getBibliotecaAction(categoriaParam),
+    ["biblioteca-medios", categoriaParam, pagina, tamano, busquedaAplicada],
+    () => getBibliotecaPaginaAction(categoriaParam, { pagina, tamano, busqueda: busquedaAplicada }),
+    { keepPreviousData: true },
   );
 
-  const elementos: ElementoBiblioteca[] =
-    respuestaBiblioteca && respuestaBiblioteca.success ? respuestaBiblioteca.data : [];
+  const datosPagina = respuestaBiblioteca && respuestaBiblioteca.success ? respuestaBiblioteca.data : null;
+  const elementos: ElementoBiblioteca[] = datosPagina?.resultados ?? [];
+  const hayBusqueda = busqueda.trim().length > 0;
+
+  const setCategoriaFiltro = (valor: string) => {
+    setCategoriaFiltroCruda(valor);
+    setPagina(1);
+  };
 
   const handleArchivoSeleccionado = (file: File) => {
     // Validar tipo permitido
@@ -169,6 +188,8 @@ export function BibliotecaMediosTab() {
       if (res.success) {
         toast.success("Elemento eliminado de la biblioteca.");
         setElementoAEliminar(null);
+        // Si era el último de la página, retrocede para no dejar una página vacía.
+        if (elementos.length === 1) setPagina((p) => Math.max(1, p - 1));
         mutate();
       } else {
         toast.error(res.error || "No fue posible eliminar el elemento.");
@@ -195,18 +216,32 @@ export function BibliotecaMediosTab() {
           ))}
         </div>
 
-        <Button
-          onClick={() => setModalSubirOpen(true)}
-          className="gap-2 shrink-0"
-          size="sm"
-        >
-          <PlusCircle className="size-4" />
-          Subir Medio
-        </Button>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="relative">
+            <Search
+              className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+              aria-hidden="true"
+            />
+            <Input
+              value={busqueda}
+              onChange={(e) => {
+                setBusquedaCruda(e.target.value);
+                setPagina(1);
+              }}
+              placeholder="Buscar medio por nombre…"
+              className="pl-9 sm:w-64"
+              aria-label="Buscar medio por nombre"
+            />
+          </div>
+          <Button onClick={() => setModalSubirOpen(true)} className="gap-2 shrink-0" size="sm">
+            <PlusCircle className="size-4" />
+            Subir Medio
+          </Button>
+        </div>
       </div>
 
       {/* Grid de Medios */}
-      {isLoading ? (
+      {isLoading && !datosPagina ? (
         <div className="flex justify-center items-center py-20">
           <Loader2 className="size-8 animate-spin text-primary" />
         </div>
@@ -215,19 +250,25 @@ export function BibliotecaMediosTab() {
           <CardContent className="text-center py-12">
             <ImagePlus className="size-12 mx-auto text-muted-foreground/40" />
             <h3 className="text-base font-semibold text-foreground mt-4">
-              No hay medios registrados
+              {hayBusqueda || categoriaFiltro !== "todas"
+                ? "Ningún medio coincide con el filtro"
+                : "No hay medios registrados"}
             </h3>
             <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-              Sube logos institucionales, firmas autorizadas o sellos que podrán ser incrustados en los carnets.
+              {hayBusqueda || categoriaFiltro !== "todas"
+                ? "Pruebe con otro nombre o cambie la categoría."
+                : "Sube logos institucionales, firmas autorizadas o sellos que podrán ser incrustados en los carnets."}
             </p>
-            <Button
-              onClick={() => setModalSubirOpen(true)}
-              className="mt-4 gap-2"
-              variant="outline"
-            >
-              <PlusCircle className="size-4" />
-              Subir primer medio
-            </Button>
+            {!hayBusqueda && categoriaFiltro === "todas" && (
+              <Button
+                onClick={() => setModalSubirOpen(true)}
+                className="mt-4 gap-2"
+                variant="outline"
+              >
+                <PlusCircle className="size-4" />
+                Subir primer medio
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -249,13 +290,7 @@ export function BibliotecaMediosTab() {
                     backgroundPosition: "0 0, 0 8px, 8px -8px, -8px 0px",
                   }}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={item.archivo_url}
-                    alt={item.nombre}
-                    className="max-h-full max-w-full object-contain drop-shadow-xs"
-                    loading="lazy"
-                  />
+                  <MiniaturaMedio src={item.archivo_url} nombre={item.nombre} />
                   <Badge
                     variant="secondary"
                     className="absolute top-2 right-2 text-[10px] font-mono capitalize backdrop-blur-xs bg-white/80 dark:bg-black/80"
@@ -266,19 +301,27 @@ export function BibliotecaMediosTab() {
 
                 <div className="p-3.5 space-y-2">
                   <div className="flex items-start justify-between gap-1">
-                    <h4 className="font-semibold text-sm leading-tight text-foreground truncate" title={item.nombre}>
+                    <h4
+                      className="font-semibold text-sm leading-tight text-foreground truncate"
+                      title={item.nombre}
+                    >
                       {item.nombre}
                     </h4>
                   </div>
                   {item.descripcion && (
-                    <p className="text-xs text-muted-foreground line-clamp-1" title={item.descripcion}>
+                    <p
+                      className="text-xs text-muted-foreground line-clamp-1"
+                      title={item.descripcion}
+                    >
                       {item.descripcion}
                     </p>
                   )}
 
                   <div className="grid grid-cols-2 gap-1 text-[11px] text-muted-foreground pt-1 border-t">
                     <span>
-                      {item.ancho_px && item.alto_px ? `${item.ancho_px} × ${item.alto_px} px` : "Vectorial SVG"}
+                      {item.ancho_px && item.alto_px
+                        ? `${item.ancho_px} × ${item.alto_px} px`
+                        : "Vectorial SVG"}
                     </span>
                     <span className="text-right">{formatearBytes(item.tamano_bytes)}</span>
                   </div>
@@ -299,6 +342,22 @@ export function BibliotecaMediosTab() {
             </Card>
           ))}
         </div>
+      )}
+
+      {datosPagina && (
+        <PaginadorServidor
+          id="filas-biblioteca"
+          pagina={datosPagina.pagina}
+          totalPaginas={datosPagina.totalPaginas}
+          tamano={datosPagina.tamano}
+          total={datosPagina.total}
+          cargando={isLoading}
+          onPagina={setPagina}
+          onTamano={(t) => {
+            setTamano(t);
+            setPagina(1);
+          }}
+        />
       )}
 
       {/* --- DIALOG DE SUBIDA --- */}
@@ -376,14 +435,17 @@ export function BibliotecaMediosTab() {
                       </div>
                       <p className="text-xs text-muted-foreground font-mono">
                         {subirArchivo?.name} ({subirArchivo && formatearBytes(subirArchivo.size)})
-                        {dimensionesArchivo && ` • ${dimensionesArchivo.ancho} × ${dimensionesArchivo.alto} px`}
+                        {dimensionesArchivo &&
+                          ` • ${dimensionesArchivo.ancho} × ${dimensionesArchivo.alto} px`}
                       </p>
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          const input = document.getElementById(fileInputId) as HTMLInputElement | null;
+                          const input = document.getElementById(
+                            fileInputId,
+                          ) as HTMLInputElement | null;
                           if (input) input.click();
                         }}
                       >
@@ -436,12 +498,18 @@ export function BibliotecaMediosTab() {
       </Dialog>
 
       {/* --- MODAL CONFIRMACIÓN DE ELIMINACIÓN --- */}
-      <Dialog open={!!elementoAEliminar} onOpenChange={(open) => !open && setElementoAEliminar(null)}>
+      <Dialog
+        open={!!elementoAEliminar}
+        onOpenChange={(open) => !open && setElementoAEliminar(null)}
+      >
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>¿Eliminar elemento?</DialogTitle>
             <DialogDescription>
-              Se eliminará <span className="font-semibold text-foreground">{elementoAEliminar?.nombre}</span> de la biblioteca. Las plantillas que ya utilicen este recurso podrían dejar de visualizarlo si se vuelve a renderizar.
+              Se eliminará{" "}
+              <span className="font-semibold text-foreground">{elementoAEliminar?.nombre}</span> de
+              la biblioteca. Las plantillas que ya utilicen este recurso podrían dejar de
+              visualizarlo si se vuelve a renderizar.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
@@ -465,5 +533,28 @@ export function BibliotecaMediosTab() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/** Miniatura de un medio; si el archivo no se puede leer, un aviso en vez de la imagen rota. */
+function MiniaturaMedio({ src, nombre }: { src: string; nombre: string }) {
+  const [falla, setFalla] = useState(false);
+  if (falla) {
+    return (
+      <div className="flex flex-col items-center gap-1 text-center text-muted-foreground">
+        <ImageOff className="size-6" aria-hidden="true" />
+        <span className="text-xs">Archivo no disponible</span>
+      </div>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={nombre}
+      className="max-h-full max-w-full object-contain drop-shadow-xs"
+      loading="lazy"
+      onError={() => setFalla(true)}
+    />
   );
 }

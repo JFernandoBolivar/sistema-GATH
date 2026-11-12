@@ -114,12 +114,12 @@ export function FamiliarPerfilSalud({
       </legend>
 
       <Field className="md:col-span-2">
-        <Label>Grupo Sanguíneo</Label>
+        <Label>Grupo Sanguíneo *</Label>
         <Select
           value={grupoSanguineoId ? String(grupoSanguineoId) : ""}
           onValueChange={(v) => form.setValue("perfilSalud.grupoSanguineoId", Number(v), { shouldValidate: true })}
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger id="grupoSanguineoId" className="w-full" aria-invalid={!!errores?.grupoSanguineoId}>
             <SelectValue placeholder="Seleccione un Grupo Sanguineo" />
           </SelectTrigger>
           <SelectContent>

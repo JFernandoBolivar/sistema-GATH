@@ -6,6 +6,7 @@
  * caso de uso. Captura errores y llama `handleSessionExpired` (R7) y registra
  * la auditoría en `logs/frontend/audit_frontend.txt` (D-04/C-5).
  */
+import { unstable_rethrow } from "next/navigation";
 import { z } from "zod";
 
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
@@ -20,6 +21,7 @@ import {
 import {
   listarDocumentosFamiliar,
   listarFamiliaresPorEmpleado,
+  reemplazarDocumentoFamiliar,
   subirDocumentoFamiliar,
 } from "../../application/use-cases/listar-familiares";
 import { listarCatalogosFamiliar } from "../../application/use-cases/listar-catalogos-familiar";
@@ -28,7 +30,7 @@ import { resolverAltasInlineFamiliar } from "../../application/use-cases/resolve
 import { repoFamiliaresApi } from "../repositories/repo-familiares-api";
 import { repoCatalogosDependientesFamiliarApi } from "../repositories/repo-catalogos-dependientes-familiar-api";
 import { repoCatalogosAltaInlineFamiliarApi } from "../repositories/repo-catalogos-alta-inline-familiar-api";
-import { familiaresPorEmpleadoSchema, familiarIdSchema, familiarSchema } from "../../ui/schema/schema-familiar";
+import { familiaresPorEmpleadoSchema, familiarIdSchema, familiarSchema, familiarUpdateSchema } from "../../ui/schema/schema-familiar";
 
 export async function getFamiliaresPorEmpleadoAction(cedula: string) {
   const validation = familiaresPorEmpleadoSchema.safeParse({ cedula });
@@ -43,6 +45,7 @@ export async function getFamiliaresPorEmpleadoAction(cedula: string) {
     await logAudit({ traceId, action: "getFamiliaresPorEmpleadoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "getFamiliaresPorEmpleadoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
@@ -62,6 +65,7 @@ export async function crearFamiliarAction(input: GuardarFamiliarInputDTO) {
     await logAudit({ traceId, action: "crearFamiliarAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "crearFamiliarAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return errorDeAccion(error, "No fue posible registrar al familiar.");
@@ -73,7 +77,7 @@ export async function actualizarFamiliarAction(
   data: Partial<GuardarFamiliarInputDTO>
 ) {
   const idValido = familiarIdSchema.safeParse({ familiarId: id });
-  const dataValida = familiarSchema.partial().safeParse(data);
+  const dataValida = familiarUpdateSchema.safeParse(data);
   if (!idValido.success || !dataValida.success) {
     return { error: "Datos del familiar inválidos. Revise los campos ingresados." };
   }
@@ -85,6 +89,7 @@ export async function actualizarFamiliarAction(
     await logAudit({ traceId, action: "actualizarFamiliarAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "actualizarFamiliarAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return errorDeAccion(error, "No fue posible actualizar al familiar.");
@@ -104,6 +109,7 @@ export async function eliminarFamiliarAction(id: number) {
     await logAudit({ traceId, action: "eliminarFamiliarAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return { success: true };
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "eliminarFamiliarAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
@@ -118,6 +124,7 @@ export async function getCatalogosFamiliarAction() {
     await logAudit({ traceId, action: "getCatalogosFamiliarAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "getCatalogosFamiliarAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
@@ -148,6 +155,7 @@ export async function getCatalogoDependienteFamiliarAction(
     await logAudit({ traceId, action: "getCatalogoDependienteFamiliarAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "getCatalogoDependienteFamiliarAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
@@ -183,6 +191,7 @@ export async function resolverAltasInlineFamiliarAction(solicitudes: z.infer<typ
     await logAudit({ traceId, action: "resolverAltasInlineFamiliarAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return { ok: result };
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "resolverAltasInlineFamiliarAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return { error: error instanceof Error && error.message ? error.message : "No fue posible registrar la opción \"Otra\"." };
@@ -202,6 +211,7 @@ export async function getDocumentosFamiliarAction(familiarId: number) {
     await logAudit({ traceId, action: "getDocumentosFamiliarAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "getDocumentosFamiliarAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
@@ -235,8 +245,41 @@ export async function subirDocumentoFamiliarAction(familiarId: number, tipoDocum
     await logAudit({ traceId, action: "subirDocumentoFamiliarAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({ traceId, action: "subirDocumentoFamiliarAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return { error: error instanceof Error && error.message ? error.message : "No fue posible subir el documento." };
+  }
+}
+
+const reemplazarDocumentoFamiliarSchema = z.object({
+  familiarId: z.number().int().positive({ message: "Familiar inválido" }),
+  documentoId: z.number().int().positive({ message: "Documento inválido" }),
+});
+
+/** Reemplaza el archivo de un documento ya cargado (nueva versión, multipart). */
+export async function reemplazarDocumentoFamiliarAction(familiarId: number, documentoId: number, archivo: File) {
+  const validation = reemplazarDocumentoFamiliarSchema.safeParse({ familiarId, documentoId });
+  if (!validation.success) {
+    return { error: "Familiar o documento inválido." };
+  }
+  if (!(archivo instanceof File) || archivo.size === 0) {
+    return { error: "Seleccione un archivo válido." };
+  }
+  if (archivo.size > TAMANO_MAXIMO_DOCUMENTO_BYTES) {
+    return { error: "El tamaño máximo del archivo es 5MB." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await reemplazarDocumentoFamiliar(repoFamiliaresApi, validation.data.familiarId, validation.data.documentoId, archivo);
+    await logAudit({ traceId, action: "reemplazarDocumentoFamiliarAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    unstable_rethrow(error);
+    await logAudit({ traceId, action: "reemplazarDocumentoFamiliarAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return { error: error instanceof Error && error.message ? error.message : "No fue posible reemplazar el documento." };
   }
 }

@@ -1,5 +1,6 @@
 "use server";
 
+import { unstable_rethrow } from "next/navigation";
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
@@ -9,10 +10,26 @@ import type {
   EventoCategoria,
   EventoInvitado,
   EventoZona,
+  FiltrosInvitados,
+  FiltroPersonalInvitable,
+  PaginaPersonasInvitables,
+  ResultadoAgregarEnBloque,
+  SolicitudAgregarEnBloque,
+  PaginaEventos,
+  PaginaInvitados,
   PanelEvento,
   ResumenImportacion,
 } from "../../domain/entities/evento";
 import {
+  actualizarCategoriaEvento,
+  actualizarZonaEvento,
+  agregarInvitadosEnBloque,
+  eliminarCategoriaEvento,
+  eliminarZonaEvento,
+  getExternosInvitables,
+  getIdsExternosInvitables,
+  getIdsPersonalInvitable,
+  getPersonalInvitable,
   actualizarEvento,
   actualizarInvitado,
   checkInAcceso,
@@ -26,6 +43,8 @@ import {
   getCategoriasEvento,
   getEventoDetalle,
   getEventos,
+  getEventosPaginado,
+  getIdsInvitadosEvento,
   getInvitadosEvento,
   getPanelEvento,
   getZonasEvento,
@@ -48,12 +67,33 @@ export async function getEventosAction(filtros?: {
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "getEventosAction",
       status: "FAILED",
       durationMs: Date.now() - startedAt,
     });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getEventosPaginadoAction(filtros: {
+  estado?: string;
+  busqueda?: string;
+  pagina: number;
+  page_size: number;
+}): Promise<PaginaEventos> {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await getEventosPaginado(filtros);
+    await logAudit({ traceId, action: "getEventosPaginadoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    unstable_rethrow(error);
+    await logAudit({ traceId, action: "getEventosPaginadoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
   }
@@ -72,6 +112,7 @@ export async function getEventoDetalleAction(id: string): Promise<Evento | null>
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "getEventoDetalleAction",
@@ -114,6 +155,7 @@ export async function crearEventoAction(datos: {
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "crearEventoAction",
@@ -141,6 +183,7 @@ export async function actualizarEventoAction(
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "actualizarEventoAction",
@@ -167,6 +210,7 @@ export async function getCategoriasEventoAction(
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "getCategoriasEventoAction",
@@ -199,6 +243,7 @@ export async function crearCategoriaEventoAction(
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "crearCategoriaEventoAction",
@@ -225,6 +270,7 @@ export async function getZonasEventoAction(
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "getZonasEventoAction",
@@ -256,6 +302,7 @@ export async function crearZonaEventoAction(
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "crearZonaEventoAction",
@@ -269,13 +316,8 @@ export async function crearZonaEventoAction(
 
 export async function getInvitadosEventoAction(
   eventoId: string,
-  filtros?: {
-    categoria_id?: string;
-    zona_id?: string;
-    estado?: string;
-    busqueda?: string;
-  }
-): Promise<EventoInvitado[]> {
+  filtros?: FiltrosInvitados
+): Promise<PaginaInvitados> {
   const traceId = generateTraceId();
   const startedAt = Date.now();
   try {
@@ -288,9 +330,39 @@ export async function getInvitadosEventoAction(
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "getInvitadosEventoAction",
+      status: "FAILED",
+      durationMs: Date.now() - startedAt,
+    });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+/** Ids de todos los invitados del filtro: «seleccionar todos» abarca más que la página visible. */
+export async function getIdsInvitadosEventoAction(
+  eventoId: string,
+  filtros?: Omit<FiltrosInvitados, "pagina" | "page_size">
+): Promise<string[]> {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await getIdsInvitadosEvento(eventoId, filtros);
+    await logAudit({
+      traceId,
+      action: "getIdsInvitadosEventoAction",
+      status: "SUCCESS",
+      durationMs: Date.now() - startedAt,
+    });
+    return result;
+  } catch (error) {
+    unstable_rethrow(error);
+    await logAudit({
+      traceId,
+      action: "getIdsInvitadosEventoAction",
       status: "FAILED",
       durationMs: Date.now() - startedAt,
     });
@@ -327,6 +399,7 @@ export async function crearInvitadoAction(
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "crearInvitadoAction",
@@ -354,6 +427,7 @@ export async function actualizarInvitadoAction(
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "actualizarInvitadoAction",
@@ -380,6 +454,7 @@ export async function eliminarInvitadoAction(
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "eliminarInvitadoAction",
@@ -412,6 +487,7 @@ export async function importarInvitadosAction(
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "importarInvitadosAction",
@@ -439,6 +515,7 @@ export async function emitirCredencialesLoteAction(
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "emitirCredencialesLoteAction",
@@ -466,6 +543,7 @@ export async function enviarCredencialesCorreoAction(
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "enviarCredencialesCorreoAction",
@@ -492,6 +570,7 @@ export async function getPanelEventoAction(
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "getPanelEventoAction",
@@ -520,6 +599,7 @@ export async function checkInAccesoAction(datos: {
     });
     return result;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "checkInAccesoAction",
@@ -529,4 +609,83 @@ export async function checkInAccesoAction(datos: {
     handleSessionExpired(error);
     throw error;
   }
+}
+
+/** Envuelve una llamada HTTP con traza de auditoría y manejo de sesión vencida. */
+async function conTraza<T>(accion: string, fn: () => Promise<T>): Promise<T> {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await fn();
+    await logAudit({ traceId, action: accion, status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    unstable_rethrow(error);
+    await logAudit({ traceId, action: accion, status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getPersonalInvitableAction(
+  eventoId: string,
+  filtro: FiltroPersonalInvitable
+): Promise<PaginaPersonasInvitables> {
+  return conTraza("getPersonalInvitableAction", () => getPersonalInvitable(eventoId, filtro));
+}
+
+export async function getIdsPersonalInvitableAction(
+  eventoId: string,
+  filtro: Omit<FiltroPersonalInvitable, "pagina" | "page_size">
+): Promise<string[]> {
+  return conTraza("getIdsPersonalInvitableAction", () => getIdsPersonalInvitable(eventoId, filtro));
+}
+
+export async function getExternosInvitablesAction(
+  eventoId: string,
+  filtro: { busqueda?: string; pagina?: number; page_size?: number }
+): Promise<PaginaPersonasInvitables> {
+  return conTraza("getExternosInvitablesAction", () => getExternosInvitables(eventoId, filtro));
+}
+
+export async function getIdsExternosInvitablesAction(
+  eventoId: string,
+  busqueda?: string
+): Promise<string[]> {
+  return conTraza("getIdsExternosInvitablesAction", () =>
+    getIdsExternosInvitables(eventoId, busqueda)
+  );
+}
+
+export async function agregarInvitadosEnBloqueAction(
+  eventoId: string,
+  solicitud: SolicitudAgregarEnBloque
+): Promise<ResultadoAgregarEnBloque> {
+  return conTraza("agregarInvitadosEnBloqueAction", () =>
+    agregarInvitadosEnBloque(eventoId, solicitud)
+  );
+}
+
+export async function actualizarCategoriaEventoAction(
+  categoriaId: string,
+  datos: { nombre?: string; color_primario?: string; color_acento?: string; orden?: number }
+): Promise<EventoCategoria> {
+  return conTraza("actualizarCategoriaEventoAction", () =>
+    actualizarCategoriaEvento(categoriaId, datos)
+  );
+}
+
+export async function eliminarCategoriaEventoAction(categoriaId: string): Promise<void> {
+  return conTraza("eliminarCategoriaEventoAction", () => eliminarCategoriaEvento(categoriaId));
+}
+
+export async function actualizarZonaEventoAction(
+  zonaId: string,
+  datos: { nombre?: string; codigo?: string; orden?: number }
+): Promise<EventoZona> {
+  return conTraza("actualizarZonaEventoAction", () => actualizarZonaEvento(zonaId, datos));
+}
+
+export async function eliminarZonaEventoAction(zonaId: string): Promise<void> {
+  return conTraza("eliminarZonaEventoAction", () => eliminarZonaEvento(zonaId));
 }

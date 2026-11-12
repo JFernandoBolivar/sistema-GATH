@@ -48,7 +48,11 @@ export function PlantillasView() {
             tipoActivo={gestor.tipoActivo}
             onCambiarTipoActivo={gestor.setTipoActivo}
             tiposCredencial={gestor.tiposCredencial}
-            plantillasMotor={gestor.listaMotor}
+            paginaMotor={gestor.paginaMotorDatos}
+            busqueda={gestor.busquedaMotor}
+            onCambiarBusqueda={gestor.setBusquedaMotor}
+            onCambiarPagina={gestor.setPaginaMotor}
+            onCambiarTamano={gestor.cambiarTamanoMotor}
             cargandoMotor={gestor.cargandoMotor}
             isPending={gestor.isPending}
             onAbrirModalNuevo={() => gestor.setModalNuevoOpen(true)}
@@ -72,8 +76,13 @@ export function PlantillasView() {
             onFileChange={gestor.handleFileChange}
             onSubmitClasico={gestor.onSubmitClasico}
             cargandoClasicas={gestor.cargandoClasicas}
-            listaClasicas={gestor.listaClasicas}
+            paginaFondos={gestor.paginaFondosDatos}
+            busqueda={gestor.busquedaFondos}
+            onCambiarBusqueda={gestor.setBusquedaFondos}
+            onCambiarPagina={gestor.setPaginaFondos}
+            onCambiarTamano={gestor.cambiarTamanoFondos}
             onActivarPlantillaClasica={gestor.activarPlantillaClasica}
+            onEliminarFondo={gestor.eliminarFondo}
           />
         </TabsContent>
 

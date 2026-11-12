@@ -142,4 +142,5 @@ def campo_personalizado_a_entidad(modelo: CampoPersonalizadoModel) -> CampoCrede
         es_personalizado=True,
         descripcion=modelo.descripcion,
         valor_ejemplo=modelo.valor_ejemplo,
+        origen=modelo.origen,
     )

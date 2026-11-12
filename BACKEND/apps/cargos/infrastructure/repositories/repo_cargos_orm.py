@@ -1,7 +1,11 @@
 """
 Repositorio ORM de Cargos (Reglas B4, B7, D-09).
 """
+import re
+import unicodedata
+
 from django.db import transaction
+from django.db.models import Q
 
 from core.domain.catalogos import (
     ESTATUS_ACTIVO,
@@ -21,6 +25,7 @@ from apps.cargos.domain import events
 from apps.cargos.domain.entities.cargo_asignacion import CargoAsignacion
 from apps.cargos.domain.entities.denominacion_cargo import DenominacionCargo
 from apps.cargos.domain.entities.denominacion_especifica import DenominacionEspecifica
+from apps.cargos.domain.value_objects.paginacion import Paginacion
 from apps.cargos.domain.services.generacion_codigo import (
     generar_codigo_normal,
     generar_prefijo_nomina,
@@ -50,6 +55,37 @@ from apps.organizacion.infrastructure.models.organizacion_models import (
 )
 
 ESTATUS_PERMITIDOS_GESTION = (ESTATUS_SUSPENDIDO, ESTATUS_BLOQUEADO, ESTATUS_ACTIVO)
+
+
+# Campos de la busqueda de texto libre (`?busqueda=`).
+_CAMPOS_BUSQUEDA = (
+    'codigo',
+    'denominacioncargoid__cargo',
+    'denominacioncargoespecificoid__cargo',
+    'Dependencia__dependencia',
+    'DireccionGeneral__direccion_general',
+    'DireccionLinea__direccion_linea',
+    'Coordinacion__coordinacion',
+    'employee__cedulaidentidad',
+    'employee__nombres',
+    'employee__apellidos',
+)
+_VOCALES = {'a': 'aáàäâÁÀÄÂ', 'e': 'eéèëêÉÈËÊ', 'i': 'iíìïîÍÌÏÎ', 'o': 'oóòöôÓÒÖÔ', 'u': 'uúùüûÚÙÜÛ', 'n': 'nñÑ'}
+
+
+def _patron_sin_acentos(texto: str | None) -> str | None:
+    """Expresion regular que ignora mayusculas (con `iregex`) y acentos.
+
+    Postgres no trae `unaccent` activado en este proyecto: cada vocal (y la n)
+    del texto se vuelve una clase con sus variantes acentuadas.
+    """
+    base = unicodedata.normalize('NFD', (texto or '').strip())
+    base = ''.join(c for c in base if not unicodedata.combining(c))
+    if not base:
+        return None
+    return ''.join(
+        f'[{_VOCALES[c.lower()]}]' if c.lower() in _VOCALES else re.escape(c) for c in base
+    )
 
 
 class RepoCargosORM(RepoPrestamosCargoORM):
@@ -89,16 +125,12 @@ class RepoCargosORM(RepoPrestamosCargoORM):
     def eliminar_denominacion_especifica(self, denominacion_id: int) -> None:
         DenominacionCargoEspecificoModel.objects.filter(pk=denominacion_id).delete()
 
-    def listar_cargos(
-        self,
-        tipo_nomina_id: int | None = None,
-        dependencia_id: int | None = None,
-        solo_vacantes: bool = False,
-        direccion_general_id: int | None = None,
-        direccion_linea_id: int | None = None,
-        coordinacion_id: int | None = None,
-        codigo: str | None = None,
-    ) -> list[CargoAsignacion]:
+    @staticmethod
+    def _consulta_cargos(
+        tipo_nomina_id, dependencia_id, solo_vacantes,
+        direccion_general_id, direccion_linea_id, coordinacion_id, codigo,
+        busqueda=None,
+    ):
         qs = (
             AsigTrabajoModel.objects.select_related(
                 'denominacioncargoid',
@@ -116,7 +148,9 @@ class RepoCargosORM(RepoPrestamosCargoORM):
             # Gestión de personal activo: los puestos de pasivos (P_…, tipo de
             # personal PASIVO) se gestionan en el módulo de Pasivos.
             .exclude(Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO)
-            .order_by('-fecha_actualizacion')
+            # `-pk` desempata: sin él, filas con la misma fecha podrían repetirse
+            # o saltarse entre páginas.
+            .order_by('-fecha_actualizacion', '-pk')
         )
         if tipo_nomina_id is not None:
             qs = qs.filter(tiponominaid_id=tipo_nomina_id)
@@ -132,7 +166,52 @@ class RepoCargosORM(RepoPrestamosCargoORM):
             qs = qs.filter(codigo__icontains=codigo)
         if solo_vacantes:
             qs = qs.filter(employee__isnull=True)
+        # Cada palabra debe aparecer en algun campo ("juan perez" cruza nombre y apellido).
+        for palabra in (busqueda or '').split():
+            patron = _patron_sin_acentos(palabra)
+            if patron:
+                filtro = Q()
+                for campo in _CAMPOS_BUSQUEDA:
+                    filtro |= Q(**{f'{campo}__iregex': patron})
+                qs = qs.filter(filtro)
+        return qs
+
+    def listar_cargos(
+        self,
+        tipo_nomina_id: int | None = None,
+        dependencia_id: int | None = None,
+        solo_vacantes: bool = False,
+        direccion_general_id: int | None = None,
+        direccion_linea_id: int | None = None,
+        coordinacion_id: int | None = None,
+        codigo: str | None = None,
+    ) -> list[CargoAsignacion]:
+        qs = self._consulta_cargos(
+            tipo_nomina_id, dependencia_id, solo_vacantes,
+            direccion_general_id, direccion_linea_id, coordinacion_id, codigo,
+        )
         return [cargo_asignacion_a_entidad(c) for c in qs]
+
+    def listar_cargos_paginado(
+        self,
+        paginacion: Paginacion,
+        tipo_nomina_id: int | None = None,
+        dependencia_id: int | None = None,
+        solo_vacantes: bool = False,
+        direccion_general_id: int | None = None,
+        direccion_linea_id: int | None = None,
+        coordinacion_id: int | None = None,
+        codigo: str | None = None,
+        busqueda: str | None = None,
+    ) -> tuple[list[CargoAsignacion], int]:
+        qs = self._consulta_cargos(
+            tipo_nomina_id, dependencia_id, solo_vacantes,
+            direccion_general_id, direccion_linea_id, coordinacion_id, codigo,
+            busqueda=busqueda,
+        )
+        total = qs.count()
+        pagina = qs[paginacion.offset:paginacion.offset + paginacion.tamano]
+        return [cargo_asignacion_a_entidad(c) for c in pagina], total
 
     def obtener_cargo(self, cargo_id: int) -> CargoAsignacion | None:
         fila = (

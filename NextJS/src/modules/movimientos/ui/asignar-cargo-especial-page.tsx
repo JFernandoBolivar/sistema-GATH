@@ -4,16 +4,10 @@ import { useState, useTransition, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
 
 import { Button } from "@/shared/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/components/card";
+import { Card, CardContent } from "@/shared/ui/components/card";
+import { Loading } from "@/shared/ui/components/loading";
 import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import { Combobox } from "@/shared/ui/components/combobox";
 import {
@@ -88,7 +82,9 @@ export function AsignarCargoEspecialPage({ onSuccess }: CodigoCatalogFormProps) 
   const [organismosAds, setOrganismosAds] = useState<CatalogoCargoItemDTO[]>([]);
   const [tiposProcedencia, setTiposProcedencia] = useState<CatalogoItemDTO[]>([]);
   const [dependencias, setDependencias] = useState<UnidadOrganizativaCargoDTO[]>([]);
-  const [direccionesGenerales, setDireccionesGenerales] = useState<UnidadOrganizativaCargoDTO[]>([]);
+  const [direccionesGenerales, setDireccionesGenerales] = useState<UnidadOrganizativaCargoDTO[]>(
+    [],
+  );
   const [direccionesLinea, setDireccionesLinea] = useState<UnidadOrganizativaCargoDTO[]>([]);
   const [coordinaciones, setCoordinaciones] = useState<UnidadOrganizativaCargoDTO[]>([]);
 
@@ -121,15 +117,10 @@ export function AsignarCargoEspecialPage({ onSuccess }: CodigoCatalogFormProps) 
   });
 
   const validateDirectionLine = () => {
-    if (!activeDirectionLine || !activeDirectionGeneral)
-      form.setValue("DireccionLinea", 0);
+    if (!activeDirectionLine || !activeDirectionGeneral) form.setValue("DireccionLinea", 0);
   };
   const validateCoordination = () => {
-    if (
-      !activeCoordination ||
-      !activeDirectionLine ||
-      !activeDirectionGeneral
-    ) {
+    if (!activeCoordination || !activeDirectionLine || !activeDirectionGeneral) {
       form.setValue("Coordinacion", 0);
     }
   };
@@ -170,7 +161,9 @@ export function AsignarCargoEspecialPage({ onSuccess }: CodigoCatalogFormProps) 
         }
       }
     })();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, []);
 
   // Cascading: dependencyId -> Direcciones Generales
@@ -188,7 +181,9 @@ export function AsignarCargoEspecialPage({ onSuccess }: CodigoCatalogFormProps) 
       .finally(() => {
         if (active) setIsLoadingDirectionGeneral(false);
       });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [dependencyId]);
 
   // Cascading: selecteIdDirectionGeneral -> Direcciones de Línea
@@ -206,7 +201,9 @@ export function AsignarCargoEspecialPage({ onSuccess }: CodigoCatalogFormProps) 
       .finally(() => {
         if (active) setIsLoadingDirectionLine(false);
       });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [selecteIdDirectionGeneral]);
 
   // Cascading: selecteIdDirectionLine -> Coordinaciones
@@ -224,7 +221,9 @@ export function AsignarCargoEspecialPage({ onSuccess }: CodigoCatalogFormProps) 
       .finally(() => {
         if (active) setIsLoadingCoordination(false);
       });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [selecteIdDirectionLine]);
 
   const [employee, setEmployee] = useState<EmpleadoDTO | null>(null);
@@ -311,451 +310,452 @@ export function AsignarCargoEspecialPage({ onSuccess }: CodigoCatalogFormProps) 
           organismo_id: "OrganismoAdscritoid",
           cedula_empleado: "employee",
         });
-        toast.error(response.errores && sinUbicar.length === 0 ? "Revise los campos marcados en rojo." : response.message);
+        toast.error(
+          response.errores && sinUbicar.length === 0
+            ? "Revise los campos marcados en rojo."
+            : response.message,
+        );
       }
     });
   };
 
   return (
-    <Card className="bg-card">
-      <CardHeader>
-        <CardTitle>Registrar Código de Posición</CardTitle>
-        <CardDescription>
-          Ingrese los datos del nuevo código y sus atributos asociados
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <EmployeeSearchForm onSearch={handleSearchEmployee} />
+    <>
+      {isPending ? (
+        <Loading promiseMessage="Asignando Código Especial" />
+      ) : (
+        <Card className="bg-card">
+          <CardContent className="flex flex-col gap-5">
+            <EmployeeSearchForm onSearch={handleSearchEmployee} />
 
-        <div className="mt-4 mb-4">
-          <EmployeeInfoBanner
-            employee={
-              employee
-                ? {
-                    nombres: employee.nombres,
-                    apellidos: employee.apellidos,
-                    cedulaidentidad: employee.cedula,
-                    cedula: employee.cedula,
-                  }
-                : null
-            }
-            hasSearched={hasSearched}
-            isLoading={isLoadingSearch}
-            errorMessage={employeeError ?? undefined}
-            extraFields={
-              employee?.estadoCivilNombre
-                ? [{ label: "Estado Civil", value: employee.estadoCivilNombre }]
-                : []
-            }
-          />
-        </div>
+            <EmployeeInfoBanner
+              employee={
+                employee
+                  ? {
+                      nombres: employee.nombres,
+                      apellidos: employee.apellidos,
+                      cedulaidentidad: employee.cedula,
+                      cedula: employee.cedula,
+                    }
+                  : null
+              }
+              hasSearched={hasSearched}
+              isLoading={isLoadingSearch}
+              errorMessage={employeeError ?? undefined}
+              extraFields={
+                employee?.estadoCivilNombre
+                  ? [{ label: "Estado Civil", value: employee.estadoCivilNombre }]
+                  : []
+              }
+            />
 
-        <ContratoInlineForm
-          employee={
-            employee
-              ? {
-                  id: employee.id,
-                  cedulaidentidad: employee.cedula,
-                  contratoActual: employee.contratoActual,
-                }
-              : undefined
-          }
-          onSuccess={() => setEmployeeReady(true)}
-          className="mt-4"
-        />
+            <ContratoInlineForm
+              employee={
+                employee
+                  ? {
+                      id: employee.id,
+                      cedulaidentidad: employee.cedula,
+                      contratoActual: employee.contratoActual,
+                    }
+                  : undefined
+              }
+              onSuccess={() => setEmployeeReady(true)}
+            />
 
-        {employee && employeeReady && (
-          <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(onSubmit)}
-              className="mt-6 space-y-6"
-            >
-              <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 md:gap-6">
-                <FormField
-                  control={form.control}
-                  name="denominacioncargoid"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Denominación De Cargo</FormLabel>
-                      <FormControl>
-                        <Combobox
-                          options={denominaciones.map((cargo) => ({
-                            value: `${cargo.id}`,
-                            label: cargo.nombre,
-                          }))}
-                          value={field.value ? `${field.value}` : ""}
-                          onChange={(value) => field.onChange(Number.parseInt(value))}
-                          placeholder={
-                            isLoadingCargo
-                              ? "Cargando Cargos"
-                              : "Seleccione una Denominación De Cargo"
-                          }
-                          searchPlaceholder="Buscar cargo..."
-                          disabled={isLoadingCargo}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="denominacioncargoespecificoid"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Denominación De Cargo Específico</FormLabel>
-                      <FormControl>
-                        <Combobox
-                          options={especificas.map((cargo) => ({
-                            value: `${cargo.id}`,
-                            label: cargo.nombre,
-                          }))}
-                          value={field.value ? `${field.value}` : ""}
-                          onChange={(value) => field.onChange(Number.parseInt(value))}
-                          placeholder={
-                            isLoadingCargoEspecifico
-                              ? "Cargando Cargos Especificos"
-                              : "Seleccione una Denominación De Cargo Específico"
-                          }
-                          searchPlaceholder="Buscar cargo especifico..."
-                          disabled={isLoadingCargoEspecifico}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="tiponominaid"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tipo de Nomina</FormLabel>
-                      <Select
-                        onValueChange={(values) => {
-                          field.onChange(Number.parseInt(values));
-                        }}
-                        value={field.value ? field.value.toString() : ""}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="w-full truncate">
-                            <SelectValue
+            {employee && employeeReady && (
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 md:gap-6">
+                    <FormField
+                      control={form.control}
+                      name="denominacioncargoid"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Denominación De Cargo *</FormLabel>
+                          <FormControl>
+                            <Combobox
+                              options={denominaciones.map((cargo) => ({
+                                value: `${cargo.id}`,
+                                label: cargo.nombre,
+                              }))}
+                              value={field.value ? `${field.value}` : ""}
+                              onChange={(value) => field.onChange(Number.parseInt(value))}
                               placeholder={
-                                isLoadingNomina
-                                  ? "Cargando Nominas"
-                                  : "Seleccione un Tipo de Nomina"
+                                isLoadingCargo
+                                  ? "Cargando Cargos"
+                                  : "Seleccione una Denominación De Cargo"
                               }
+                              searchPlaceholder="Buscar cargo..."
+                              disabled={isLoadingCargo}
                             />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {tiposNomina.map((nomina) => (
-                            <SelectItem key={nomina.id} value={`${nomina.id}`}>
-                              {nomina.nombre}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="gradoid"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Grado (Opcional)</FormLabel>
-                      <Select
-                        onValueChange={(values) => {
-                          field.onChange(Number.parseInt(values));
-                        }}
-                        value={field.value ? field.value.toString() : ""}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="w-full truncate">
-                            <SelectValue
+                    <FormField
+                      control={form.control}
+                      name="denominacioncargoespecificoid"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Denominación De Cargo Específico *</FormLabel>
+                          <FormControl>
+                            <Combobox
+                              options={especificas.map((cargo) => ({
+                                value: `${cargo.id}`,
+                                label: cargo.nombre,
+                              }))}
+                              value={field.value ? `${field.value}` : ""}
+                              onChange={(value) => field.onChange(Number.parseInt(value))}
                               placeholder={
-                                isLoadingGrado
-                                  ? "Cargando Grados"
-                                  : "Seleccione un Grado"
+                                isLoadingCargoEspecifico
+                                  ? "Cargando Cargos Especificos"
+                                  : "Seleccione una Denominación De Cargo Específico"
                               }
+                              searchPlaceholder="Buscar cargo especifico..."
+                              disabled={isLoadingCargoEspecifico}
                             />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {grados.map((g) => (
-                            <SelectItem key={g.id} value={`${g.id}`}>
-                              {g.nombre}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="OrganismoAdscritoid"
-                  render={({ field }) => (
-                    <FormItem className="md:col-span-2">
-                      <FormLabel>Organismo Adscrito (Opcional)</FormLabel>
-                      <FormControl>
-                          <Combobox
-                            options={organismosAds.map((o) => ({ value: String(o.id), label: `${o.id}-${o.nombre}` }))}
+                    <FormField
+                      control={form.control}
+                      name="tiponominaid"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tipo de Nomina *</FormLabel>
+                          <Select
+                            onValueChange={(values) => {
+                              field.onChange(Number.parseInt(values));
+                            }}
                             value={field.value ? field.value.toString() : ""}
-                            onChange={(v) => field.onChange(Number.parseInt(v))}
-                            disabled={isLoadingOrganismoAds}
-                            placeholder={isLoadingOrganismoAds ? "Cargando Organismos Adscritos" : "Seleccione Un Organismo Adscrito"}
-                            searchPlaceholder="Buscar organismo..."
-                          />
-                        </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="tipo_procedencia"
-                  render={({ field }) => (
-                    <FormItem className="md:col-span-2">
-                      <FormLabel>Tipo De Procedencia</FormLabel>
-                      <Select
-                        onValueChange={(values) => {
-                          field.onChange(Number.parseInt(values));
-                        }}
-                        value={field.value ? field.value.toString() : ""}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="w-full truncate">
-                            <SelectValue
-                              placeholder={
-                                isLoadingTiposProcedencia
-                                  ? "Cargando Tipos De Procedencia"
-                                  : "Seleccione Un Tipo De Procedencia"
-                              }
-                            />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {tiposProcedencia.map((tipo) => (
-                            <SelectItem key={tipo.id} value={`${tipo.id}`}>
-                              {tipo.nombre}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  name="Dependencia"
-                  control={form.control}
-                  render={({ field }) => (
-                    <FormItem className="min-w-0">
-                      <FormLabel>Nivel</FormLabel>
-                      <FormControl>
-                        <Select
-                          onValueChange={(value) => {
-                            setDependencyId(value);
-                            field.onChange(Number.parseInt(value));
-                          }}
-                          value={field.value ? field.value.toString() : ""}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder={isLoadingDependency ? "Cargando Niveles" : "Seleccionar Nivel"} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectGroup>
-                              <SelectLabel>
-                                Dirección / Gerencia / Oficina
-                              </SelectLabel>
-                              {dependencias.map((dp) => (
-                                <SelectItem key={dp.id} value={`${dp.id}`}>
-                                  {dp.nombre}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="w-full truncate">
+                                <SelectValue
+                                  placeholder={
+                                    isLoadingNomina
+                                      ? "Cargando Nominas"
+                                      : "Seleccione un Tipo de Nomina"
+                                  }
+                                />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {tiposNomina.map((nomina) => (
+                                <SelectItem key={nomina.id} value={`${nomina.id}`}>
+                                  {nomina.nombre}
                                 </SelectItem>
                               ))}
-                            </SelectGroup>
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                {activeDirectionGeneral && (
-                  <FormField
-                    control={form.control}
-                    name="DireccionGeneral"
-                    render={({ field }) => (
-                      <FormItem className="min-w-0">
-                        <FormLabel>Dirección / Gerencia / Oficina</FormLabel>
-                        <Select
-                          disabled={!dependencyId || isLoadingDirectionGeneral || direccionesGenerales.length === 0}
-                          onValueChange={(values) => {
-                            field.onChange(Number.parseInt(values));
-                            setSelecteIdDirectionGeneral(values);
-                          }}
-                          value={field.value ? field.value.toString() : ""}
-                        >
+                    <FormField
+                      control={form.control}
+                      name="gradoid"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Grado (Opcional)</FormLabel>
+                          <Select
+                            onValueChange={(values) => {
+                              field.onChange(Number.parseInt(values));
+                            }}
+                            value={field.value ? field.value.toString() : ""}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="w-full truncate">
+                                <SelectValue
+                                  placeholder={
+                                    isLoadingGrado ? "Cargando Grados" : "Seleccione un Grado"
+                                  }
+                                />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {grados.map((g) => (
+                                <SelectItem key={g.id} value={`${g.id}`}>
+                                  {g.nombre}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="OrganismoAdscritoid"
+                      render={({ field }) => (
+                        <FormItem className="md:col-span-2">
+                          <FormLabel>Organismo Adscrito (Opcional)</FormLabel>
                           <FormControl>
-                            <SelectTrigger className="w-full truncate">
-                              <SelectValue
-                                placeholder={
-                                  !dependencyId
-                                    ? "Primero seleccione el Nivel"
-                                    : isLoadingDirectionGeneral
-                                    ? "Cargando Direcciones"
-                                    : direccionesGenerales.length === 0
-                                    ? "El Nivel no posee direcciones"
-                                    : "Seleccione una Dirección"
-                                }
-                              />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {direccionesGenerales.map((general) => (
-                              <SelectItem key={general.id} value={`${general.id}`}>
-                                {general.codigo ? `${general.codigo}-` : ""}{general.nombre}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          <span className="flex flex-wrap items-center justify-start gap-2 pt-2 text-left">
-                            ¿Desea Agregarle Una División / Coordinación?
-                            <Switch
-                              onCheckedChange={(bool) => {
-                                setActiveDirectionLine(bool);
-                                validateDirectionLine();
-                              }}
+                            <Combobox
+                              options={organismosAds.map((o) => ({
+                                value: String(o.id),
+                                label: `${o.id}-${o.nombre}`,
+                              }))}
+                              value={field.value ? field.value.toString() : ""}
+                              onChange={(v) => field.onChange(Number.parseInt(v))}
+                              disabled={isLoadingOrganismoAds}
+                              placeholder={
+                                isLoadingOrganismoAds
+                                  ? "Cargando Organismos Adscritos"
+                                  : "Seleccione Un Organismo Adscrito"
+                              }
+                              searchPlaceholder="Buscar organismo..."
                             />
-                          </span>
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-
-                {activeDirectionLine && direccionesLinea.length > 0 && (
-                  <FormField
-                    control={form.control}
-                    name="DireccionLinea"
-                    render={({ field }) => (
-                      <FormItem
-                        className={`${activeCoordination ? "" : "md:col-span-2"}`}
-                      >
-                        <FormLabel>División / Coordinación</FormLabel>
-                        <Select
-                          onValueChange={(values) => {
-                            field.onChange(Number.parseInt(values));
-                            setSelecteIdDirectionLine(values);
-                          }}
-                          value={field.value ? field.value.toString() : ""}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="w-full truncate">
-                              <SelectValue
-                                placeholder={
-                                  isLoadingDirectionLine
-                                    ? "Cargando División / Coordinación"
-                                    : "Seleccione una División / Coordinación"
-                                }
-                              />
-                            </SelectTrigger>
                           </FormControl>
-                          <SelectContent>
-                            {direccionesLinea.map((line) => (
-                              <SelectItem key={line.id} value={`${line.id}`}>
-                                {line.codigo ? `${line.codigo}-` : ""}{line.nombre}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          <span className="flex flex-wrap items-center justify-start gap-2 pt-2 text-left">
-                            ¿Desea Agregarle Una Coordinación?
-                            <Switch
-                              onCheckedChange={(bool) => {
-                                setActiveCoordination(bool);
-                                validateCoordination();
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="tipo_procedencia"
+                      render={({ field }) => (
+                        <FormItem className="md:col-span-2">
+                          <FormLabel>Tipo De Procedencia *</FormLabel>
+                          <Select
+                            onValueChange={(values) => {
+                              field.onChange(Number.parseInt(values));
+                            }}
+                            value={field.value ? field.value.toString() : ""}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="w-full truncate">
+                                <SelectValue
+                                  placeholder={
+                                    isLoadingTiposProcedencia
+                                      ? "Cargando Tipos De Procedencia"
+                                      : "Seleccione Un Tipo De Procedencia"
+                                  }
+                                />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {tiposProcedencia.map((tipo) => (
+                                <SelectItem key={tipo.id} value={`${tipo.id}`}>
+                                  {tipo.nombre}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      name="Dependencia"
+                      control={form.control}
+                      render={({ field }) => (
+                        <FormItem className="min-w-0">
+                          <FormLabel>Nivel *</FormLabel>
+                          <FormControl>
+                            <Select
+                              onValueChange={(value) => {
+                                setDependencyId(value);
+                                field.onChange(Number.parseInt(value));
                               }}
-                            />
-                          </span>
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-
-                {activeCoordination && coordinaciones.length > 0 && (
-                  <FormField
-                    control={form.control}
-                    name="Coordinacion"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Coordinación</FormLabel>
-                        <Select
-                          onValueChange={(values) => {
-                            field.onChange(Number.parseInt(values));
-                          }}
-                          value={field.value ? field.value.toString() : ""}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="w-full truncate">
-                              <SelectValue
-                                placeholder={
-                                  isLoadingCoordination
-                                    ? "Cargando Coordinaciones"
-                                    : "Seleccione una Coordinación"
-                                }
-                              />
-                            </SelectTrigger>
+                              value={field.value ? field.value.toString() : ""}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue
+                                  placeholder={
+                                    isLoadingDependency ? "Cargando Niveles" : "Seleccionar Nivel"
+                                  }
+                                />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectGroup>
+                                  <SelectLabel>Dirección / Gerencia / Oficina</SelectLabel>
+                                  {dependencias.map((dp) => (
+                                    <SelectItem key={dp.id} value={`${dp.id}`}>
+                                      {dp.nombre}
+                                    </SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              </SelectContent>
+                            </Select>
                           </FormControl>
-                          <SelectContent>
-                            {coordinaciones.map((coord) => (
-                              <SelectItem key={coord.id} value={`${coord.id}`}>
-                                {coord.codigo ? `${coord.codigo}-` : ""}{coord.nombre}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-              </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-              {/* Submit Button */}
-              <div className="flex gap-3 justify-end mt-4">
-                <Button type="submit" disabled={isPending} className="w-full">
-                  {isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Asignando Código Especial…
-                    </>
-                  ) : (
-                    "Asignar Código Especial"
-                  )}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        )}
-      </CardContent>
-    </Card>
+                    {activeDirectionGeneral && (
+                      <FormField
+                        control={form.control}
+                        name="DireccionGeneral"
+                        render={({ field }) => (
+                          <FormItem className="min-w-0">
+                            <FormLabel>Dirección / Gerencia / Oficina *</FormLabel>
+                            <Select
+                              disabled={
+                                !dependencyId ||
+                                isLoadingDirectionGeneral ||
+                                direccionesGenerales.length === 0
+                              }
+                              onValueChange={(values) => {
+                                field.onChange(Number.parseInt(values));
+                                setSelecteIdDirectionGeneral(values);
+                              }}
+                              value={field.value ? field.value.toString() : ""}
+                            >
+                              <FormControl>
+                                <SelectTrigger className="w-full truncate">
+                                  <SelectValue
+                                    placeholder={
+                                      !dependencyId
+                                        ? "Primero seleccione el Nivel"
+                                        : isLoadingDirectionGeneral
+                                          ? "Cargando Direcciones"
+                                          : direccionesGenerales.length === 0
+                                            ? "El Nivel no posee direcciones"
+                                            : "Seleccione una Dirección"
+                                    }
+                                  />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {direccionesGenerales.map((general) => (
+                                  <SelectItem key={general.id} value={`${general.id}`}>
+                                    {general.codigo ? `${general.codigo}-` : ""}
+                                    {general.nombre}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>
+                              <span className="flex flex-wrap items-center justify-start gap-2 pt-2 text-left">
+                                ¿Desea Agregarle Una División / Coordinación?
+                                <Switch
+                                  onCheckedChange={(bool) => {
+                                    setActiveDirectionLine(bool);
+                                    validateDirectionLine();
+                                  }}
+                                />
+                              </span>
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+
+                    {activeDirectionLine && direccionesLinea.length > 0 && (
+                      <FormField
+                        control={form.control}
+                        name="DireccionLinea"
+                        render={({ field }) => (
+                          <FormItem className={`${activeCoordination ? "" : "md:col-span-2"}`}>
+                            <FormLabel>División / Coordinación</FormLabel>
+                            <Select
+                              onValueChange={(values) => {
+                                field.onChange(Number.parseInt(values));
+                                setSelecteIdDirectionLine(values);
+                              }}
+                              value={field.value ? field.value.toString() : ""}
+                            >
+                              <FormControl>
+                                <SelectTrigger className="w-full truncate">
+                                  <SelectValue
+                                    placeholder={
+                                      isLoadingDirectionLine
+                                        ? "Cargando División / Coordinación"
+                                        : "Seleccione una División / Coordinación"
+                                    }
+                                  />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {direccionesLinea.map((line) => (
+                                  <SelectItem key={line.id} value={`${line.id}`}>
+                                    {line.codigo ? `${line.codigo}-` : ""}
+                                    {line.nombre}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormDescription>
+                              <span className="flex flex-wrap items-center justify-start gap-2 pt-2 text-left">
+                                ¿Desea Agregarle Una Coordinación?
+                                <Switch
+                                  onCheckedChange={(bool) => {
+                                    setActiveCoordination(bool);
+                                    validateCoordination();
+                                  }}
+                                />
+                              </span>
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+
+                    {activeCoordination && coordinaciones.length > 0 && (
+                      <FormField
+                        control={form.control}
+                        name="Coordinacion"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Coordinación</FormLabel>
+                            <Select
+                              onValueChange={(values) => {
+                                field.onChange(Number.parseInt(values));
+                              }}
+                              value={field.value ? field.value.toString() : ""}
+                            >
+                              <FormControl>
+                                <SelectTrigger className="w-full truncate">
+                                  <SelectValue
+                                    placeholder={
+                                      isLoadingCoordination
+                                        ? "Cargando Coordinaciones"
+                                        : "Seleccione una Coordinación"
+                                    }
+                                  />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {coordinaciones.map((coord) => (
+                                  <SelectItem key={coord.id} value={`${coord.id}`}>
+                                    {coord.codigo ? `${coord.codigo}-` : ""}
+                                    {coord.nombre}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                  </div>
+
+                  {/* Submit Button */}
+                  <Button type="submit" className="w-full mt-4 cursor-pointer" disabled={isPending}>
+                    {isPending ? "Asignando Código Especial" : "Asignar Código Especial"}
+                  </Button>
+                </form>
+              </Form>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </>
   );
 }
 

@@ -21,9 +21,24 @@ export async function crearCampoPersonalizado(
     sensible?: boolean;
     descripcion?: string;
     valor_ejemplo?: string;
+    origen: string;
   }
 ): Promise<CampoCredencial> {
   return repo.crearCampoPersonalizado(campo);
+}
+
+export async function actualizarCampoPersonalizado(
+  repo: RepoCarnetizacion,
+  codigo: string,
+  campo: {
+    etiqueta: string;
+    origen: string;
+    sensible?: boolean;
+    descripcion?: string;
+    valor_ejemplo?: string;
+  }
+): Promise<CampoCredencial> {
+  return repo.actualizarCampoPersonalizado(codigo, campo);
 }
 
 export async function eliminarCampoPersonalizado(

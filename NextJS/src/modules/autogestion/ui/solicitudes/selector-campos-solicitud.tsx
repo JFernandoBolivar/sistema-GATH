@@ -13,7 +13,10 @@ import {
   ENTIDADES_DE_LISTA,
   claveAccion,
   claveCampo,
+  clavesDeBloque,
+  ENTIDADES_EN_BLOQUE,
   esEntidadDeLista,
+  esEntidadEnBloque,
   type SeccionDef,
 } from "../../domain/value-objects/campos-seccion";
 
@@ -80,6 +83,12 @@ export function SelectorCamposSolicitud({
 
   function alternar(clave: string, marcar: boolean) {
     onCambio(marcar ? [...valor, clave] : valor.filter((x) => x !== clave));
+  }
+
+  /** Casilla única de una entidad en bloque: marca o desmarca todos sus campos a la vez. */
+  function alternarBloque(claves: string[], marcar: boolean) {
+    const resto = valor.filter((x) => !claves.includes(x));
+    onCambio(marcar ? [...resto, ...claves] : resto);
   }
 
   return (
@@ -159,6 +168,40 @@ export function SelectorCamposSolicitud({
                 })}
               </ul>
             </fieldset>
+          ) : esEntidadEnBloque(e.entidad) ? (
+            (() => {
+              const claves = clavesDeBloque(e);
+              const bloqueo = claves.map((k) => bloqueoDe(k, "corregir")).find(Boolean);
+              return (
+                <ul key={e.entidad} className="grid gap-2">
+                  <li className="flex flex-col gap-1">
+                    <label
+                      className={cn(CLASE_OPCION, bloqueo && "cursor-not-allowed opacity-60")}
+                    >
+                      <Checkbox
+                        checked={claves.some((k) => valor.includes(k))}
+                        onCheckedChange={(v) => alternarBloque(claves, v === true)}
+                        className="size-5"
+                        disabled={Boolean(bloqueo)}
+                        aria-label={ENTIDADES_EN_BLOQUE[e.entidad].etiqueta}
+                      />
+                      <span className="text-base">{ENTIDADES_EN_BLOQUE[e.entidad].etiqueta}</span>
+                    </label>
+                    {bloqueo && "solicitud_id" in bloqueo ? (
+                      <p className="text-xs text-warning">
+                        {bloqueo.mensaje}{" "}
+                        <Link
+                          href={`/autogestion/solicitudes/${bloqueo.solicitud_id}`}
+                          className="font-semibold underline"
+                        >
+                          Ver solicitud
+                        </Link>
+                      </p>
+                    ) : null}
+                  </li>
+                </ul>
+              );
+            })()
           ) : (
             <ul key={e.entidad} className="grid gap-2 sm:grid-cols-2">
               {e.campos.map((c) => {

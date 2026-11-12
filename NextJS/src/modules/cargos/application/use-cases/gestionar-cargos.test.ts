@@ -50,6 +50,16 @@ class RepoCargosMemoria implements RepoCargos {
   async listarCargos() {
     return this.cargos;
   }
+  async listarCargosPaginado({ pagina, pageSize }: { pagina: number; pageSize: number }) {
+    const inicio = (pagina - 1) * pageSize;
+    return {
+      resultados: this.cargos.slice(inicio, inicio + pageSize),
+      total: this.cargos.length,
+      pagina,
+      tamano: pageSize,
+      totalPaginas: Math.max(1, Math.ceil(this.cargos.length / pageSize)),
+    };
+  }
   async listarDenominaciones(): Promise<DenominacionCargo[]> {
     return this.denominaciones;
   }

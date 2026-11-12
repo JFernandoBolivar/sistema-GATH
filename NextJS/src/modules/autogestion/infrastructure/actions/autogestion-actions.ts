@@ -1,5 +1,6 @@
 "use server";
 
+import { unstable_rethrow } from "next/navigation";
 import { auth } from "#/auth";
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
@@ -34,6 +35,7 @@ export async function getPreguntasAction() {
     });
     return res;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "getPreguntasAction",
@@ -58,9 +60,39 @@ export async function consultarCensoEmpleadoAction(cedula?: string) {
     });
     return res;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "consultarCensoEmpleadoAction",
+      status: "FAILED",
+      durationMs: Date.now() - startedAt,
+    });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function consultarCensoPaginaAction(filtros: {
+  pagina: number;
+  page_size: number;
+  cedula?: string;
+}) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const res = await autogestionApi.consultarCensoPagina(filtros);
+    await logAudit({
+      traceId,
+      action: "consultarCensoPaginaAction",
+      status: "SUCCESS",
+      durationMs: Date.now() - startedAt,
+    });
+    return res;
+  } catch (error) {
+    unstable_rethrow(error);
+    await logAudit({
+      traceId,
+      action: "consultarCensoPaginaAction",
       status: "FAILED",
       durationMs: Date.now() - startedAt,
     });
@@ -106,6 +138,7 @@ export async function enviarAutogestionAction(
       message: res?.message || "Formulario enviado exitosamente.",
     };
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "enviarAutogestionAction",
@@ -135,6 +168,7 @@ export async function getReporteCensoDependenciasAction(searchParams?: string) {
     });
     return res;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "getReporteCensoDependenciasAction",
@@ -161,6 +195,7 @@ export async function exportarCensoExcelAction(filtros?: FiltrosExportCenso) {
     });
     return { success: true as const, data: base64 };
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "exportarCensoExcelAction",
@@ -316,6 +351,7 @@ export const getMiExpedienteAction = async (): Promise<MiExpedienteDTO | null> =
     });
     return res.data;
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "getMiExpedienteAction",
@@ -345,6 +381,7 @@ export const getMiCarnetAccesoAction = async (): Promise<boolean | null> => {
     });
     return Boolean(res.data?.puede_ver_carnet);
   } catch (error) {
+    unstable_rethrow(error);
     await logAudit({
       traceId,
       action: "getMiCarnetAccesoAction",

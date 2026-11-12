@@ -50,13 +50,34 @@ def test_con_clave_inicial_usa_solo_la_fila_sin_comparar_hashes():
     assert inactiva.pk not in ids
 
 
+def test_vencidas_solo_trae_activas_con_fila_vencida():
+    ahora = timezone.now()
+    vencida = CuentaModel.objects.create_user(cedula=_empleado('10000021'), password='10000021')
+    PasswordInicialModel.objects.create(
+        cuenta_id=vencida.pk, emitida_en=ahora - timedelta(days=9), vence_en=ahora - timedelta(days=2),
+    )
+    vigente = CuentaModel.objects.create_user(cedula=_empleado('10000022'), password='10000022')
+    _fila(vigente, ahora)
+    sin_fila = CuentaModel.objects.create_user(cedula=_empleado('10000023'), password='10000023')
+    inactiva = CuentaModel.objects.create_user(cedula=_empleado('10000024'), password='10000024')
+    PasswordInicialModel.objects.create(
+        cuenta_id=inactiva.pk, emitida_en=ahora - timedelta(days=9), vence_en=ahora - timedelta(days=2),
+    )
+    inactiva.is_active = False
+    inactiva.save(update_fields=['is_active'])
+
+    ids = {c.cuenta_id for c in RepoCuentasClaveInicialORM().vencidas(ahora)}
+    assert ids == {vencida.pk}
+    assert sin_fila.pk not in ids
+
+
 def test_la_vista_previa_cachea_la_lista_de_ids():
-    """U2-bis: la tarea de preview deja la lista para la ejecución."""
+    """La vista previa síncrona deja la lista para la ejecución."""
     from django.core.cache import cache
 
     from apps.identidad.infrastructure.tasks.restablecer_acceso_bloque_tasks import (
+        calcular_vista_previa,
         clave_preview,
-        restablecimiento_bloque_preview_tarea,
     )
 
     primera = CuentaModel.objects.create_user(cedula=_empleado('10000011'), password='10000011')
@@ -65,13 +86,9 @@ def test_la_vista_previa_cachea_la_lista_de_ids():
     _fila(segunda, timezone.now())
     actor = {'cuenta_id': 77, 'rol_id': None, 'cedula': '30799436'}
 
-    resultado = restablecimiento_bloque_preview_tarea.apply(
-        args=['AMBOS', 'SIN_PRIMER_INGRESO', True, 'Claves vencidas del personal', actor],
-    ).get()
+    resultado = calcular_vista_previa('AMBOS', 'SIN_PRIMER_INGRESO', actor)
 
-    assert resultado['estado'] == 'LISTO'
     assert resultado['total'] == 2
     ids = cache.get(clave_preview(77, 'AMBOS', 'SIN_PRIMER_INGRESO'))
     assert set(ids) == {primera.pk, segunda.pk}
     cache.delete(clave_preview(77, 'AMBOS', 'SIN_PRIMER_INGRESO'))
-

@@ -21,6 +21,7 @@ import {
   accionesPermitidas,
   claveCampo,
   esEntidadDeLista,
+  esEntidadEnBloque,
   etiquetaCampo,
   pedidaPorAcciones,
   type EntidadDef,
@@ -118,7 +119,6 @@ export function EditorEntidad({
           porAcciones ||
           camposHabilitados.includes(claveCampo(definicionCompleta.entidad, c.campo)),
       );
-  const [abierto, setAbierto] = useState<Abierto>(null);
   const esquema = esquemaDeEntidad(seccion, definicion.entidad);
   const vigentes = useMemo(
     () => registrosFicha(ficha, definicion.entidad, seccion),
@@ -131,6 +131,16 @@ export function EditorEntidad({
       ),
     [items, seccion, definicion.entidad],
   );
+  const vigentesIniciales = registrosFicha(ficha, definicionCompleta.entidad, seccion);
+  // Una entidad pedida en bloque (vivienda) abre su formulario completo, precargado, al llegar.
+  const [abierto, setAbierto] = useState<Abierto>(() => {
+    if (!esEntidadEnBloque(definicionCompleta.entidad)) return null;
+    const yaPropuesto = items.some(
+      (i) => i.seccion === seccion && i.entidad === definicionCompleta.entidad,
+    );
+    if (yaPropuesto) return null;
+    return vigentesIniciales.length > 0 ? { tipo: "modificar", id: null } : { tipo: "nuevo" };
+  });
   if (!esquema || definicion.campos.length === 0) return null;
 
   const modificaciones = registros.filter((r) => r.accion === "MODIFICAR");

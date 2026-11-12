@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 
 import PageLayout from "@/components/layout/page-layout";
-import { CEDULA_FAMILIAR_MAX } from "../domain/value-objects/cedula-familiar-vo";
+import { CEDULA_FAMILIAR_MAX, maxOrdenHijo } from "../domain/value-objects/cedula-familiar-vo";
 import { Button } from "@/shared/ui/components/button";
 import { Calendar } from "@/shared/ui/components/calendar";
 import { Card, CardContent } from "@/shared/ui/components/card";
@@ -94,7 +94,8 @@ const defaultValues: FamiliarFormType = {
   heredero: false,
   observaciones: null,
   formacionAcademica: undefined,
-  perfilSalud: undefined,
+  // El grupo sanguíneo es obligatorio: 0 hace que zod marque el campo.
+  perfilSalud: { grupoSanguineoId: 0, alergias: [], patologiasCronicas: [], discapacidades: [] },
   perfilFisico: undefined,
 };
 
@@ -105,6 +106,8 @@ export default function FamiliarRegistrarPage() {
 
   const [catalogos, setCatalogos] = useState<CatalogosFamiliarDTO | null>(null);
   const [isPending, startTransition] = useTransition();
+  // Aviso persistente: siempre con texto (nunca "revise los campos" sin campos).
+  const [avisoGeneral, setAvisoGeneral] = useState<string | null>(null);
 
   // Búsqueda del empleado
   const [employee, setEmployee] = useState<EmployeeSummary | null>(null);
@@ -173,16 +176,29 @@ export default function FamiliarRegistrarPage() {
   }, [parentescoSeleccionado]);
 
   // H2: la cédula sintética debe caber en varchar(10): <titular>-<orden>.
-  const maxOrden = useMemo(() => {
-    const cedula = employee?.cedulaidentidad ?? "";
-    if (!cedula) return 0;
-    return Math.max(0, Math.min(27, CEDULA_FAMILIAR_MAX - cedula.length - 1));
-  }, [employee]);
+  const maxOrden = useMemo(() => maxOrdenHijo(employee?.cedulaidentidad), [employee]);
 
   // Fecha actual para el popover
   const fechaNac = form.watch("fechaNacimiento");
 
+  const enfocarPrimerError = () => {
+    if (typeof window === "undefined") return;
+    window.setTimeout(() => {
+      const control = document.querySelector<HTMLElement>('[aria-invalid="true"]');
+      const destino = control ?? document.querySelector<HTMLElement>('[role="alert"]');
+      if (!destino) return;
+      destino.scrollIntoView?.({ behavior: "smooth", block: "center" });
+      destino.focus?.();
+    }, 50);
+  };
+
+  const onInvalid = () => {
+    setAvisoGeneral("Revise los campos marcados en rojo.");
+    enfocarPrimerError();
+  };
+
   const onGuardar = (data: FamiliarFormType) => {
+    setAvisoGeneral(null);
     startTransition(async () => {
       const nacimiento = data.fechaNacimiento ? new Date(data.fechaNacimiento) : null;
       const edad = nacimiento && !Number.isNaN(nacimiento.getTime())
@@ -271,7 +287,15 @@ export default function FamiliarRegistrarPage() {
         const fallo = resultado as { error: string; errores?: Record<string, string[]> };
         // El campo culpable queda en rojo con su mensaje; lo que no tiene campo va al aviso.
         const sinUbicar = aplicarErroresServidor(form, fallo.errores, MAPA_ERRORES_FAMILIAR);
-        toast.error(sinUbicar.length ? sinUbicar.join(" ") : fallo.error);
+        const hayCamposMarcados = Object.keys(fallo.errores ?? {}).length > 0 && sinUbicar.length === 0;
+        const mensaje = sinUbicar.length
+          ? sinUbicar.join(" ")
+          : hayCamposMarcados
+            ? "Revise los campos marcados en rojo."
+            : fallo.error;
+        setAvisoGeneral(mensaje);
+        toast.error(mensaje);
+        enfocarPrimerError();
         return;
       }
 
@@ -297,6 +321,7 @@ export default function FamiliarRegistrarPage() {
       }
 
       toast.success("Familiar agregado exitosamente");
+      setAvisoGeneral(null);
 
       // Resetear campos del formulario manteniendo el empleado actual
       form.reset({
@@ -337,7 +362,12 @@ export default function FamiliarRegistrarPage() {
               {isPending ? (
                 <Loading promiseMessage="Agregando Familiar" />
               ) : (
-                <form onSubmit={form.handleSubmit(onGuardar)} className="space-y-6" noValidate>
+                <form onSubmit={form.handleSubmit(onGuardar, onInvalid)} className="space-y-6" noValidate>
+                  {avisoGeneral && (
+                    <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                      {avisoGeneral}
+                    </p>
+                  )}
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     {/* FIELDSET 1: DATOS PERSONALES */}
                     <fieldset className="min-w-0 border grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2 p-2 border-green-600 rounded-sm">
@@ -404,7 +434,7 @@ export default function FamiliarRegistrarPage() {
                       </Field>
 
                       {/* Segundo Nombre */}
-                      <Field>
+                      <Field data-invalid={!!form.formState.errors.segundoNombre}>
                         <Label htmlFor="segundoNombre" className="cursor-pointer">
                           Segundo Nombre
                         </Label>
@@ -413,7 +443,13 @@ export default function FamiliarRegistrarPage() {
                           type="text"
                           maxLength={60}
                           {...form.register("segundoNombre")}
+                          aria-invalid={!!form.formState.errors.segundoNombre}
                         />
+                        {form.formState.errors.segundoNombre && (
+                          <p role="alert" className="text-sm text-destructive">
+                            {form.formState.errors.segundoNombre.message}
+                          </p>
+                        )}
                       </Field>
 
                       {/* Primer Apellido */}
@@ -436,7 +472,7 @@ export default function FamiliarRegistrarPage() {
                       </Field>
 
                       {/* Segundo Apellido */}
-                      <Field>
+                      <Field data-invalid={!!form.formState.errors.segundoApellido}>
                         <Label htmlFor="segundoApellido" className="cursor-pointer">
                           Segundo Apellido
                         </Label>
@@ -445,7 +481,13 @@ export default function FamiliarRegistrarPage() {
                           type="text"
                           maxLength={60}
                           {...form.register("segundoApellido")}
+                          aria-invalid={!!form.formState.errors.segundoApellido}
                         />
+                        {form.formState.errors.segundoApellido && (
+                          <p role="alert" className="text-sm text-destructive">
+                            {form.formState.errors.segundoApellido.message}
+                          </p>
+                        )}
                       </Field>
 
                       {/* Sexo */}
@@ -455,7 +497,7 @@ export default function FamiliarRegistrarPage() {
                           value={form.watch("sexoId") ? String(form.watch("sexoId")) : ""}
                           onValueChange={(val) => form.setValue("sexoId", Number(val), { shouldValidate: true })}
                         >
-                          <SelectTrigger className="w-full truncate">
+                          <SelectTrigger id="sexoId" className="w-full truncate" aria-invalid={!!form.formState.errors.sexoId}>
                             <SelectValue placeholder="Seleccione un Genero" />
                           </SelectTrigger>
                           <SelectContent>
@@ -481,6 +523,7 @@ export default function FamiliarRegistrarPage() {
                             <Button
                               variant="outline"
                               className="font-light w-full justify-between"
+                              aria-invalid={!!form.formState.errors.fechaNacimiento}
                             >
                               {fechaNac ? (
                                 format(new Date(fechaNac + "T00:00:00"), "dd/MM/yyyy")
@@ -529,7 +572,7 @@ export default function FamiliarRegistrarPage() {
                           value={form.watch("parentescoId") ? String(form.watch("parentescoId")) : ""}
                           onValueChange={(val) => form.setValue("parentescoId", Number(val), { shouldValidate: true })}
                         >
-                          <SelectTrigger className="w-full truncate">
+                          <SelectTrigger id="parentescoId" className="w-full truncate" aria-invalid={!!form.formState.errors.parentescoId}>
                             <SelectValue placeholder="Seleccione un Parentesco" />
                           </SelectTrigger>
                           <SelectContent>
@@ -548,14 +591,19 @@ export default function FamiliarRegistrarPage() {
                       </Field>
 
                       {esHijo && (
-                        <Field className="col-span-1">
+                        <Field className="col-span-1" data-invalid={!!form.formState.errors.ordenHijo}>
                           <Label className="cursor-pointer">Orden de nacimiento *</Label>
                           <Select
                             disabled={maxOrden === 0}
                             value={form.watch("ordenHijo") ? String(form.watch("ordenHijo")) : ""}
-                            onValueChange={(val) => form.setValue("ordenHijo", Number(val))}
+                            onValueChange={(val) =>
+                              form.setValue("ordenHijo", Number(val), { shouldValidate: true })
+                            }
                           >
-                            <SelectTrigger className="w-full truncate">
+                            <SelectTrigger
+                              className="w-full truncate"
+                              aria-invalid={!!form.formState.errors.ordenHijo}
+                            >
                               <SelectValue placeholder="Seleccione Un Orden De Nacimiento" />
                             </SelectTrigger>
                             <SelectContent>
@@ -566,6 +614,17 @@ export default function FamiliarRegistrarPage() {
                               ))}
                             </SelectContent>
                           </Select>
+                          {maxOrden === 0 && !form.formState.errors.ordenHijo && (
+                            <p className="text-xs text-muted-foreground">
+                              La cédula del titular es demasiado larga para generar la cédula del hijo
+                              menor; registre al hijo con su propia cédula.
+                            </p>
+                          )}
+                          {form.formState.errors.ordenHijo && (
+                            <p role="alert" className="text-sm text-destructive">
+                              {form.formState.errors.ordenHijo.message}
+                            </p>
+                          )}
                         </Field>
                       )}
 

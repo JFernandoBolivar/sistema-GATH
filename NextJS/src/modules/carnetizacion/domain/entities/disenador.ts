@@ -5,6 +5,9 @@
  * con respaldo y Funcionario azul marino (#1f3a5f) inicial.
  */
 
+import type { PuntoForma } from "./forma-puntos";
+import type { QrEstilo } from "./qr-estilo";
+
 export type TipoElementoKonva =
   | "field"
   | "text"
@@ -44,8 +47,19 @@ export interface ElementoKonva {
   // Propiedades de Imagen / Biblioteca
   src?: string;
   biblioteca_id?: string;
+  // Etiqueta de marcador para imágenes sin asset (FIRMA, LOGO)
+  etiqueta?: string;
+  // diag: variante 'diagr' (acento diagonal opuesto) del PDF
+  diagr?: boolean;
+  // Estilo del QR (props.qr_estilo); ausente = institucional
+  qr_estilo?: QrEstilo;
   // Formas personalizadas (SVG path normalizado 0..100)
   path?: string;
+  // Forma editable por puntos (props.puntos): vértices en la caja 0..100 con radio en mm.
+  // Si existe, el path se genera desde aquí; `path` queda como copia para quien no la entienda.
+  puntos?: PuntoForma[];
+  // Rectángulo: radio por esquina en mm [sup-izq, sup-der, inf-der, inf-izq] (props.radios)
+  radios?: [number, number, number, number];
   // Organización
   grupo_id?: string | null;
   bloqueado?: boolean;
@@ -64,6 +78,127 @@ export interface ReglasColorConfig {
   criterio: CriterioColor;
   respaldo: ReglaColorValores;
   valores: Record<string, ReglaColorValores>;
+  /**
+   * Solo del editor (no se guarda): valores de cada criterio que se dejó al cambiar de
+   * criterio, para recuperarlos si se vuelve a él. El motor usa únicamente `valores`.
+   */
+  valoresPorCriterio?: Partial<Record<CriterioColor, Record<string, ReglaColorValores>>>;
+}
+
+/**
+ * Criterios que el PDF (resolver_color.py + datos de carnet_pdf.py) sabe aplicar: nómina, cargo
+ * y oficina salen del titular. `nivel` y `otro` no existen en los datos del PDF y caen al
+ * color de respaldo, por eso no se ofrecen.
+ */
+export const CRITERIOS_COLOR_SOPORTADOS: readonly CriterioColor[] = [
+  "unico",
+  "nomina",
+  "cargo",
+  "oficina",
+];
+
+export const ETIQUETA_VALORES_CRITERIO: Record<CriterioColor, string> = {
+  unico: "Valor único",
+  nomina: "Tipos de nómina",
+  cargo: "Cargos",
+  oficina: "Oficinas / dependencias",
+  nivel: "Niveles",
+  otro: "Valores",
+};
+
+/** Tipo de credencial externa (visitante, contratista...) tal como lo entrega el catálogo. */
+export interface TipoExternoColor {
+  codigo: string;
+  nombre: string;
+}
+
+/** Listas reales de cargo y oficina que entrega el backend para el diseñador. */
+export interface SugerenciasReglasColor {
+  cargos: string[];
+  oficinas: string[];
+}
+
+/**
+ * Valores sugeridos de un criterio. La nómina suma los tipos de credencial externa: el PDF
+ * usa su código en mayúsculas como nómina, así que la regla se llama igual (VISITANTE).
+ * Cargo y oficina usan las listas reales del backend (el mismo texto del PDF).
+ */
+export function sugerenciasCriterio(
+  criterio: CriterioColor,
+  tiposExternos: readonly TipoExternoColor[] = [],
+  sugerencias: Partial<SugerenciasReglasColor> = {},
+): string[] {
+  if (criterio === "cargo") return [...new Set(sugerencias.cargos ?? [])];
+  if (criterio === "oficina") return [...new Set(sugerencias.oficinas ?? [])];
+  if (criterio !== "nomina") return [];
+  const externos = tiposExternos.map((t) => t.codigo.toUpperCase());
+  return [...new Set([...Object.keys(REGLAS_COLOR_DEFECTO.valores), ...externos])];
+}
+
+/**
+ * Añade de una vez todos los valores sugeridos que aún no tienen regla, con el
+ * color de respaldo vigente, para poder usar «Aplicar a todos/seleccionados».
+ */
+export function cargarValoresSugeridos(
+  reglas: ReglasColorConfig,
+  valores: readonly string[],
+): ReglasColorConfig {
+  const nuevos = { ...reglas.valores };
+  for (const valor of valores) {
+    const clave = valor.trim();
+    if (clave && !(clave in nuevos)) {
+      nuevos[clave] = { ...reglas.respaldo };
+    }
+  }
+  return { ...reglas, valores: nuevos };
+}
+
+/** Etiqueta legible de un valor sugerido (ej. VISITANTE -> «Visitante»), o null si no la hay. */
+export function etiquetaSugerencia(
+  valor: string,
+  tiposExternos: readonly TipoExternoColor[] = [],
+): string | null {
+  return tiposExternos.find((t) => t.codigo.toUpperCase() === valor)?.nombre ?? null;
+}
+
+/**
+ * Pone la combinación primario/acento a todos los valores del criterio (`claves` omitido)
+ * o solo a los indicados. Conserva el color de texto de cada valor.
+ */
+export function aplicarColoresAValores(
+  reglas: ReglasColorConfig,
+  colores: { primario: string; acento: string },
+  claves?: readonly string[],
+): ReglasColorConfig {
+  const objetivo = claves ? new Set(claves) : null;
+  const valores: Record<string, ReglaColorValores> = {};
+  for (const [clave, val] of Object.entries(reglas.valores)) {
+    valores[clave] =
+      !objetivo || objetivo.has(clave)
+        ? { ...val, primario: colores.primario, acento: colores.acento }
+        : val;
+  }
+  return { ...reglas, valores };
+}
+
+/** Deja los valores sin regla: todos usarán el color de respaldo. */
+export function quitarTodosLosValores(reglas: ReglasColorConfig): ReglasColorConfig {
+  return { ...reglas, valores: {} };
+}
+
+/**
+ * Cambia el criterio de color: guarda los valores del criterio actual y carga los del nuevo
+ * (los de nómina arrancan con los institucionales; el resto, vacíos).
+ */
+export function cambiarCriterioColor(
+  reglas: ReglasColorConfig,
+  nuevo: CriterioColor,
+): ReglasColorConfig {
+  if (nuevo === reglas.criterio) return reglas;
+  const guardados = { ...(reglas.valoresPorCriterio ?? {}), [reglas.criterio]: reglas.valores };
+  const valores =
+    guardados[nuevo] ?? (nuevo === "nomina" ? { ...REGLAS_COLOR_DEFECTO.valores } : {});
+  return { ...reglas, criterio: nuevo, valores, valoresPorCriterio: guardados };
 }
 
 export const REGLAS_COLOR_DEFECTO: ReglasColorConfig = {
@@ -247,6 +382,61 @@ export function moverCapaKonva(
   return elementos;
 }
 
+
+/** Shift/Ctrl+clic: agrega el id a la selección o lo quita si ya estaba. */
+export function alternarSeleccionKonva(seleccion: readonly string[], id: string): string[] {
+  return seleccion.includes(id) ? seleccion.filter((s) => s !== id) : [...seleccion, id];
+}
+
+/** Ctrl+A: ids de todos los elementos visibles y de la cara indicada. */
+export function idsDeCaraKonva(
+  elementos: readonly ElementoKonva[],
+  cara: "anverso" | "reverso",
+): string[] {
+  return elementos.filter((e) => e.cara === cara && !e.oculto).map((e) => e.id);
+}
+
+/** Quita varios elementos de una sola vez (una sola entrada de historial). */
+export function eliminarElementosKonva(
+  elementos: readonly ElementoKonva[],
+  ids: readonly string[],
+): ElementoKonva[] {
+  const quitar = new Set(ids);
+  return elementos.filter((e) => !quitar.has(e.id));
+}
+
+/** Alinea varios elementos respecto al recuadro que los contiene. */
+export function alinearVariosKonva(
+  elementos: readonly ElementoKonva[],
+  ids: readonly string[],
+  pos: "left" | "center-h" | "right",
+): ElementoKonva[] {
+  const sel = elementos.filter((e) => ids.includes(e.id));
+  if (sel.length < 2) return [...elementos];
+  const minX = Math.min(...sel.map((e) => e.x));
+  const maxX = Math.max(...sel.map((e) => e.x + e.w));
+  return elementos.map((e) => {
+    if (!ids.includes(e.id)) return e;
+    const x =
+      pos === "left" ? minX : pos === "right" ? maxX - e.w : (minX + maxX) / 2 - e.w / 2;
+    return { ...e, x: Number(x.toFixed(2)) };
+  });
+}
+
+export type AlcanceLimpieza ="cara-actual" | "ambas";
+
+/**
+ * Quita los elementos de la cara indicada (o de ambas). No toca dimensiones,
+ * orientación ni tipo: solo devuelve la lista de elementos restante.
+ */
+export function limpiarElementosKonva(
+  elementos: readonly ElementoKonva[],
+  alcance: AlcanceLimpieza,
+  cara: "anverso" | "reverso",
+): ElementoKonva[] {
+  if (alcance === "ambas") return [];
+  return elementos.filter((e) => e.cara !== cara);
+}
 
 /** Tamaño mínimo (mm) de QR legible con teléfono (SILOG); el backend manda con su parámetro. */
 export const QR_MINIMO_MM_DEFECTO = 20;

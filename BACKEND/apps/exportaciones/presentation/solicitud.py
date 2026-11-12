@@ -23,6 +23,7 @@ from apps.exportaciones.infrastructure.repositories.repo_exportaciones_orm impor
 from apps.exportaciones.presentation.serializers.exportaciones_serializers import (
     TrabajoExportacionSerializer,
 )
+from core.infrastructure.auditoria_contexto import origen_para_tarea
 from core.infrastructure.tasks.celery_queue import CeleryTaskQueue
 from core.presentation.envelope import ok
 
@@ -60,6 +61,7 @@ def pedir_exportacion(
         ahora=datetime.now(timezone.utc),
         ttl_horas=settings.EXPORTACIONES_TTL_HORAS,
         max_activas=settings.EXPORTACIONES_MAX_ACTIVAS_POR_USUARIO,
+        origen=origen_para_tarea(),
     )
     return ok(
         TrabajoExportacionSerializer(trabajo).data,

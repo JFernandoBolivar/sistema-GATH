@@ -72,5 +72,6 @@ export function documentoFamiliarApiAEntidad(raw: DocumentoFamiliarApiItem): Doc
     tipoDocumento: raw.tipo_documento,
     rutaArchivo: raw.ruta_archivo,
     fechaSubida: raw.fecha_subida,
+    nombreArchivo: raw.nombre_archivo ?? "",
   };
 }

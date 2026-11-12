@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import { toast } from "sonner";
 import {
@@ -9,6 +10,7 @@ import {
   Filter,
   Info,
   Loader2,
+  Pencil,
   PlusCircle,
   ShieldAlert,
   Sparkles,
@@ -36,8 +38,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import type { CampoCredencial, GrupoCampo } from "../../domain/entities/carnet";
+import { campoSinOrigen, etiquetaOrigenCampo, ORIGENES_CAMPO } from "../../domain/entities/origen-campo";
 import {
+  actualizarCampoPersonalizadoAction,
   crearCampoPersonalizadoAction,
   eliminarCampoPersonalizadoAction,
   getCamposAction,
@@ -75,6 +80,8 @@ export function RegistroCamposTab() {
   const [tipoSeleccionado, setTipoSeleccionado] = useState<string>("trabajador");
   const [modalNuevoOpen, setModalNuevoOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const { data: session } = useSession();
+  const puedeGestionar = tienePermiso(session?.user?.permisos, "carnetizacion.campos_personalizados");
 
   // Estados modal nuevo campo
   const [nuevoCodigo, setNuevoCodigo] = useState("");
@@ -84,6 +91,9 @@ export function RegistroCamposTab() {
   const [nuevoSensible, setNuevoSensible] = useState(false);
   const [nuevaDescripcion, setNuevaDescripcion] = useState("");
   const [nuevoValorEjemplo, setNuevoValorEjemplo] = useState("");
+  const [nuevoOrigen, setNuevoOrigen] = useState("");
+  // Campo en edición: el mismo formulario sirve para crear y para asignar el origen a un campo viejo.
+  const [campoAEditar, setCampoAEditar] = useState<CampoCredencial | null>(null);
 
   // Estado eliminación
   const [campoAEliminar, setCampoAEliminar] = useState<CampoCredencial | null>(null);
@@ -97,35 +107,73 @@ export function RegistroCamposTab() {
   const campos: CampoCredencial[] =
     respuestaCampos && respuestaCampos.success ? respuestaCampos.data : [];
 
-  const handleCrearCampo = (e: React.FormEvent) => {
+  const limpiarFormulario = () => {
+    setNuevoCodigo("");
+    setNuevaEtiqueta("");
+    setNuevoGrupo("personalizado");
+    setNuevoTipo("todos");
+    setNuevoSensible(false);
+    setNuevaDescripcion("");
+    setNuevoValorEjemplo("");
+    setNuevoOrigen("");
+  };
+
+  const cerrarFormulario = () => {
+    setModalNuevoOpen(false);
+    setCampoAEditar(null);
+    limpiarFormulario();
+  };
+
+  const abrirEdicion = (campo: CampoCredencial) => {
+    setCampoAEditar(campo);
+    setNuevoCodigo(campo.codigo);
+    setNuevaEtiqueta(campo.etiqueta);
+    setNuevoGrupo(campo.grupo);
+    setNuevoTipo(campo.tipo_credencial);
+    setNuevoSensible(campo.sensible);
+    setNuevaDescripcion(campo.descripcion);
+    setNuevoValorEjemplo(campo.valor_ejemplo);
+    setNuevoOrigen(etiquetaOrigenCampo(campo.origen) ? (campo.origen ?? "") : "");
+  };
+
+  const handleGuardarCampo = (e: React.FormEvent) => {
     e.preventDefault();
     if (!nuevoCodigo.trim() || !nuevaEtiqueta.trim()) {
       toast.error("El código y la etiqueta son obligatorios.");
       return;
     }
+    if (!nuevoOrigen) {
+      toast.error("Elija el origen del dato.");
+      return;
+    }
 
     startTransition(async () => {
-      const res = await crearCampoPersonalizadoAction({
-        codigo: nuevoCodigo.trim().toLowerCase(),
+      const comunes = {
         etiqueta: nuevaEtiqueta.trim(),
-        grupo: nuevoGrupo,
-        tipo_credencial: nuevoTipo,
         sensible: nuevoSensible,
         descripcion: nuevaDescripcion.trim(),
         valor_ejemplo: nuevoValorEjemplo.trim(),
-      });
+        origen: nuevoOrigen,
+      };
+      const res = campoAEditar
+        ? await actualizarCampoPersonalizadoAction(campoAEditar.codigo, comunes)
+        : await crearCampoPersonalizadoAction({
+            ...comunes,
+            codigo: nuevoCodigo.trim().toLowerCase(),
+            grupo: nuevoGrupo,
+            tipo_credencial: nuevoTipo,
+          });
 
       if (res.success) {
-        toast.success(`Campo '${res.data.etiqueta}' registrado exitosamente.`);
-        setModalNuevoOpen(false);
-        setNuevoCodigo("");
-        setNuevaEtiqueta("");
-        setNuevoSensible(false);
-        setNuevaDescripcion("");
-        setNuevoValorEjemplo("");
+        toast.success(
+          campoAEditar
+            ? `Campo '${res.data.etiqueta}' actualizado.`
+            : `Campo '${res.data.etiqueta}' registrado exitosamente.`,
+        );
+        cerrarFormulario();
         mutate();
       } else {
-        toast.error(res.error || "No fue posible registrar el campo.");
+        toast.error(res.error || "No fue posible guardar el campo.");
       }
     });
   };
@@ -167,14 +215,16 @@ export function RegistroCamposTab() {
           </Button>
         </div>
 
-        <Button
-          onClick={() => setModalNuevoOpen(true)}
-          className="gap-2 shrink-0"
-          size="sm"
-        >
-          <PlusCircle className="size-4" />
-          Nuevo Campo Personalizado
-        </Button>
+        {puedeGestionar && (
+          <Button
+            onClick={() => setModalNuevoOpen(true)}
+            className="gap-2 shrink-0"
+            size="sm"
+          >
+            <PlusCircle className="size-4" />
+            Nuevo Campo Personalizado
+          </Button>
+        )}
       </div>
 
       {/* Banner de Advertencia de Datos Sensibles */}
@@ -218,7 +268,7 @@ export function RegistroCamposTab() {
                 <CardContent className="p-0 divide-y">
                   {camposDelGrupo.length === 0 ? (
                     <div className="p-6 text-center text-xs text-muted-foreground">
-                      No hay campos personalizados registrados aún. Pulsa «Nuevo Campo Personalizado» para agregar variables dinámicas.
+                      No hay campos personalizados registrados aún.{puedeGestionar ? " Pulsa «Nuevo Campo Personalizado» para agregar variables dinámicas." : ""}
                     </div>
                   ) : (
                     camposDelGrupo.map((campo) => (
@@ -253,6 +303,16 @@ export function RegistroCamposTab() {
                           {campo.descripcion && (
                             <p className="text-xs text-muted-foreground">{campo.descripcion}</p>
                           )}
+                          {campo.es_personalizado &&
+                            (campoSinOrigen(campo) ? (
+                              <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                                Sin origen: edítelo
+                              </p>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">
+                                Origen: {etiquetaOrigenCampo(campo.origen)}
+                              </p>
+                            ))}
                         </div>
 
                         <div className="flex items-center gap-4 shrink-0 justify-between sm:justify-end">
@@ -263,16 +323,27 @@ export function RegistroCamposTab() {
                             </span>
                           </div>
 
-                          {campo.es_personalizado && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive hover:bg-destructive/10 h-8 px-2 text-xs"
-                              onClick={() => setCampoAEliminar(campo)}
-                            >
-                              <Trash2 className="size-3.5" />
-                              <span className="sr-only">Eliminar</span>
-                            </Button>
+                          {campo.es_personalizado && puedeGestionar && (
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-2 text-xs"
+                                onClick={() => abrirEdicion(campo)}
+                              >
+                                <Pencil className="size-3.5" />
+                                <span className="sr-only">Editar</span>
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:bg-destructive/10 h-8 px-2 text-xs"
+                                onClick={() => setCampoAEliminar(campo)}
+                              >
+                                <Trash2 className="size-3.5" />
+                                <span className="sr-only">Eliminar</span>
+                              </Button>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -285,14 +356,19 @@ export function RegistroCamposTab() {
         </div>
       )}
 
-      {/* --- DIALOG DE CREACIÓN DE CAMPO PERSONALIZADO --- */}
-      <Dialog open={modalNuevoOpen} onOpenChange={setModalNuevoOpen}>
+      {/* --- DIALOG DE CREACIÓN / EDICIÓN DE CAMPO PERSONALIZADO --- */}
+      <Dialog
+        open={modalNuevoOpen || campoAEditar !== null}
+        onOpenChange={(abierto) => !abierto && cerrarFormulario()}
+      >
         <DialogContent className="sm:max-w-[480px]">
-          <form onSubmit={handleCrearCampo}>
+          <form onSubmit={handleGuardarCampo}>
             <DialogHeader>
-              <DialogTitle>Nuevo Campo Personalizado</DialogTitle>
+              <DialogTitle>{campoAEditar ? "Editar Campo Personalizado" : "Nuevo Campo Personalizado"}</DialogTitle>
               <DialogDescription>
-                Define una variable para insertar en las capas del diseñador de credenciales.
+                {campoAEditar
+                  ? "Cambie la etiqueta o el origen del dato. El código no se puede modificar."
+                  : "Define una variable para insertar en las capas del diseñador de credenciales."}
               </DialogDescription>
             </DialogHeader>
 
@@ -305,6 +381,7 @@ export function RegistroCamposTab() {
                     placeholder="ej: matricula_interna"
                     value={nuevoCodigo}
                     onChange={(e) => setNuevoCodigo(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                    disabled={campoAEditar !== null}
                     required
                   />
                   <p className="text-[11px] text-muted-foreground">Solo minúsculas y _</p>
@@ -324,7 +401,11 @@ export function RegistroCamposTab() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label>Grupo</Label>
-                  <Select value={nuevoGrupo} onValueChange={(val: GrupoCampo) => setNuevoGrupo(val)}>
+                  <Select
+                    value={nuevoGrupo}
+                    onValueChange={(val: GrupoCampo) => setNuevoGrupo(val)}
+                    disabled={campoAEditar !== null}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -338,7 +419,7 @@ export function RegistroCamposTab() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>Tipo de Credencial</Label>
-                  <Select value={nuevoTipo} onValueChange={setNuevoTipo}>
+                  <Select value={nuevoTipo} onValueChange={setNuevoTipo} disabled={campoAEditar !== null}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -349,6 +430,25 @@ export function RegistroCamposTab() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Origen del dato</Label>
+                <Select value={nuevoOrigen} onValueChange={setNuevoOrigen}>
+                  <SelectTrigger aria-label="Origen del dato">
+                    <SelectValue placeholder="Elija de dónde sale el valor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ORIGENES_CAMPO.map((o) => (
+                      <SelectItem key={o.valor} value={o.valor}>
+                        {o.etiqueta}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">
+                  Al imprimir el carnet, el campo toma este dato del expediente del titular.
+                </p>
               </div>
 
               <div className="space-y-1.5">
@@ -389,14 +489,18 @@ export function RegistroCamposTab() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setModalNuevoOpen(false)}
+                onClick={cerrarFormulario}
                 disabled={isPending}
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isPending || !nuevoCodigo || !nuevaEtiqueta} className="gap-2">
+              <Button
+                type="submit"
+                disabled={isPending || !nuevoCodigo || !nuevaEtiqueta || !nuevoOrigen}
+                className="gap-2"
+              >
                 {isPending && <Loader2 className="size-4 animate-spin" />}
-                Registrar Campo
+                {campoAEditar ? "Guardar Cambios" : "Registrar Campo"}
               </Button>
             </DialogFooter>
           </form>

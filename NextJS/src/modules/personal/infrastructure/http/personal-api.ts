@@ -21,6 +21,7 @@ export interface EmpleadoApiItem {
   sexo_nombre: string;
   correo: string | null;
   correo_alternativo?: string | null;
+  tiene_hijos?: boolean | null;
   telefono_movil: string | null;
   telefono_habitacion: string | null;
   fecha_nacimiento: string | null;
@@ -114,6 +115,14 @@ export const personalApi = {
   actualizar: (cedula: string, payload: Record<string, unknown>) =>
     single<EmpleadoApiItem>(
       apiClient.put<ApiResponse<EmpleadoApiItem>>(`/api/v1/personal/${cedula}/`, payload),
+    ),
+
+  actualizarTieneHijos: (cedula: string, tieneHijos: boolean | null) =>
+    single<{ tiene_hijos: boolean | null }>(
+      apiClient.patch<ApiResponse<{ tiene_hijos: boolean | null }>>(
+        `/api/v1/personal/${cedula}/datos-complementarios/`,
+        { tiene_hijos: tieneHijos },
+      ),
     ),
 
   subirFoto: (cedula: string, formData: FormData) =>

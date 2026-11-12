@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { GuardarEmpleadoDatos, RepoPersonal } from "../../domain/ports/repo-personal";
 import type { Empleado } from "../../domain/entities/empleado";
-import { actualizarEmpleado, registrarEmpleado } from "./gestionar-empleado";
+import { actualizarEmpleado, actualizarTieneHijos, registrarEmpleado } from "./gestionar-empleado";
 import { listarEmpleados, obtenerEmpleadoPorCedula } from "./listar-empleados";
 
 class RepoPersonalMemoria implements RepoPersonal {
+  tieneHijosGuardado: Record<string, boolean | null> = {};
+  async actualizarTieneHijos(cedula: string, tieneHijos: boolean | null) {
+    this.tieneHijosGuardado[cedula] = tieneHijos;
+    return tieneHijos;
+  }
   empleados: Empleado[] = [
     {
       id: 1,
@@ -153,5 +158,12 @@ describe("Casos de uso de Gestión de Personal", () => {
 
     const actualizado = await actualizarEmpleado(repo, "99887766", { telefonoMovil: "04141234567" });
     expect(actualizado.telefonoMovil).toBe("04141234567");
+  });
+
+  it("actualizarTieneHijos delega en el repositorio y devuelve el valor guardado", async () => {
+    const repo = new RepoPersonalMemoria();
+    expect(await actualizarTieneHijos(repo, "11223344", true)).toBe(true);
+    expect(await actualizarTieneHijos(repo, "11223344", false)).toBe(false);
+    expect(repo.tieneHijosGuardado["11223344"]).toBe(false);
   });
 });

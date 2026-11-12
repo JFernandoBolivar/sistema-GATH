@@ -39,7 +39,7 @@ import {
 } from "@/modules/pasivos/infrastructure/actions/pasivos-actions";
 import { getEstatusAction } from "@/modules/cargos/infrastructure/actions/cargos-actions";
 import { MotivoSelect } from "@/modules/cargos/ui/components/motivo-select";
-import type { CatalogoPasivoApiItem } from "@/modules/pasivos/infrastructure/http/pasivos-api";
+import type { CatalogoPasivo } from "@/modules/pasivos/domain/entities/catalogo-pasivo";
 import type { CatalogoCargoItemDTO } from "@/modules/cargos/application/dtos/cargo-dto";
 import {
   schemaPasivoUI,
@@ -52,7 +52,7 @@ export function CambiarPasivoPage() {
   const [isPending, startTransition] = useTransition();
 
   // Catalogs
-  const [nominaPasivo, setNominaPasivo] = useState<CatalogoPasivoApiItem[]>([]);
+  const [nominaPasivo, setNominaPasivo] = useState<CatalogoPasivo[]>([]);
   const [statusEmployee, setStatusEmployee] = useState<CatalogoCargoItemDTO[]>([]);
   const [isLoadingNominaPasivo, setIsLoadingNominaPasivo] = useState(true);
   const [isLoadingStatusEmployee, setIsLoadingStatusEmployee] = useState(true);
@@ -171,7 +171,7 @@ export function CambiarPasivoPage() {
       if (!employee?.cedula) return;
 
       if (validatePeace && (!data.tiponominaid || data.tiponominaid <= 0)) {
-        toast.error("Es obligatorio asignar una nómina para personal PASIVO");
+        toast.error("Es obligatorio asignar una nÃ³mina para personal PASIVO");
         return;
       }
 
@@ -197,7 +197,7 @@ export function CambiarPasivoPage() {
           });
           toast.error(response.errores && sinUbicar.length === 0 ? "Revise los campos marcados en rojo." : response.error);
         } else {
-          toast.success("Gestión realizada exitosamente");
+          toast.success("GestiÃ³n realizada exitosamente");
           form.reset();
           clearEmployee();
         }

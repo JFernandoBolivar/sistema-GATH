@@ -9,7 +9,6 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 
-from io import BytesIO
 
 from core.presentation.envelope import fail, ok
 from core.presentation.permissions import HasAnyPermission, HasPermission
@@ -232,11 +231,11 @@ class CarnetQrImagenView(APIView):
     @extend_schema(tags=['Carnetización'], summary='Imagen QR de una credencial')
     def get(self, request, security_hash: str):
         from apps.carnetizacion.domain.value_objects.security_hash import normalizar_codigo_qr
-        from apps.carnetizacion.infrastructure.qr_institucional import generar_qr_png
+        from apps.carnetizacion.infrastructure.qr_institucional import contenido_qr_carnet, generar_qr_png
 
         if normalizar_codigo_qr(security_hash) != security_hash:
             return fail('Código de carnet inválido.', status=404)
-        contenido = f'GATH-ID: {security_hash}\n'
+        contenido = contenido_qr_carnet(security_hash)
         respuesta = HttpResponse(
             generar_qr_png(contenido, box_size=8, border=2, con_logo=True),
             content_type='image/png',

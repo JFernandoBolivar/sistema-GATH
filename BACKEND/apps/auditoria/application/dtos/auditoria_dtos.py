@@ -17,6 +17,7 @@ class RegistroAuditoriaDTO:
     user_agent: str
     resultado: str
     actor_rol_visible: str = ''
+    actor_rol_actual: bool = False
 
 
 @dataclass(frozen=True)

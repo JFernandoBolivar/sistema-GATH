@@ -43,6 +43,15 @@ class CargoAsignacionDTO:
 
 
 @dataclass(frozen=True)
+class PaginaCargosDTO:
+    resultados: list[CargoAsignacionDTO]
+    total: int
+    pagina: int
+    tamano: int
+    total_paginas: int
+
+
+@dataclass(frozen=True)
 class CrearCargoEspecialDTO:
     """
     Datos de entrada para la asignación de cargo especial (gap #3 — código

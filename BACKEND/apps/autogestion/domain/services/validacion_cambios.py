@@ -248,7 +248,7 @@ def _requeridos_de_vivienda(es_venezuela: bool) -> frozenset[str]:
 
 
 def validar_vivienda_condicional(valores: dict, es_venezuela: bool) -> None:
-    """O40: Venezuela exige la ubicación completa; el exterior, ciudad/región."""
+    """O40: Venezuela exige la ubicación completa; el exterior, ciudad/región y sin estado, municipio ni parroquia."""
     faltan = sorted(
         campo for campo in _requeridos_de_vivienda(es_venezuela)
         if valores.get(campo) in (None, '')
@@ -258,6 +258,16 @@ def validar_vivienda_condicional(valores: dict, es_venezuela: bool) -> None:
         raise ValidationError(
             "Faltan campos obligatorios de la vivienda: " + ', '.join(nombres) + '.'
         )
+    if not es_venezuela:
+        sobran = [
+            ETIQUETAS_CAMPOS[c] for c in ('estado_id', 'municipio_id', 'parroquia_id')
+            if valores.get(c) not in (None, '')
+        ]
+        if sobran:
+            raise ValidationError(
+                'Una vivienda fuera de Venezuela no lleva ' + ', '.join(sobran).lower()
+                + ': deje vacíos el estado, el municipio y la parroquia e indique la ciudad o región.'
+            )
 
 
 def validar_registro_nuevo(

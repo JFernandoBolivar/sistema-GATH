@@ -80,6 +80,7 @@ PERMISOS_CATALOGO = [
     ("personal.carga_masiva_revertir", "Revertir una carga masiva aplicada"),
     ("personal.aprobar_antecedentes", "Aprobar antecedentes de servicio en solicitudes de actualización"),
     ("personal.corregir_cedula", "Corregir cédula del trabajador"),
+    ("personal.editar_nacionalidad", "Actualizar nacionalidad del trabajador"),
 
     # ─── 5. PERSONAL PASIVO ───
     ("pasivos.ver", "Consultar listado y ficha básica de personal pasivo"),
@@ -136,6 +137,7 @@ PERMISOS_CATALOGO = [
     ("carnetizacion.enviar", "Enviar credenciales por correo"),
     ("carnetizacion.eventos", "Gestionar eventos, categorías, zonas e invitados"),
     ("carnetizacion.control_eventos", "Control de entrada y acceso con QR a eventos"),
+    ("carnetizacion.campos_personalizados", "Gestionar campos personalizados del carnet"),
 
     # ─── 11. AUTOGESTIÓN ───
     ("autogestion.ver_propio", "Consultar expediente personal propio"),
@@ -222,6 +224,7 @@ ROL_ASIGNACIONES = {
         "personal.ver_detalle",
         "personal.crear",
         "personal.editar_personales",
+        "personal.editar_nacionalidad",
         "personal.editar_laborales",
         "personal.editar_educacion",
         "personal.editar_vivienda",
@@ -369,6 +372,7 @@ PERMISOS_BIENESTAR_ANALISTA = [
     "bienestar.aprobar",
     "bienestar.prorrogar_ventana",
     "personal.editar_personales",
+    "personal.editar_nacionalidad",
     "personal.editar_laborales",
     "personal.editar_educacion",
     "personal.editar_vivienda",

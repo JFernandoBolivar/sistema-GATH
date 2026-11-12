@@ -48,6 +48,7 @@ export function DetallePasivo({
   const puedeExportarPdf = tienePermiso(permisos, "pasivos.exportar_pdf");
   const puedeEditar = tienePermiso(permisos, "personal.editar_personales");
   const puedeCorregirCedula = tienePermiso(permisos, "personal.corregir_cedula");
+  const puedeEditarNacionalidad = tienePermiso(permisos, "personal.editar_nacionalidad");
 
   const [catalogos, setCatalogos] = useState<CatalogosExpedienteDTO | null>(null);
   const [pasivo, setPasivo] = useState<PasivoDTO | null>(null);
@@ -140,9 +141,11 @@ export function DetallePasivo({
       puedeExportarPdf={puedeExportarPdf}
       puedeEditar={puedeEditar}
       puedeCorregirCedula={puedeCorregirCedula}
+      puedeEditarNacionalidad={puedeEditarNacionalidad}
       onCedulaCorregida={onCedulaCorregida}
       revision={revision}
       permitirPais
+      esPasivo
     />
   );
 }

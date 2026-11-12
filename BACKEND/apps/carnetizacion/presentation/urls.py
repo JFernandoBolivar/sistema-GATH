@@ -19,6 +19,7 @@ from apps.carnetizacion.presentation.views.evento_views import (
     EventoEmitirLoteView,
     EventoEnviarCorreoView,
     EventoInvitadoDetalleView,
+    EventoInvitadosIdsView,
     EventoInvitadosImportarView,
     EventoInvitadosListView,
     EventoInvitadosPlantillaExcelView,
@@ -37,6 +38,8 @@ from apps.carnetizacion.presentation.views.carnetizacion_views import (
     CarnetGenerarView,
     CarnetPdfView,
     CarnetsListView,
+    FondoFijoDetalleView,
+    FondosFijosListView,
     CarnetSubirFotoView,
     ElementoBibliotecaArchivoView,
     ElementoBibliotecaDetailView,
@@ -46,6 +49,7 @@ from apps.carnetizacion.presentation.views.carnetizacion_views import (
     FichaQrPublicaView,
     MotivosEmisionListView,
     PlantillaCreateView,
+    QrVistaPreviaView,
     PlantillaImagenView,
     PlantillaMotorActivaView,
     PlantillaMotorActivarView,
@@ -55,12 +59,23 @@ from apps.carnetizacion.presentation.views.carnetizacion_views import (
     PlantillaMotorVersionesView,
     PlantillasListView,
     RevocarCarnetView,
+    SugerenciasReglasColorView,
     TiposCredencialListView,
     ValidarCarnetHashView,
     ValidarCarnetIdView,
 )
 
 app_name = 'carnetizacion'
+
+from apps.carnetizacion.presentation.views.evento_invitables_views import (
+    EventoCategoriaDetalleView,
+    EventoExternosInvitablesIdsView,
+    EventoExternosInvitablesView,
+    EventoInvitadosEnBloqueView,
+    EventoPersonalInvitableIdsView,
+    EventoPersonalInvitableView,
+    EventoZonaDetalleView,
+)
 
 urlpatterns = [
     # Carnets
@@ -84,8 +99,10 @@ urlpatterns = [
     path('plantillas-motor/<str:plantilla_id>/publicar/', PlantillaMotorPublicarView.as_view(), name='plantilla-motor-publicar'),
     path('plantillas-motor/<str:plantilla_id>/activar/', PlantillaMotorActivarView.as_view(), name='plantilla-motor-activar'),
     path('plantillas-motor/<str:plantilla_id>/versiones/', PlantillaMotorVersionesView.as_view(), name='plantilla-motor-versiones'),
+    path('reglas-color/sugerencias/', SugerenciasReglasColorView.as_view(), name='reglas-color-sugerencias'),
 
     # Biblioteca Compartida de Medios (O44 - E4)
+    path('qr/vista-previa/', QrVistaPreviaView.as_view(), name='qr-vista-previa'),
     path('biblioteca/', ElementoBibliotecaListView.as_view(), name='biblioteca-list'),
     path('biblioteca/<str:elemento_id>/', ElementoBibliotecaDetailView.as_view(), name='biblioteca-detail'),
     path('biblioteca/<str:elemento_id>/archivo/', ElementoBibliotecaArchivoView.as_view(), name='biblioteca-archivo'),
@@ -118,13 +135,25 @@ urlpatterns = [
     path('eventos/<str:evento_id>/categorias/', EventoCategoriasView.as_view(), name='evento-categorias'),
     path('eventos/<str:evento_id>/zonas/', EventoZonasView.as_view(), name='evento-zonas'),
     path('eventos/<str:evento_id>/invitados/', EventoInvitadosListView.as_view(), name='evento-invitados-list'),
+    path('eventos/<str:evento_id>/invitados/ids/', EventoInvitadosIdsView.as_view(), name='evento-invitados-ids'),
     path('eventos/<str:evento_id>/invitados/importar/', EventoInvitadosImportarView.as_view(), name='evento-invitados-importar'),
     path('eventos/<str:evento_id>/emitir-lote/', EventoEmitirLoteView.as_view(), name='evento-emitir-lote'),
     path('eventos/<str:evento_id>/enviar-correo/', EventoEnviarCorreoView.as_view(), name='evento-enviar-correo'),
     path('eventos/<str:evento_id>/pdf/', EventoCredencialPdfView.as_view(), name='evento-pdf'),
     path('eventos/<str:evento_id>/panel/', EventoPanelView.as_view(), name='evento-panel'),
     path('eventos/invitados/<str:pk>/', EventoInvitadoDetalleView.as_view(), name='evento-invitado-detalle'),
+    path('eventos/categorias/<str:pk>/', EventoCategoriaDetalleView.as_view(), name='evento-categoria-detalle'),
+    path('eventos/zonas/<str:pk>/', EventoZonaDetalleView.as_view(), name='evento-zona-detalle'),
+    path('eventos/<str:evento_id>/invitables/personal/', EventoPersonalInvitableView.as_view(), name='evento-invitables-personal'),
+    path('eventos/<str:evento_id>/invitables/personal/ids/', EventoPersonalInvitableIdsView.as_view(), name='evento-invitables-personal-ids'),
+    path('eventos/<str:evento_id>/invitables/externos/', EventoExternosInvitablesView.as_view(), name='evento-invitables-externos'),
+    path('eventos/<str:evento_id>/invitables/externos/ids/', EventoExternosInvitablesIdsView.as_view(), name='evento-invitables-externos-ids'),
+    path('eventos/<str:evento_id>/invitados/agregar-en-bloque/', EventoInvitadosEnBloqueView.as_view(), name='evento-invitados-bloque'),
     path('control-eventos/check-in/', EventoControlEntradaCheckInView.as_view(), name='evento-checkin'),
+
+    # Fondos fijos (clásicos): listado paginado y eliminación
+    path('fondos-fijos/', FondosFijosListView.as_view(), name='fondos-fijos-list'),
+    path('fondos-fijos/<int:fondo_id>/', FondoFijoDetalleView.as_view(), name='fondo-fijo-detalle'),
 
     # Plantillas Legacy
     path('plantillas/', PlantillasListView.as_view(), name='plantillas-list'),

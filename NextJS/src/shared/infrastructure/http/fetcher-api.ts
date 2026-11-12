@@ -3,6 +3,7 @@ import { auth } from "#/auth";
 import { refreshTokens } from "@/lib/api-client";
 import { DJANGO_API_SERVER } from "@/shared/commons/api";
 import { ipDelCliente } from "@/shared/infrastructure/http/ip-cliente";
+import { userAgentDelCliente } from "@/shared/infrastructure/http/user-agent";
 import { SessionExpiredError, ApiHttpError } from "./errors";
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 
@@ -85,6 +86,13 @@ async function buildHeaders(
   // F2-05: Django aplica el throttling por IP; sin esto vería la IP de Next.
   const ip = await ipDelCliente();
   if (ip) headersSalida["X-Forwarded-For"] = ip;
+
+  // La bitácora de Django registra el dispositivo del User-Agent: el del
+  // navegador, no el de node. Fuera de una petición no se envía nada.
+  const userAgent = await userAgentDelCliente();
+  if (userAgent && !headersSalida["User-Agent"]) {
+    headersSalida["User-Agent"] = userAgent;
+  }
 
   if (!skipAuth) {
     const token = await getAccessToken(sinRefresco);

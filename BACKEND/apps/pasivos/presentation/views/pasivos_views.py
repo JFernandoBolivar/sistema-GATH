@@ -11,8 +11,8 @@ from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema
 
 from core.presentation.audit import origen_de_peticion, registrar_auditoria
-from core.presentation.envelope import ok
-from core.presentation.permissions import HasPermission
+from core.presentation.envelope import fail, ok
+from core.presentation.permissions import HasPermission, usuario_tiene_permiso
 from apps.pasivos.application.dtos.pasivos_dtos import (
     CrearSobrevivientesDTO,
     EgresarPasivoDTO,
@@ -25,7 +25,7 @@ from apps.pasivos.application.use_cases.egresar_pasivo import (
     listar_motivos_egreso_pasivo,
 )
 from apps.pasivos.application.use_cases.crear_sobrevivientes import ejecutar_creacion_sobrevivientes
-from apps.pasivos.application.use_cases.listar_pasivos import listar_pasivos, listar_pasivos_paginados
+from apps.pasivos.application.use_cases.listar_pasivos import listar_pasivos_paginados
 from apps.pasivos.application.use_cases.obtener_pasivo import obtener_pasivo_por_cedula
 from apps.pasivos.application.use_cases.procesar_egreso import procesar_egreso
 from apps.pasivos.application.use_cases.registrar_pasivo_directo import registrar_pasivo_directo
@@ -162,6 +162,9 @@ class PasivoDetailView(APIView):
             data=request.data, partial=True, context={'request': request, 'view': self, 'cedula': cedula}
         )
         entrada.is_valid(raise_exception=True)
+        nueva = entrada.validated_data.get('nacionalidad_id')
+        if nueva and nueva != obtener_pasivo_por_cedula(RepoPasivosORM(), cedula=cedula).nacionalidad_id                 and not usuario_tiene_permiso(request.user, 'personal.editar_nacionalidad'):
+            return fail('No posee permiso para modificar la nacionalidad del trabajador.', status=403)
         with transaction.atomic():
             dto = actualizar_pasivo(RepoPasivosORM(), cedula, dict(entrada.validated_data))
             registrar_auditoria(

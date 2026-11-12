@@ -16,12 +16,15 @@ import {
   getBibliotecaAction,
   getCamposAction,
   getPlantillaMotorAction,
+  getSugerenciasReglasColorAction,
+  getTiposCredencialAction,
 } from "../../infrastructure/actions/carnetizacion-actions";
 import { useDisenadorEditor } from "../hooks/use-disenador-editor";
 import { DisenadorToolbar } from "../components/disenador/disenador-toolbar";
 import { DisenadorHerramientasPanel } from "../components/disenador/disenador-herramientas-panel";
 import { DisenadorCapasPanel } from "../components/disenador/disenador-capas-panel";
 import { DisenadorPropiedadesPanel } from "../components/disenador/disenador-propiedades-panel";
+import { DisenadorSeleccionMultiple } from "../components/disenador/disenador-seleccion-multiple";
 import { DisenadorReglasColorPanel } from "../components/disenador/disenador-reglas-color-panel";
 import { DisenadorBibliotecaDialog } from "../components/disenador/disenador-biblioteca-dialog";
 
@@ -72,6 +75,20 @@ export function DisenadorView({ plantillaId }: Props) {
   );
   const mediosBiblioteca: ElementoBiblioteca[] =
     respuestaBiblioteca && respuestaBiblioteca.success ? respuestaBiblioteca.data : [];
+
+  // Tipos de credencial externa del catálogo: se sugieren como valores de la regla por nómina.
+  const { data: tiposCredencial } = useSWR("tipos-credencial-disenador", () =>
+    getTiposCredencialAction(),
+  );
+  const tiposExternos = (tiposCredencial ?? []).filter(
+    (t) => t.activo && t.grupo !== "trabajador" && t.grupo !== "pasivo",
+  );
+
+  // Cargos y oficinas reales para sugerir en las reglas de color (mismo texto que el PDF).
+  const { data: sugerenciasReglasColor, isLoading: cargandoSugerencias } = useSWR(
+    "sugerencias-reglas-color-disenador",
+    () => getSugerenciasReglasColorAction(),
+  );
 
   const anchoMm = plantilla?.ancho_mm || 54.0;
   const altoMm = plantilla?.alto_mm || 85.6;
@@ -146,6 +163,7 @@ export function DisenadorView({ plantillaId }: Props) {
         }}
         onDeshacer={editor.handleDeshacer}
         onRehacer={editor.handleRehacer}
+        onLimpiar={editor.limpiarDiseno}
         puedeDeshacer={editor.historialIndex > 0}
         puedeRehacer={editor.historialIndex < editor.historial.length - 1}
         escala={editor.escala}
@@ -189,12 +207,17 @@ export function DisenadorView({ plantillaId }: Props) {
               escala={editor.escala}
               elementos={editor.elementos}
               caraActual={editor.caraActual}
-              elementoSeleccionadoId={editor.elementoSeleccionadoId}
-              onSeleccionarElemento={editor.setElementoSeleccionadoId}
+              seleccionIds={editor.seleccionIds}
+              onSeleccionarElemento={editor.seleccionarElemento}
+              onSeleccionarVarios={editor.seleccionarVarios}
               onActualizarElemento={editor.handleActualizarElemento}
               datosPersona={editor.datosPersona}
               coloresRegla={editor.coloresResueltos}
               mostrarGuias={editor.mostrarGuias}
+              edicionPuntos={editor.edicionPuntos}
+              onSeleccionarPunto={editor.seleccionarPunto}
+              onMoverPunto={editor.moverPuntoEditado}
+              onAgregarPunto={editor.agregarPuntoEditado}
             />
           </div>
           <span className="text-[11px] text-muted-foreground mt-4 font-mono">
@@ -233,6 +256,15 @@ export function DisenadorView({ plantillaId }: Props) {
               onActualizarReglasColor={editor.setReglasColor}
               nuevoValorNombre={editor.nuevoValorNombre}
               onCambiarNuevoValorNombre={editor.setNuevoValorNombre}
+              tiposExternos={tiposExternos}
+              sugerenciasReglasColor={sugerenciasReglasColor}
+              cargandoSugerencias={cargandoSugerencias}
+            />
+          ) : editor.seleccionIds.length > 1 ? (
+            <DisenadorSeleccionMultiple
+              cantidad={editor.seleccionIds.length}
+              onEliminar={editor.eliminarElemento}
+              onAlinear={editor.alinearSeleccion}
             />
           ) : (
             <DisenadorPropiedadesPanel
@@ -243,6 +275,15 @@ export function DisenadorView({ plantillaId }: Props) {
               onDuplicarElemento={editor.duplicarElemento}
               onEliminarElemento={editor.eliminarElemento}
               onAlinearElemento={editor.alinearElemento}
+              mediosBiblioteca={mediosBiblioteca}
+              controlForma={{
+                edicionPuntos: editor.edicionPuntos,
+                onEditarPuntos: editor.iniciarEdicionPuntos,
+                onTerminarEdicion: editor.terminarEdicionPuntos,
+                onCambiarRadioPunto: editor.cambiarRadioPuntoEditado,
+                onEliminarPunto: editor.eliminarPuntoEditado,
+                onConvertirAPathLibre: editor.convertirAPathLibre,
+              }}
             />
           )}
         </div>

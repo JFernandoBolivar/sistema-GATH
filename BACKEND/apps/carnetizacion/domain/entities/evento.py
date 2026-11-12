@@ -4,7 +4,6 @@ Entidades de dominio para Eventos, Invitados y Control de Entrada (Regla B1, O45
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any
 
 
 class EstadoEvento(str, Enum):
@@ -19,6 +18,15 @@ class EstadoInvitado(str, Enum):
     EMITIDO = "emitido"
     INGRESO = "ingreso"
     ANULADO = "anulado"
+
+
+class ResolucionCarnetInstitucional(str, Enum):
+    """Qué es un código escaneado que no pertenece a ningún gafete de evento."""
+    NO_ES_CARNET = "NO_ES_CARNET"
+    ANULADO = "ANULADO"
+    VENCIDO = "VENCIDO"
+    NO_INVITADO = "NO_INVITADO"
+    INVITADO = "INVITADO"
 
 
 class ResultadoControlEntrada(str, Enum):

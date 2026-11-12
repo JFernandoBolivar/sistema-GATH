@@ -13,6 +13,7 @@
 export interface DatosVivienda {
   paisId?: number | null;
   paisNombre?: string | null;
+  paisEsVenezuela?: boolean | null;
   ciudadRegion?: string | null;
   estadoId?: number | null;
   estadoNombre?: string | null;
@@ -170,6 +171,8 @@ export interface Empleado {
   correo: string | null;
   /** Vive en autogestión; solo viene en el detalle. */
   correoAlternativo?: string | null;
+  /** «¿Tiene hijos?» (datos complementarios); `null` = sin dato. Solo viene en el detalle. */
+  tieneHijos?: boolean | null;
   telefonoMovil: string | null;
   telefonoHabitacion: string | null;
   fechaNacimiento: string | null;
