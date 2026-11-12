@@ -28,6 +28,7 @@ import {
   GraduationCap,
   House,
   Loader2,
+  PhoneCall,
   Shirt,
 } from "lucide-react";
 
@@ -599,13 +600,16 @@ export default function EmpleadoDetalleSheet({
             <Card>
               <CardHeader>
                 <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
-                  <span className="text-sm font-semibold">Contacto de emergencia</span>
+                  <div className="flex flex-row items-center gap-2">
+                    Contacto De Emergencia <PhoneCall className="size-5" />
+                  </div>
                   {puedeEditar && (
                     <FormEmergencyContactsUpdateDialog
                       empleado={empleado}
                       catalogos={catalogos}
                       onGuardado={onGuardado}
                       triggerLabel={detalle.contactoEmergencia.length === 0 ? "Agregar" : "Actualizar"}
+                      triggerClassName="w-full sm:w-auto cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm"
                     />
                   )}
                 </CardTitle>
