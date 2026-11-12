@@ -19,6 +19,8 @@ class RegistroAuditoria:
     estado_previo: dict | None = None
     estado_nuevo: dict | None = None
     actor_rol_visible: str = ''
+    # True si el rol visible no está en la fila (dato viejo) y se tomó del actual.
+    actor_rol_actual: bool = False
 
 
 @dataclass(frozen=True)

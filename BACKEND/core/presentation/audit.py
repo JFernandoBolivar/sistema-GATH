@@ -10,6 +10,7 @@ estructurada con formato fijo de §I.4.7; el formatter añade el timestamp.
 import logging
 
 from core.infrastructure.models.auditoria import AuditoriaLog
+from core.infrastructure.providers import obtener_resolutor_rol_actor
 from core.presentation.ip_cliente import ip_del_cliente
 
 logger = logging.getLogger('audit_backend')
@@ -45,6 +46,16 @@ def registrar_auditoria(
     estado_nuevo: dict | None = None,
 ) -> AuditoriaLog:
     """Implementación concreta del puerto `AuditLogger` (`core/domain/ports.py`)."""
+    if not actor_rol and (actor_id is not None or actor_cedula):
+        # Se resuelve ANTES de crear la fila: `actor_rol` entra en el hash de la
+        # cadena, así que no se puede completar después. El lector lo aporta
+        # `apps.identidad` al kernel (B16); sin lector se registra sin rol.
+        lector = obtener_resolutor_rol_actor()
+        if lector is not None:
+            maximo = AuditoriaLog._meta.get_field('actor_rol').max_length or 50
+            actor_rol = lector.rol_visible_de(
+                actor_id=actor_id, actor_cedula=actor_cedula
+            )[:maximo]
     registro = AuditoriaLog.objects.create(
         trace_id=trace_id,
         actor_id=actor_id,

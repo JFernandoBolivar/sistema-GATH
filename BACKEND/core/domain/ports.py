@@ -167,6 +167,18 @@ class ResolutorCondicionTrabajador(Protocol):
     def condicion_de(self, cedula: str) -> str: ...
 
 
+class ResolutorRolActor(Protocol):
+    """
+    Puerto del nombre visible del rol de una cuenta, para la bitácora de auditoría.
+
+    `apps.identidad` registra su implementación en `AppConfig.ready()` (regla B16:
+    el kernel nunca importa de `apps/`). `core/presentation/audit.py` lo consulta
+    al registrar para no dejar `actor_rol` vacío.
+    """
+
+    def rol_visible_de(self, *, actor_id: int | None, actor_cedula: str = '') -> str: ...
+
+
 class LectorConfiguracion(Protocol):
     """
     Puerto de los parámetros del sistema editables (D9). Lo implementa

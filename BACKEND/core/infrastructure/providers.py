@@ -14,12 +14,14 @@ from core.domain.ports import (
     Notificador,
     ResolutorCondicionTrabajador,
     ResolutorPermisos,
+    ResolutorRolActor,
 )
 
 _resolutor_permisos: ResolutorPermisos | None = None
 _resolutor_condicion: ResolutorCondicionTrabajador | None = None
 _notificador: Notificador | None = None
 _lector_configuracion: LectorConfiguracion | None = None
+_resolutor_rol_actor: ResolutorRolActor | None = None
 
 
 def registrar_resolutor_permisos(implementacion: ResolutorPermisos) -> None:
@@ -63,10 +65,23 @@ def obtener_lector_configuracion() -> LectorConfiguracion | None:
     return _lector_configuracion
 
 
+def registrar_resolutor_rol_actor(implementacion: ResolutorRolActor) -> None:
+    """Registra el lector del rol visible de una cuenta (lo aporta `apps.identidad`)."""
+    global _resolutor_rol_actor
+    _resolutor_rol_actor = implementacion
+
+
+def obtener_resolutor_rol_actor() -> ResolutorRolActor | None:
+    """Devuelve el lector registrado, o `None` (la auditoría registra sin rol)."""
+    return _resolutor_rol_actor
+
+
 def reiniciar_proveedores() -> None:
     """Limpia los registros. Solo para tests."""
     global _resolutor_permisos, _resolutor_condicion, _notificador, _lector_configuracion
+    global _resolutor_rol_actor
     _resolutor_permisos = None
     _resolutor_condicion = None
     _notificador = None
     _lector_configuracion = None
+    _resolutor_rol_actor = None
