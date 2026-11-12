@@ -273,11 +273,11 @@ export function DisenadorReglasColorPanel({
                     />
                   </label>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2">
                   <Button
                     type="button"
                     size="sm"
-                    className="h-9 text-xs"
+                    className="h-auto min-h-9 w-full whitespace-normal py-1.5 text-xs leading-tight"
                     onClick={() => setConfirmacion("todos")}
                   >
                     Aplicar a todos
@@ -286,7 +286,7 @@ export function DisenadorReglasColorPanel({
                     type="button"
                     size="sm"
                     variant="outline"
-                    className="h-9 text-xs"
+                    className="h-auto min-h-9 w-full whitespace-normal py-1.5 text-xs leading-tight"
                     disabled={marcadosVigentes.length === 0}
                     onClick={() => setConfirmacion("seleccionados")}
                   >
