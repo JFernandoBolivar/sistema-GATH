@@ -23,6 +23,7 @@ import { CLASE_CONTROL, SelectorCatalogo } from "./selector-catalogo";
 import { opcionesCatalogo } from "./opciones-catalogo";
 import { valorATexto } from "../schema/schema-solicitud";
 import { cn } from "@/lib/utils";
+import { CAMPOS_UBICACION_VENEZUELA, camposAVaciar } from "@/shared/domain/vivienda-ubicacion";
 
 type Valores = Record<string, unknown>;
 
@@ -125,12 +126,7 @@ export function FormularioRegistro({
   const paisElegido = paises?.find((p) => p.id === paisId);
   const esVenezuela = !paisId || (paisElegido?.esVenezuela ?? true);
   const tienePais = campos.some((c) => c.campo === "pais_id");
-  const camposDeUbicacionVenezuela = new Set([
-    "estado_id",
-    "municipio_id",
-    "parroquia_id",
-    "codigo_postal_id",
-  ]);
+  const camposDeUbicacionVenezuela = new Set<string>(CAMPOS_UBICACION_VENEZUELA);
   // La cédula no se muestra en el caso del hijo(a) menor; el resto de campos sigue igual.
   let camposVisibles = esFamiliar
     ? campos.filter(
@@ -384,6 +380,7 @@ export function FormularioRegistro({
     if (c.tipo === "catalogo" && c.catalogo) {
       const padreCampo = CAMPO_PADRE[c.campo];
       const padreValor = padreCampo ? Number(watch(padreCampo)) || null : null;
+      const valorPrevio = String(watch(c.campo) ?? "");
       return (
         <SelectorCatalogo
           key={c.campo}
@@ -401,6 +398,12 @@ export function FormularioRegistro({
             // El selector con buscador no dispara el `watch` de cambio: se limpian los dependientes aquí.
             for (const [hijo, padre] of Object.entries(CAMPO_PADRE)) {
               if (padre === c.campo && camposDelEsquema.includes(hijo)) setValue(hijo, "");
+            }
+            // Cambiar el país deja la geografía venezolana por elegir (o vacía si es extranjero).
+            if (c.campo === "pais_id" && String(v ?? "") !== valorPrevio) {
+              for (const hijo of camposAVaciar("pais_id", true)) {
+                if (camposDelEsquema.includes(hijo)) setValue(hijo, "");
+              }
             }
           }}
         />

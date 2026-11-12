@@ -67,11 +67,30 @@ describe("SelectorCamposSolicitud (paso 1)", () => {
   });
 
   it("las secciones simples siguen mostrando sus campos", () => {
+    montar("contacto");
+    expect(screen.getByRole("checkbox", { name: "Contacto: Teléfono móvil" })).toBeInTheDocument();
+  });
+
+  it("vivienda tiene una sola casilla «Actualizar mi vivienda», sin campos sueltos", () => {
     montar("vivienda");
-    expect(
-      screen.getByRole("checkbox", { name: "Vivienda: Dirección exacta" }),
-    ).toBeInTheDocument();
+    expect(screen.getAllByRole("checkbox")).toHaveLength(1);
+    expect(screen.getByRole("checkbox", { name: "Actualizar mi vivienda" })).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: /Dirección exacta/ })).toBeNull();
     expect(screen.queryByRole("checkbox", { name: /Agregar/ })).toBeNull();
+  });
+
+  it("marcar la casilla de vivienda habilita todos sus campos y respeta lo ya marcado", async () => {
+    const onCambio = montar("vivienda", ["employee.telefono_movil"]);
+    await userEvent.click(screen.getByRole("checkbox", { name: "Actualizar mi vivienda" }));
+    const claves = SECCIONES_DEF.vivienda.entidades[0].campos.map((c) => `datos_vivienda.${c.campo}`);
+    expect(onCambio).toHaveBeenCalledWith(["employee.telefono_movil", ...claves]);
+  });
+
+  it("desmarcar la casilla de vivienda quita todos sus campos y nada más", async () => {
+    const claves = SECCIONES_DEF.vivienda.entidades[0].campos.map((c) => `datos_vivienda.${c.campo}`);
+    const onCambio = montar("vivienda", ["employee.telefono_movil", ...claves]);
+    await userEvent.click(screen.getByRole("checkbox", { name: "Actualizar mi vivienda" }));
+    expect(onCambio).toHaveBeenCalledWith(["employee.telefono_movil"]);
   });
 });
 

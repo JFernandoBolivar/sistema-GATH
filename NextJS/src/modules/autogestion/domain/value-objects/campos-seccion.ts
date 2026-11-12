@@ -469,6 +469,23 @@ export function claveCampo(entidad: string, campo: string): string {
   return `${entidad}.${campo}`;
 }
 
+/**
+ * Entidades que se piden como un bloque: una sola casilla marca todos sus campos, porque dependen
+ * entre sí (vivienda: país → estado → municipio → parroquia). El formulario se abre completo.
+ */
+export const ENTIDADES_EN_BLOQUE: Record<string, { etiqueta: string }> = {
+  datos_vivienda: { etiqueta: "Actualizar mi vivienda" },
+};
+
+export function esEntidadEnBloque(entidad: string): boolean {
+  return entidad in ENTIDADES_EN_BLOQUE;
+}
+
+/** Claves `entidad.campo` de todos los campos de una entidad pedida en bloque. */
+export function clavesDeBloque(def: EntidadDef): string[] {
+  return def.campos.map((c) => claveCampo(def.entidad, c.campo));
+}
+
 /** Acciones que se piden sobre los registros de una sección de lista (valores del backend). */
 export const ACCIONES_SOLICITABLES = [
   { accion: "CREAR", etiqueta: "Agregar", frase: "agregar" },

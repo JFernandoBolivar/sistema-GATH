@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/shared/ui/components/textarea";
 import { CampoTelefono } from "@/shared/ui/components/campo-telefono";
 import { paisesTelefono } from "@/shared/domain/validation/telefono";
+import { esViviendaVenezuela } from "@/shared/domain/vivienda-ubicacion";
 import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import type { MiExpedienteDTO } from "@/modules/autogestion/application/dtos/mi-expediente-dto";
 import { oficinaDeAdscripcion } from "../../domain/services/reglas";
@@ -90,7 +91,7 @@ export function PasoContacto({
     : undefined);
   // F2-16: sin país resuelto no se asume Venezuela; solo un expediente sin vivienda
   // usa el país por defecto del sistema.
-  const esVenezuela = paisResidencia ? paisResidencia.es_venezuela !== false : !vivienda;
+  const esVenezuela = esViviendaVenezuela(paisResidencia, Boolean(vivienda));
   const paisTelefono = paisesTelefono().find(
     (p) => p.codigo === paisResidencia?.codigo,
   )?.codigo;
