@@ -62,7 +62,12 @@ export function SelectorGestionPersonal({
     >
       <BreadcrumbList className={cn(tono === "oscuro" && "text-white")}>
         <BreadcrumbItem className="contents">
-          <DropdownMenu>
+          {/* `modal={false}`: en teléfono este selector vive dentro del Sheet del
+              menú lateral. Un DropdownMenu modal anida otra capa de Radix y, al
+              cambiar de módulo (Activo ↔ Pasivo), el desplegable restaura un
+              `pointer-events: none` viejo sobre el body y deja la página sin
+              responder hasta recargar. Sin modal, solo el Sheet toca el body. */}
+          <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Button
                 className="flex items-center gap-1 text-[1rem] cursor-pointer"
