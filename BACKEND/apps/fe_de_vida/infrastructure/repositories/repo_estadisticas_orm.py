@@ -2,13 +2,12 @@
 
 Todo se resuelve en la base con subconsultas correlacionadas y `GROUP BY`:
 no se recorren pasivos en Python (sin N+1). El universo es la asignación
-laboral PASIVO del trabajador (la más reciente), acotada por el alcance del
-proceso (sus tipos de nómina).
+laboral PASIVO más reciente del trabajador (acotada por el alcance del
+proceso), excluyendo a quien egresó (estatus EGRESADO).
 """
 from django.db.models import Count, Exists, OuterRef, Q, Subquery
 
 from apps.autogestion.infrastructure.models.actualizacion_models import DatosComplementariosTrabajadorModel
-from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
 from apps.fe_de_vida.domain.entities.estadisticas import (
     ConteosEstadistica,
     FilaCanal,
@@ -19,36 +18,27 @@ from apps.fe_de_vida.domain.entities.estadisticas import (
     PasivoEstadistica,
 )
 from apps.fe_de_vida.domain.entities.proceso import ProcesoFeDeVida
-from apps.fe_de_vida.domain.value_objects.estados import CONDICION_PASIVO
 from apps.fe_de_vida.infrastructure.models.solicitud_models import SolicitudFeDeVidaModel
+from apps.fe_de_vida.infrastructure.repositories.pasivos_vigentes import (
+    asignaciones_pasivas,
+    excluir_egresados,
+)
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 
 ESTADO_VALIDADA = 'VALIDADA'
 
 
-def _asignaciones_pasivas(tipos_nomina: tuple[int, ...]) -> Q:
-    filtro = Q(
-        employee_id=OuterRef('cedulaidentidad'),
-        Tipo_personal__tipo_personal__iexact=CONDICION_PASIVO,
-    )
-    if tipos_nomina:
-        filtro &= Q(tiponominaid_id__in=tipos_nomina)
-    return filtro
-
-
 class RepoEstadisticasORM:
     def _base(self, proceso: ProcesoFeDeVida, filtro: FiltroEstadisticas):
-        pasivas = (
-            AsigTrabajoModel.objects
-            .filter(_asignaciones_pasivas(tuple(proceso.tipos_nomina)))
-            .order_by('-fecha_actualizacion')
-        )
+        pasivas = asignaciones_pasivas(tuple(proceso.tipos_nomina))
         solicitudes = SolicitudFeDeVidaModel.objects.filter(proceso_id=proceso.id)
         complementarios = DatosComplementariosTrabajadorModel.objects.filter(
             cedula=OuterRef('cedulaidentidad'),
         )
 
-        qs = EmployeeModel.objects.filter(Exists(pasivas)).annotate(
+        qs = excluir_egresados(
+            EmployeeModel.objects.filter(Exists(pasivas)), pasivas,
+        ).annotate(
             tipo_nomina_id=Subquery(pasivas.values('tiponominaid_id')[:1]),
             tipo_nomina=Subquery(pasivas.values('tiponominaid__nomina')[:1]),
             correo_alt=Subquery(complementarios.values('correo_alternativo')[:1]),
