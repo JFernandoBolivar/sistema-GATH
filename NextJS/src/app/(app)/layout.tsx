@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { auth } from "#/auth";
 import { SkipLink } from "@/shared/ui/components/skip-link";
+import { LimpiarBloqueosNavegacion } from "@/components/layout/limpiar-bloqueos-navegacion";
 import { AppNav } from "./app-nav";
 
 /**
@@ -25,6 +26,7 @@ export default async function AppLayout({
   return (
     <main className="flex min-h-svh flex-col">
       <SkipLink />
+      <LimpiarBloqueosNavegacion />
       <Toaster
         closeButton
         position="top-right"
