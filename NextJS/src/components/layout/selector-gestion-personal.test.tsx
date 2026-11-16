@@ -28,6 +28,20 @@ describe("SelectorGestionPersonal", () => {
     );
   });
 
+  it("no bloquea los toques de la página al abrir el menú (selector dentro del menú móvil)", async () => {
+    ruta.actual = "/personal/consultar";
+    sesion.permisos = ["personal.ver", "pasivos.ver"];
+    const usuario = userEvent.setup();
+    render(<SelectorGestionPersonal tono="claro" />);
+
+    await usuario.click(screen.getByRole("button", { name: /gestion personal activo/i }));
+
+    expect(await screen.findByRole("menuitem", { name: /personal pasivo/i })).toBeInTheDocument();
+    // El desplegable modal anidado dejaba `pointer-events: none` en el body y la
+    // página entera quedaba sin responder; `modal={false}` lo evita.
+    expect(document.body.style.pointerEvents).not.toBe("none");
+  });
+
   it("en una ruta de pasivos muestra «Gestion Personal Pasivo»", () => {
     ruta.actual = "/pasivos/consultar";
     render(<SelectorGestionPersonal />);

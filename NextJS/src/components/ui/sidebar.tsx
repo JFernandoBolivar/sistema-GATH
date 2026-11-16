@@ -5,6 +5,7 @@ import { use } from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, VariantProps } from "class-variance-authority";
 import { PanelLeftIcon, XIcon } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
@@ -69,6 +70,14 @@ function SidebarProvider({
 }) {
   const isMobile = useIsMobile();
   const [openMobile, setOpenMobile] = React.useState(false);
+  const pathname = usePathname();
+
+  // En teléfono el menú se abre como Sheet y, al tocar un enlace, el panel se
+  // quedaba abierto encima de la página nueva. Se cierra en cada cambio de ruta;
+  // en escritorio `openMobile` no se usa, así que no afecta al sidebar fijo.
+  React.useEffect(() => {
+    setOpenMobile(false);
+  }, [pathname]);
 
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
