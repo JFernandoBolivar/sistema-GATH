@@ -494,16 +494,16 @@ export function SolicitudesCarnetView() {
                         })}
                       </td>
 
-                      <td className="p-3">
-                        <div className="flex items-center gap-2.5">
+                      <td className="p-3 max-w-[180px]">
+                        <div className="flex items-center gap-2.5 min-w-0">
                           <div className="size-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold shrink-0">
                             <User className="size-4" />
                           </div>
-                          <div>
-                            <span className="font-bold text-foreground block">
+                          <div className="min-w-0">
+                            <span className="font-bold text-foreground block truncate">
                               {item.nombreCompleto}
                             </span>
-                            <span className="text-muted-foreground font-mono text-[11px]">
+                            <span className="text-muted-foreground font-mono text-[11px] block truncate">
                               C.I. V-{item.cedula}
                             </span>
                           </div>

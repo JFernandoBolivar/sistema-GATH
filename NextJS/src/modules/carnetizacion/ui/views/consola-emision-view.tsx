@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { formatearFecha } from "@/shared/lib/formato-fecha";
 import {
@@ -842,6 +843,17 @@ export function ConsolaEmisionView() {
                         alt={`Vista previa del carnet de ${trabajadorSeleccionado.nombre_completo}`}
                         className="size-full object-contain"
                       />
+                    </div>
+                  ) : caraPreview === "anverso" && generandoPreview ? (
+                    /* Mientras se genera el raster real del anverso, un esqueleto de carga en
+                       vez de la tarjeta de relleno: evita el efecto de "cambio de plantilla". */
+                    <div className="w-[240px] h-[380px] rounded-xl border border-border bg-white shadow-sm p-3 flex flex-col items-center">
+                      <Skeleton className="h-14 w-full rounded-md" />
+                      <Skeleton className="size-20 rounded-lg mt-4" />
+                      <Skeleton className="h-3 w-32 mt-4" />
+                      <Skeleton className="h-3 w-24 mt-2" />
+                      <Skeleton className="h-3 w-28 mt-2" />
+                      <Skeleton className="h-8 w-full mt-auto" />
                     </div>
                   ) : (
                     /* Tarjeta de Carnet Fiel (Renderizado vector/raster con alta fidelidad) */
