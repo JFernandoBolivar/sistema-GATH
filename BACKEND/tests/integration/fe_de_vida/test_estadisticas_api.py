@@ -32,6 +32,7 @@ from apps.fe_de_vida.infrastructure.exportacion_estadisticas import (
 )
 from apps.fe_de_vida.infrastructure.models.proceso_models import ProcesoFeDeVidaModel
 from apps.fe_de_vida.infrastructure.models.solicitud_models import SolicitudFeDeVidaModel
+from apps.fe_de_vida.infrastructure.repositories.lector_alcance_orm import LectorAlcanceORM
 from apps.autogestion.infrastructure.models.actualizacion_models import DatosComplementariosTrabajadorModel
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from core.domain.exceptions import ValidationError
@@ -77,6 +78,7 @@ def datos(db):
     NacionalidadModel.objects.get_or_create(id=1, defaults={'codigo': 'V', 'nombre': 'VENEZOLANO'})
     sexo = SexoModel.objects.create(sexo='F')
     estatus = EstatusModel.objects.create(estatus='ACTIVO')
+    egresado = EstatusModel.objects.create(estatus='EGRESADO')
     pasivo = TipoPersonalModel.objects.create(tipo_personal='PASIVO')
     activo = TipoPersonalModel.objects.create(tipo_personal='ACTIVO')
     nomina_jubilado = TipoNominaModel.objects.create(nomina='JUBILADO', es_activo=False)
@@ -119,7 +121,10 @@ def datos(db):
         fecha_envio=ahora - timedelta(days=2), canal='PRESENCIAL',
     )
     SolicitudFeDeVidaModel.objects.create(proceso=proceso, cedula=BORRADOR, estado='BORRADOR')
-    return {'proceso': proceso, 'ahora': ahora, 'jubilado': nomina_jubilado, 'pensionado': nomina_pensionado}
+    return {
+        'proceso': proceso, 'ahora': ahora, 'jubilado': nomina_jubilado,
+        'pensionado': nomina_pensionado, 'egresado': egresado,
+    }
 
 
 def cuerpo(respuesta):
@@ -199,6 +204,51 @@ def test_listado_de_faltantes_y_de_una_casilla(datos):
     assert c.get(f'{BASE}/estadisticas/pasivos/').status_code == 400
     # Paginación del listado.
     assert len(cuerpo(c.get(f'{BASE}/estadisticas/pasivos/?faltantes=true&limit=1'))['results']) == 1
+
+
+def test_egresados_no_cuentan_en_estadisticas_ni_en_recordatorios(datos):
+    """Un pasivo egresado sale del universo: ni pendiente ni respondido, abierto o cerrado."""
+    # Uno pendiente (SIN_SOLICITUD) y otro que ya había respondido (VALIDADA).
+    for cedula in (SIN_SOLICITUD, VALIDADA):
+        AsigTrabajoModel.objects.filter(employee_id=cedula).update(estatusid=datos['egresado'])
+
+    c = cliente({PERMISO})
+    kpis = cuerpo(c.get(f'{BASE}/estadisticas/'))['kpis']
+    assert (kpis['total'], kpis['respondieron'], kpis['faltan'], kpis['validadas']) == (2, 1, 1, 0)
+
+    faltantes = cuerpo(c.get(f'{BASE}/estadisticas/pasivos/?faltantes=true&limit=50'))
+    assert faltantes['count'] == 1
+    assert [f['cedula'] for f in faltantes['results']] == [BORRADOR]
+
+    # Un proceso cerrado también refleja la población vigente (se excluye siempre).
+    ahora = timezone.now()
+    cerrado = ProcesoFeDeVidaModel.objects.create(
+        nombre='Fe de vida 2025', fecha_apertura=ahora - timedelta(days=400),
+        fecha_cierre=ahora - timedelta(days=300), estado=EstadoProceso.CERRADO.value,
+    )
+    SolicitudFeDeVidaModel.objects.create(
+        proceso=cerrado, cedula=VALIDADA, estado='VALIDADA', fecha_envio=ahora - timedelta(days=350),
+    )
+    kpis_cerrado = cuerpo(c.get(f'{BASE}/estadisticas/?proceso_id={cerrado.id}'))['kpis']
+    assert (kpis_cerrado['total'], kpis_cerrado['respondieron'], kpis_cerrado['faltan']) == (2, 0, 2)
+
+    # Tampoco reciben recordatorios ni pueden iniciar una fe de vida.
+    alcance = LectorAlcanceORM()
+    cedulas = alcance.cedulas_en_alcance(())
+    assert SIN_SOLICITUD not in cedulas and VALIDADA not in cedulas
+    assert alcance.tipo_nomina_de(SIN_SOLICITUD) is None
+
+    # Reincorporado: una asignación PASIVO más nueva que la egresada vuelve a contar.
+    original = AsigTrabajoModel.objects.filter(employee_id=SIN_SOLICITUD).order_by('-fecha_actualizacion').first()
+    AsigTrabajoModel.objects.create(
+        employee=EmployeeModel.objects.get(cedulaidentidad=SIN_SOLICITUD), codigo='C-REINGRESO',
+        denominacioncargoid=original.denominacioncargoid,
+        denominacioncargoespecificoid=original.denominacioncargoespecificoid,
+        tiponominaid=original.tiponominaid, estatusid=EstatusModel.objects.get(estatus='ACTIVO'),
+        Tipo_personal=original.Tipo_personal,
+    )
+    kpis = cuerpo(c.get(f'{BASE}/estadisticas/'))['kpis']
+    assert (kpis['total'], kpis['respondieron'], kpis['faltan']) == (3, 1, 2)
 
 
 def test_permisos_estadisticas(datos):

@@ -463,6 +463,13 @@ def test_cobertura_lista_pasivos_sin_correo_o_sin_cuenta(analista, datos):
     assert AuditoriaLog.objects.filter(accion='COBERTURA_CONSULTADA').exists()
 
 
+def test_cobertura_no_lista_pasivos_egresados(analista, datos):
+    estatus_egresado = EstatusModel.objects.create(estatus='EGRESADO')
+    AsigTrabajoModel.objects.filter(employee_id=SIN_CORREO).update(estatusid=estatus_egresado)
+    todos = cuerpo(analista.get(f'{BASE}/cobertura/pasivos/'))
+    assert {f['cedula'] for f in todos['results']} == {OTRO_PASIVO}
+
+
 # ── Aplicador C19 contra la BD de pruebas ──
 def test_aplicador_c19_aprueba_y_escribe_en_la_ficha_real(datos, administradora):
     pid = proceso_abierto(administradora)

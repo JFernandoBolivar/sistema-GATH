@@ -162,6 +162,14 @@ def test_buscar_pasivo_presencial_permiso_y_resultado(datos):
     assert res['results'][0]['nombre_completo'] == 'MARIA PEREZ'
 
 
+def test_buscar_no_devuelve_pasivos_egresados(datos):
+    estatus_egresado, _ = EstatusModel.objects.get_or_create(estatus='EGRESADO')
+    AsigTrabajoModel.objects.filter(employee_id=PASIVO).update(estatusid=estatus_egresado)
+    cli = _cliente(ANALISTA, {'fe_de_vida.registrar_presencial'})
+    res = _cuerpo(cli.get(f'{BASE}/presencial/buscar/?texto={PASIVO}'))
+    assert res['results'] == []
+
+
 def test_flujo_completo_fe_de_vida_presencial(datos):
     # Abrir proceso
     cli_admin = _cliente(ADMINISTRADORA, {'fe_de_vida.gestionar_procesos'})

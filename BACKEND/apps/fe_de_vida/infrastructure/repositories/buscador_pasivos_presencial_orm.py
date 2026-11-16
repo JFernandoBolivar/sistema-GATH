@@ -1,22 +1,23 @@
 """Adaptador ORM para búsqueda de pasivos en fe de vida presencial (D-09, B16)."""
-from django.db.models import Exists, OuterRef, Q, Subquery
+from django.db.models import Exists, Q, Subquery
 
-from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
 from apps.fe_de_vida.domain.entities.pasivo import PasivoPresencialCandidato
 from apps.fe_de_vida.domain.ports.repos import BuscadorPasivosPresencial
-from apps.fe_de_vida.domain.value_objects.estados import CONDICION_PASIVO
+from apps.fe_de_vida.infrastructure.repositories.pasivos_vigentes import (
+    asignaciones_pasivas,
+    excluir_egresados,
+)
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 
 
 class BuscadorPasivosPresencialORM(BuscadorPasivosPresencial):
     def buscar(self, texto: str, limite: int, desplazamiento: int) -> tuple[list[PasivoPresencialCandidato], int]:
         texto = texto.strip()
-        pasivas = AsigTrabajoModel.objects.filter(
-            employee_id=OuterRef('cedulaidentidad'),
-            Tipo_personal__tipo_personal__iexact=CONDICION_PASIVO,
-        )
-        qs = EmployeeModel.objects.filter(Exists(pasivas)).annotate(
-            tipo_nomina=Subquery(pasivas.order_by('-fecha_actualizacion').values('tiponominaid__nomina')[:1]),
+        pasivas = asignaciones_pasivas()
+        qs = excluir_egresados(
+            EmployeeModel.objects.filter(Exists(pasivas)), pasivas,
+        ).annotate(
+            tipo_nomina=Subquery(pasivas.values('tiponominaid__nomina')[:1]),
         )
 
         nombre_q = EmployeeModel.objects.all()
