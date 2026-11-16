@@ -187,9 +187,9 @@ export function DisenadorReglasColorPanel({
             Aplica si el titular no tiene valor tabulado o si el criterio es único.
           </p>
           <div className="grid grid-cols-3 gap-2">
-            <div>
+            <div className="min-w-0">
               <span className="text-[10px] text-muted-foreground block mb-1">Primario</span>
-              <div className="flex items-center gap-1">
+              <div className="flex flex-col items-start gap-0.5">
                 <input
                   type="color"
                   className="size-6 rounded border cursor-pointer p-0 shrink-0"
@@ -201,12 +201,12 @@ export function DisenadorReglasColorPanel({
                     }))
                   }
                 />
-                <span className="text-[10px] font-mono">{reglasColor.respaldo.primario}</span>
+                <span className="text-[10px] font-mono truncate max-w-full">{reglasColor.respaldo.primario}</span>
               </div>
             </div>
-            <div>
+            <div className="min-w-0">
               <span className="text-[10px] text-muted-foreground block mb-1">Acento</span>
-              <div className="flex items-center gap-1">
+              <div className="flex flex-col items-start gap-0.5">
                 <input
                   type="color"
                   className="size-6 rounded border cursor-pointer p-0 shrink-0"
@@ -218,12 +218,12 @@ export function DisenadorReglasColorPanel({
                     }))
                   }
                 />
-                <span className="text-[10px] font-mono">{reglasColor.respaldo.acento}</span>
+                <span className="text-[10px] font-mono truncate max-w-full">{reglasColor.respaldo.acento}</span>
               </div>
             </div>
-            <div>
+            <div className="min-w-0">
               <span className="text-[10px] text-muted-foreground block mb-1">Texto</span>
-              <div className="flex items-center gap-1">
+              <div className="flex flex-col items-start gap-0.5">
                 <input
                   type="color"
                   className="size-6 rounded border cursor-pointer p-0 shrink-0"
@@ -235,7 +235,7 @@ export function DisenadorReglasColorPanel({
                     }))
                   }
                 />
-                <span className="text-[10px] font-mono">{reglasColor.respaldo.texto}</span>
+                <span className="text-[10px] font-mono truncate max-w-full">{reglasColor.respaldo.texto}</span>
               </div>
             </div>
           </div>
