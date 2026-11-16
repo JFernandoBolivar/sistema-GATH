@@ -2,23 +2,19 @@
 from django.db.models import Exists, OuterRef, Q, Subquery
 
 from apps.autogestion.infrastructure.models.actualizacion_models import DatosComplementariosTrabajadorModel
-from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
 from apps.fe_de_vida.domain.entities.filtros import FiltroCobertura
 from apps.fe_de_vida.domain.entities.pasivo import PasivoCobertura
-from apps.fe_de_vida.domain.value_objects.estados import CONDICION_PASIVO
 from apps.fe_de_vida.infrastructure.models.solicitud_models import SolicitudFeDeVidaModel
+from apps.fe_de_vida.infrastructure.repositories.pasivos_vigentes import (
+    asignaciones_pasivas,
+    excluir_egresados,
+)
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
-
-
-def _asignaciones_pasivas():
-    return AsigTrabajoModel.objects.filter(
-        employee_id=OuterRef('cedulaidentidad'), Tipo_personal__tipo_personal__iexact=CONDICION_PASIVO,
-    )
 
 
 class RepoCoberturaORM:
     def listar(self, filtro: FiltroCobertura, limite: int, desplazamiento: int):
-        pasivas = _asignaciones_pasivas()
+        pasivas = asignaciones_pasivas()
         if filtro.tipo_nomina_id:
             pasivas = pasivas.filter(tiponominaid_id=filtro.tipo_nomina_id)
         solicitudes_pasivo = SolicitudFeDeVidaModel.objects.filter(cedula=OuterRef('cedulaidentidad')).order_by('-created_at')
@@ -27,8 +23,10 @@ class RepoCoberturaORM:
         )
         complementarios = DatosComplementariosTrabajadorModel.objects.filter(cedula=OuterRef('cedulaidentidad'))
 
-        qs = EmployeeModel.objects.filter(Exists(pasivas)).annotate(
-            tipo_nomina=Subquery(pasivas.order_by('-fecha_actualizacion').values('tiponominaid__nomina')[:1]),
+        qs = excluir_egresados(
+            EmployeeModel.objects.filter(Exists(pasivas)), pasivas,
+        ).annotate(
+            tipo_nomina=Subquery(pasivas.values('tiponominaid__nomina')[:1]),
             canal_fv=Subquery(solicitudes_pasivo.values('canal')[:1]),
             correo_alt=Subquery(complementarios.values('correo_alternativo')[:1]),
             tiene_fv_validada=Exists(solicitudes_validadas),

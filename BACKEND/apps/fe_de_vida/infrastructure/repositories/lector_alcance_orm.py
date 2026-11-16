@@ -3,10 +3,14 @@ from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
 from apps.catalogos.infrastructure.models.catalogo_models import TipoNominaModel
 from apps.fe_de_vida.domain.entities.pasivo import TipoPension
 from apps.fe_de_vida.domain.value_objects.estados import CONDICION_PASIVO
+from core.domain.catalogos import ESTATUS_EGRESADO
 
 
 def _pasivas():
-    return AsigTrabajoModel.objects.filter(Tipo_personal__tipo_personal__iexact=CONDICION_PASIVO)
+    """Pasivos vigentes: la asignación PASIVO no debe estar en EGRESADO."""
+    return AsigTrabajoModel.objects.filter(
+        Tipo_personal__tipo_personal__iexact=CONDICION_PASIVO,
+    ).exclude(estatusid__estatus__iexact=ESTATUS_EGRESADO)
 
 
 class LectorAlcanceORM:
