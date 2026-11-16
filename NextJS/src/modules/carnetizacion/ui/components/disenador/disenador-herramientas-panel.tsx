@@ -99,7 +99,7 @@ export function DisenadorHerramientasPanel({
         {/* Formas */}
         <div className="space-y-2">
           <span className="block text-xs font-medium text-muted-foreground">Formas</span>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2 [&>button]:min-w-0">
             <Button
               variant="outline"
               size="sm"
@@ -293,7 +293,7 @@ export function DisenadorHerramientasPanel({
           <span className="block text-xs font-medium text-muted-foreground">
             Formas institucionales
           </span>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2 [&>button]:min-w-0">
             {FORMAS_INSTITUCIONALES.map((forma) => (
               <Button
                 key={forma.id}
@@ -414,7 +414,7 @@ export function DisenadorHerramientasPanel({
           <span className="block text-xs font-medium text-muted-foreground">
             Gráficos y seguridad
           </span>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2 [&>button]:min-w-0">
             <Button
               variant="outline"
               size="sm"

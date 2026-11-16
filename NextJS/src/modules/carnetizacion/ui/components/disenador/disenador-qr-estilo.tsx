@@ -168,7 +168,7 @@ export function DisenadorQrEstilo({
 
   return (
     <SeccionPropiedades titulo="Estilo del QR">
-      <div className="grid grid-cols-3 gap-2" role="group" aria-label="Estilos predefinidos del QR">
+      <div className="grid grid-cols-2 gap-2" role="group" aria-label="Estilos predefinidos del QR">
         {(Object.keys(PRESETS_QR) as (keyof typeof PRESETS_QR)[]).map((preset) => {
           const activo = estilo.preset === preset;
           return (
@@ -251,7 +251,7 @@ export function DisenadorQrEstilo({
         {estilo.logo.activo && (
           <>
             <div
-              className="grid grid-cols-3 gap-2"
+              className="grid grid-cols-2 gap-2"
               role="group"
               aria-label="Logo del QR (Biblioteca de Medios, categoría Logos)"
             >
@@ -259,12 +259,12 @@ export function DisenadorQrEstilo({
                 type="button"
                 aria-pressed={estilo.logo.medio_id === null}
                 onClick={() => cambiarLogo({ medio_id: null })}
-                className={`flex h-16 flex-col items-center justify-center rounded-lg border p-1 text-[10px] leading-tight hover:bg-muted/40 ${
+                className={`flex h-16 w-full min-w-0 flex-col items-center justify-center overflow-hidden rounded-lg border p-1 text-[9px] leading-tight hover:bg-muted/40 ${
                   estilo.logo.medio_id === null ? "border-primary ring-1 ring-primary" : "border-border"
                 }`}
               >
-                <span className="font-semibold">CONATEL</span>
-                <span className="text-muted-foreground">predeterminado</span>
+                <span className="w-full truncate text-center font-semibold">CONATEL</span>
+                <span className="w-full truncate text-center text-muted-foreground">predeterminado</span>
               </button>
               {logos.map((m) => (
                 <button

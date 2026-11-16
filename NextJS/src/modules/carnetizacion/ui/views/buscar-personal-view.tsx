@@ -140,7 +140,7 @@ export function BuscarPersonalView() {
               >
                 <CardContent className="p-5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-start sm:items-center gap-4">
+                    <div className="flex items-start sm:items-center gap-4 min-w-0">
                       <div
                         className={`rounded-full p-3 shrink-0 ${
                           emp.tiene_carnet ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"
@@ -148,8 +148,8 @@ export function BuscarPersonalView() {
                       >
                         <IdCard className="size-6" />
                       </div>
-                      <div>
-                        <h3 className="font-semibold text-base text-foreground">
+                      <div className="min-w-0">
+                        <h3 className="font-semibold text-base text-foreground truncate">
                           {truncarNombre(emp.nombre_completo)}
                         </h3>
                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground mt-1">
@@ -161,7 +161,7 @@ export function BuscarPersonalView() {
                             </span>
                           )}
                         </div>
-                        <p className="text-sm text-muted-foreground mt-1">
+                        <p className="text-sm text-muted-foreground mt-1 truncate">
                           {emp.cargo}
                           {emp.cargo && emp.departamento ? ", " : ""}
                           {emp.departamento}
