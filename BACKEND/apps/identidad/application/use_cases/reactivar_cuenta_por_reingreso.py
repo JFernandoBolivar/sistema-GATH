@@ -1,6 +1,7 @@
 """
-Caso de uso: reingreso. Si el trabajador vuelve a ser ACTIVO y su cuenta fue desactivada POR UN EGRESO
-(marca propia), se reactiva sola. Una cuenta desactivada a mano por un administrador no se toca. Puro (B4).
+Caso de uso: reingreso. Si el trabajador vuelve a ser ACTIVO o PASIVO y su cuenta fue desactivada
+POR UN EGRESO (marca propia), se reactiva sola. Una cuenta desactivada a mano por un administrador
+no se toca. Puro (B4).
 """
 from apps.identidad.domain.entities.cuenta import Cuenta
 from apps.identidad.domain.ports.repo_condicion_trabajador import RepoCondicionTrabajador
@@ -21,7 +22,9 @@ def reactivar_cuenta_por_reingreso(
     cuenta = repo_cuentas.obtener_por_cedula(cedula)
     if cuenta is None or cuenta.is_active or not repo_marca.existe(cuenta.id):
         return None
-    if repo_condicion.condicion_por_cedula(cedula) is not CondicionTrabajador.ACTIVO:
+    if repo_condicion.condicion_por_cedula(cedula) not in (
+        CondicionTrabajador.ACTIVO, CondicionTrabajador.PASIVO
+    ):
         return None
     guardada = repo_cuentas.guardar(cuenta.activar())
     repo_marca.limpiar(cuenta.id)

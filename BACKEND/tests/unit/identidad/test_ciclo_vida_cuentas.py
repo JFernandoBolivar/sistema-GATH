@@ -430,11 +430,23 @@ def test_reingreso_no_revierte_una_desactivacion_manual():
     assert cuentas.obtener_por_id(1).is_active is False
 
 
-def test_reingreso_como_pasivo_no_reactiva():
+def test_reingreso_como_pasivo_reactiva_la_cuenta_dada_de_baja_por_egreso():
     cuentas, marca = CuentasMem(cuentas=[Cuenta(id=1, cedula='123', is_active=False)]), MarcaMem()
     marca.marcar(1, 'EGRESO')
 
-    assert reactivar_cuenta_por_reingreso(cuentas, CondicionMem({'123': CondicionTrabajador.PASIVO}), marca, '123') is None
+    c = reactivar_cuenta_por_reingreso(cuentas, CondicionMem({'123': CondicionTrabajador.PASIVO}), marca, '123')
+
+    assert c.is_active is True and not marca.existe(1)
+
+
+def test_reingreso_sin_asignacion_no_reactiva():
+    cuentas, marca = CuentasMem(cuentas=[Cuenta(id=1, cedula='123', is_active=False)]), MarcaMem()
+    marca.marcar(1, 'EGRESO')
+
+    assert reactivar_cuenta_por_reingreso(
+        cuentas, CondicionMem({'123': CondicionTrabajador.SIN_ASIGNACION}), marca, '123',
+    ) is None
+    assert cuentas.obtener_por_id(1).is_active is False and marca.existe(1)
 
 
 @pytest.mark.parametrize('tipo,categoria,esperado', [
