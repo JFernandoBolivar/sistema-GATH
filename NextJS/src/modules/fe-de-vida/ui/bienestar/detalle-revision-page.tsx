@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import useSWR from "swr";
-import { ArrowLeft, Loader2, Printer } from "lucide-react";
+import { ArrowLeft, Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -21,7 +21,7 @@ import {
   obtenerDetalleRevisionAction,
 } from "../../infrastructure/actions/fe-de-vida-actions";
 import { PRESENTACION_SOLICITUD } from "../comun/estado-ui";
-import { formatearFechaHora } from "../comun/formato";
+import { descargarBase64Pdf, formatearFechaHora } from "../comun/formato";
 import { useSesionFeDeVida } from "../comun/use-sesion-fe-de-vida";
 import { AccionesRevision } from "./acciones-revision";
 import { FichaRevision } from "./ficha-revision";
@@ -84,7 +84,7 @@ function Resumen({ detalle }: { detalle: DetalleRevisionDTO }) {
 /** Revisión de una fe de vida: resumen, ficha completa con lo declarado, foto y decisión. */
 export default function DetalleRevisionPage({ id }: { id: string }) {
   const { puede, cedula } = useSesionFeDeVida();
-  const [imprimiendo, setImprimiendo] = useState(false);
+  const [descargando, setDescargando] = useState(false);
   const { data, error, isLoading, mutate } = useSWR(["fe-de-vida-revision", id], async () => {
     const res = await obtenerDetalleRevisionAction(id);
     if (!res.ok) throw new Error(res.mensaje);
@@ -123,33 +123,19 @@ export default function DetalleRevisionPage({ id }: { id: string }) {
   const { solicitud, acciones } = data;
   const p = PRESENTACION_SOLICITUD[solicitud.estado];
 
-  async function imprimirConstancia() {
-    setImprimiendo(true);
+  async function descargarConstancia() {
+    setDescargando(true);
     try {
       const res = await descargarConstanciaBienestarAction(solicitud.id);
       if (!res.ok) {
         toast.error(res.mensaje);
         return;
       }
-      const byteCharacters = atob(res.datos);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
-      const win = window.open(url, "_blank");
-      if (!win) {
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `constancia-${solicitud.cedula}.pdf`;
-        a.click();
-      }
+      descargarBase64Pdf(res.datos, `constancia-${solicitud.cedula}.pdf`);
     } catch {
-      toast.error("No se pudo generar la constancia para impresión.");
+      toast.error("No se pudo descargar la constancia.");
     } finally {
-      setImprimiendo(false);
+      setDescargando(false);
     }
   }
 
@@ -168,11 +154,11 @@ export default function DetalleRevisionPage({ id }: { id: string }) {
                 variant="outline"
                 size="sm"
                 className="min-h-10 gap-1.5"
-                disabled={imprimiendo}
-                onClick={imprimirConstancia}
+                disabled={descargando}
+                onClick={descargarConstancia}
               >
-                {imprimiendo ? <Loader2 className="size-4 animate-spin" /> : <Printer className="size-4" />}
-                Imprimir constancia
+                {descargando ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+                Descargar constancia
               </Button>
             ) : null}
           </div>
@@ -216,6 +202,7 @@ export default function DetalleRevisionPage({ id }: { id: string }) {
             solicitud={solicitud}
             acciones={acciones}
             onHecho={() => mutate()}
+            procesoCerrado={data.procesoCerrado}
             esRegistrador={
               solicitud.canal === "PRESENCIAL" &&
               !!solicitud.registradaPorCedula &&

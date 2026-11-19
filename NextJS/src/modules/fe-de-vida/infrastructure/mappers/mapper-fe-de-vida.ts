@@ -12,6 +12,7 @@ import type {
   PasivoPresencialEntity,
   ProcesoEntity,
   ProrrogaEntity,
+  ResumenProrrogasEntity,
   SolicitudEntity,
   VigenteEntity,
 } from "../../domain/entities/fe-de-vida";
@@ -41,6 +42,7 @@ import type {
   PasivoPresencialApi,
   ProcesoApi,
   ProrrogaApi,
+  ResumenProrrogasApi,
   SolicitudApi,
   VigenteApi,
 } from "../http/fe-de-vida-api";
@@ -216,6 +218,17 @@ export function mapperDetalleRevision(d: DetalleRevisionApi): DetalleRevisionEnt
     acciones: (d.acciones_disponibles ?? []).filter((a): a is AccionRevision =>
       (ACCIONES_REVISION as readonly string[]).includes(a),
     ),
+    procesoCerrado: !!d.proceso_cerrado,
+  };
+}
+
+function mapperResumenProrrogas(p?: ResumenProrrogasApi | null): ResumenProrrogasEntity {
+  return {
+    total: p?.total ?? 0,
+    vigentes: p?.vigentes ?? 0,
+    generalVigente: !!p?.general_vigente,
+    individualesVigentes: p?.individuales_vigentes ?? 0,
+    hasta: p?.hasta ?? null,
   };
 }
 
@@ -229,6 +242,7 @@ export function mapperProceso(p: ProcesoApi): ProcesoEntity {
     cierreReal: p.fecha_cierre_real ?? null,
     tiposNomina: (p.tipos_nomina ?? []).map((t) => ({ id: t.id, nombre: t.nombre })),
     diasRecordatorio: [...(p.dias_recordatorio ?? [])],
+    prorrogas: mapperResumenProrrogas(p.prorrogas),
   };
 }
 
@@ -298,8 +312,24 @@ export function mapperPagina<A, E>(p: PaginaApi<A>, fn: (a: A) => E): PaginaEnti
 
 export function mapperEstadisticas(e: EstadisticasApi): EstadisticasEntity {
   return {
-    proceso: e.proceso,
-    procesos: e.procesos ?? [],
+    proceso: e.proceso
+      ? {
+          id: e.proceso.id,
+          nombre: e.proceso.nombre,
+          estado: e.proceso.estado,
+          apertura: e.proceso.apertura,
+          cierre: e.proceso.cierre,
+          prorrogas: mapperResumenProrrogas(e.proceso.prorrogas),
+        }
+      : null,
+    procesos: (e.procesos ?? []).map((p) => ({
+      id: p.id,
+      nombre: p.nombre,
+      estado: p.estado,
+      apertura: p.apertura,
+      cierre: p.cierre,
+      ...(p.prorrogas ? { prorrogas: mapperResumenProrrogas(p.prorrogas) } : {}),
+    })),
     tipos: e.tipos ?? [],
     kpis: {
       total: e.kpis.total ?? 0,

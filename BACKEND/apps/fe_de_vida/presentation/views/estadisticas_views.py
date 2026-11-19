@@ -27,6 +27,7 @@ from apps.fe_de_vida.presentation.serializers.fe_de_vida_serializers import (
 )
 from apps.fe_de_vida.presentation.views._comun import (
     RECURSO_ESTADISTICAS,
+    ahora,
     auditar,
     parametros_pagina,
     respuesta_pagina,
@@ -64,7 +65,7 @@ class EstadisticasView(APIView):
         filtros = validar_entrada(FiltroEstadisticasSerializer, request.query_params)
         estadisticas = calcular_estadisticas(
             RepoEstadisticasORM(), RepoProcesosORM(), LectorAlcanceORM(),
-            filtro=normalizar_filtros(request.query_params),
+            filtro=normalizar_filtros(request.query_params), ahora=ahora(),
         )
         auditar(
             request, 'ESTADISTICAS_CONSULTADAS', getattr(estadisticas.proceso, 'id', '') or '',
@@ -100,7 +101,7 @@ class PasivosEstadisticaView(APIView):
         limite, desplazamiento = parametros_pagina(filtros)
         filas, total = listar_pasivos_estadistica(
             RepoEstadisticasORM(), RepoProcesosORM(),
-            filtro=normalizar_filtros(request.query_params),
+            filtro=normalizar_filtros(request.query_params), ahora=ahora(),
             faltantes=faltantes, limite=limite, desplazamiento=desplazamiento,
         )
         auditar(

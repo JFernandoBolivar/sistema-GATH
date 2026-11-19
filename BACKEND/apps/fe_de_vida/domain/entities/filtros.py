@@ -12,6 +12,9 @@ class FiltroBandeja:
     hasta: date | None = None
     historico: bool = False
     proceso_ids: tuple[str, ...] | None = None
+    # Ventana vigente resuelta por el caso de uso: (proceso, cédulas alcanzadas) y `None` = todas.
+    # Incluye los procesos abiertos y los cerrados con una prórroga vigente (limitados a su alcance).
+    procesos_visibles: tuple[tuple[str, tuple[str, ...] | None], ...] | None = None
 
 
 @dataclass(frozen=True)

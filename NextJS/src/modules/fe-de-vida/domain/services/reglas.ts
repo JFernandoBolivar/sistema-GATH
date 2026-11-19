@@ -1,4 +1,4 @@
-import type { DecisionEntity, SolicitudEntity } from "../entities/fe-de-vida";
+import type { DecisionEntity, ResumenProrrogasEntity, SolicitudEntity } from "../entities/fe-de-vida";
 import type { TipoDecision } from "../value-objects/estados";
 
 const ESTADOS_REVISABLES = ["PENDIENTE_REVISION", "PENDIENTE_SEGUNDO_CHECK"] as const;
@@ -120,6 +120,21 @@ export function oficinaDeAdscripcion(niveles: NivelesEstructura | undefined): st
     if (!SIN_NIVEL.has(limpio.toUpperCase())) return limpio;
   }
   return null;
+}
+
+/**
+ * Texto corto del estado de las prórrogas para la ficha del proceso: «Sin prórrogas», «2 prórrogas · ninguna
+ * vigente» o «1 prórroga · 1 vigente (general)». La fecha límite se muestra aparte, junto al estado.
+ */
+export function describirProrrogas(r: ResumenProrrogasEntity): string {
+  if (r.total === 0) return "Sin prórrogas";
+  const total = `${r.total} ${r.total === 1 ? "prórroga" : "prórrogas"}`;
+  if (r.vigentes === 0) return `${total} · ninguna vigente`;
+  const vigentes = `${r.vigentes} ${r.vigentes === 1 ? "vigente" : "vigentes"}`;
+  const alcance = r.generalVigente
+    ? "general"
+    : `${r.individualesVigentes} ${r.individualesVigentes === 1 ? "individual" : "individuales"}`;
+  return `${total} · ${vigentes} (${alcance})`;
 }
 
 /** Requisitos mínimos para enviar la fe de vida (además de la foto). */

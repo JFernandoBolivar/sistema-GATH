@@ -21,7 +21,10 @@ from apps.cargos.infrastructure.models.cargo_models import (
     DenominacionCargoEspecificoModel,
     DenominacionCargoModel,
 )
-from apps.fe_de_vida.infrastructure.models.proceso_models import ProcesoFeDeVidaModel
+from apps.fe_de_vida.infrastructure.models.proceso_models import (
+    ProcesoFeDeVidaModel,
+    ProrrogaProcesoModel,
+)
 from apps.fe_de_vida.infrastructure.models.solicitud_models import (
     ConstanciaFeDeVidaModel,
     PlantillaConstanciaModel,
@@ -807,3 +810,38 @@ def test_presencial_envia_y_la_autogestion_ya_no_puede_guardar(datos):
     vigente = _cuerpo(cli_pasivo.get(f'{BASE}/procesos/vigente/'))
     assert vigente['solicitud']['id'] == sid
     assert vigente['solicitud']['estado'] == 'PENDIENTE_REVISION'
+
+
+def test_registradora_revisa_su_registro_con_prorroga_vigente_en_proceso_cerrado(datos, monkeypatch):
+    """Caso reportado: el proceso se cerró y se extendió una prórroga; los interruptores siguen mandando."""
+    _interruptores(monkeypatch, analistas=False, administradora=True)
+    sol = _proceso_abierto_y_solicitud_presencial(registrada_por=ADMINISTRADORA)
+    ProcesoFeDeVidaModel.objects.filter(pk=sol.proceso_id).update(estado='CERRADO')
+    registradora = _cliente(ADMINISTRADORA, PERMISOS_ADMIN)
+
+    detalle = _cuerpo(registradora.get(f'{BASE}/solicitudes/{sol.id}/'))
+    assert detalle['proceso_cerrado'] is True
+    assert detalle['acciones_disponibles'] == []
+
+    ProrrogaProcesoModel.objects.create(
+        proceso_id=sol.proceso_id, cedula=PASIVO, nueva_fecha_limite=timezone.now() + timedelta(days=3),
+        motivo='El pasivo sigue respondiendo', concedida_por=ADMINISTRADORA,
+    )
+    detalle = _cuerpo(registradora.get(f'{BASE}/solicitudes/{sol.id}/'))
+    assert detalle['proceso_cerrado'] is False
+    assert detalle['acciones_disponibles'] == ['dar_check', 'aprobar_directo', 'devolver', 'rechazar']
+    assert registradora.post(f'{BASE}/solicitudes/{sol.id}/check/').status_code == 200
+
+
+def test_prorroga_de_otra_cedula_no_abre_la_revision_de_la_solicitud(datos, monkeypatch):
+    _interruptores(monkeypatch, analistas=True, administradora=True)
+    sol = _proceso_abierto_y_solicitud_presencial()
+    ProcesoFeDeVidaModel.objects.filter(pk=sol.proceso_id).update(estado='CERRADO')
+    ProrrogaProcesoModel.objects.create(
+        proceso_id=sol.proceso_id, cedula='20000099', nueva_fecha_limite=timezone.now() + timedelta(days=3),
+        motivo='Otra persona', concedida_por=ADMINISTRADORA,
+    )
+    analista = _cliente(ANALISTA, {'fe_de_vida.revisar', 'fe_de_vida.check_analista'})
+    detalle = _cuerpo(analista.get(f'{BASE}/solicitudes/{sol.id}/'))
+    assert detalle['proceso_cerrado'] is True
+    assert detalle['acciones_disponibles'] == []

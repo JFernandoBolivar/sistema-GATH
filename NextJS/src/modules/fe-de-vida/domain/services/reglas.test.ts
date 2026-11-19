@@ -5,6 +5,7 @@ import {
   esEditablePorPasivo,
   motivoDeEstado,
   describirDiaRecordatorio,
+  describirProrrogas,
   normalizarDiasRecordatorio,
   oficinaDeAdscripcion,
   puedeEnviarFeDeVida,
@@ -138,5 +139,26 @@ describe("oficinaDeAdscripcion", () => {
     expect(
       puedeEnviarFeDeVida({ fotoVigente: false, viviendaOk: true, tieneHijos: false, hijosOk: false }),
     ).toBe(false);
+  });
+});
+describe("describirProrrogas", () => {
+  const base = { total: 0, vigentes: 0, generalVigente: false, individualesVigentes: 0, hasta: null };
+
+  it("sin prórrogas o todas vencidas", () => {
+    expect(describirProrrogas(base)).toBe("Sin prórrogas");
+    expect(describirProrrogas({ ...base, total: 2 })).toBe("2 prórrogas · ninguna vigente");
+    expect(describirProrrogas({ ...base, total: 1 })).toBe("1 prórroga · ninguna vigente");
+  });
+
+  it("distingue general de individuales y cuenta el total del historial", () => {
+    expect(
+      describirProrrogas({ ...base, total: 1, vigentes: 1, generalVigente: true }),
+    ).toBe("1 prórroga · 1 vigente (general)");
+    expect(
+      describirProrrogas({ ...base, total: 3, vigentes: 2, individualesVigentes: 2 }),
+    ).toBe("3 prórrogas · 2 vigentes (2 individuales)");
+    expect(
+      describirProrrogas({ ...base, total: 2, vigentes: 1, individualesVigentes: 1 }),
+    ).toBe("2 prórrogas · 1 vigente (1 individual)");
   });
 });

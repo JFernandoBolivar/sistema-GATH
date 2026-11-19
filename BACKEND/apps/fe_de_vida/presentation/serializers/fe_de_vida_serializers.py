@@ -16,7 +16,7 @@ from apps.fe_de_vida.application.dtos.fe_de_vida_dtos import (
 from apps.fe_de_vida.domain.entities.cambio_acta import CambioActa
 from apps.fe_de_vida.domain.entities.estadisticas import EstadisticasFeDeVida, PasivoEstadistica
 from apps.fe_de_vida.domain.entities.pasivo import PasivoCobertura
-from apps.fe_de_vida.domain.entities.proceso import ProcesoFeDeVida, ProrrogaProceso
+from apps.fe_de_vida.domain.entities.proceso import ProcesoFeDeVida, ProrrogaProceso, ResumenProrrogas
 from apps.fe_de_vida.domain.entities.solicitud import SolicitudFeDeVida
 from apps.fe_de_vida.domain.constantes import MAX_JUSTIFICACION_SIN_CORREO
 from apps.fe_de_vida.domain.value_objects.estados import (
@@ -278,6 +278,9 @@ class DetalleRevisionSerializer(serializers.Serializer):
         ]),
         help_text='Acciones que el usuario actual puede ejecutar hoy; las decide el dominio.',
     )
+    proceso_cerrado = serializers.BooleanField(
+        help_text='El proceso está cerrado y ninguna prórroga vigente alcanza a esta cédula: no hay decisiones.',
+    )
 
 
 class ReenvioConstanciaRespuestaSerializer(serializers.Serializer):
@@ -309,6 +312,14 @@ class TipoPensionSerializer(serializers.Serializer):
     nombre = serializers.CharField()
 
 
+class ResumenProrrogasSerializer(serializers.Serializer):
+    total = serializers.IntegerField(help_text='Prórrogas concedidas en el proceso (histórico completo).')
+    vigentes = serializers.IntegerField(help_text='Prórrogas aún en plazo; > 0 = la ventana sigue abierta.')
+    general_vigente = serializers.BooleanField(help_text='Hay una prórroga general vigente (alcanza a todos).')
+    individuales_vigentes = serializers.IntegerField(help_text='Prórrogas individuales vigentes.')
+    hasta = serializers.DateTimeField(allow_null=True, help_text='Fecha límite más lejana entre las vigentes.')
+
+
 class ProcesoSerializer(serializers.Serializer):
     id = serializers.CharField()
     nombre = serializers.CharField()
@@ -318,6 +329,11 @@ class ProcesoSerializer(serializers.Serializer):
     fecha_cierre_real = serializers.DateTimeField(allow_null=True)
     tipos_nomina = TipoPensionSerializer(many=True, help_text='Alcance; lista vacía = todos los pasivos.')
     dias_recordatorio = serializers.ListField(child=serializers.IntegerField())
+    prorrogas = ResumenProrrogasSerializer(
+        required=False,
+        help_text='Resumen de prórrogas. `vigentes > 0` = el proceso sigue admitiendo respuestas y revisiones '
+                  'aunque esté cerrado.',
+    )
 
 
 class ProcesoVigenteSerializer(serializers.Serializer):
@@ -347,6 +363,10 @@ class ProcesoResumenSerializer(serializers.Serializer):
     estado = serializers.CharField()
     apertura = serializers.DateTimeField(allow_null=True)
     cierre = serializers.DateTimeField(allow_null=True)
+    prorrogas = ResumenProrrogasSerializer(
+        required=False,
+        help_text='Solo en el proceso elegido: si `vigentes > 0`, la ventana sigue abierta aunque esté cerrado.',
+    )
 
 
 class KpisEstadisticasSerializer(serializers.Serializer):
@@ -536,18 +556,31 @@ def a_dict_revision(d: DetalleRevision) -> dict:
             for c in d.cambios
         ],
         'proceso_nombre': d.proceso_nombre, 'ficha': d.ficha, 'acciones_disponibles': list(d.acciones),
+        'proceso_cerrado': d.proceso_cerrado,
     }
 
 
-def a_dict_proceso(p: ProcesoFeDeVida, nombres_tipos: dict[int, str] | None = None) -> dict:
+def a_dict_resumen_prorrogas(r: ResumenProrrogas) -> dict:
+    return {
+        'total': r.total, 'vigentes': r.vigentes, 'general_vigente': r.general_vigente,
+        'individuales_vigentes': r.individuales_vigentes, 'hasta': r.hasta,
+    }
+
+
+def a_dict_proceso(
+    p: ProcesoFeDeVida, nombres_tipos: dict[int, str] | None = None, resumen_prorrogas: ResumenProrrogas | None = None,
+) -> dict:
     """`nombres_tipos` (id -> nombre) los resuelve la vista por consulta; sin nombre se devuelve el id como texto."""
     nombres = nombres_tipos or {}
-    return {
+    datos = {
         'id': p.id, 'nombre': p.nombre, 'estado': p.estado.value, 'fecha_apertura': p.fecha_apertura,
         'fecha_cierre': p.fecha_cierre, 'fecha_cierre_real': p.fecha_cierre_real,
         'tipos_nomina': [{'id': t, 'nombre': nombres.get(t, str(t))} for t in p.tipos_nomina],
         'dias_recordatorio': list(p.dias_recordatorio),
     }
+    if resumen_prorrogas is not None:
+        datos['prorrogas'] = a_dict_resumen_prorrogas(resumen_prorrogas)
+    return datos
 
 
 def a_dict_vigente(v: ProcesoVigente, nombres_tipos: dict[int, str] | None = None) -> dict:
@@ -621,6 +654,7 @@ def a_dict_estadisticas(e: EstadisticasFeDeVida) -> dict:
         'proceso': {
             'id': e.proceso.id, 'nombre': e.proceso.nombre, 'estado': e.proceso.estado,
             'apertura': e.proceso.apertura, 'cierre': e.proceso.cierre,
+            'prorrogas': a_dict_resumen_prorrogas(e.prorrogas),
         } if e.proceso else None,
         'procesos': [
             {'id': p.id, 'nombre': p.nombre, 'estado': p.estado, 'apertura': p.apertura, 'cierre': p.cierre}

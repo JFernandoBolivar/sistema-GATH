@@ -9,6 +9,7 @@ from base64 import b64decode, b64encode
 from io import BytesIO
 from typing import Callable
 
+from django.utils import timezone
 from openpyxl import Workbook
 from openpyxl.chart import BarChart, Reference
 from PIL import Image
@@ -29,6 +30,7 @@ from apps.fe_de_vida.infrastructure.exportacion_comun import (
     escribir_seccion,
     escribir_tabla,
 )
+from apps.fe_de_vida.infrastructure.estadisticas_texto import detalle_proceso
 from apps.fe_de_vida.infrastructure.pdf.comun import ETIQUETAS_CANAL, ETIQUETAS_ESTADO
 from apps.fe_de_vida.infrastructure.pdf.estadisticas_pdf import generar_estadisticas_pdf
 from apps.fe_de_vida.infrastructure.repositories.lector_alcance_orm import LectorAlcanceORM
@@ -137,7 +139,8 @@ def generar_archivo_estadisticas(
     filtros, incluir_resumen, incluir_graficos, incluir_listado, alcance = _opciones(parametros)
     filtro = normalizar_filtros(filtros)
     estadisticas = calcular_estadisticas(
-        RepoEstadisticasORM(), RepoProcesosORM(), LectorAlcanceORM(), filtro=filtro,
+        RepoEstadisticasORM(), RepoProcesosORM(), LectorAlcanceORM(),
+        filtro=filtro, ahora=timezone.now(),
     )
     if estadisticas.proceso is None:
         raise ValidationError('No hay un proceso de fe de vida vigente para exportar.')
@@ -145,7 +148,7 @@ def generar_archivo_estadisticas(
 
     if incluir_listado:
         pasivos, total = listar_pasivos_estadistica(
-            RepoEstadisticasORM(), RepoProcesosORM(), filtro=filtro,
+            RepoEstadisticasORM(), RepoProcesosORM(), filtro=filtro, ahora=timezone.now(),
             faltantes=alcance in ('faltan', 'faltantes'),
             alcance=alcance, limite=MAX_FILAS, desplazamiento=0,
         )
@@ -212,7 +215,10 @@ def _excel_estadisticas(
 
         fila = escribir_encabezado_institucional(
             resumen, titulo='Estadísticas de fe de vida',
-            subtitulo=estadisticas.proceso.nombre if estadisticas.proceso else 'Sin proceso',
+            subtitulo=(
+                f'{estadisticas.proceso.nombre} · {detalle_proceso(estadisticas)}'
+                if estadisticas.proceso else 'Sin proceso'
+            ),
             filtros=aplicados, generado_en=generado_en, columnas=10,
         )
 
@@ -305,7 +311,10 @@ def _excel_estadisticas(
 
         fila = escribir_encabezado_institucional(
             listado, titulo='Estadísticas de fe de vida · Listado de pasivos',
-            subtitulo=estadisticas.proceso.nombre if estadisticas.proceso else 'Sin proceso',
+            subtitulo=(
+                f'{estadisticas.proceso.nombre} · {detalle_proceso(estadisticas)}'
+                if estadisticas.proceso else 'Sin proceso'
+            ),
             filtros=[*aplicados, ('Registros exportados', str(len(filas)))],
             generado_en=generado_en, columnas=len(columnas),
         )

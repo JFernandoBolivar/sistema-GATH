@@ -67,8 +67,31 @@ describe("EstadisticasPage", () => {
       datos: { ...BASE, proceso: null, procesos: [] },
     });
     renderPagina();
-    expect(await screen.findByText("No hay un proceso abierto")).toBeInTheDocument();
+    expect(await screen.findByText("No hay un proceso vigente")).toBeInTheDocument();
     expect(screen.getByText(/Elija un proceso del histórico/)).toBeInTheDocument();
+  });
+
+  it("avisa cuando el proceso está cerrado con una prórroga vigente", async () => {
+    mockEstadisticas.mockResolvedValue({
+      ok: true,
+      datos: {
+        ...BASE,
+        proceso: {
+          ...BASE.proceso!,
+          estado: "CERRADO",
+          prorrogas: {
+            total: 1,
+            vigentes: 1,
+            generalVigente: true,
+            individualesVigentes: 0,
+            hasta: "2026-12-15T23:59:59Z",
+          },
+        },
+      },
+    });
+    renderPagina();
+    expect(await screen.findByText(/Proceso cerrado con prórroga general vigente hasta/)).toBeInTheDocument();
+    expect(screen.getByText(/La ventana sigue abierta para todos los pasivos/)).toBeInTheDocument();
   });
 
   it("muestra el error con opción de reintentar", async () => {

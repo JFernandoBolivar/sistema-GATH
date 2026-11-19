@@ -24,6 +24,17 @@ def puede_enviar(proceso: ProcesoFeDeVida, prorrogas: list[ProrrogaProceso], ced
     return prorroga_vigente(prorrogas, cedula, ahora) is not None
 
 
+def revision_cerrada(
+    proceso: ProcesoFeDeVida, prorrogas: list[ProrrogaProceso], cedula: str, ahora: datetime,
+) -> bool:
+    """
+    Un proceso cerrado deja de admitir decisiones de revisión solo cuando ninguna prórroga vigente alcanza a
+    la cédula. La prórroga extiende la ventana completa: el pasivo sigue enviando y Bienestar sigue revisando
+    lo que se envía durante la prórroga.
+    """
+    return proceso.estado is EstadoProceso.CERRADO and prorroga_vigente(prorrogas, cedula, ahora) is None
+
+
 def exigir_puede_enviar(proceso: ProcesoFeDeVida, prorrogas: list[ProrrogaProceso], cedula: str, ahora: datetime) -> None:
     if proceso.estado is EstadoProceso.BORRADOR:
         raise ConflictError("El proceso de fe de vida aún no está abierto.")

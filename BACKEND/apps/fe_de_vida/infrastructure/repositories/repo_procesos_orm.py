@@ -57,6 +57,11 @@ class RepoProcesosORM:
         qs = ProcesoFeDeVidaModel.objects.filter(pk__in=vigentes).exclude(estado=ProcesoFeDeVidaModel.Estado.BORRADOR)
         return [proceso_a_entidad(m) for m in qs]
 
+    def listar_con_prorrogas_vigentes(self, ahora: datetime) -> list[ProcesoFeDeVida]:
+        vigentes = ProrrogaProcesoModel.objects.filter(nueva_fecha_limite__gte=ahora).values('proceso_id')
+        qs = ProcesoFeDeVidaModel.objects.filter(pk__in=vigentes).exclude(estado=ProcesoFeDeVidaModel.Estado.BORRADOR)
+        return [proceso_a_entidad(m) for m in qs]
+
     def agregar_prorroga(self, prorroga: ProrrogaProceso) -> ProrrogaProceso:
         if not ProcesoFeDeVidaModel.objects.filter(pk=prorroga.proceso_id).exists():
             raise ConflictError("El proceso de la prórroga no existe.")

@@ -2,13 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   mapperDetalle,
   mapperDetalleRevision,
+  mapperEstadisticas,
   mapperEstadoSolicitud,
   mapperPagina,
   mapperProceso,
   mapperSolicitud,
   mapperVigente,
 } from "./mapper-fe-de-vida";
-import type { SolicitudApi } from "../http/fe-de-vida-api";
+import type { EstadisticasApi, SolicitudApi } from "../http/fe-de-vida-api";
 
 const api: SolicitudApi = {
   id: "s1",
@@ -59,11 +60,19 @@ describe("mapper fe de vida", () => {
       cierre: "c",
       tipos_nomina: [{ id: 1, nombre: "Jubilados" }],
       dias_recordatorio: [7, 1],
+      prorrogas: { total: 2, vigentes: 1, general_vigente: true, individuales_vigentes: 0, hasta: "2026-12-15T00:00:00Z" },
     });
     expect(nuevo).toMatchObject({ apertura: "a", cierre: "c", diasRecordatorio: [7, 1] });
     expect(nuevo.tiposNomina).toEqual([{ id: 1, nombre: "Jubilados" }]);
+    expect(nuevo.prorrogas).toEqual({
+      total: 2, vigentes: 1, generalVigente: true, individualesVigentes: 0, hasta: "2026-12-15T00:00:00Z",
+    });
     const previo = mapperProceso({ id: "p", nombre: "FV", estado: "CERRADO", fecha_apertura: "x", fecha_cierre: "y" });
     expect(previo).toMatchObject({ apertura: "x", cierre: "y", tiposNomina: [], diasRecordatorio: [] });
+    // Sin resumen del servidor (contrato previo) el proceso queda sin prórrogas.
+    expect(previo.prorrogas).toEqual({
+      total: 0, vigentes: 0, generalVigente: false, individualesVigentes: 0, hasta: null,
+    });
   });
   it("vigente nulo se mantiene nulo", () => {
     expect(mapperVigente(null)).toBeNull();
@@ -98,6 +107,7 @@ describe("mapperDetalleRevision", () => {
       cambios: [],
       proceso_nombre: "Fe de vida 2026",
       acciones_disponibles: ["dar_check", "inventada", "retirar_check"],
+      proceso_cerrado: true,
       ficha: {
         empleado: {
           cedula: "5", nombres: "MARIA", apellidos: "PEREZ", fecha_nacimiento: "1950-10-30",
@@ -111,6 +121,7 @@ describe("mapperDetalleRevision", () => {
       },
     });
     expect(d.acciones).toEqual(["dar_check", "retirar_check"]);
+    expect(d.procesoCerrado).toBe(true);
     expect(d.procesoNombre).toBe("Fe de vida 2026");
     expect(d.solicitud.decisiones[0]).toMatchObject({ tipo: "CHECK_RETIRADO", actorNombre: "ANA LOPEZ" });
     expect(d.ficha).toMatchObject({
@@ -123,5 +134,32 @@ describe("mapperDetalleRevision", () => {
   });
   it("sin ficha (sin permiso) la deja nula", () => {
     expect(mapperDetalleRevision({ solicitud: api, cambios: [], ficha: null }).ficha).toBeNull();
+  });
+});
+
+describe("mapperEstadisticas", () => {
+  it("mapea la prórroga del proceso elegido y deja el catálogo sin inventarla", () => {
+    const e: EstadisticasApi = {
+      proceso: {
+        id: "p1", nombre: "Fe de vida 2026", estado: "CERRADO", apertura: "a", cierre: "c",
+        prorrogas: {
+          total: 1, vigentes: 1, general_vigente: true, individuales_vigentes: 0,
+          hasta: "2026-12-15T00:00:00Z",
+        },
+      },
+      procesos: [{ id: "p1", nombre: "Fe de vida 2026", estado: "CERRADO", apertura: "a", cierre: "c" }],
+      tipos: [{ id: 1, nombre: "JUBILADO" }],
+      kpis: {
+        total: 4, respondieron: 1, faltan: 3, validadas: 0,
+        porcentaje_respondieron: 25, porcentaje_faltan: 75, porcentaje_validadas: 0,
+      },
+      por_tipo: [], por_estado: [], por_canal: [], matriz: [],
+      filtros: { proceso_id: null, tipo_nomina_id: null, estado: null, canal: null, desde: null, hasta: null },
+    };
+    const mapeado = mapperEstadisticas(e);
+    expect(mapeado.proceso?.prorrogas).toEqual({
+      total: 1, vigentes: 1, generalVigente: true, individualesVigentes: 0, hasta: "2026-12-15T00:00:00Z",
+    });
+    expect(mapeado.procesos[0].prorrogas).toBeUndefined();
   });
 });

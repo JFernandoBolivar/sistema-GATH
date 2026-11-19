@@ -34,6 +34,7 @@ describe("FeDeVidaPasivoPage (Guía de 5 pasos O22)", () => {
       cierreReal: null,
       tiposNomina: [],
       diasRecordatorio: [7, 3, 1],
+      prorrogas: { total: 0, vigentes: 0, generalVigente: false, individualesVigentes: 0, hasta: null },
     },
     solicitud: null,
     puedeEnviar: true,

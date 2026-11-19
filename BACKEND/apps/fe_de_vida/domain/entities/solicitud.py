@@ -184,8 +184,10 @@ class SolicitudFeDeVida:
         """
         Acciones que `actor` puede ejecutar hoy sobre la solicitud (la regla vive aquí; la interfaz solo las pinta).
         Quien ya dio su check no puede dar otro, devolver ni rechazar: solo retirarlo o, si es la Administradora,
-        aprobar de forma directa. Nadie revisa su propia fe de vida. Con el proceso cerrado no hay decisiones,
-        pero una VALIDADA conserva reenviar y regenerar la constancia (según permisos).
+        aprobar de forma directa. Nadie revisa su propia fe de vida. Con la ventana cerrada no hay decisiones,
+        pero una VALIDADA conserva reenviar y regenerar la constancia (según permisos). `proceso_cerrado` debe
+        venir ya resuelto por el caso de uso: un proceso cerrado con prórroga vigente que alcance a la cédula
+        sigue abierto para la revisión (`reglas_proceso.revision_cerrada`).
         Quien registró una fe de vida presencial: la Administradora solo puede aprobar de forma directa, y únicamente
         con `registrador_puede_aprobar_directo`; los demás roles deciden solo con `registrador_puede_checar`.
         """

@@ -24,6 +24,14 @@ def _base():
     return SolicitudFeDeVidaModel.objects.prefetch_related('decisiones')
 
 
+def _alcance(procesos_visibles: tuple[tuple[str, tuple[str, ...] | None], ...]) -> Q:
+    """Procesos de la ventana vigente: todas sus cédulas o solo las que alcanza una prórroga individual."""
+    q = Q(pk__in=[])
+    for proceso_id, cedulas in procesos_visibles:
+        q |= Q(proceso_id=proceso_id) if cedulas is None else Q(proceso_id=proceso_id, cedula__in=cedulas)
+    return q
+
+
 class RepoSolicitudesFeDeVidaORM:
     def crear(self, solicitud: SolicitudFeDeVida) -> SolicitudFeDeVida:
         try:
@@ -80,7 +88,11 @@ class RepoSolicitudesFeDeVidaORM:
 
     def listar(self, filtro: FiltroBandeja, limite: int, desplazamiento: int):
         qs = _base().all()
-        if filtro.proceso_ids is not None:
+        if filtro.procesos_visibles is not None:
+            if not filtro.procesos_visibles:
+                return [], 0
+            qs = qs.filter(_alcance(filtro.procesos_visibles))
+        elif filtro.proceso_ids is not None:
             qs = qs.filter(proceso_id__in=filtro.proceso_ids)
         elif filtro.proceso_id:
             qs = qs.filter(proceso_id=filtro.proceso_id)
