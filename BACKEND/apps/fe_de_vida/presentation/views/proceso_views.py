@@ -5,6 +5,7 @@ from rest_framework.views import APIView
 
 from apps.fe_de_vida.application.use_cases._comun import obtener_proceso
 from apps.fe_de_vida.application.use_cases.consultas import listar_procesos, listar_prorrogas
+from apps.fe_de_vida.domain.entities.proceso import ResumenProrrogas
 from apps.fe_de_vida.application.use_cases.procesos import (
     abrir_proceso,
     cerrar_proceso,
@@ -64,11 +65,16 @@ class ProcesosView(APIView):
     def get(self, request):
         filtros = validar_entrada(FiltroProcesosSerializer, request.query_params)
         limite, desplazamiento = parametros_pagina(filtros)
+        repo = RepoProcesosORM()
         procesos, total = listar_procesos(
-            RepoProcesosORM(), estado=filtros.get('estado'), limite=limite, desplazamiento=desplazamiento,
+            repo, estado=filtros.get('estado'), limite=limite, desplazamiento=desplazamiento,
         )
         nombres = nombres_de_tipos(*procesos)
-        return ok(respuesta_pagina(total, filtros, [a_dict_proceso(p, nombres) for p in procesos]))
+        momento = ahora()
+        return ok(respuesta_pagina(total, filtros, [
+            a_dict_proceso(p, nombres, ResumenProrrogas.de(repo.listar_prorrogas(p.id), momento))
+            for p in procesos
+        ]))
 
     @extend_schema(tags=TAG, summary='Crear un proceso (queda en BORRADOR)', request=CrearProcesoSerializer,
                    responses={201: ProcesoSerializer, **ERRORES})

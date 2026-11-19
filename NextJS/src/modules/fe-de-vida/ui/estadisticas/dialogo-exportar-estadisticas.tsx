@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { EstadisticasDTO } from "../../application/dtos/fe-de-vida-dto";
 import type { OpcionesReporteEstadisticas } from "../../application/use-cases/gestionar-estadisticas";
+import { formatearFechaHora } from "../comun/formato";
 
 export interface DialogoExportarEstadisticasProps {
   abierto: boolean;
@@ -100,6 +101,14 @@ export function DialogoExportarEstadisticas({
           <DialogDescription>
             Configure las secciones y el formato que desea incluir en el informe de fe de vida.
           </DialogDescription>
+          {estadisticas?.proceso?.estado === "CERRADO" &&
+          (estadisticas.proceso.prorrogas?.vigentes ?? 0) > 0 ? (
+            <p className="text-sm font-medium text-warning">
+              Proceso cerrado con prórroga{" "}
+              {estadisticas.proceso.prorrogas?.generalVigente ? "general" : "individual"} vigente hasta{" "}
+              {formatearFechaHora(estadisticas.proceso.prorrogas?.hasta)}
+            </p>
+          ) : null}
         </DialogHeader>
 
         <div className="flex flex-col gap-5 py-2">

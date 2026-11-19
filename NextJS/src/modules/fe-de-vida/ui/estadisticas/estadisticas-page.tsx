@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import useSWR from "swr";
-import { Download, ImageDown, Inbox, Search } from "lucide-react";
+import { CalendarClock, Download, ImageDown, Inbox, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,7 @@ import {
   obtenerEstadisticasAction,
 } from "../../infrastructure/actions/fe-de-vida-actions";
 import { PaginacionNav } from "../comun/paginacion-nav";
+import { formatearFechaHora } from "../comun/formato";
 import { useSesionFeDeVida } from "../comun/use-sesion-fe-de-vida";
 import { DialogoExportarEstadisticas } from "./dialogo-exportar-estadisticas";
 import {
@@ -403,13 +404,34 @@ export default function EstadisticasPage() {
         ) : null}
         {!isLoading && !error && data && !data.proceso ? (
           <VistaVacia
-            titulo="No hay un proceso abierto"
-            descripcion="Elija un proceso del histórico en el filtro «Proceso» para consultar sus estadísticas."
+            titulo="No hay un proceso vigente"
+            descripcion="No hay un proceso abierto ni cerrado con una prórroga vigente. Elija un proceso del histórico en el filtro «Proceso» para consultar sus estadísticas."
           />
         ) : null}
 
         {data?.proceso ? (
           <>
+            {data.proceso.estado === "CERRADO" && (data.proceso.prorrogas?.vigentes ?? 0) > 0 ? (
+              <section
+                aria-label="Prórroga vigente del proceso"
+                className="flex items-start gap-3 rounded-lg border border-warning/40 bg-warning/10 p-3"
+              >
+                <CalendarClock className="mt-0.5 size-5 shrink-0 text-warning" aria-hidden />
+                <div className="flex flex-col gap-1">
+                  <p className="font-medium">
+                    Proceso cerrado con prórroga{" "}
+                    {data.proceso.prorrogas?.generalVigente ? "general" : "individual"} vigente hasta{" "}
+                    {formatearFechaHora(data.proceso.prorrogas?.hasta)}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {data.proceso.prorrogas?.generalVigente
+                      ? "La ventana sigue abierta para todos los pasivos del proceso; los indicadores incluyen ese mismo universo."
+                      : `Solo las ${data.proceso.prorrogas?.individualesVigentes ?? 0} cédulas con prórroga pueden responder; el resto del proceso sigue cerrado.`}
+                  </p>
+                </div>
+              </section>
+            ) : null}
+
             <section aria-label="Indicadores del proceso" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <Kpi
                 titulo="Total de pasivos"

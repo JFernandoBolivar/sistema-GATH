@@ -10,7 +10,7 @@ import { StatusBadge } from "@/shared/ui/components/status-badge";
 import { VistaCargando, VistaError, VistaVacia } from "@/shared/ui/components/vista-estados";
 import type { ProcesoDTO } from "../../application/dtos/fe-de-vida-dto";
 import type { DatosProceso } from "../../domain/ports/repo-fe-de-vida";
-import { describirDiaRecordatorio } from "../../domain/services/reglas";
+import { describirDiaRecordatorio, describirProrrogas } from "../../domain/services/reglas";
 import { LIMITE_PAGINA, PERMISOS_FE_DE_VIDA } from "../../domain/value-objects/estados";
 import {
   abrirProcesoAction,
@@ -80,7 +80,11 @@ export default function ProcesosPage() {
     <div className="flex flex-col gap-6 p-4 md:p-6">
       <PageHeader
         titulo="Procesos de fe de vida"
-        descripcion="Cree, abra y cierre los procesos y conceda prórrogas."
+        descripcion={
+          gestiona
+            ? "Cree, abra y cierre los procesos y conceda prórrogas."
+            : "Consulte el estado de los procesos y las prórrogas vigentes."
+        }
         accion={
           gestiona ? (
             <Button type="button" className="min-h-11" onClick={() => { setErroresServidor(undefined); setDialogo({ tipo: "form", proceso: null }); }}>
@@ -116,7 +120,16 @@ export default function ProcesosPage() {
             <article key={p.id} className="flex flex-col gap-3 rounded-lg border bg-card p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-lg font-semibold">{p.nombre}</h2>
-                <StatusBadge texto={pe.texto} tono={pe.tono} icono={pe.icono} />
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusBadge texto={pe.texto} tono={pe.tono} icono={pe.icono} />
+                  {p.prorrogas.vigentes > 0 && p.prorrogas.hasta ? (
+                    <StatusBadge
+                      texto={`Prórroga vigente hasta ${formatearFechaHora(p.prorrogas.hasta)}`}
+                      tono="warning"
+                      icono={CalendarClock}
+                    />
+                  ) : null}
+                </div>
               </div>
               <dl className="grid gap-2 text-base sm:grid-cols-2">
                 <div><dt className="text-sm text-muted-foreground">Apertura</dt><dd>{formatearFechaHora(p.apertura)}</dd></div>
@@ -141,6 +154,18 @@ export default function ProcesosPage() {
                     )}
                   </dd>
                 </div>
+                <div>
+                  <dt className="text-sm text-muted-foreground">Prórrogas</dt>
+                  <dd>
+                    <span
+                      className={
+                        p.prorrogas.vigentes > 0 ? "font-medium text-warning" : "text-muted-foreground"
+                      }
+                    >
+                      {describirProrrogas(p.prorrogas)}
+                    </span>
+                  </dd>
+                </div>
               </dl>
               <div className="flex flex-wrap gap-2">
                 {gestiona && p.estado !== "CERRADO" ? (
@@ -160,7 +185,7 @@ export default function ProcesosPage() {
                 ) : null}
                 {prorroga && p.estado !== "BORRADOR" ? (
                   <Button type="button" variant="secondary" className="min-h-11" onClick={() => setDialogo({ tipo: "prorrogas", proceso: p })}>
-                    <CalendarClock aria-hidden /> Prórrogas
+                    <CalendarClock aria-hidden /> Prórrogas{p.prorrogas.total > 0 ? ` (${p.prorrogas.total})` : ""}
                   </Button>
                 ) : null}
               </div>
@@ -186,7 +211,13 @@ export default function ProcesosPage() {
       {dialogo?.tipo === "form" ? (
         <FormularioProceso proceso={dialogo.proceso} pendiente={pendiente} erroresServidor={erroresServidor} onCerrar={() => setDialogo(null)} onGuardar={guardar} />
       ) : null}
-      {dialogo?.tipo === "prorrogas" ? <DialogoProrrogas proceso={dialogo.proceso} onCerrar={() => setDialogo(null)} /> : null}
+      {dialogo?.tipo === "prorrogas" ? (
+        <DialogoProrrogas
+          proceso={dialogo.proceso}
+          onCerrar={() => setDialogo(null)}
+          onCambio={() => void mutate()}
+        />
+      ) : null}
     </div>
   );
 }

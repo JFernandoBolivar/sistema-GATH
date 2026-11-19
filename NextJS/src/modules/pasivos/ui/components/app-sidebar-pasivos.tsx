@@ -130,7 +130,7 @@ const items: MenuItem[] = [
         title: "Procesos y prórrogas",
         url: "/pasivos/fe-de-vida/procesos",
         icon: CalendarClock,
-        permiso: "fe_de_vida.gestionar_procesos",
+        permiso: "fe_de_vida.ver_panel",
       },
       {
         title: "Registro presencial",

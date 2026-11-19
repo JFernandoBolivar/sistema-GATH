@@ -8,6 +8,8 @@ los que solo tienen borrador.
 from dataclasses import dataclass, field
 from datetime import date, datetime
 
+from apps.fe_de_vida.domain.entities.proceso import ResumenProrrogas
+
 
 @dataclass(frozen=True)
 class FiltroEstadisticas:
@@ -77,6 +79,9 @@ class EstadisticasFeDeVida:
     tipos: tuple = ()            # tuple[TipoPension] (evita importar la entidad aquí)
     conteos: ConteosEstadistica = field(default_factory=ConteosEstadistica)
     filtro: FiltroEstadisticas = field(default_factory=FiltroEstadisticas)
+    # Ventana del proceso elegido: si `vigentes > 0`, el proceso cerrado sigue admitiendo respuestas
+    # y revisiones aunque su estado sea CERRADO.
+    prorrogas: ResumenProrrogas = field(default_factory=ResumenProrrogas)
 
     @property
     def porcentaje_respondieron(self) -> float:

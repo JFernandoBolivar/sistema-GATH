@@ -126,6 +126,15 @@ export interface DetalleRevisionApi extends DetalleApi {
   proceso_nombre?: string;
   ficha?: FichaApi | null;
   acciones_disponibles?: string[];
+  proceso_cerrado?: boolean;
+}
+
+export interface ResumenProrrogasApi {
+  total: number;
+  vigentes: number;
+  general_vigente: boolean;
+  individuales_vigentes: number;
+  hasta: string | null;
 }
 
 export interface ProcesoApi {
@@ -140,6 +149,7 @@ export interface ProcesoApi {
   fecha_cierre_real?: string | null;
   tipos_nomina?: Array<{ id: number; nombre: string }>;
   dias_recordatorio?: number[];
+  prorrogas?: ResumenProrrogasApi;
 }
 
 export interface VigenteApi {
@@ -177,6 +187,8 @@ export interface ProcesoResumenEstadisticaApi {
   estado: string;
   apertura: string | null;
   cierre: string | null;
+  /** Solo lo envía el proceso elegido, no el catálogo completo de `procesos`. */
+  prorrogas?: ResumenProrrogasApi;
 }
 
 export interface KpisEstadisticaApi {

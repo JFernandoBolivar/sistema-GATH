@@ -32,6 +32,7 @@ const PROCESO_ABIERTO: ProcesoDTO = {
   estado: "ABIERTO",
   tiposNomina: [],
   diasRecordatorio: [],
+  prorrogas: { total: 0, vigentes: 0, generalVigente: false, individualesVigentes: 0, hasta: null },
 };
 
 const PROCESO_CERRADO: ProcesoDTO = {
@@ -43,6 +44,7 @@ const PROCESO_CERRADO: ProcesoDTO = {
   estado: "CERRADO",
   tiposNomina: [],
   diasRecordatorio: [],
+  prorrogas: { total: 1, vigentes: 1, generalVigente: true, individualesVigentes: 0, hasta: "2026-12-15T23:59:59Z" },
 };
 
 const SOLICITUD_ABIERTA: SolicitudDTO = solicitudFake({
@@ -92,7 +94,7 @@ describe("BandejaFeDeVidaPage", () => {
 
     // En el select de procesos solo aparece la opción abierta
     const selectProceso = screen.getByLabelText(/^proceso$/i);
-    expect(selectProceso).toHaveTextContent("Todos los procesos abiertos");
+    expect(selectProceso).toHaveTextContent("Todos los procesos vigentes");
     expect(selectProceso).toHaveTextContent("Proceso 2026 Abierto");
     expect(selectProceso).not.toHaveTextContent("Proceso 2025 Cerrado");
 
@@ -100,7 +102,7 @@ describe("BandejaFeDeVidaPage", () => {
     expect(screen.getByRole("link", { name: /abrir la fe de vida de pasivo uno/i })).toBeInTheDocument();
   });
 
-  it("muestra estado vacío claro con enlace al histórico si no hay proceso abierto", async () => {
+  it("muestra estado vacío claro con enlace al histórico si no hay proceso vigente", async () => {
     mockListarProcesos.mockImplementation(async (f: { estado?: string }) => {
       if (f?.estado === "ABIERTO") {
         return { ok: true, datos: { count: 0, results: [] } };
@@ -116,11 +118,35 @@ describe("BandejaFeDeVidaPage", () => {
     renderConSwr(<BandejaFeDeVidaPage />);
 
     await waitFor(() => {
-      expect(screen.getByText("No hay un proceso de fe de vida abierto")).toBeInTheDocument();
+      expect(screen.getByText("No hay un proceso de fe de vida vigente")).toBeInTheDocument();
     });
 
     const botonHistorico = screen.getByRole("button", { name: /ver histórico de procesos/i });
     expect(botonHistorico).toBeInTheDocument();
+  });
+
+  it("un proceso cerrado con prórroga vigente sigue en la bandeja vigente y sus filas se marcan", async () => {
+    mockListarProcesos.mockImplementation(async (f: { estado?: string }) => {
+      if (f?.estado === "CERRADO") {
+        return { ok: true, datos: { count: 1, results: [PROCESO_CERRADO] } };
+      }
+      return { ok: true, datos: { count: 0, results: [] } };
+    });
+    mockListarBandeja.mockResolvedValue({
+      ok: true,
+      datos: { count: 1, results: [SOLICITUD_CERRADA] },
+    });
+
+    renderConSwr(<BandejaFeDeVidaPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Pasivo Dos")).toBeInTheDocument();
+    });
+
+    // El proceso cerrado con prórroga aparece en el filtro de la ventana vigente.
+    expect(screen.getByLabelText(/^proceso$/i)).toHaveTextContent("Proceso 2025 Cerrado");
+    expect(screen.queryByText("No hay un proceso de fe de vida vigente")).toBeNull();
+    expect(screen.getByText("Prórroga")).toBeInTheDocument();
   });
 
   it("en la pestaña Histórico lista procesos cerrados con 'Ver detalle'", async () => {

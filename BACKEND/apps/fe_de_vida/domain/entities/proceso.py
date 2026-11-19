@@ -98,3 +98,29 @@ class ProrrogaProceso:
 
     def vigente(self, ahora: datetime) -> bool:
         return ahora <= self.nueva_fecha_limite
+
+
+@dataclass(frozen=True)
+class ResumenProrrogas:
+    """
+    Lo que la ficha del proceso muestra sin abrir el historial: cuántas prórrogas hay, cuántas siguen
+    vigentes y hasta cuándo. `vigentes > 0` significa que el proceso sigue admitiendo respuestas y
+    revisiones aunque esté CERRADO.
+    """
+
+    total: int = 0
+    vigentes: int = 0
+    general_vigente: bool = False
+    individuales_vigentes: int = 0
+    hasta: datetime | None = None
+
+    @classmethod
+    def de(cls, prorrogas: list[ProrrogaProceso], ahora: datetime) -> 'ResumenProrrogas':
+        vigentes = [p for p in prorrogas if p.vigente(ahora)]
+        return cls(
+            total=len(prorrogas),
+            vigentes=len(vigentes),
+            general_vigente=any(p.general for p in vigentes),
+            individuales_vigentes=sum(1 for p in vigentes if not p.general),
+            hasta=max((p.nueva_fecha_limite for p in vigentes), default=None),
+        )

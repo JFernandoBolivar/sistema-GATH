@@ -39,6 +39,8 @@ class DetalleRevision:
     acciones: tuple[str, ...] = ()  # acciones que el revisor actual puede ejecutar (las decide el dominio)
     nombres_actores: dict[str, str] = field(default_factory=dict)  # cédula -> nombre de quienes decidieron
     proceso_nombre: str = ''
+    # Proceso cerrado sin prórroga vigente que alcance a la cédula: no hay decisiones de revisión.
+    proceso_cerrado: bool = False
 
 
 @dataclass(frozen=True)

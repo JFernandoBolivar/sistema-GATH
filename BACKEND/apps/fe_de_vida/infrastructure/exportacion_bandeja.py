@@ -4,17 +4,22 @@ Reutiliza las utilidades de O21 (`exportacion_comun` para Excel y `pdf/comun`
 para el PDF) y respeta exactamente los filtros y el criterio de proceso de la
 bandeja de Bienestar.
 """
+from dataclasses import replace
 from datetime import datetime
 from io import BytesIO
 from typing import Callable
 from xml.sax.saxutils import escape
 
+from django.utils import timezone
 from openpyxl import Workbook
 from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, Spacer
 
 from apps.configuracion.infrastructure.pdf_config import construir_config_pdf
-from apps.fe_de_vida.application.use_cases.consultas import normalizar_filtro_bandeja
+from apps.fe_de_vida.application.use_cases.consultas import (
+    alcance_procesos_vigentes,
+    normalizar_filtro_bandeja,
+)
 from apps.fe_de_vida.domain.entities.bandeja_exportacion import PasivoBandeja
 from apps.fe_de_vida.domain.entities.filtros import FiltroBandeja
 from apps.fe_de_vida.infrastructure.exportacion_comun import (
@@ -50,6 +55,12 @@ def _filtro(parametros: dict) -> FiltroBandeja:
     filtro = normalizar_filtro_bandeja(parametros.get('filtros') or {})
     if filtro.proceso_ids is not None:
         raise ValidationError('El proceso indicado no es válido.', campo='proceso_id')
+    if not filtro.historico:
+        # Misma ventana que la bandeja: abiertos + cerrados con prórroga vigente (limitados a su alcance).
+        visibles = alcance_procesos_vigentes(RepoProcesosORM(), timezone.now())
+        if filtro.proceso_id:
+            visibles = tuple(v for v in visibles if v[0] == filtro.proceso_id)
+        filtro = replace(filtro, procesos_visibles=visibles)
     return filtro
 
 
@@ -57,7 +68,7 @@ def _descripcion_proceso(filtro: FiltroBandeja) -> str:
     if filtro.proceso_id:
         proceso = RepoProcesosORM().obtener(filtro.proceso_id)
         return proceso.nombre if proceso else filtro.proceso_id
-    return 'Histórico de procesos cerrados' if filtro.historico else 'Proceso vigente (abierto)'
+    return 'Histórico de procesos cerrados' if filtro.historico else 'Procesos vigentes (abiertos o con prórroga)'
 
 
 def _pares_de_filtros(filtro: FiltroBandeja) -> list[tuple[str, str]]:

@@ -153,6 +153,21 @@ describe("AccionesRevision: solo se pintan las acciones que declara el servidor"
     expect(screen.getByRole("button", { name: /devolver para corrección/i })).toBeInTheDocument();
   });
 
+  it("proceso cerrado sin prórroga: explica el cierre y no culpa a la regla del registrador", () => {
+    const s = solicitudFake({
+      estado: "PENDIENTE_REVISION",
+      canal: "PRESENCIAL",
+      registradaPorCedula: "20000001",
+    });
+    render(
+      <AccionesRevision solicitud={s} acciones={[]} onHecho={vi.fn()} esRegistrador procesoCerrado />,
+    );
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.getByRole("status")).toHaveTextContent(/el proceso de esta fe de vida está cerrado/i);
+    expect(screen.queryByText(/usted registró esta fe de vida/i)).toBeNull();
+    expect(screen.queryByText(/no hay acciones disponibles/i)).toBeNull();
+  });
+
   it("rechazar pide motivo y lo envía", async () => {
     const onHecho = vi.fn();
     render(<AccionesRevision solicitud={solicitudFake()} acciones={["rechazar"]} onHecho={onHecho} />);

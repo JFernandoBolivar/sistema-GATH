@@ -401,7 +401,7 @@ test.describe("G · Fe de vida ciclo completo", () => {
     // La palabra «validada» aparece en la propia pantalla antes de aprobar
     // (filtros/etiquetas), así que se espera la señal real: la constancia solo
     // se habilita cuando la solicitud quedó VALIDADA.
-    await expect(page.getByRole("button", { name: /Imprimir constancia/i })).toBeVisible({
+    await expect(page.getByRole("button", { name: /Descargar constancia/i })).toBeVisible({
       timeout: 60_000,
     });
     anotar(await paso(page, info, vigilante, "G", "20-validada"));
@@ -411,11 +411,11 @@ test.describe("G · Fe de vida ciclo completo", () => {
       incidencias.push(`La solicitud quedó en estado ${solicitud.estado}, se esperaba VALIDADA`);
     }
 
-    await expect(page.getByRole("button", { name: /Imprimir constancia/i })).toBeVisible({
+    await expect(page.getByRole("button", { name: /Descargar constancia/i })).toBeVisible({
       timeout: 30_000,
     });
     const esperaDescarga = page.waitForEvent("download", { timeout: 15_000 }).catch(() => null);
-    await page.getByRole("button", { name: /Imprimir constancia/i }).click();
+    await page.getByRole("button", { name: /Descargar constancia/i }).click();
     const descarga = await esperaDescarga;
     let pdfBuffer: Buffer | null = null;
     if (descarga) {

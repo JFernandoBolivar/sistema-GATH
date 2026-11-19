@@ -1,4 +1,5 @@
 import type { EstadoSolicitud } from "../value-objects/estados";
+import type { ResumenProrrogasEntity } from "./fe-de-vida";
 
 export type CanalFeDeVida = "EN_LINEA" | "PRESENCIAL";
 
@@ -8,6 +9,8 @@ export interface ProcesoResumenEstadistica {
   readonly estado: string;
   readonly apertura: string | null;
   readonly cierre: string | null;
+  /** Solo en el proceso elegido: resumen de prórrogas de su ventana. */
+  readonly prorrogas?: ResumenProrrogasEntity;
 }
 
 export interface KpisEstadistica {

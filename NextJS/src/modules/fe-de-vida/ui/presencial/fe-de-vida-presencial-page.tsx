@@ -5,11 +5,11 @@ import useSWR from "swr";
 import {
   ArrowLeft,
   ChevronRight,
+  Download,
   FileCheck,
   FileText,
   Loader2,
   MailX,
-  Printer,
   Search,
   UserCheck,
   UserX,
@@ -31,6 +31,7 @@ import {
   iniciarSolicitudPresencialAction,
 } from "../../infrastructure/actions/fe-de-vida-actions";
 import { PRESENTACION_SOLICITUD } from "../comun/estado-ui";
+import { descargarBase64Pdf } from "../comun/formato";
 import { FormularioFeDeVida } from "../pasivo/formulario-fe-de-vida";
 import { PaginacionNav } from "../comun/paginacion-nav";
 
@@ -43,7 +44,7 @@ export default function FeDeVidaPresencialPage() {
   // Pasivo en proceso de registro presencial
   const [activo, setActivo] = useState<InicioPresencialDTO | null>(null);
   const [cargandoActivo, iniciarActivo] = useTransition();
-  const [imprimiendoId, setImprimiendoId] = useState<string | null>(null);
+  const [descargandoId, setDescargandoId] = useState<string | null>(null);
 
   const { data, error, isLoading, mutate } = useSWR(
     // Sin texto no se consulta: el backend exige un criterio de búsqueda.
@@ -70,33 +71,19 @@ export default function FeDeVidaPresencialPage() {
     });
   }
 
-  async function imprimirConstancia(solicitudId: string, cedula: string) {
-    setImprimiendoId(solicitudId);
+  async function descargarConstancia(solicitudId: string, cedula: string) {
+    setDescargandoId(solicitudId);
     try {
       const res = await descargarConstanciaBienestarAction(solicitudId);
       if (!res.ok) {
         toast.error(res.mensaje);
         return;
       }
-      const byteCharacters = atob(res.datos);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
-      const win = window.open(url, "_blank");
-      if (!win) {
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `constancia-${cedula}.pdf`;
-        a.click();
-      }
+      descargarBase64Pdf(res.datos, `constancia-${cedula}.pdf`);
     } catch {
-      toast.error("No se pudo generar la constancia para impresión.");
+      toast.error("No se pudo descargar la constancia.");
     } finally {
-      setImprimiendoId(null);
+      setDescargandoId(null);
     }
   }
 
@@ -300,15 +287,15 @@ export default function FeDeVidaPresencialPage() {
                               variant="outline"
                               size="sm"
                               className="min-h-10 gap-1.5"
-                              disabled={imprimiendoId === p.solicitud.id}
-                              onClick={() => imprimirConstancia(p.solicitud!.id, p.cedula)}
+                              disabled={descargandoId === p.solicitud.id}
+                              onClick={() => descargarConstancia(p.solicitud!.id, p.cedula)}
                             >
-                              {imprimiendoId === p.solicitud.id ? (
+                              {descargandoId === p.solicitud.id ? (
                                 <Loader2 className="size-4 animate-spin" aria-hidden />
                               ) : (
-                                <Printer className="size-4" aria-hidden />
+                                <Download className="size-4" aria-hidden />
                               )}
-                              Imprimir constancia
+                              Descargar constancia
                             </Button>
                           ) : null}
 

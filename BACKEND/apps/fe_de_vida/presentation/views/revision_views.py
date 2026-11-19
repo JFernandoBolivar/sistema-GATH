@@ -130,6 +130,7 @@ class BandejaView(APIView):
         proceso_id = filtros.get('proceso_id')
         filas, total = bandeja_revision(
             RepoSolicitudesFeDeVidaORM(), LectorPasivosORM(), limite=limite, desplazamiento=desplazamiento,
+            ahora=ahora(),
             filtro=FiltroBandeja(
                 proceso_id=str(proceso_id) if proceso_id else None, estado=filtros.get('estado'),
                 texto=filtros.get('texto'), desde=filtros.get('desde'), hasta=filtros.get('hasta'),
@@ -162,6 +163,7 @@ class DetalleRevisionView(APIView):
             RepoSolicitudesFeDeVidaORM(), RepoCambiosActaORM(), LectorValorActualORM(), LectorPasivosORM(),
             solicitud_id=str(solicitud_id), lector_ficha=LectorFichaPasivoORM() if permisos_revisor.revisar else None,
             actor=actor_revision(request), permisos=permisos_revisor, repo_procesos=RepoProcesosORM(),
+            ahora=ahora(),
             registrador_puede_checar=_registrador_puede_checar(),
             registrador_puede_aprobar_directo=_admin_registradora_puede_aprobar(),
         )
