@@ -111,6 +111,9 @@ class ConstanciaFeDeVidaModel(BaseModel):
     plantilla_version = models.PositiveSmallIntegerField(default=1)
     clave_pdf = models.CharField(max_length=255, blank=True, default='')
     emitida_en = models.DateTimeField(null=True, blank=True)
+    # Instantánea de la ficha aprobada en este proceso; la planilla se genera desde aquí para que no
+    # cambie si el expediente se modifica después. Vacío en constancias anteriores a esta función.
+    datos_planilla = models.JSONField(default=dict, blank=True)
 
     class Meta:
         db_table = 'fe_de_vida_constancia'

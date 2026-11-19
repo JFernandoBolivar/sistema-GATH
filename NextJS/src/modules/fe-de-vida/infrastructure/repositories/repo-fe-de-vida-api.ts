@@ -240,5 +240,8 @@ export const repoFeDeVidaApi: RepoFeDeVida = {
   async descargarConstanciaBienestar(id) {
     return feDeVidaApi.constanciaBienestar(id);
   },
+  async descargarPlanilla(id) {
+    return feDeVidaApi.planillaBienestar(id);
+  },
 };
 

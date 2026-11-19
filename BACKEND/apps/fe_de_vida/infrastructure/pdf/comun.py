@@ -35,8 +35,8 @@ class _DocumentoParaPie:
         self.pagesize = pagesize
 
 
-def _canvas_con_total(config: dict, generado_en: datetime, orientation: str):
-    texto_generado = f"Generado: {generado_en.strftime('%d/%m/%Y %H:%M')}"
+def _canvas_con_total(config: dict, generado_en: datetime, orientation: str, texto_pie: str | None = None):
+    texto_generado = texto_pie or f"Generado: {generado_en.strftime('%d/%m/%Y %H:%M')}"
     documento_pie = _DocumentoParaPie(PAGE_CONFIG[orientation]['pagesize'])
 
     class CanvasNumerado(pdf_canvas.Canvas):
@@ -63,6 +63,7 @@ def _canvas_con_total(config: dict, generado_en: datetime, orientation: str):
 
 def construir_pdf(
     titulo: str, story: list, *, config: dict | None, generado_en: datetime, orientation: str = 'landscape',
+    texto_pie: str | None = None,
 ) -> bytes:
     page_config = PAGE_CONFIG[orientation]
     buffer = BytesIO()
@@ -85,7 +86,7 @@ def construir_pdf(
 
     doc.build(
         story, onFirstPage=_encabezado, onLaterPages=_encabezado,
-        canvasmaker=_canvas_con_total(config or {}, generado_en, orientation),
+        canvasmaker=_canvas_con_total(config or {}, generado_en, orientation, texto_pie),
     )
     buffer.seek(0)
     return buffer.getvalue()

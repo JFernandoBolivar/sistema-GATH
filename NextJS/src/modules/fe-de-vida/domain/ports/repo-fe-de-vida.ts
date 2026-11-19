@@ -154,4 +154,5 @@ export interface RepoFeDeVida {
   subirEvidenciaPresencial(id: string, evidencia: EvidenciaNueva): Promise<SolicitudEntity>;
   enviarPresencial(id: string): Promise<SolicitudEntity>;
   descargarConstanciaBienestar(id: string): Promise<Blob>;
+  descargarPlanilla(id: string): Promise<Blob>;
 }
