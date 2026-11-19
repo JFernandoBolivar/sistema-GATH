@@ -391,6 +391,7 @@ export function ReportesErrorLaboralPageView() {
                 onChange={(e) => setObservacionesAtencion(e.target.value)}
                 disabled={guardandoAtencion}
                 maxLength={LIMITES_TEXTO.observacion.max}
+                mostrarContador={false}
                 className="resize-none"
                 aria-invalid={errorAtencion ? true : undefined}
               />
