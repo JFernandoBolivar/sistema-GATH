@@ -41,6 +41,7 @@ from apps.fe_de_vida.presentation.views.revision_views import (
     DetalleRevisionView,
     DevolverView,
     EvidenciaRevisionView,
+    PlanillaView,
     RechazarView,
     ReenviarConstanciaView,
     RegenerarConstanciaView,
@@ -74,6 +75,7 @@ urlpatterns = [
     path('solicitudes/<uuid:solicitud_id>/reenviar-constancia/', ReenviarConstanciaView.as_view(), name='reenviar_constancia'),
     path('solicitudes/<uuid:solicitud_id>/regenerar-constancia/', RegenerarConstanciaView.as_view(), name='regenerar_constancia'),
     path('solicitudes/<uuid:solicitud_id>/constancia/', ConstanciaBienestarView.as_view(), name='solicitud_constancia'),
+    path('solicitudes/<uuid:solicitud_id>/planilla/', PlanillaView.as_view(), name='solicitud_planilla'),
     # Fe de vida presencial (Bienestar)
     path('presencial/buscar/', BuscarPasivoPresencialView.as_view(), name='presencial_buscar'),
     path('presencial/solicitudes/', IniciarOSolicitudPresencialView.as_view(), name='presencial_iniciar_solicitud'),

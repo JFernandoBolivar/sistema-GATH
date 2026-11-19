@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import useSWR from "swr";
-import { ArrowLeft, Download, Loader2 } from "lucide-react";
+import { ArrowLeft, Download, FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -18,6 +18,7 @@ import { oficinaDeAdscripcion } from "../../domain/services/reglas";
 import { PERMISOS_FE_DE_VIDA } from "../../domain/value-objects/estados";
 import {
   descargarConstanciaBienestarAction,
+  descargarPlanillaAction,
   obtenerDetalleRevisionAction,
 } from "../../infrastructure/actions/fe-de-vida-actions";
 import { PRESENTACION_SOLICITUD } from "../comun/estado-ui";
@@ -85,6 +86,7 @@ function Resumen({ detalle }: { detalle: DetalleRevisionDTO }) {
 export default function DetalleRevisionPage({ id }: { id: string }) {
   const { puede, cedula } = useSesionFeDeVida();
   const [descargando, setDescargando] = useState(false);
+  const [descargandoPlanilla, setDescargandoPlanilla] = useState(false);
   const { data, error, isLoading, mutate } = useSWR(["fe-de-vida-revision", id], async () => {
     const res = await obtenerDetalleRevisionAction(id);
     if (!res.ok) throw new Error(res.mensaje);
@@ -139,6 +141,22 @@ export default function DetalleRevisionPage({ id }: { id: string }) {
     }
   }
 
+  async function descargarPlanilla() {
+    setDescargandoPlanilla(true);
+    try {
+      const res = await descargarPlanillaAction(solicitud.id);
+      if (!res.ok) {
+        toast.error(res.mensaje);
+        return;
+      }
+      descargarBase64Pdf(res.datos, `planilla-${solicitud.cedula}.pdf`);
+    } catch {
+      toast.error("No se pudo descargar la planilla.");
+    } finally {
+      setDescargandoPlanilla(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6">
       <PageHeader
@@ -149,17 +167,30 @@ export default function DetalleRevisionPage({ id }: { id: string }) {
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge texto={p.texto} tono={p.tono} icono={p.icono} />
             {solicitud.estado === "VALIDADA" ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="min-h-10 gap-1.5"
-                disabled={descargando}
-                onClick={descargarConstancia}
-              >
-                {descargando ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
-                Descargar constancia
-              </Button>
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="min-h-10 gap-1.5"
+                  disabled={descargandoPlanilla}
+                  onClick={descargarPlanilla}
+                >
+                  {descargandoPlanilla ? <Loader2 className="size-4 animate-spin" /> : <FileText className="size-4" />}
+                  Descargar planilla
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="min-h-10 gap-1.5"
+                  disabled={descargando}
+                  onClick={descargarConstancia}
+                >
+                  {descargando ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+                  Descargar constancia
+                </Button>
+              </>
             ) : null}
           </div>
         }

@@ -69,3 +69,10 @@ export function descargarConstanciaBienestar(
 ): Promise<Blob> {
   return repo.descargarConstanciaBienestar(id);
 }
+
+export function descargarPlanilla(
+  repo: RepoFeDeVida,
+  id: string,
+): Promise<Blob> {
+  return repo.descargarPlanilla(id);
+}

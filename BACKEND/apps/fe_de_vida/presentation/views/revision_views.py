@@ -6,6 +6,7 @@ import logging
 
 from django.conf import settings
 from django.db import transaction
+from django.http import HttpResponse
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.views import APIView
@@ -35,6 +36,8 @@ from apps.fe_de_vida.infrastructure.adaptadores_autogestion import (
     RepoCambiosActaORM,
 )
 from apps.fe_de_vida.infrastructure.pdf.constancia_pdf import GeneradorConstanciaPDF
+from apps.fe_de_vida.infrastructure.pdf.planilla_pdf import generar_planilla_pdf
+from apps.fe_de_vida.infrastructure.planilla import guardar_datos_planilla
 from apps.fe_de_vida.infrastructure.repositories.lector_ficha_pasivo_orm import LectorFichaPasivoORM
 from apps.fe_de_vida.infrastructure.repositories.lector_pasivos_orm import LectorPasivosORM
 from apps.fe_de_vida.infrastructure.repositories.repo_constancias_orm import RepoConstanciasORM
@@ -431,6 +434,30 @@ class ConstanciaBienestarView(APIView):
         auditar(request, 'CONSTANCIA_IMPRESA', str(solicitud_id), None, {'numero': constancia.numero})
         respuesta = respuesta_archivo(SeaweedFSStorage(), constancia.clave_pdf, cache='private, no-store')
         respuesta['Content-Disposition'] = f'inline; filename="{NOMBRE_CONSTANCIA}"'
+        return respuesta
+
+
+class PlanillaView(APIView):
+    """Planilla con los datos aprobados en el proceso (solo solicitudes VALIDADA)."""
+
+    permission_classes = permisos.permisos_bienestar(permisos.REVISAR, permisos.VER_EVIDENCIA)
+
+    @extend_schema(
+        tags=TAG, summary='Descargar planilla de fe de vida (PDF)',
+        description='Datos aprobados del proceso y foto de la solicitud. Solo para solicitudes VALIDADA.',
+        responses={200: OpenApiTypes.BINARY, **ERRORES},
+    )
+    def get(self, request, solicitud_id):
+        datos = guardar_datos_planilla(str(solicitud_id))
+        auditar(
+            request, 'PLANILLA_CONSULTADA', str(solicitud_id), None,
+            {'proceso': datos['proceso']['nombre'], 'constancia': datos['constancia']['numero']},
+        )
+        pdf = generar_planilla_pdf(datos)
+        respuesta = HttpResponse(pdf, content_type='application/pdf')
+        respuesta['Content-Disposition'] = f'attachment; filename="planilla-{datos["persona"]["cedula"]}.pdf"'
+        respuesta['Cache-Control'] = 'private, no-store'
+        respuesta['X-Content-Type-Options'] = 'nosniff'
         return respuesta
 
 

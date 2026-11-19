@@ -4,6 +4,7 @@ import { solicitudFake } from "../../domain/services/fixtures-fe-de-vida";
 import {
   buscarPasivosPresencial,
   descargarConstanciaBienestar,
+  descargarPlanilla,
   enviarPresencial,
   guardarBorradorPresencial,
   iniciarSolicitudPresencial,
@@ -25,6 +26,7 @@ function repoFake(): RepoFeDeVida {
     subirEvidenciaPresencial: vi.fn().mockResolvedValue(s),
     enviarPresencial: vi.fn().mockResolvedValue(s),
     descargarConstanciaBienestar: vi.fn().mockResolvedValue(new Blob()),
+    descargarPlanilla: vi.fn().mockResolvedValue(new Blob()),
   } as unknown as RepoFeDeVida;
 }
 
@@ -82,5 +84,8 @@ describe("gestionar-fe-de-vida-presencial", () => {
 
     await descargarConstanciaBienestar(repo, "sol-1");
     expect(repo.descargarConstanciaBienestar).toHaveBeenCalledWith("sol-1");
+
+    await descargarPlanilla(repo, "sol-1");
+    expect(repo.descargarPlanilla).toHaveBeenCalledWith("sol-1");
   });
 });

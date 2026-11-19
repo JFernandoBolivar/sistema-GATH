@@ -82,6 +82,9 @@ class AlmacenFalso:
     def descargar_flujo(self, clave, tamano_bloque=65536):
         yield self.objetos[clave]
 
+    def descargar(self, clave):
+        return self.objetos[clave]
+
 
 class NotificadorFalso:
     enviadas: list = []
@@ -102,6 +105,7 @@ def entorno(monkeypatch):
     for ruta in ('pasivo_views', 'revision_views'):
         monkeypatch.setattr(f'apps.fe_de_vida.presentation.views.{ruta}.SeaweedFSStorage', AlmacenFalso)
     monkeypatch.setattr('apps.fe_de_vida.infrastructure.receivers.SeaweedFSStorage', AlmacenFalso)
+    monkeypatch.setattr('apps.fe_de_vida.infrastructure.pdf.planilla_pdf.SeaweedFSStorage', AlmacenFalso)
     monkeypatch.setattr('apps.fe_de_vida.infrastructure.receivers.obtener_notificador', lambda: NotificadorFalso())
     monkeypatch.setattr('core.presentation.permissions.obtener_resolutor_condicion', lambda: ResolutorCondicion())
 
@@ -246,6 +250,7 @@ def test_flujo_doble_check_aplica_el_acta_emite_constancia_y_avisa(
     vigente = cuerpo(pasivo.get(f'{BASE}/procesos/vigente/'))
     assert vigente['proceso']['id'] == pid and vigente['puede_enviar'] is True
     sid = solicitud_enviada(pasivo, pid)
+    assert analista.get(f'{BASE}/solicitudes/{sid}/planilla/').status_code == 409
 
     avisos = {(a.tipo, a.modulo) for a in NotificadorFalso.enviadas}
     assert ('fe_de_vida.solicitud_recibida', 'autogestion') in avisos and ('fe_de_vida.solicitud_enviada', 'personal') in avisos
@@ -275,6 +280,28 @@ def test_flujo_doble_check_aplica_el_acta_emite_constancia_y_avisa(
     constancia = ConstanciaFeDeVidaModel.objects.get(solicitud_id=sid)
     assert constancia.numero.startswith('FV-') and [c['cedula'] for c in constancia.certificada_por] == [ANALISTA, ADMINISTRADORA]
     assert AlmacenFalso.objetos[constancia.clave_pdf].startswith(b'%PDF')
+    # Instantánea de la planilla: datos aprobados del proceso, sin cargos ni dependencias.
+    constancia.refresh_from_db()
+    planilla = constancia.datos_planilla
+    assert planilla['persona']['cedula'] == PASIVO
+    assert planilla['tipo_pasivo'] == 'JUBILADO'
+    assert planilla['solicitud']['fecha_validacion']
+    assert 'asignaciones' not in planilla
+    assert planilla['foto']['clave']
+
+    descarga_planilla = analista.get(f'{BASE}/solicitudes/{sid}/planilla/')
+    assert descarga_planilla.status_code == 200
+    assert descarga_planilla['Content-Type'] == 'application/pdf'
+    assert descarga_planilla['Content-Disposition'].startswith('attachment; filename="planilla-')
+    assert descarga_planilla.content.startswith(b'%PDF')
+    assert AuditoriaLog.objects.filter(accion='PLANILLA_CONSULTADA', recurso_id=sid).exists()
+    assert pasivo.get(f'{BASE}/solicitudes/{sid}/planilla/').status_code == 403
+    # Constancias anteriores sin instantánea: se construye al vuelo y se guarda.
+    ConstanciaFeDeVidaModel.objects.filter(pk=constancia.pk).update(datos_planilla={})
+    assert analista.get(f'{BASE}/solicitudes/{sid}/planilla/').status_code == 200
+    constancia.refresh_from_db()
+    assert constancia.datos_planilla['persona']['cedula'] == PASIVO
+
     validada = [a for a in NotificadorFalso.enviadas if a.tipo == 'fe_de_vida.validada'][0]
     assert validada.correo.copia_a == (CORREO_ALTERNO,) and validada.correo.adjuntos[0].clave_almacen == constancia.clave_pdf
 

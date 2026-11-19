@@ -459,4 +459,5 @@ export const feDeVidaApi = {
       declaracion_presencial: declaracionPresencial,
     }),
   constanciaBienestar: (id: string) => apiClient.getBlob(`${BASE}/solicitudes/${id}/constancia/`),
+  planillaBienestar: (id: string) => apiClient.getBlob(`${BASE}/solicitudes/${id}/planilla/`),
 };
