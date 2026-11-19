@@ -138,6 +138,7 @@ export interface RepoFeDeVida {
   cerrarProceso(id: string): Promise<ProcesoEntity>;
   listarProrrogas(procesoId: string): Promise<ProrrogaEntity[]>;
   prorrogar(procesoId: string, d: DatosProrroga): Promise<ProrrogaEntity>;
+  extenderProrroga(procesoId: string, prorrogaId: string, d: DatosProrroga): Promise<ProrrogaEntity>;
   // Cobertura
   listarCobertura(f: FiltrosCobertura): Promise<PaginaEntity<CoberturaEntity>>;
   // Estadísticas (O21)

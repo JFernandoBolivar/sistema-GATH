@@ -24,6 +24,8 @@ def prorroga_a_entidad(m) -> ProrrogaProceso:
     return ProrrogaProceso(
         id=str(m.pk), proceso_id=str(m.proceso_id), nueva_fecha_limite=m.nueva_fecha_limite, motivo=m.motivo,
         concedida_por=m.concedida_por, cedula=m.cedula, fecha=m.created_at,
+        reemplazada_por=str(m.reemplazada_por_id) if m.reemplazada_por_id else None,
+        reemplazada_en=m.reemplazada_en,
     )
 
 

@@ -15,6 +15,7 @@ from apps.fe_de_vida.presentation.views.pasivo_views import (
 from apps.fe_de_vida.presentation.views.proceso_views import (
     AbrirProcesoView,
     CerrarProcesoView,
+    ExtenderProrrogaView,
     ProcesoView,
     ProcesosView,
     TiposPensionView,
@@ -89,6 +90,10 @@ urlpatterns = [
     path('procesos/<uuid:proceso_id>/abrir/', AbrirProcesoView.as_view(), name='abrir_proceso'),
     path('procesos/<uuid:proceso_id>/cerrar/', CerrarProcesoView.as_view(), name='cerrar_proceso'),
     path('procesos/<uuid:proceso_id>/prorrogas/', ProrrogasView.as_view(), name='prorrogas'),
+    path(
+        'procesos/<uuid:proceso_id>/prorrogas/<uuid:prorroga_id>/extender/',
+        ExtenderProrrogaView.as_view(), name='extender_prorroga',
+    ),
     # Cobertura y verificación
     path('cobertura/pasivos/', CoberturaPasivosView.as_view(), name='cobertura_pasivos'),
     # Estadísticas (O21)

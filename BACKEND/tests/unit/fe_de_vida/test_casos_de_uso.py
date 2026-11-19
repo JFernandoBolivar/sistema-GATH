@@ -7,6 +7,8 @@ from apps.fe_de_vida.application.use_cases import consultas, procesos, revision
 from apps.fe_de_vida.application.use_cases import solicitudes_pasivo as sp
 from apps.fe_de_vida.domain.entities.cambio_acta import CambioActa
 from apps.fe_de_vida.domain.entities.filtros import FiltroBandeja
+from apps.fe_de_vida.domain.entities.proceso import ResumenProrrogas
+from apps.fe_de_vida.domain.services.reglas_proceso import prorroga_vigente
 from apps.fe_de_vida.domain.value_objects.estados import EstadoProceso, EstadoSolicitud as E, ViaAprobacion
 from core.domain.exceptions import (
     AlmacenamientoNoDisponible, ConflictError, NotFoundError, PermissionDeniedError, ValidationError,
@@ -92,6 +94,99 @@ def test_prorroga_individual_rehabilita_solo_a_su_cedula_y_la_general_a_todos(m)
                                nueva_fecha_limite=futuro, motivo='general', actor='1', ahora=AHORA)
     assert m.solicitudes.obtener(b.id).estado is E.BORRADOR
     assert m.publicador.tipos().count('fe_de_vida.prorroga_concedida') == 2
+
+
+def test_no_permite_dos_prorrogas_vigentes_del_mismo_alcance(m):
+    futuro = AHORA + timedelta(days=3)
+    procesos.prorrogar_proceso(
+        m.procesos, m.solicitudes, proceso_id=m.proceso.id, cedula='',
+        nueva_fecha_limite=futuro, motivo='general', actor='1', ahora=AHORA,
+    )
+    with pytest.raises(ConflictError, match='Extiéndala'):
+        procesos.prorrogar_proceso(
+            m.procesos, m.solicitudes, proceso_id=m.proceso.id, cedula='',
+            nueva_fecha_limite=futuro + timedelta(days=1), motivo='otra general', actor='1', ahora=AHORA,
+        )
+    procesos.prorrogar_proceso(
+        m.procesos, m.solicitudes, proceso_id=m.proceso.id, cedula=PASIVO,
+        nueva_fecha_limite=futuro + timedelta(days=2), motivo='individual', actor='1', ahora=AHORA,
+    )
+    with pytest.raises(ConflictError, match='Extiéndala'):
+        procesos.prorrogar_proceso(
+            m.procesos, m.solicitudes, proceso_id=m.proceso.id, cedula=PASIVO,
+            nueva_fecha_limite=futuro + timedelta(days=3), motivo='otra individual', actor='1', ahora=AHORA,
+        )
+    # General + individual de otra cédula sí coexisten.
+    procesos.prorrogar_proceso(
+        m.procesos, m.solicitudes, proceso_id=m.proceso.id, cedula=OTRO_PASIVO,
+        nueva_fecha_limite=futuro + timedelta(days=4), motivo='otra persona', actor='1', ahora=AHORA,
+    )
+    resumen = ResumenProrrogas.de(m.procesos.listar_prorrogas(m.proceso.id), AHORA)
+    assert (resumen.total, resumen.vigentes, resumen.general_vigente, resumen.individuales_vigentes) == (3, 3, True, 2)
+    assert resumen.hasta == futuro + timedelta(days=4)
+
+
+def test_extender_reemplaza_la_vigente_y_conserva_el_historial(m):
+    futuro = AHORA + timedelta(days=3)
+    original = procesos.prorrogar_proceso(
+        m.procesos, m.solicitudes, proceso_id=m.proceso.id, cedula='',
+        nueva_fecha_limite=futuro, motivo='original', actor='1', ahora=AHORA,
+    )
+    nueva = procesos.extender_prorroga(
+        m.procesos, m.solicitudes, proceso_id=m.proceso.id, prorroga_id=original.id,
+        nueva_fecha_limite=futuro + timedelta(days=2), motivo='extensión', actor='1', ahora=AHORA,
+    )
+    prorrogas = m.procesos.listar_prorrogas(m.proceso.id)
+    anterior = next(p for p in prorrogas if p.id == original.id)
+    assert len(prorrogas) == 2
+    assert anterior.estado(AHORA) == 'REEMPLAZADA' and anterior.reemplazada_por == nueva.id
+    assert nueva.estado(AHORA) == 'VIGENTE'
+    assert prorroga_vigente(prorrogas, PASIVO, AHORA).id == nueva.id
+    resumen = ResumenProrrogas.de(prorrogas, AHORA)
+    assert (resumen.total, resumen.vigentes, resumen.hasta) == (2, 1, nueva.nueva_fecha_limite)
+    with pytest.raises(ConflictError):
+        procesos.extender_prorroga(
+            m.procesos, m.solicitudes, proceso_id=m.proceso.id, prorroga_id=original.id,
+            nueva_fecha_limite=futuro + timedelta(days=4), motivo='otra vez', actor='1', ahora=AHORA,
+        )
+    with pytest.raises(ConflictError, match='Extiéndala'):
+        procesos.prorrogar_proceso(
+            m.procesos, m.solicitudes, proceso_id=m.proceso.id, cedula='',
+            nueva_fecha_limite=futuro + timedelta(days=5), motivo='duplicada', actor='1', ahora=AHORA,
+        )
+
+
+def test_extender_valida_fecha_propietario_y_vigencia(m):
+    futuro = AHORA + timedelta(days=3)
+    original = procesos.prorrogar_proceso(
+        m.procesos, m.solicitudes, proceso_id=m.proceso.id, cedula=PASIVO,
+        nueva_fecha_limite=futuro, motivo='original', actor='1', ahora=AHORA,
+    )
+    with pytest.raises(ValidationError):
+        procesos.extender_prorroga(
+            m.procesos, m.solicitudes, proceso_id=m.proceso.id, prorroga_id=original.id,
+            nueva_fecha_limite=futuro, motivo='igual', actor='1', ahora=AHORA,
+        )
+    with pytest.raises(ValidationError):
+        procesos.extender_prorroga(
+            m.procesos, m.solicitudes, proceso_id=m.proceso.id, prorroga_id=original.id,
+            nueva_fecha_limite=AHORA - timedelta(days=1), motivo='pasado', actor='1', ahora=AHORA,
+        )
+    with pytest.raises(NotFoundError):
+        procesos.extender_prorroga(
+            m.procesos, m.solicitudes, proceso_id=m.proceso.id, prorroga_id='no-existe',
+            nueva_fecha_limite=futuro + timedelta(days=1), motivo='x', actor='1', ahora=AHORA,
+        )
+    vencida = procesos.extender_prorroga(
+        m.procesos, m.solicitudes, proceso_id=m.proceso.id, prorroga_id=original.id,
+        nueva_fecha_limite=futuro + timedelta(days=2), motivo='extensión', actor='1', ahora=AHORA,
+    )
+    with pytest.raises(ConflictError):
+        procesos.extender_prorroga(
+            m.procesos, m.solicitudes, proceso_id=m.proceso.id, prorroga_id=vencida.id,
+            nueva_fecha_limite=futuro + timedelta(days=20), motivo='vencida', actor='1',
+            ahora=futuro + timedelta(days=10),
+        )
 
 
 # ── Trámite del pasivo (C3) ──

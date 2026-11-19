@@ -57,6 +57,12 @@ class RepoProcesosMem:
     def listar_prorrogas(self, proceso_id):
         return [p for p in self.prorrogas if p.proceso_id == proceso_id]
 
+    def marcar_prorroga_reemplazada(self, prorroga_id, nueva_id, ahora):
+        self.prorrogas = [
+            replace(p, reemplazada_por=nueva_id, reemplazada_en=ahora) if p.id == prorroga_id else p
+            for p in self.prorrogas
+        ]
+
     def ha_visto_guia(self, proceso_id, cedula):
         return (proceso_id, cedula) in getattr(self, '_guias_vistas', set())
 

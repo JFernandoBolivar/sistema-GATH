@@ -135,6 +135,10 @@ export const prorrogaSchema = z.object({
 });
 export type ProrrogaValores = z.infer<typeof prorrogaSchema>;
 
+/** Extender la prórroga vigente: misma fecha y motivo, sin cédula (el alcance lo define la vigente). */
+export const extenderProrrogaSchema = prorrogaSchema.omit({ cedula: true });
+export type ExtenderProrrogaValores = z.infer<typeof extenderProrrogaSchema>;
+
 export const filtrosCoberturaSchema = z.object({
   texto: z.string().trim().max(80, "Máximo 80 caracteres").regex(NO_HTML, NO_HTML_MSG),
   tipoNominaId: z.string().max(10).regex(/^\d*$/),

@@ -172,6 +172,8 @@ export interface VigenteEntity {
   readonly guiaVista: boolean;
 }
 
+export type EstadoProrroga = "VIGENTE" | "REEMPLAZADA" | "VENCIDA";
+
 export interface ProrrogaEntity {
   readonly id: string;
   readonly procesoId: string;
@@ -180,6 +182,9 @@ export interface ProrrogaEntity {
   readonly nuevaFechaLimite: string | null;
   readonly motivo: string;
   readonly concedidaPor: string;
+  readonly estado: EstadoProrroga;
+  readonly reemplazadaPor: string | null;
+  readonly reemplazadaEn: string | null;
 }
 
 export interface CoberturaEntity {
