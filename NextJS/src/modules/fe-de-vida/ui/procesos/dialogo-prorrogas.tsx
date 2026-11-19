@@ -102,7 +102,7 @@ export function DialogoProrrogas({
           </div>
           <div className="flex flex-col gap-1.5">
             <label htmlFor="pr-motivo" className="text-base font-medium">Motivo</label>
-            <Textarea id="pr-motivo" rows={3} maxLength={LIMITES_TEXTO.motivo.max} className="resize-none" aria-invalid={errors.motivo ? true : undefined} {...register("motivo")} />
+            <Textarea id="pr-motivo" rows={3} maxLength={LIMITES_TEXTO.motivo.max} mostrarContador={false} className="resize-none" aria-invalid={errors.motivo ? true : undefined} {...register("motivo")} />
             <ContadorCampo control={form.control} name="motivo" max={LIMITES_TEXTO.motivo.max} />
             {errors.motivo ? <p role="alert" className="text-sm font-medium text-danger">{errors.motivo.message}</p> : null}
           </div>
