@@ -229,6 +229,7 @@ export function DialogoProrrogar({ solicitud, abierto, onAbiertoChange, onHecho 
               id="motivo-prorroga"
               rows={3}
               maxLength={LIMITES_TEXTO.motivo.max}
+              mostrarContador={false}
               aria-invalid={errors.motivo ? true : undefined}
               aria-describedby={errors.motivo ? "motivo-prorroga-error" : undefined}
               {...register("motivo")}
@@ -328,6 +329,7 @@ function DialogoMotivo({
               id={`motivo-${idBase}`}
               rows={4}
               maxLength={LIMITES_TEXTO.motivo.max}
+              mostrarContador={false}
               className="resize-none"
               aria-invalid={errors.motivo ? true : undefined}
               aria-describedby={errors.motivo ? `motivo-${idBase}-error` : undefined}

@@ -311,6 +311,7 @@ export function VisorComparativo({ detalle, puedeDecidir, motivoBloqueo, onDecid
                           rows={2}
                           className="resize-none"
                           maxLength={LIMITES_TEXTO.motivo.max}
+                          mostrarContador={false}
                           value={e.motivo}
                           onChange={(ev) =>
                             elegir(c.id, { aprobado: false, motivo: ev.target.value })
@@ -356,6 +357,7 @@ export function VisorComparativo({ detalle, puedeDecidir, motivoBloqueo, onDecid
                 rows={3}
                 className="resize-none"
                 maxLength={LIMITES_TEXTO.motivo.max}
+                mostrarContador={false}
                 value={motivoGeneral}
                 onChange={(ev) => setMotivoGeneral(ev.target.value)}
               />

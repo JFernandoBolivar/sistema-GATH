@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { decisionFake, solicitudFake } from "../../domain/services/fixtures-fe-de-vida";
 
@@ -58,6 +58,18 @@ describe("AccionesRevision: solo se pintan las acciones que declara el servidor"
     expect(estado).toHaveTextContent(/usted dio el primer check el/i);
     expect(estado).toHaveTextContent(HORA);
     expect(estado).toHaveTextContent(/falta el check de analista de bienestar social/i);
+  });
+
+  it("aprobación directa: muestra un solo contador de justificación", async () => {
+    const s = solicitudFake({
+      estado: "PENDIENTE_SEGUNDO_CHECK",
+      decisiones: [decisionFake({ rol: "ADMINISTRADORA" })],
+    });
+    render(<AccionesRevision solicitud={s} acciones={["aprobar_directo"]} onHecho={vi.fn()} />);
+    await userEvent.click(screen.getByRole("button", { name: /aprobación directa/i }));
+    const dialogo = await screen.findByRole("dialog");
+    expect(within(dialogo).getAllByText("0/500")).toHaveLength(1);
+    expect(within(dialogo).queryByText("0 / 500")).toBeNull();
   });
 
   it("el Analista que ya dio su check solo ve «Retirar mi check» y se le indica que falta la Administradora", () => {
@@ -190,6 +202,7 @@ describe("Retirar mi check", () => {
     render(<AccionesRevision solicitud={conCheck} acciones={["retirar_check"]} onHecho={onHecho} />);
     await userEvent.click(screen.getByRole("button", { name: /retirar mi check/i }));
     expect(await screen.findByText(/0 de 500 caracteres/i)).toBeInTheDocument();
+    expect(screen.queryByText("0 / 500")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: /^retirar check$/i }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/obligatoria/i);
     await userEvent.type(screen.getByLabelText(/justificación/i), "muy corto");

@@ -80,6 +80,7 @@ export function DialogoDevolver({
               id="dev-motivo"
               rows={4}
               maxLength={MAX_LONGITUD_MOTIVO}
+              mostrarContador={false}
               className="resize-none"
               aria-invalid={errors.motivo ? true : undefined}
               aria-describedby={errors.motivo ? "dev-motivo-error" : undefined}
@@ -176,6 +177,7 @@ export function DialogoTexto({
               id="dec-texto"
               rows={4}
               maxLength={MAX_LONGITUD_MOTIVO}
+              mostrarContador={false}
               className="resize-none"
               aria-invalid={errors.texto ? true : undefined}
               aria-describedby={errors.texto ? "dec-texto-error" : undefined}
@@ -256,6 +258,7 @@ export function DialogoRetirarCheck({
               id="ret-motivo"
               rows={4}
               maxLength={MAX_LONGITUD_MOTIVO}
+              mostrarContador={false}
               className="resize-none"
               aria-invalid={errors.motivo ? true : undefined}
               aria-describedby={errors.motivo ? "ret-motivo-error ret-motivo-contador" : "ret-motivo-contador"}

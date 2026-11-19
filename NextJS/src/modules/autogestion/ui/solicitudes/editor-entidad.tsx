@@ -511,6 +511,7 @@ function FormularioQuitar({
         id="motivo-quitar"
         rows={2}
         maxLength={MOTIVO_QUITAR_MAX}
+        mostrarContador={false}
         value={motivo}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? "motivo-quitar-error" : undefined}
