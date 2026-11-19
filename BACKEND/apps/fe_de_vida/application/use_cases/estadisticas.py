@@ -1,7 +1,7 @@
 """Casos de uso de las estadísticas de fe de vida (O21). Sin Django."""
 import uuid
 from collections.abc import Mapping
-from datetime import date
+from datetime import date, datetime
 
 from apps.fe_de_vida.domain.entities.estadisticas import (
     EstadisticasFeDeVida,
@@ -9,7 +9,7 @@ from apps.fe_de_vida.domain.entities.estadisticas import (
     PasivoEstadistica,
     ProcesoResumen,
 )
-from apps.fe_de_vida.domain.entities.proceso import ProcesoFeDeVida
+from apps.fe_de_vida.domain.entities.proceso import ProcesoFeDeVida, ResumenProrrogas
 from apps.fe_de_vida.domain.ports.repos import LectorAlcance, RepoEstadisticas, RepoProcesos
 from apps.fe_de_vida.domain.value_objects.estados import CANALES_SOLICITUD, EstadoProceso, EstadoSolicitud
 from core.domain.exceptions import NotFoundError, ValidationError
@@ -81,15 +81,23 @@ def _procesos(repo_proc: RepoProcesos) -> tuple[ProcesoResumen, ...]:
     return tuple(_resumen(p) for p in repo_proc.listar())
 
 
-def resolver_proceso(repo_proc: RepoProcesos, proceso_id: str | None) -> ProcesoFeDeVida | None:
-    """El proceso pedido o, por defecto, el vigente (el ABIERTO más reciente)."""
+def resolver_proceso(
+    repo_proc: RepoProcesos, proceso_id: str | None, *, ahora: datetime,
+) -> ProcesoFeDeVida | None:
+    """
+    El proceso pedido o, por defecto, el vigente: el ABIERTO más reciente y, si no hay ninguno,
+    el cerrado más reciente que una prórroga vigente mantiene en plazo (misma ventana que la bandeja).
+    """
     if proceso_id:
         proceso = repo_proc.obtener(proceso_id)
         if proceso is None:
             raise NotFoundError('El proceso de fe de vida no existe.')
         return proceso
     abiertos = repo_proc.listar(EstadoProceso.ABIERTO.value)
-    return max(abiertos, key=lambda p: p.fecha_apertura) if abiertos else None
+    if abiertos:
+        return max(abiertos, key=lambda p: p.fecha_apertura)
+    con_prorroga = repo_proc.listar_con_prorrogas_vigentes(ahora)
+    return max(con_prorroga, key=lambda p: p.fecha_apertura) if con_prorroga else None
 
 
 def calcular_estadisticas(
@@ -98,9 +106,10 @@ def calcular_estadisticas(
     alcance: LectorAlcance,
     *,
     filtro: FiltroEstadisticas,
+    ahora: datetime,
 ) -> EstadisticasFeDeVida:
     """KPIs, desgloses, matriz y catálogo de tipos para el proceso y filtros pedidos."""
-    proceso = resolver_proceso(repo_proc, filtro.proceso_id)
+    proceso = resolver_proceso(repo_proc, filtro.proceso_id, ahora=ahora)
     procesos = _procesos(repo_proc)
     tipos = tuple(alcance.tipos_pension())
     if proceso is None:
@@ -108,6 +117,7 @@ def calcular_estadisticas(
     conteos = repo.contar(proceso, filtro)
     return EstadisticasFeDeVida(
         proceso=_resumen(proceso), procesos=procesos, tipos=tipos, conteos=conteos, filtro=filtro,
+        prorrogas=ResumenProrrogas.de(repo_proc.listar_prorrogas(proceso.id), ahora),
     )
 
 
@@ -116,13 +126,14 @@ def listar_pasivos_estadistica(
     repo_proc: RepoProcesos,
     *,
     filtro: FiltroEstadisticas,
+    ahora: datetime,
     faltantes: bool = False,
     alcance: str | None = None,
     limite: int,
     desplazamiento: int,
 ) -> tuple[list[PasivoEstadistica], int]:
     """Listado paginado del detalle («faltan por responder», «respondieron», «ambos» o una casilla)."""
-    proceso = resolver_proceso(repo_proc, filtro.proceso_id)
+    proceso = resolver_proceso(repo_proc, filtro.proceso_id, ahora=ahora)
     if proceso is None:
         return [], 0
     return repo.listar(

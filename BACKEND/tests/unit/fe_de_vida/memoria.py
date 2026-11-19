@@ -42,6 +42,10 @@ class RepoProcesosMem:
         ids = {p.proceso_id for p in self.prorrogas if p.alcanza(cedula) and p.vigente(ahora)}
         return [p for p in self.filas.values() if p.id in ids and p.estado.value != 'BORRADOR']
 
+    def listar_con_prorrogas_vigentes(self, ahora):
+        ids = {p.proceso_id for p in self.prorrogas if p.vigente(ahora)}
+        return [p for p in self.filas.values() if p.id in ids and p.estado.value != 'BORRADOR']
+
     def listar_abiertos_vencidos(self, ahora):
         return [p for p in self.filas.values() if p.vencido(ahora)]
 
@@ -61,6 +65,19 @@ class RepoProcesosMem:
             self._guias_vistas = set()
         self._guias_vistas.add((proceso_id, cedula))
 
+
+
+def _visible(s, filtro):
+    """Ventana vigente resuelta por el caso de uso o, si no viene, el criterio del proceso/histórico."""
+    if filtro.procesos_visibles is not None:
+        return any(
+            s.proceso_id == proceso_id and (cedulas is None or s.cedula in cedulas)
+            for proceso_id, cedulas in filtro.procesos_visibles
+        )
+    return (
+        (filtro.proceso_ids is None or s.proceso_id in filtro.proceso_ids)
+        and (not filtro.proceso_id or s.proceso_id == filtro.proceso_id)
+    )
 
 
 class RepoSolicitudesMem:
@@ -96,8 +113,7 @@ class RepoSolicitudesMem:
     def listar(self, filtro, limite, desplazamiento):
         filas = [
             s for s in self.filas.values()
-            if (filtro.proceso_ids is None or s.proceso_id in filtro.proceso_ids)
-            and (not filtro.proceso_id or s.proceso_id == filtro.proceso_id)
+            if _visible(s, filtro)
             and (not filtro.estado or s.estado.value == filtro.estado)
             and (not filtro.texto or filtro.texto in s.cedula)
         ]

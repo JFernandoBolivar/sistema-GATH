@@ -38,6 +38,8 @@ interface Props {
   onHecho: () => void;
   /** Quien llenó el acta en Registro presencial: no decide sobre lo que registró. */
   esRegistrador?: boolean;
+  /** Proceso cerrado sin prórroga vigente para esta persona (lo resuelve el servidor). */
+  procesoCerrado?: boolean;
 }
 
 /** Mensaje de estado de la sección Decisión según quién dio el primer check. */
@@ -55,7 +57,13 @@ export function mensajeEstadoCheck(
 }
 
 /** Botones de la revisión: solo los que el servidor declara disponibles para quien mira. */
-export function AccionesRevision({ solicitud, acciones, onHecho, esRegistrador = false }: Props) {
+export function AccionesRevision({
+  solicitud,
+  acciones,
+  onHecho,
+  esRegistrador = false,
+  procesoCerrado = false,
+}: Props) {
   const [dialogo, setDialogo] = useState<Dialogo>(null);
   const [erroresServidor, setErroresServidor] = useState<Record<string, string[]> | undefined>(undefined);
   const [pendiente, iniciar] = useTransition();
@@ -64,7 +72,9 @@ export function AccionesRevision({ solicitud, acciones, onHecho, esRegistrador =
     acciones.length > 0 && acciones.every((a) => a === "reenviar_constancia" || a === "regenerar_constancia");
   const mensaje = mensajeEstadoCheck(solicitud, acciones);
   const revisable = solicitud.estado === "PENDIENTE_REVISION" || solicitud.estado === "PENDIENTE_SEGUNDO_CHECK";
-  const avisoRegistrador = esRegistrador && revisable && acciones.length === 0;
+  // La ventana cerrada explica mejor que la regla del registrador: no hay nada que decidir hasta que se prorrogue.
+  const avisoProcesoCerrado = procesoCerrado && revisable;
+  const avisoRegistrador = esRegistrador && revisable && acciones.length === 0 && !procesoCerrado;
 
   function abrirDialogo(d: Dialogo) {
     setErroresServidor(undefined);
@@ -132,7 +142,15 @@ export function AccionesRevision({ solicitud, acciones, onHecho, esRegistrador =
         </p>
       ) : null}
       {acciones.length === 0 ? (
-        avisoRegistrador ? (
+        avisoProcesoCerrado ? (
+          <p
+            role="status"
+            className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-base text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
+          >
+            El proceso de esta fe de vida está cerrado y no tiene una prórroga vigente para el
+            pasivo. Mientras no se prorrogue, esta fe de vida no admite decisiones.
+          </p>
+        ) : avisoRegistrador ? (
           <p
             role="status"
             className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-base text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"

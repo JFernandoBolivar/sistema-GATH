@@ -20,6 +20,7 @@ from reportlab.platypus import Image as ImagenPDF, KeepTogether, PageBreak, Para
 
 from apps.fe_de_vida.domain.entities.estadisticas import EstadisticasFeDeVida, PasivoEstadistica
 from apps.fe_de_vida.domain.value_objects.estados import EstadoSolicitud
+from apps.fe_de_vida.infrastructure.estadisticas_texto import detalle_proceso
 from apps.fe_de_vida.infrastructure.pdf.comun import (
     ETIQUETAS_CANAL,
     ETIQUETAS_ESTADO,
@@ -251,7 +252,7 @@ def generar_estadisticas_pdf(
     # ── Encabezado principal ──
     if estadisticas.proceso:
         story.append(Paragraph(
-            f"<b>{escape(estadisticas.proceso.nombre)}</b> · {escape(estadisticas.proceso.estado.title())}",
+            f"<b>{escape(estadisticas.proceso.nombre)}</b> · {escape(detalle_proceso(estadisticas))}",
             estilos['Title'],
         ))
     else:

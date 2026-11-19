@@ -38,7 +38,7 @@ from apps.fe_de_vida.domain.ports.repos import (
     RepoProcesos,
     RepoSolicitudesFeDeVida,
 )
-from apps.fe_de_vida.domain.services.reglas_proceso import puede_enviar
+from apps.fe_de_vida.domain.services.reglas_proceso import puede_enviar, revision_cerrada
 from apps.fe_de_vida.domain.services.verificacion import codigo_con_formato_valido, enmascarar_cedula
 from apps.fe_de_vida.domain.value_objects.estados import EstadoProceso, EstadoSolicitud
 from core.domain.exceptions import NotFoundError, ValidationError
@@ -138,10 +138,14 @@ def normalizar_filtro_bandeja(datos) -> FiltroBandeja:
 
 
 def bandeja_revision(
-    repo_sol: RepoSolicitudesFeDeVida, lector: LectorPasivos, *, filtro: FiltroBandeja, limite: int | None = None,
-    desplazamiento: int | None = None, repo_proc: RepoProcesos | None = None,
+    repo_sol: RepoSolicitudesFeDeVida, lector: LectorPasivos, *, filtro: FiltroBandeja, ahora: datetime,
+    limite: int | None = None, desplazamiento: int | None = None, repo_proc: RepoProcesos | None = None,
 ) -> tuple[list[tuple[SolicitudFeDeVida, str]], int]:
-    """Página de la bandeja con el nombre de cada pasivo."""
+    """
+    Página de la bandeja con el nombre de cada pasivo. La ventana vigente incluye los procesos abiertos y los
+    cerrados con una prórroga vigente (solo las cédulas que la prórroga alcanza): el revisor no tiene que
+    cambiar al histórico para atender lo que una prórroga mantiene en plazo.
+    """
     limite, desplazamiento = normalizar_pagina(limite, desplazamiento)
     filtro_efectivo = filtro
     if repo_proc is not None:
@@ -157,31 +161,53 @@ def bandeja_revision(
                     return [], 0
                 filtro_efectivo = replace(filtro, proceso_ids=tuple(cerrados_ids))
         else:
-            abiertos = repo_proc.listar(EstadoProceso.ABIERTO.value)
-            abiertos_ids = {p.id for p in abiertos}
+            visibles = alcance_procesos_vigentes(repo_proc, ahora)
             if filtro.proceso_id:
-                if filtro.proceso_id not in abiertos_ids:
-                    return [], 0
-                filtro_efectivo = replace(filtro, proceso_ids=(filtro.proceso_id,))
-            else:
-                if not abiertos_ids:
-                    return [], 0
-                filtro_efectivo = replace(filtro, proceso_ids=tuple(abiertos_ids))
+                visibles = tuple(v for v in visibles if v[0] == filtro.proceso_id)
+            if not visibles:
+                return [], 0
+            filtro_efectivo = replace(filtro, procesos_visibles=visibles)
 
     solicitudes, total = repo_sol.listar(filtro_efectivo, limite, desplazamiento)
     nombres = lector.nombres_de([s.cedula for s in solicitudes])
     return [(s, nombres.get(s.cedula, s.cedula)) for s in solicitudes], total
 
 
+def alcance_procesos_vigentes(
+    repo_proc: RepoProcesos, ahora: datetime,
+) -> tuple[tuple[str, tuple[str, ...] | None], ...]:
+    """
+    Procesos con la ventana de respuesta abierta: los ABIERTOS (todas sus cédulas) y los CERRADOS con al
+    menos una prórroga vigente, limitados a las cédulas que esa prórroga alcanza (`None` = general, todas).
+    """
+    alcance: list[tuple[str, tuple[str, ...] | None]] = [
+        (p.id, None) for p in repo_proc.listar(EstadoProceso.ABIERTO.value)
+    ]
+    for proceso in repo_proc.listar(EstadoProceso.CERRADO.value):
+        vigentes = [pr for pr in repo_proc.listar_prorrogas(proceso.id) if pr.vigente(ahora)]
+        if not vigentes:
+            continue
+        if any(pr.general for pr in vigentes):
+            alcance.append((proceso.id, None))
+        else:
+            alcanzadas = tuple(sorted({pr.cedula for pr in vigentes if pr.cedula}))
+            if alcanzadas:
+                alcance.append((proceso.id, alcanzadas))
+    return tuple(alcance)
+
+
 def detalle_para_revision(
     repo_sol: RepoSolicitudesFeDeVida, repo_cambios: RepoCambiosActa, lector_valor: LectorValorActual,
-    lector_pasivos: LectorPasivos, *, solicitud_id: str, lector_ficha: LectorFichaPasivo | None = None,
+    lector_pasivos: LectorPasivos, *, solicitud_id: str, ahora: datetime, lector_ficha: LectorFichaPasivo | None = None,
     actor: ActorRevision | None = None, permisos: PermisosRevision | None = None, repo_procesos: RepoProcesos | None = None,
     registrador_puede_checar: bool = False, registrador_puede_aprobar_directo: bool = False,
 ) -> DetalleRevision:
     """
     Solicitud con cada respuesta frente al dato real de hoy (comparativo), la ficha completa del pasivo (si se
     entrega un lector: el permiso lo decide la vista) y las acciones que el revisor puede ejecutar.
+
+    `proceso_cerrado` es la ventana de revisión efectiva: un proceso cerrado con una prórroga vigente que
+    alcance a la cédula sigue admitiendo decisiones.
     """
     solicitud = obtener_solicitud(repo_sol, solicitud_id)
     cambios = []
@@ -189,11 +215,15 @@ def detalle_para_revision(
         actual = lector_valor.valor_actual(solicitud.cedula, c)
         cambios.append(CambioComparado(c, actual, c.accion == 'MODIFICAR' and actual != c.valor_anterior))
     proceso = repo_procesos.obtener(solicitud.proceso_id) if repo_procesos else None
+    proceso_cerrado = bool(
+        proceso is not None
+        and revision_cerrada(proceso, repo_procesos.listar_prorrogas(proceso.id), solicitud.cedula, ahora)
+    )
     acciones = (
         solicitud.acciones_disponibles(
             actor, permisos or PermisosRevision(), registrador_puede_checar=registrador_puede_checar,
             registrador_puede_aprobar_directo=registrador_puede_aprobar_directo,
-            proceso_cerrado=proceso is not None and proceso.estado is EstadoProceso.CERRADO,
+            proceso_cerrado=proceso_cerrado,
         )
         if actor else ()
     )
@@ -202,7 +232,7 @@ def detalle_para_revision(
         solicitud, cambios, lector_pasivos.nombre_de(solicitud.cedula),
         ficha=lector_ficha.ficha(solicitud.cedula) if lector_ficha else None, acciones=acciones,
         nombres_actores=lector_pasivos.nombres_de(sorted(actores)) if actores else {},
-        proceso_nombre=proceso.nombre if proceso else '',
+        proceso_nombre=proceso.nombre if proceso else '', proceso_cerrado=proceso_cerrado,
     )
 
 

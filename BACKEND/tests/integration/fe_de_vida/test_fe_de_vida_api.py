@@ -1071,3 +1071,34 @@ def test_constancias_faltantes_detecta_y_emite_las_validadas_sin_constancia(
     call_command('constancias_faltantes', '--aplicar', stdout=salida)
     constancia = ConstanciaFeDeVidaModel.objects.get(solicitud_id=sid)
     assert constancia.clave_pdf and AlmacenFalso.objetos[constancia.clave_pdf].startswith(b'%PDF')
+
+
+def test_bandeja_vigente_incluye_el_proceso_cerrado_con_prorroga_y_la_ficha_la_resume(
+    administradora, analista, pasivo,
+):
+    pid = proceso_abierto(administradora)
+    sid = solicitud_enviada(pasivo, pid)
+
+    ficha = next(p for p in cuerpo(administradora.get(f'{BASE}/procesos/'))['results'] if p['id'] == pid)
+    assert ficha['prorrogas'] == {
+        'total': 0, 'vigentes': 0, 'general_vigente': False, 'individuales_vigentes': 0, 'hasta': None,
+    }
+
+    assert administradora.post(f'{BASE}/procesos/{pid}/cerrar/').status_code == 200
+    assert cuerpo(analista.get(f'{BASE}/solicitudes/'))['count'] == 0  # cerrado sin prórroga: solo histórico
+
+    r = administradora.post(f'{BASE}/procesos/{pid}/prorrogas/', {
+        'nueva_fecha_limite': (timezone.now() + timedelta(days=3)).isoformat(),
+        'motivo': 'El pasivo sigue respondiendo',
+    }, format='json')
+    assert r.status_code == 201
+
+    bandeja = cuerpo(analista.get(f'{BASE}/solicitudes/'))
+    assert bandeja['count'] == 1 and bandeja['results'][0]['id'] == sid
+
+    ficha = next(
+        p for p in cuerpo(administradora.get(f'{BASE}/procesos/?estado=CERRADO'))['results'] if p['id'] == pid
+    )
+    assert ficha['prorrogas']['vigentes'] == 1
+    assert ficha['prorrogas']['general_vigente'] is True
+    assert ficha['prorrogas']['hasta'] is not None

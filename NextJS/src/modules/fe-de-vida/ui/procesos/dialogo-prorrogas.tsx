@@ -28,7 +28,16 @@ import { formatearFechaHora } from "../comun/formato";
 import { prorrogaSchema, type ProrrogaValores } from "../schema/schema-fe-de-vida";
 
 /** Prórroga individual (con cédula) o general (sin cédula) y su historial por proceso. */
-export function DialogoProrrogas({ proceso, onCerrar }: { proceso: ProcesoDTO; onCerrar: () => void }) {
+export function DialogoProrrogas({
+  proceso,
+  onCerrar,
+  onCambio,
+}: {
+  proceso: ProcesoDTO;
+  onCerrar: () => void;
+  /** Avisa a la ficha del proceso para refrescar el resumen de prórrogas. */
+  onCambio?: () => void;
+}) {
   const [pendiente, iniciar] = useTransition();
   const historial = useSWR(["fe-de-vida-prorrogas", proceso.id], async () => {
     const res = await listarProrrogasAction(proceso.id);
@@ -67,6 +76,7 @@ export function DialogoProrrogas({ proceso, onCerrar }: { proceso: ProcesoDTO; o
       toast.success(res.mensaje);
       reset();
       void historial.mutate();
+      onCambio?.();
     });
   }
 

@@ -30,7 +30,10 @@ from apps.fe_de_vida.infrastructure.exportacion_estadisticas import (
     generar_archivo_estadisticas,
     validar_parametros,
 )
-from apps.fe_de_vida.infrastructure.models.proceso_models import ProcesoFeDeVidaModel
+from apps.fe_de_vida.infrastructure.models.proceso_models import (
+    ProcesoFeDeVidaModel,
+    ProrrogaProcesoModel,
+)
 from apps.fe_de_vida.infrastructure.models.solicitud_models import SolicitudFeDeVidaModel
 from apps.fe_de_vida.infrastructure.repositories.lector_alcance_orm import LectorAlcanceORM
 from apps.autogestion.infrastructure.models.actualizacion_models import DatosComplementariosTrabajadorModel
@@ -184,6 +187,38 @@ def test_proceso_cerrado_se_puede_consultar(datos):
     assert datos_api['proceso']['estado'] == 'CERRADO'
     assert datos_api['kpis']['total'] == 4 and datos_api['kpis']['respondieron'] == 1
     assert len(datos_api['procesos']) == 2
+
+
+def test_proceso_cerrado_con_prorroga_es_el_vigente_por_defecto(datos):
+    """Sin proceso abierto, la prórroga vigente mantiene el proceso como «vigente» también en estadísticas."""
+    proceso = datos['proceso']
+    proceso.estado = EstadoProceso.CERRADO.value
+    proceso.fecha_cierre_real = timezone.now()
+    proceso.save(update_fields=['estado', 'fecha_cierre_real'])
+    ProrrogaProcesoModel.objects.create(
+        proceso=proceso, cedula='', nueva_fecha_limite=timezone.now() + timedelta(days=10),
+        motivo='Prórroga de prueba', concedida_por=ANALISTA,
+    )
+
+    c = cliente({PERMISO})
+    datos_api = cuerpo(c.get(f'{BASE}/estadisticas/'))
+    assert datos_api['proceso']['id'] == str(proceso.id)
+    prorrogas = datos_api['proceso']['prorrogas']
+    assert (
+        prorrogas['total'], prorrogas['vigentes'], prorrogas['general_vigente'],
+        prorrogas['individuales_vigentes'],
+    ) == (1, 1, True, 0)
+    assert prorrogas['hasta'] is not None
+    assert datos_api['kpis']['total'] == 4
+    assert datos_api['kpis']['faltan'] == 2
+
+    # El listado paginado y la exportación usan la misma resolución por defecto.
+    faltantes = cuerpo(c.get(f'{BASE}/estadisticas/pasivos/?faltantes=true&limit=50'))
+    assert faltantes['count'] == 2
+    archivo, metadatos = generar_archivo_estadisticas(
+        'excel', {'filtros': {'listado': 'faltantes'}}, lambda _p: None,
+    )
+    assert archivo and metadatos['total_encontrados'] == 2
 
 
 def test_listado_de_faltantes_y_de_una_casilla(datos):

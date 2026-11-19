@@ -12,7 +12,7 @@ from apps.fe_de_vida.infrastructure.models.solicitud_models import (
     ConstanciaFeDeVidaModel,
     SolicitudFeDeVidaModel,
 )
-from apps.fe_de_vida.infrastructure.repositories.repo_solicitudes_orm import _coincide_texto
+from apps.fe_de_vida.infrastructure.repositories.repo_solicitudes_orm import _alcance, _coincide_texto
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 
 
@@ -22,7 +22,11 @@ class RepoBandejaExportacionORM:
         constancia = ConstanciaFeDeVidaModel.objects.filter(solicitud_id=OuterRef('pk'))
 
         qs = SolicitudFeDeVidaModel.objects.all()
-        if filtro.proceso_ids is not None:
+        if filtro.procesos_visibles is not None:
+            if not filtro.procesos_visibles:
+                return [], 0
+            qs = qs.filter(_alcance(filtro.procesos_visibles))
+        elif filtro.proceso_ids is not None:
             qs = qs.filter(proceso_id__in=filtro.proceso_ids)
         elif filtro.proceso_id:
             qs = qs.filter(proceso_id=filtro.proceso_id)

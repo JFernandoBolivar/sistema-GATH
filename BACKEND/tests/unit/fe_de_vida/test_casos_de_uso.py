@@ -294,7 +294,7 @@ def test_consulta_propia_historial_bandeja_y_evidencia(m):
     historial, total = consultas.listar_mis_solicitudes(m.solicitudes, cedula=PASIVO)
     assert [x.id for x in historial] == [s.id] and total == 1
     filas, total = consultas.bandeja_revision(
-        m.solicitudes, LectorPasivosMem(), filtro=FiltroBandeja(estado='PENDIENTE_REVISION'), limite=500,
+        m.solicitudes, LectorPasivosMem(), filtro=FiltroBandeja(estado='PENDIENTE_REVISION'), limite=500, ahora=AHORA,
     )
     assert total == 1 and filas[0][0].id == s.id and filas[0][1] == f'Nombre {PASIVO}'
     leible = consultas.evidencia_para_revision(m.solicitudes, m.publicador, solicitud_id=s.id, actor_cedula=ANALISTA.cedula)
@@ -340,39 +340,114 @@ def test_bandeja_revision_solo_proceso_abierto_por_defecto_y_vacia_si_no_hay_abi
     s = m.solicitud_enviada()
     # Con proceso abierto:
     filas, total = consultas.bandeja_revision(
-        m.solicitudes, LectorPasivosMem(), filtro=FiltroBandeja(), repo_proc=m.procesos,
+        m.solicitudes, LectorPasivosMem(), filtro=FiltroBandeja(), repo_proc=m.procesos, ahora=AHORA,
     )
     assert total == 1 and filas[0][0].id == s.id
 
     # Si se cierra el proceso:
     procesos.cerrar_proceso(m.procesos, m.solicitudes, proceso_id=m.proceso.id, actor='1', ahora=AHORA)
     filas_despues, total_despues = consultas.bandeja_revision(
-        m.solicitudes, LectorPasivosMem(), filtro=FiltroBandeja(), repo_proc=m.procesos,
+        m.solicitudes, LectorPasivosMem(), filtro=FiltroBandeja(), repo_proc=m.procesos, ahora=AHORA,
     )
     assert total_despues == 0 and filas_despues == []
 
     # Pero en el histórico sí aparece la solicitud del proceso cerrado:
     filas_hist, total_hist = consultas.bandeja_revision(
-        m.solicitudes, LectorPasivosMem(), filtro=FiltroBandeja(historico=True), repo_proc=m.procesos,
+        m.solicitudes, LectorPasivosMem(), filtro=FiltroBandeja(historico=True), repo_proc=m.procesos, ahora=AHORA,
     )
     assert total_hist == 1 and filas_hist[0][0].id == s.id
+
+
+def test_bandeja_vigente_incluye_cerrados_con_prorroga_y_respeta_su_alcance(m):
+    de_pasivo = m.solicitud_enviada(PASIVO)
+    de_otro = m.solicitud_enviada(OTRO_PASIVO)
+    procesos.cerrar_proceso(m.procesos, m.solicitudes, proceso_id=m.proceso.id, actor='1', ahora=AHORA)
+
+    def vigente(ahora=AHORA, proceso_id=None):
+        return consultas.bandeja_revision(
+            m.solicitudes, LectorPasivosMem(), filtro=FiltroBandeja(proceso_id=proceso_id),
+            repo_proc=m.procesos, ahora=ahora,
+        )
+
+    assert vigente()[1] == 0  # cerrado sin prórroga: solo el histórico
+
+    procesos.prorrogar_proceso(
+        m.procesos, m.solicitudes, proceso_id=m.proceso.id, cedula=PASIVO,
+        nueva_fecha_limite=AHORA + timedelta(days=3), motivo='sigue respondiendo', actor='1', ahora=AHORA,
+    )
+    filas, total = vigente()
+    assert total == 1 and filas[0][0].id == de_pasivo.id  # la individual no trae a la otra cédula
+    assert vigente(proceso_id=m.proceso.id)[1] == 1
+
+    procesos.prorrogar_proceso(
+        m.procesos, m.solicitudes, proceso_id=m.proceso.id, cedula='',
+        nueva_fecha_limite=AHORA + timedelta(days=5), motivo='general', actor='1', ahora=AHORA,
+    )
+    assert vigente()[1] == 2  # la general alcanza a todos
+    assert {f[0].id for f in vigente()[0]} == {de_pasivo.id, de_otro.id}
+
+    # Vencidas las prórrogas, la ventana vigente vuelve a estar vacía.
+    assert vigente(ahora=AHORA + timedelta(days=10))[1] == 0
 
 
 def test_detalle_revision_proceso_cerrado_sin_acciones_de_revision(m):
     s = m.solicitud_enviada()
     permisos_rev = consultas.PermisosRevision(revisar=True, check=True, aprobar_directo=True)
     det_abierto = consultas.detalle_para_revision(
-        m.solicitudes, m.cambios, m.validador, LectorPasivosMem(), solicitud_id=s.id,
+        m.solicitudes, m.cambios, m.validador, LectorPasivosMem(), solicitud_id=s.id, ahora=AHORA,
         actor=ADMINISTRADORA, permisos=permisos_rev, repo_procesos=m.procesos,
     )
     assert len(det_abierto.acciones) > 0
+    assert det_abierto.proceso_cerrado is False
 
     procesos.cerrar_proceso(m.procesos, m.solicitudes, proceso_id=m.proceso.id, actor='1', ahora=AHORA)
     det_cerrado = consultas.detalle_para_revision(
-        m.solicitudes, m.cambios, m.validador, LectorPasivosMem(), solicitud_id=s.id,
+        m.solicitudes, m.cambios, m.validador, LectorPasivosMem(), solicitud_id=s.id, ahora=AHORA,
         actor=ADMINISTRADORA, permisos=permisos_rev, repo_procesos=m.procesos,
     )
     assert det_cerrado.acciones == ()
+    assert det_cerrado.proceso_cerrado is True
+
+
+def test_prorroga_vigente_reabre_revision_en_proceso_cerrado(m):
+    s = m.solicitud_enviada()
+    permisos_rev = consultas.PermisosRevision(revisar=True, check=True, aprobar_directo=True)
+    procesos.cerrar_proceso(m.procesos, m.solicitudes, proceso_id=m.proceso.id, actor='1', ahora=AHORA)
+    procesos.prorrogar_proceso(
+        m.procesos, m.solicitudes, proceso_id=m.proceso.id, cedula=PASIVO,
+        nueva_fecha_limite=AHORA + timedelta(days=5), motivo='siguen respondiendo', actor='1', ahora=AHORA,
+    )
+    detalle = consultas.detalle_para_revision(
+        m.solicitudes, m.cambios, m.validador, LectorPasivosMem(), solicitud_id=s.id, ahora=AHORA,
+        actor=ADMINISTRADORA, permisos=permisos_rev, repo_procesos=m.procesos,
+    )
+    assert detalle.proceso_cerrado is False
+    assert detalle.acciones == ('dar_check', 'aprobar_directo', 'devolver', 'rechazar')
+
+
+def test_prorroga_vencida_o_de_otra_cedula_no_reabre_la_revision(m):
+    s = m.solicitud_enviada()
+    permisos_rev = consultas.PermisosRevision(revisar=True, check=True, aprobar_directo=True)
+    procesos.cerrar_proceso(m.procesos, m.solicitudes, proceso_id=m.proceso.id, actor='1', ahora=AHORA)
+    procesos.prorrogar_proceso(
+        m.procesos, m.solicitudes, proceso_id=m.proceso.id, cedula=OTRO_PASIVO,
+        nueva_fecha_limite=AHORA + timedelta(days=5), motivo='otra persona', actor='1', ahora=AHORA,
+    )
+
+    def acciones(ahora):
+        return consultas.detalle_para_revision(
+            m.solicitudes, m.cambios, m.validador, LectorPasivosMem(), solicitud_id=s.id, ahora=ahora,
+            actor=ADMINISTRADORA, permisos=permisos_rev, repo_procesos=m.procesos,
+        )
+
+    assert acciones(AHORA).acciones == ()  # la prórroga individual no alcanza a esta cédula
+
+    procesos.prorrogar_proceso(
+        m.procesos, m.solicitudes, proceso_id=m.proceso.id, cedula=PASIVO,
+        nueva_fecha_limite=AHORA + timedelta(days=2), motivo='mía', actor='1', ahora=AHORA,
+    )
+    assert acciones(AHORA).acciones != ()
+    assert acciones(AHORA + timedelta(days=3)).acciones == ()  # la prórroga ya venció
 
 
 def test_detalle_proceso_cerrado_validada_conserva_reenviar_y_regenerar_segun_permisos(m):
@@ -383,7 +458,7 @@ def test_detalle_proceso_cerrado_validada_conserva_reenviar_y_regenerar_segun_pe
 
     def acciones(permisos):
         return consultas.detalle_para_revision(
-            m.solicitudes, m.cambios, m.validador, LectorPasivosMem(), solicitud_id=s.id,
+            m.solicitudes, m.cambios, m.validador, LectorPasivosMem(), solicitud_id=s.id, ahora=AHORA,
             actor=ADMINISTRADORA, permisos=permisos, repo_procesos=m.procesos,
         ).acciones
 

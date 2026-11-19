@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import useSWR from "swr";
@@ -65,12 +65,25 @@ export default function BandejaFeDeVidaPage() {
     return res.ok ? res.datos.results : [];
   });
 
-  const procesosCerrados = useSWR(esHistorico ? "fe-de-vida-procesos-cerrados-filtro" : null, async () => {
+  const procesosCerrados = useSWR("fe-de-vida-procesos-cerrados-filtro", async () => {
     const res = await listarProcesosAction({ estado: "CERRADO", limit: 50, offset: 0 });
     return res.ok ? res.datos.results : [];
   });
 
-  const procesosParaFiltro = esHistorico ? (procesosCerrados.data ?? []) : (procesosAbiertos.data ?? []);
+  /** Procesos con la ventana abierta: los abiertos y los cerrados que una prórroga vigente mantiene en plazo. */
+  const procesosConProrroga = useMemo(
+    () => (procesosCerrados.data ?? []).filter((p) => p.prorrogas.vigentes > 0),
+    [procesosCerrados.data],
+  );
+  const procesosParaFiltro = esHistorico
+    ? (procesosCerrados.data ?? [])
+    : [...(procesosAbiertos.data ?? []), ...procesosConProrroga];
+
+  /** Procesos cerrados del listado, para marcar sus filas como «en prórroga» en la pestaña vigente. */
+  const cerradosPorId = useMemo(
+    () => new Map(procesosConProrroga.map((p) => [p.id, p])),
+    [procesosConProrroga],
+  );
 
   const { data, error, isLoading, mutate } = useSWR(
     ["fe-de-vida-bandeja", pestana, filtros, offset, limite],
@@ -93,7 +106,8 @@ export default function BandejaFeDeVidaPage() {
     setFiltros(VACIOS);
   }
 
-  const sinProcesoAbierto = !esHistorico && !procesosAbiertos.isLoading && (procesosAbiertos.data ?? []).length === 0;
+  const cargandoProcesos = procesosAbiertos.isLoading || procesosCerrados.isLoading;
+  const sinProcesoVigente = !esHistorico && !cargandoProcesos && procesosParaFiltro.length === 0;
 
   async function exportar(formato: "pdf" | "excel") {
     setExportando(formato);
@@ -157,11 +171,11 @@ export default function BandejaFeDeVidaPage() {
         </TabsList>
       </Tabs>
 
-      {sinProcesoAbierto ? (
+      {sinProcesoVigente ? (
         <div aria-live="polite" className="flex flex-col gap-4">
           <VistaVacia
-            titulo="No hay un proceso de fe de vida abierto"
-            descripcion="Actualmente no hay ningún proceso abierto de fe de vida. Puede consultar las solicitudes de procesos anteriores en el apartado histórico."
+            titulo="No hay un proceso de fe de vida vigente"
+            descripcion="No hay ningún proceso abierto ni cerrado con una prórroga vigente. Puede consultar las solicitudes de procesos anteriores en el apartado histórico."
           />
           <div className="flex justify-center">
             <Button
@@ -201,7 +215,7 @@ export default function BandejaFeDeVidaPage() {
               <label htmlFor="b-proceso" className="text-base font-medium">Proceso</label>
               <select id="b-proceso" className={CLASE_CONTROL} {...register("procesoId")}>
                 <option value="">
-                  {esHistorico ? "Todos los procesos cerrados" : "Todos los procesos abiertos"}
+                  {esHistorico ? "Todos los procesos cerrados" : "Todos los procesos vigentes"}
                 </option>
                 {procesosParaFiltro.map((p) => (
                   <option key={p.id} value={p.id}>{p.nombre}</option>
@@ -262,6 +276,7 @@ export default function BandejaFeDeVidaPage() {
                   <tbody>
                     {data.results.map((s) => {
                       const p = PRESENTACION_SOLICITUD[s.estado];
+                      const enProrroga = esHistorico ? undefined : cerradosPorId.get(s.procesoId);
                       return (
                         <tr key={s.id} className="border-b last:border-0">
                           <td className="px-4 py-3">
@@ -285,6 +300,14 @@ export default function BandejaFeDeVidaPage() {
                                   En línea
                                 </span>
                               )}
+                              {enProrroga ? (
+                                <span
+                                  className="inline-flex items-center rounded-md bg-warning-soft px-2 py-0.5 text-xs font-semibold text-warning"
+                                  title={`Proceso cerrado con prórroga vigente hasta ${formatearFechaHora(enProrroga.prorrogas.hasta)}`}
+                                >
+                                  Prórroga
+                                </span>
+                              ) : null}
                             </div>
                           </td>
                           <td className="px-4 py-3 text-right">

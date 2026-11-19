@@ -73,7 +73,7 @@ Permiso `fe_de_vida.ver_propia` + PASIVO. Descarga el PDF de la constancia (404 
 ## Revisión de Bienestar
 
 ### GET `solicitudes/`
-Permiso `fe_de_vida.revisar` o `fe_de_vida.ver_panel`. Query: `texto` (cédula o nombre), `estado`, `proceso_id`, `desde`, `hasta` (fecha de envío, `YYYY-MM-DD`), `limit`, `offset`. Response: página de Solicitud con `nombre`.
+Permiso `fe_de_vida.revisar` o `fe_de_vida.ver_panel`. Query: `texto` (cédula o nombre), `estado`, `proceso_id`, `desde`, `hasta` (fecha de envío, `YYYY-MM-DD`), `historico` (bool), `limit`, `offset`. Response: página de Solicitud con `nombre`. La ventana vigente (sin `historico`) incluye los procesos `ABIERTO` **y los `CERRADO` con una prórroga vigente**, limitados a las cédulas que esa prórroga alcanza (general = todas); con `historico=true`, todas las de procesos cerrados.
 
 ### GET `solicitudes/{id}/`
 Permiso `fe_de_vida.revisar` o `fe_de_vida.ver_panel`. Response:
@@ -84,10 +84,12 @@ Permiso `fe_de_vida.revisar` o `fe_de_vida.ver_panel`. Response:
  "ficha": {"empleado": {"cedula": "...", "nombres": "...", "apellidos": "...", "sexo_nombre": "...", "fecha_nacimiento": "AAAA-MM-DD", "correo": "...", "telefono_movil": "...", "telefono_habitacion": "...",
                          "datos_vivienda": {"estado_nombre": "..."}, "contacto_emergencia": [], "antecedentes": [], "asignaciones": [{"tipo_nomina": "...", "denominacion_cargo": "...", "dependencia": "...", "direccion_general": "...", "direccion_linea": "...", "coordinacion": "..."}]},
            "familiares": [], "datos_complementarios": {"correo_alternativo": "...", "tiene_hijos": true}},
- "acciones_disponibles": ["dar_check", "aprobar_directo", "devolver", "rechazar", "retirar_check"]}
+ "acciones_disponibles": ["dar_check", "aprobar_directo", "devolver", "rechazar", "retirar_check"],
+ "proceso_cerrado": false}
 ```
 - `ficha` (solo lectura, mismo contrato recortado de `autogestion/mi-expediente`, sin salud, formación, carnets ni foto) llega **solo con `fe_de_vida.revisar`**; con solo `ver_panel` es `null`.
 - `acciones_disponibles` las calcula el dominio para el usuario actual (`SolicitudFeDeVida.acciones_disponibles`); la interfaz solo las pinta. Quien ya dio su check ve solo `retirar_check` (y `aprobar_directo` si es la Administradora); quien no, `dar_check` (si su rol aún no lo dio), `aprobar_directo` (Administradora), `devolver` y `rechazar`.
+- `proceso_cerrado`: el proceso está cerrado y **ninguna prórroga vigente alcanza a la cédula de la solicitud**, así que no hay decisiones. Un proceso cerrado con prórroga vigente (general o individual) sigue admitiendo la revisión de lo enviado, igual que los interruptores de registrador.
 - `decisiones[].actor_nombre` solo viene en este detalle (nombre del revisor; la cédula si no se halla).
 
 ### GET `solicitudes/{id}/evidencia/`
@@ -113,7 +115,7 @@ Permiso `fe_de_vida.revisar`. Request `{"motivo": "...", "requiere_nueva_foto": 
 ## Procesos y prórrogas
 
 ### GET `procesos/`
-Permiso `fe_de_vida.gestionar_procesos`, `fe_de_vida.prorrogar` o `fe_de_vida.ver_panel`. Query: `estado` (`BORRADOR|ABIERTO|CERRADO`), `limit`, `offset`. Response: página de Proceso.
+Permiso `fe_de_vida.gestionar_procesos`, `fe_de_vida.prorrogar` o `fe_de_vida.ver_panel`. Query: `estado` (`BORRADOR|ABIERTO|CERRADO`), `limit`, `offset`. Response: página de Proceso. Cada proceso incluye `prorrogas`: `{total, vigentes, general_vigente, individuales_vigentes, hasta}`; `vigentes > 0` significa que la ventana sigue abierta (respuestas y revisiones) aunque el proceso esté `CERRADO`.
 
 ### POST `procesos/`
 Permiso `fe_de_vida.gestionar_procesos` (solo Administradora). Request:

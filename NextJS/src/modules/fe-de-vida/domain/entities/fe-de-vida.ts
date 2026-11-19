@@ -131,6 +131,8 @@ export interface DetalleRevisionEntity extends DetalleSolicitudEntity {
   readonly procesoNombre: string;
   readonly ficha: FichaPasivoEntity | null;
   readonly acciones: readonly AccionRevision[];
+  /** El proceso está cerrado y ninguna prórroga vigente alcanza a esta cédula: no hay decisiones. */
+  readonly procesoCerrado: boolean;
 }
 
 export interface TipoPensionEntity {
@@ -148,6 +150,19 @@ export interface ProcesoEntity {
   /** Vacío = alcance a todos los pasivos. */
   readonly tiposNomina: readonly TipoPensionEntity[];
   readonly diasRecordatorio: readonly number[];
+  readonly prorrogas: ResumenProrrogasEntity;
+}
+
+/** Resumen de prórrogas de un proceso: lo que se ve en su ficha sin abrir el historial. */
+export interface ResumenProrrogasEntity {
+  /** Prórrogas concedidas (histórico completo). */
+  readonly total: number;
+  /** Prórrogas aún en plazo; > 0 = el proceso sigue admitiendo respuestas y revisiones aunque esté cerrado. */
+  readonly vigentes: number;
+  readonly generalVigente: boolean;
+  readonly individualesVigentes: number;
+  /** Fecha límite más lejana entre las vigentes. */
+  readonly hasta: string | null;
 }
 
 export interface VigenteEntity {
