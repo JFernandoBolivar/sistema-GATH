@@ -18,6 +18,7 @@ from apps.fe_de_vida.application.use_cases.constancias import emitir_constancia
 from apps.fe_de_vida.domain.events import TipoEvento
 from apps.fe_de_vida.domain.services.notificaciones_eventos import notificacion_validada, solicitudes_de_evento
 from apps.fe_de_vida.infrastructure.pdf.constancia_pdf import GeneradorConstanciaPDF
+from apps.fe_de_vida.infrastructure.planilla import guardar_datos_planilla
 from apps.fe_de_vida.infrastructure.repositories.lector_pasivos_orm import LectorPasivosORM
 from apps.fe_de_vida.infrastructure.repositories.repo_constancias_orm import RepoConstanciasORM
 from apps.fe_de_vida.infrastructure.repositories.repo_procesos_orm import RepoProcesosORM
@@ -78,6 +79,14 @@ def emitir_constancia_al_validar(sender, evento, **kwargs):
             evento.solicitud_id,
         )
         return
+
+    # Instantánea de la ficha aprobada para la planilla. Si falla, la planilla se puede reconstruir
+    # en la primera descarga (mejor esfuerzo) y la constancia ya emitida no se revierte.
+    try:
+        with transaction.atomic():
+            guardar_datos_planilla(evento.solicitud_id)
+    except Exception:  # noqa: BLE001
+        logger.exception('no se pudo guardar la instantánea de la planilla de la solicitud %s', evento.solicitud_id)
 
     # O39: validar la fe de vida NO cambia el correo de acceso. El login es el
     # correo principal y solo se modifica desde Gestión del sistema.

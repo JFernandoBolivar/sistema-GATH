@@ -404,6 +404,9 @@ test.describe("G · Fe de vida ciclo completo", () => {
     await expect(page.getByRole("button", { name: /Descargar constancia/i })).toBeVisible({
       timeout: 60_000,
     });
+    await expect(page.getByRole("button", { name: /Descargar planilla/i })).toBeVisible({
+      timeout: 30_000,
+    });
     anotar(await paso(page, info, vigilante, "G", "20-validada"));
 
     solicitud = await solicitudDelPasivo(page);

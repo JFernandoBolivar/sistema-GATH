@@ -64,6 +64,7 @@ import {
 import {
   buscarPasivosPresencial,
   descargarConstanciaBienestar,
+  descargarPlanilla,
   enviarPresencial,
   guardarBorradorPresencial,
   iniciarSolicitudPresencial,
@@ -452,6 +453,20 @@ export async function descargarConstanciaBienestarAction(
     "No se pudo descargar la constancia.",
     async () => {
       const blob = await descargarConstanciaBienestar(repo, idValido(id));
+      return Buffer.from(await blob.arrayBuffer()).toString("base64");
+    },
+  );
+}
+
+export async function descargarPlanillaAction(
+  id: string,
+): Promise<ResultadoAccion<string>> {
+  return ejecutar(
+    "feDeVida.planilla",
+    "",
+    "No se pudo descargar la planilla.",
+    async () => {
+      const blob = await descargarPlanilla(repo, idValido(id));
       return Buffer.from(await blob.arrayBuffer()).toString("base64");
     },
   );
