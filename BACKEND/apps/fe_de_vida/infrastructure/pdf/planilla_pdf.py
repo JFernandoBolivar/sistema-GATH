@@ -14,6 +14,7 @@ from reportlab.platypus import Image, KeepTogether, Spacer, Table, TableStyle
 
 from apps.configuracion.infrastructure.pdf_config import construir_config_pdf
 from apps.fe_de_vida.infrastructure.pdf.comun import construir_pdf
+from core.domain.validacion_personas import formatear_telefono
 from core.infrastructure.pdf.expediente_estilos import (
     grilla,
     nota_gris,
@@ -38,6 +39,11 @@ NOTA_SIN_FOTO = (
 
 def _texto(valor) -> str:
     return '' if valor is None else str(valor).strip()
+
+
+def _telefono(valor) -> str:
+    """Mismo formato que el expediente: `+58 424 7701906`."""
+    return formatear_telefono(_texto(valor))
 
 
 def _fecha_civil(valor) -> str:
@@ -206,8 +212,8 @@ def generar_planilla_pdf(datos: dict, *, generado_en: datetime | None = None) ->
 
     historia += _seccion('Contacto', grilla([
         ('Correo principal', _texto(persona.get('correo'))),
-        ('Teléfono móvil', _texto(persona.get('telefono_movil'))),
-        ('Teléfono de habitación', _texto(persona.get('telefono_habitacion'))),
+        ('Teléfono móvil', _telefono(persona.get('telefono_movil'))),
+        ('Teléfono de habitación', _telefono(persona.get('telefono_habitacion'))),
         ('Correo alternativo', _texto(complementarios.get('correo_alternativo'))),
     ], ancho), ancho)
 
@@ -233,7 +239,7 @@ def generar_planilla_pdf(datos: dict, *, generado_en: datetime | None = None) ->
     if contactos:
         historia += _seccion_tabla('Contactos de emergencia', tabla(
             ['Nombre', 'Parentesco', 'Teléfono'],
-            [[_texto(c.get('nombres')), _texto(c.get('parentesco')), _texto(c.get('telefono'))] for c in contactos],
+            [[_texto(c.get('nombres')), _texto(c.get('parentesco')), _telefono(c.get('telefono'))] for c in contactos],
             [50, 25, 25], ancho,
         ), ancho)
 
