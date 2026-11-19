@@ -160,6 +160,16 @@ export const repoFeDeVidaApi: RepoFeDeVida = {
       ).data,
     );
   },
+  async extenderProrroga(procesoId, prorrogaId, d) {
+    return mapperProrroga(
+      (
+        await feDeVidaApi.extenderProrroga(procesoId, prorrogaId, {
+          nueva_fecha_limite: aIso(d.nuevaFechaLimite),
+          motivo: d.motivo,
+        })
+      ).data,
+    );
+  },
 
   async listarCobertura(f) {
     const { tipoNominaId, sinCorreo, sinCuenta, ...resto } = f;

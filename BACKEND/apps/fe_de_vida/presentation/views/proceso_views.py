@@ -11,6 +11,7 @@ from apps.fe_de_vida.application.use_cases.procesos import (
     cerrar_proceso,
     crear_proceso,
     editar_proceso,
+    extender_prorroga,
     prorrogar_proceso,
 )
 from apps.fe_de_vida.infrastructure.repositories.lector_alcance_orm import LectorAlcanceORM
@@ -21,6 +22,7 @@ from apps.fe_de_vida.presentation.permissions import fe_de_vida_permissions as p
 from apps.fe_de_vida.presentation.serializers.fe_de_vida_serializers import (
     CrearProcesoSerializer,
     EditarProcesoSerializer,
+    ExtenderProrrogaSerializer,
     FiltroProcesosSerializer,
     PaginaSerializer,
     ProcesoSerializer,
@@ -178,7 +180,8 @@ class ProrrogasView(APIView):
         prorrogas, total = listar_prorrogas(
             RepoProcesosORM(), proceso_id=str(proceso_id), limite=limite, desplazamiento=desplazamiento,
         )
-        return ok(respuesta_pagina(total, filtros, [a_dict_prorroga(p) for p in prorrogas]))
+        momento = ahora()
+        return ok(respuesta_pagina(total, filtros, [a_dict_prorroga(p, momento) for p in prorrogas]))
 
     @extend_schema(tags=TAG, summary='Conceder una prórroga (individual o general)', request=ProrrogarSerializer,
                    responses={201: ProrrogaSerializer, **ERRORES})
@@ -193,4 +196,32 @@ class ProrrogasView(APIView):
             auditar(request, 'PRORROGA_CONCEDIDA', str(proceso_id), None,
                     {'general': prorroga.general, 'cedula': prorroga.cedula, 'hasta': prorroga.nueva_fecha_limite.isoformat(),
                      'motivo': prorroga.motivo}, recurso_tipo=RECURSO_PROCESO)
-        return ok(a_dict_prorroga(prorroga), 'Prórroga concedida.', status=201)
+        return ok(a_dict_prorroga(prorroga, ahora()), 'Prórroga concedida.', status=201)
+
+
+class ExtenderProrrogaView(APIView):
+    """Extiende la prórroga vigente: crea una nueva y deja la anterior como reemplazada."""
+
+    permission_classes = permisos.permisos_bienestar(permisos.PRORROGAR)
+
+    @extend_schema(
+        tags=TAG, summary='Extender una prórroga vigente', request=ExtenderProrrogaSerializer,
+        responses={201: ProrrogaSerializer, **ERRORES},
+    )
+    def post(self, request, proceso_id, prorroga_id):
+        datos = validar_entrada(ExtenderProrrogaSerializer, request.data)
+        with transaction.atomic():
+            prorroga = extender_prorroga(
+                RepoProcesosORM(), RepoSolicitudesFeDeVidaORM(), PublicadorSenales(),
+                proceso_id=str(proceso_id), prorroga_id=str(prorroga_id),
+                nueva_fecha_limite=datos['nueva_fecha_limite'], motivo=datos['motivo'],
+                actor=cedula_de_sesion(request), ahora=ahora(),
+            )
+            auditar(
+                request, 'PRORROGA_EXTENDIDA', str(proceso_id), None,
+                {'prorroga_anterior': str(prorroga_id), 'prorroga_nueva': prorroga.id,
+                 'general': prorroga.general, 'cedula': prorroga.cedula,
+                 'hasta': prorroga.nueva_fecha_limite.isoformat(), 'motivo': prorroga.motivo},
+                recurso_tipo=RECURSO_PROCESO,
+            )
+        return ok(a_dict_prorroga(prorroga, ahora()), 'Prórroga extendida.', status=201)

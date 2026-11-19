@@ -51,6 +51,7 @@ import {
   cerrarProceso,
   crearProceso,
   editarProceso,
+  extenderProrroga,
   listarCobertura,
   listarProcesos,
   listarProrrogas,
@@ -348,6 +349,16 @@ export async function prorrogarProcesoAction(
 ): Promise<ResultadoAccion<ProrrogaDTO>> {
   return ejecutar("feDeVida.prorrogar", "Prórroga concedida.", "No se pudo conceder la prórroga.", () =>
     prorrogarProceso(repo, idValido(procesoId), datos),
+  );
+}
+
+export async function extenderProrrogaAction(
+  procesoId: string,
+  prorrogaId: string,
+  datos: DatosProrroga,
+): Promise<ResultadoAccion<ProrrogaDTO>> {
+  return ejecutar("feDeVida.extenderProrroga", "Prórroga extendida.", "No se pudo extender la prórroga.", () =>
+    extenderProrroga(repo, idValido(procesoId), idValido(prorrogaId), datos),
   );
 }
 

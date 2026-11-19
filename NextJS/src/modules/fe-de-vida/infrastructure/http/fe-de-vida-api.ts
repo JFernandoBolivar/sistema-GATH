@@ -167,6 +167,9 @@ export interface ProrrogaApi {
   nueva_fecha_limite: string | null;
   motivo: string;
   concedida_por: string;
+  estado: "VIGENTE" | "REEMPLAZADA" | "VENCIDA";
+  reemplazada_por: string | null;
+  reemplazada_en: string | null;
 }
 
 export interface CoberturaApi {
@@ -423,6 +426,10 @@ export const feDeVidaApi = {
     ),
   prorrogar: (id: string, cuerpo: Record<string, unknown>) =>
     apiClient.post<ApiResponse<ProrrogaApi>>(`${BASE}/procesos/${id}/prorrogas/`, cuerpo),
+  extenderProrroga: (id: string, prorrogaId: string, cuerpo: Record<string, unknown>) =>
+    apiClient.post<ApiResponse<ProrrogaApi>>(
+      `${BASE}/procesos/${id}/prorrogas/${prorrogaId}/extender/`, cuerpo,
+    ),
 
   cobertura: (params: Params) =>
     apiClient.get<ApiResponse<PaginaApi<CoberturaApi>>>(`${BASE}/cobertura/pasivos/`, { params }),

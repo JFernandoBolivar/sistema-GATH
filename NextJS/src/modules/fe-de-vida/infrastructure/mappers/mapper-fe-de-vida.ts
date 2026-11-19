@@ -265,6 +265,9 @@ export function mapperProrroga(p: ProrrogaApi): ProrrogaEntity {
     nuevaFechaLimite: p.nueva_fecha_limite ?? null,
     motivo: p.motivo ?? "",
     concedidaPor: p.concedida_por ?? "",
+    estado: p.estado ?? "VENCIDA",
+    reemplazadaPor: p.reemplazada_por ?? null,
+    reemplazadaEn: p.reemplazada_en ?? null,
   };
 }
 

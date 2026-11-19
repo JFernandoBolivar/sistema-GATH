@@ -42,10 +42,15 @@ class ProrrogaProcesoModel(BaseModel):
     nueva_fecha_limite = models.DateTimeField()
     motivo = models.TextField()
     concedida_por = models.CharField(max_length=15)
+    # Al extender una prórroga, la anterior queda como historial y apunta a la nueva.
+    reemplazada_por = models.ForeignKey(
+        'self', null=True, blank=True, on_delete=models.PROTECT, related_name='reemplaza_a',
+    )
+    reemplazada_en = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = 'fe_de_vida_prorroga_proceso'
-        ordering = ['created_at']
+        ordering = ['-nueva_fecha_limite', '-created_at']
         verbose_name = 'prórroga de proceso'
         verbose_name_plural = 'prórrogas de proceso'
 

@@ -160,5 +160,10 @@ describe("describirProrrogas", () => {
     expect(
       describirProrrogas({ ...base, total: 2, vigentes: 1, individualesVigentes: 1 }),
     ).toBe("2 prórrogas · 1 vigente (1 individual)");
+    expect(
+      describirProrrogas({
+        ...base, total: 3, vigentes: 2, generalVigente: true, individualesVigentes: 1,
+      }),
+    ).toBe("3 prórrogas · 2 vigentes (general + 1 individual)");
   });
 });
