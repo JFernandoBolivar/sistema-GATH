@@ -232,7 +232,7 @@ def generar_planilla_pdf(datos: dict, *, generado_en: datetime | None = None) ->
                 ]
                 for f in familiares
             ],
-            [34, 18, 20, 16, 12], ancho,
+            [31, 18, 19, 16, 16], ancho,
         ), ancho)
 
     contactos = datos.get('contactos') or []
