@@ -10,7 +10,7 @@ from apps.fe_de_vida.domain.events import EventoFeDeVida, PublicadorEventos, Pub
 from apps.fe_de_vida.domain.ports.repos import LectorAlcance, RepoProcesos, RepoSolicitudesFeDeVida
 from apps.fe_de_vida.domain.services.reglas_proceso import prorroga_vigente
 from apps.fe_de_vida.domain.value_objects.estados import EstadoProceso, EstadoSolicitud
-from core.domain.exceptions import ConflictError, ValidationError
+from core.domain.exceptions import ConflictError, NotFoundError, ValidationError
 
 SISTEMA = ''  # actor vacío = cierre automático por beat
 
@@ -111,13 +111,24 @@ def cerrar_procesos_vencidos(
     return cerrados
 
 
+def _prorrogas_activas(
+    prorrogas: list[ProrrogaProceso], *, cedula: str, ahora: datetime,
+) -> list[ProrrogaProceso]:
+    """Activas del mismo alcance: general (cédula vacía) o individual de esa cédula."""
+    return [
+        p for p in prorrogas
+        if p.vigente(ahora) and (p.general if not cedula else p.cedula == cedula)
+    ]
+
+
 def prorrogar_proceso(
     repo: RepoProcesos, repo_sol: RepoSolicitudesFeDeVida, publicador: PublicadorEventos | None = None,
     *, proceso_id: str, cedula: str | None, nueva_fecha_limite: datetime, motivo: str, actor: str, ahora: datetime,
 ) -> ProrrogaProceso:
     """
     `cedula` con valor = prórroga INDIVIDUAL; vacía/None = GENERAL (todos). Un proceso en BORRADOR no se
-    prorroga. Las solicitudes EXPIRADAS alcanzadas por la prórroga vuelven a BORRADOR.
+    prorroga. Solo puede haber una prórroga vigente por alcance: para más tiempo se extiende la vigente.
+    Las solicitudes EXPIRADAS alcanzadas por la prórroga vuelven a BORRADOR.
     """
     publicador = publicador or PublicadorNulo()
     proceso = obtener_proceso(repo, proceso_id, bloquear=True)
@@ -125,9 +136,18 @@ def prorrogar_proceso(
         raise ConflictError("Un proceso en BORRADOR no se prorroga: ábralo primero.")
     if nueva_fecha_limite <= ahora:
         raise ValidationError("La nueva fecha límite debe ser posterior a la fecha actual.")
+    cedula = (cedula or '').strip()
+    activas = _prorrogas_activas(repo.listar_prorrogas(proceso.id), cedula=cedula, ahora=ahora)
+    if activas:
+        vigente = max(activas, key=lambda p: (p.nueva_fecha_limite, p.fecha or ahora))
+        alcance = 'general' if not cedula else 'individual'
+        raise ConflictError(
+            f"Ya existe una prórroga {alcance} vigente hasta "
+            f"{vigente.nueva_fecha_limite:%d/%m/%Y %H:%M}. Extiéndala en lugar de crear otra."
+        )
     prorroga = repo.agregar_prorroga(ProrrogaProceso(
         id='', proceso_id=proceso.id, nueva_fecha_limite=nueva_fecha_limite, motivo=motivo,
-        concedida_por=actor, cedula=(cedula or '').strip(), fecha=ahora,
+        concedida_por=actor, cedula=cedula, fecha=ahora,
     ))
     if proceso.estado is EstadoProceso.CERRADO:
         for s in repo_sol.listar_de_proceso(proceso.id, (EstadoSolicitud.EXPIRADA.value,)):
@@ -138,6 +158,56 @@ def prorrogar_proceso(
         detalle={'general': prorroga.general, 'hasta': nueva_fecha_limite.isoformat(), 'motivo': prorroga.motivo},
     ))
     return prorroga
+
+
+def extender_prorroga(
+    repo: RepoProcesos, repo_sol: RepoSolicitudesFeDeVida, publicador: PublicadorEventos | None = None,
+    *, proceso_id: str, prorroga_id: str, nueva_fecha_limite: datetime, motivo: str, actor: str, ahora: datetime,
+) -> ProrrogaProceso:
+    """
+    Extiende la prórroga vigente de un alcance. Crea una nueva (historial) y marca la anterior como
+    reemplazada; no borra ni edita la anterior. La fecha nueva debe ser posterior a la vigente.
+    """
+    publicador = publicador or PublicadorNulo()
+    proceso = obtener_proceso(repo, proceso_id, bloquear=True)
+    if proceso.estado is EstadoProceso.BORRADOR:
+        raise ConflictError("Un proceso en BORRADOR no se prorroga: ábralo primero.")
+    if nueva_fecha_limite <= ahora:
+        raise ValidationError("La nueva fecha límite debe ser posterior a la fecha actual.")
+    prorrogas = repo.listar_prorrogas(proceso.id)
+    prorroga = next((p for p in prorrogas if p.id == prorroga_id), None)
+    if prorroga is None:
+        raise NotFoundError("La prórroga no existe.")
+    if prorroga.reemplazada_por:
+        raise ConflictError("La prórroga ya fue reemplazada por otra.")
+    if not prorroga.vigente(ahora):
+        raise ConflictError("La prórroga ya venció; conceda una nueva.")
+    if nueva_fecha_limite <= prorroga.nueva_fecha_limite:
+        raise ValidationError("La nueva fecha límite debe ser posterior a la prórroga vigente.")
+    activas = _prorrogas_activas(prorrogas, cedula=prorroga.cedula, ahora=ahora)
+    efectiva = max(activas, key=lambda p: (p.nueva_fecha_limite, p.fecha or ahora))
+    if efectiva.id != prorroga.id:
+        raise ConflictError(
+            f"Hay una prórroga vigente posterior hasta {efectiva.nueva_fecha_limite:%d/%m/%Y %H:%M}; "
+            "extienda esa."
+        )
+    nueva = repo.agregar_prorroga(ProrrogaProceso(
+        id='', proceso_id=proceso.id, nueva_fecha_limite=nueva_fecha_limite, motivo=motivo,
+        concedida_por=actor, cedula=prorroga.cedula, fecha=ahora,
+    ))
+    repo.marcar_prorroga_reemplazada(prorroga.id, nueva.id, ahora)
+    if proceso.estado is EstadoProceso.CERRADO:
+        for s in repo_sol.listar_de_proceso(proceso.id, (EstadoSolicitud.EXPIRADA.value,)):
+            if nueva.alcanza(s.cedula):
+                repo_sol.guardar(s.rehabilitar(), s.version)
+    publicador.publicar(EventoFeDeVida(
+        TipoEvento.PRORROGA_CONCEDIDA, proceso.id, cedula=nueva.cedula, actor_cedula=actor,
+        detalle={
+            'general': nueva.general, 'hasta': nueva.nueva_fecha_limite.isoformat(),
+            'motivo': nueva.motivo, 'reemplaza_a': prorroga.id,
+        },
+    ))
+    return nueva
 
 
 ESTADOS_SIN_ENVIAR = frozenset({EstadoSolicitud.BORRADOR, EstadoSolicitud.DEVUELTA, EstadoSolicitud.EXPIRADA})

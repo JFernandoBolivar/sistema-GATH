@@ -131,10 +131,14 @@ export function describirProrrogas(r: ResumenProrrogasEntity): string {
   const total = `${r.total} ${r.total === 1 ? "prórroga" : "prórrogas"}`;
   if (r.vigentes === 0) return `${total} · ninguna vigente`;
   const vigentes = `${r.vigentes} ${r.vigentes === 1 ? "vigente" : "vigentes"}`;
-  const alcance = r.generalVigente
-    ? "general"
-    : `${r.individualesVigentes} ${r.individualesVigentes === 1 ? "individual" : "individuales"}`;
-  return `${total} · ${vigentes} (${alcance})`;
+  const alcances: string[] = [];
+  if (r.generalVigente) alcances.push("general");
+  if (r.individualesVigentes > 0) {
+    alcances.push(
+      `${r.individualesVigentes} ${r.individualesVigentes === 1 ? "individual" : "individuales"}`,
+    );
+  }
+  return `${total} · ${vigentes} (${alcances.join(" + ") || "vigente"})`;
 }
 
 /** Requisitos mínimos para enviar la fe de vida (además de la foto). */

@@ -84,6 +84,9 @@ class ProrrogaProceso:
     concedida_por: str
     cedula: str = ''
     fecha: datetime | None = None
+    # Cuando se extiende, la prórroga anterior queda como historial y apunta a la que la reemplazó.
+    reemplazada_por: str | None = None
+    reemplazada_en: datetime | None = None
 
     def __post_init__(self):
         if not self.motivo or not self.motivo.strip():
@@ -97,7 +100,13 @@ class ProrrogaProceso:
         return self.general or self.cedula == cedula
 
     def vigente(self, ahora: datetime) -> bool:
-        return ahora <= self.nueva_fecha_limite
+        return self.reemplazada_por is None and ahora <= self.nueva_fecha_limite
+
+    def estado(self, ahora: datetime) -> str:
+        """`VIGENTE`, `REEMPLAZADA` (la extendió otra) o `VENCIDA` (pasó su fecha)."""
+        if self.reemplazada_por:
+            return 'REEMPLAZADA'
+        return 'VIGENTE' if ahora <= self.nueva_fecha_limite else 'VENCIDA'
 
 
 @dataclass(frozen=True)
@@ -116,11 +125,14 @@ class ResumenProrrogas:
 
     @classmethod
     def de(cls, prorrogas: list[ProrrogaProceso], ahora: datetime) -> 'ResumenProrrogas':
+        """Solo cuenta la prórroga efectiva por alcance: una general y una por cédula."""
         vigentes = [p for p in prorrogas if p.vigente(ahora)]
+        general = next((p for p in vigentes if p.general), None)
+        individuales = {p.cedula for p in vigentes if not p.general}
         return cls(
             total=len(prorrogas),
-            vigentes=len(vigentes),
-            general_vigente=any(p.general for p in vigentes),
-            individuales_vigentes=sum(1 for p in vigentes if not p.general),
+            vigentes=(1 if general else 0) + len(individuales),
+            general_vigente=general is not None,
+            individuales_vigentes=len(individuales),
             hasta=max((p.nueva_fecha_limite for p in vigentes), default=None),
         )

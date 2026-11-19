@@ -115,7 +115,7 @@ Permiso `fe_de_vida.revisar`. Request `{"motivo": "...", "requiere_nueva_foto": 
 ## Procesos y prórrogas
 
 ### GET `procesos/`
-Permiso `fe_de_vida.gestionar_procesos`, `fe_de_vida.prorrogar` o `fe_de_vida.ver_panel`. Query: `estado` (`BORRADOR|ABIERTO|CERRADO`), `limit`, `offset`. Response: página de Proceso. Cada proceso incluye `prorrogas`: `{total, vigentes, general_vigente, individuales_vigentes, hasta}`; `vigentes > 0` significa que la ventana sigue abierta (respuestas y revisiones) aunque el proceso esté `CERRADO`.
+Permiso `fe_de_vida.gestionar_procesos`, `fe_de_vida.prorrogar` o `fe_de_vida.ver_panel`. Query: `estado` (`BORRADOR|ABIERTO|CERRADO`), `limit`, `offset`. Response: página de Proceso. Cada proceso incluye `prorrogas`: `{total, vigentes, general_vigente, individuales_vigentes, hasta}`; `vigentes` cuenta la prórroga efectiva por alcance (una general y una por cédula), no las filas históricas. `vigentes > 0` significa que la ventana sigue abierta (respuestas y revisiones) aunque el proceso esté `CERRADO`.
 
 ### POST `procesos/`
 Permiso `fe_de_vida.gestionar_procesos` (solo Administradora). Request:
@@ -138,10 +138,13 @@ Permiso `fe_de_vida.gestionar_procesos`. Sin cuerpo. `BORRADOR -> ABIERTO`. Resp
 Permiso `fe_de_vida.gestionar_procesos`. Sin cuerpo. `ABIERTO -> CERRADO`; las solicitudes sin enviar y sin prórroga pasan a `EXPIRADA`. Response: Proceso. (También cierra solo un beat cuando vence `fecha_cierre`.)
 
 ### GET `procesos/{id}/prorrogas/`
-Permiso `fe_de_vida.prorrogar`, `fe_de_vida.gestionar_procesos` o `fe_de_vida.ver_panel`. Query: `limit`, `offset`. Response: página de Prórroga.
+Permiso `fe_de_vida.prorrogar`, `fe_de_vida.gestionar_procesos` o `fe_de_vida.ver_panel`. Query: `limit`, `offset`. Response: página de Prórroga, ordenada por fecha límite descendente. Cada prórroga incluye `estado` (`VIGENTE`, `REEMPLAZADA`, `VENCIDA`), `reemplazada_por` y `reemplazada_en` (historial de extensiones).
 
 ### POST `procesos/{id}/prorrogas/`
-Permiso `fe_de_vida.prorrogar` o `fe_de_vida.gestionar_procesos` (en el seed, solo Administradora). Request `{"nueva_fecha_limite": "ISO", "motivo": "...", "cedula": "opcional"}`; con `cedula` es individual, sin ella es general. No amplía el alcance del proceso. Response 201: Prórroga.
+Permiso `fe_de_vida.prorrogar` o `fe_de_vida.gestionar_procesos` (en el seed, solo Administradora). Request `{"nueva_fecha_limite": "ISO", "motivo": "...", "cedula": "opcional"}`; con `cedula` es individual, sin ella es general. No amplía el alcance del proceso. Solo puede haber **una prórroga vigente por alcance**: si ya existe una general (o una individual de esa cédula), responde 409 indicando la fecha vigente y que debe extenderla. Response 201: Prórroga.
+
+### POST `procesos/{id}/prorrogas/{prorroga_id}/extender/`
+Permiso `fe_de_vida.prorrogar` (solo Administradora). Request `{"nueva_fecha_limite": "ISO", "motivo": "..."}`. La fecha debe ser posterior a la vigente. Crea una nueva prórroga del mismo alcance y marca la anterior como `REEMPLAZADA`; no borra el historial. Rehabilita las solicitudes `EXPIRADA` alcanzadas si el proceso está cerrado. Response 201: Prórroga nueva. 400 si la fecha no es posterior; 404 si la prórroga no existe; 409 si ya fue reemplazada, venció o hay una vigente posterior. Audita `PRORROGA_EXTENDIDA`.
 
 ### GET `solicitudes/{id}/constancia/`
 Permiso `fe_de_vida.revisar`, `fe_de_vida.ver_panel` o `fe_de_vida.registrar_presencial`. Descarga el PDF de la constancia de una solicitud `VALIDADA` para su impresión física. Response: PDF `inline`. 404 si no existe o aún no está validada. Audita `CONSTANCIA_IMPRESA`.

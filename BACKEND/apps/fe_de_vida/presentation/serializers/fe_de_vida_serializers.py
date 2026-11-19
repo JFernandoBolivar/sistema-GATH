@@ -208,6 +208,11 @@ class ProrrogarSerializer(serializers.Serializer):
     )
 
 
+class ExtenderProrrogaSerializer(serializers.Serializer):
+    nueva_fecha_limite = serializers.DateTimeField()
+    motivo = serializers.CharField(min_length=MOTIVO_MIN, max_length=MOTIVO_MAX, error_messages=mensajes_texto('El motivo', MOTIVO_MIN, MOTIVO_MAX))
+
+
 # ── Salida ──
 class DecisionSerializer(serializers.Serializer):
     tipo = serializers.CharField()
@@ -355,6 +360,9 @@ class ProrrogaSerializer(serializers.Serializer):
     nueva_fecha_limite = serializers.DateTimeField()
     motivo = serializers.CharField()
     concedida_por = serializers.CharField()
+    estado = serializers.CharField(help_text='VIGENTE, REEMPLAZADA o VENCIDA.')
+    reemplazada_por = serializers.CharField(allow_null=True)
+    reemplazada_en = serializers.DateTimeField(allow_null=True)
 
 
 class ProcesoResumenSerializer(serializers.Serializer):
@@ -591,10 +599,11 @@ def a_dict_vigente(v: ProcesoVigente, nombres_tipos: dict[int, str] | None = Non
     }
 
 
-def a_dict_prorroga(p: ProrrogaProceso) -> dict:
+def a_dict_prorroga(p: ProrrogaProceso, ahora) -> dict:
     return {
         'id': p.id, 'proceso_id': p.proceso_id, 'cedula': p.cedula, 'general': p.general,
         'nueva_fecha_limite': p.nueva_fecha_limite, 'motivo': p.motivo, 'concedida_por': p.concedida_por,
+        'estado': p.estado(ahora), 'reemplazada_por': p.reemplazada_por, 'reemplazada_en': p.reemplazada_en,
     }
 
 

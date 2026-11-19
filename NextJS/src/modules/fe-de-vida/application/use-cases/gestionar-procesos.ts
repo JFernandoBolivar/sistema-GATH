@@ -83,6 +83,22 @@ export async function prorrogarProceso(
   });
 }
 
+/** Extiende la prórroga vigente: la anterior queda como historial reemplazado. */
+export async function extenderProrroga(
+  repo: RepoFeDeVida,
+  procesoId: string,
+  prorrogaId: string,
+  datos: DatosProrroga,
+): Promise<ProrrogaDTO> {
+  if (Number.isNaN(Date.parse(datos.nuevaFechaLimite))) {
+    throw new Error("La nueva fecha límite es obligatoria.");
+  }
+  return repo.extenderProrroga(procesoId, prorrogaId, {
+    nuevaFechaLimite: datos.nuevaFechaLimite,
+    motivo: exigirTexto(datos.motivo, "El motivo"),
+  });
+}
+
 export function listarCobertura(
   repo: RepoFeDeVida,
   filtros: Partial<FiltrosCobertura> = {},

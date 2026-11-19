@@ -458,6 +458,67 @@ def test_procesos_crear_listar_prorrogar_y_cerrar(administradora, analista, pasi
     assert administradora.post(f'{BASE}/procesos/{pid}/prorrogas/', {'nueva_fecha_limite': 'ayer', 'motivo': 'x'}, format='json').status_code == 400
 
 
+def test_prorroga_unica_por_alcance_y_extension(administradora, analista, pasivo):
+    pid = proceso_abierto(administradora)
+    ahora = timezone.now()
+    base = {'nueva_fecha_limite': (ahora + timedelta(days=3)).isoformat(), 'motivo': 'Primera prórroga'}
+
+    general = administradora.post(f'{BASE}/procesos/{pid}/prorrogas/', base, format='json')
+    assert general.status_code == 201, general.content
+    general_id = cuerpo(general)['id']
+    assert cuerpo(general)['estado'] == 'VIGENTE'
+
+    otra_general = administradora.post(
+        f'{BASE}/procesos/{pid}/prorrogas/',
+        {**base, 'nueva_fecha_limite': (ahora + timedelta(days=4)).isoformat()}, format='json',
+    )
+    assert otra_general.status_code == 409
+    assert 'Extiéndala' in otra_general.json()['message']
+
+    individual = administradora.post(
+        f'{BASE}/procesos/{pid}/prorrogas/', {**base, 'cedula': PASIVO}, format='json',
+    )
+    assert individual.status_code == 201 and cuerpo(individual)['general'] is False
+    repetida = administradora.post(
+        f'{BASE}/procesos/{pid}/prorrogas/', {**base, 'cedula': PASIVO}, format='json',
+    )
+    assert repetida.status_code == 409
+
+    listado = cuerpo(administradora.get(f'{BASE}/procesos/{pid}/prorrogas/'))
+    assert listado['count'] == 2
+    assert {p['estado'] for p in listado['results']} == {'VIGENTE'}
+    assert {p['general'] for p in listado['results']} == {True, False}
+
+    extendida = administradora.post(
+        f'{BASE}/procesos/{pid}/prorrogas/{general_id}/extender/',
+        {'nueva_fecha_limite': (ahora + timedelta(days=6)).isoformat(), 'motivo': 'Extensión general'},
+        format='json',
+    )
+    assert extendida.status_code == 201, extendida.content
+    nueva_id = cuerpo(extendida)['id']
+    assert cuerpo(extendida)['estado'] == 'VIGENTE'
+
+    listado = cuerpo(administradora.get(f'{BASE}/procesos/{pid}/prorrogas/'))
+    por_id = {p['id']: p for p in listado['results']}
+    assert por_id[general_id]['estado'] == 'REEMPLAZADA'
+    assert por_id[general_id]['reemplazada_por'] == nueva_id
+    assert por_id[nueva_id]['estado'] == 'VIGENTE'
+
+    ficha = next(p for p in cuerpo(administradora.get(f'{BASE}/procesos/'))['results'] if p['id'] == pid)
+    assert ficha['prorrogas']['total'] == 3
+    assert ficha['prorrogas']['vigentes'] == 2
+    assert ficha['prorrogas']['general_vigente'] is True
+    assert ficha['prorrogas']['individuales_vigentes'] == 1
+    assert ficha['prorrogas']['hasta'] is not None
+
+    assert analista.post(
+        f'{BASE}/procesos/{pid}/prorrogas/{nueva_id}/extender/',
+        {'nueva_fecha_limite': (ahora + timedelta(days=8)).isoformat(), 'motivo': 'No autorizado'},
+        format='json',
+    ).status_code == 403
+    assert AuditoriaLog.objects.filter(accion='PRORROGA_EXTENDIDA', recurso_id=pid).exists()
+
+
 def test_beat_cierra_procesos_vencidos_y_expira_solicitudes_sin_enviar(datos):
     ahora = timezone.now()
     vencido = ProcesoFeDeVidaModel.objects.create(

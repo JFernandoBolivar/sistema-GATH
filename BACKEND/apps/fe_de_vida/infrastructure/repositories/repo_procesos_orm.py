@@ -52,13 +52,15 @@ class RepoProcesosORM:
 
     def listar_con_prorroga_vigente(self, cedula: str, ahora: datetime) -> list[ProcesoFeDeVida]:
         vigentes = ProrrogaProcesoModel.objects.filter(
-            Q(cedula='') | Q(cedula=cedula), nueva_fecha_limite__gte=ahora,
+            Q(cedula='') | Q(cedula=cedula), nueva_fecha_limite__gte=ahora, reemplazada_por__isnull=True,
         ).values('proceso_id')
         qs = ProcesoFeDeVidaModel.objects.filter(pk__in=vigentes).exclude(estado=ProcesoFeDeVidaModel.Estado.BORRADOR)
         return [proceso_a_entidad(m) for m in qs]
 
     def listar_con_prorrogas_vigentes(self, ahora: datetime) -> list[ProcesoFeDeVida]:
-        vigentes = ProrrogaProcesoModel.objects.filter(nueva_fecha_limite__gte=ahora).values('proceso_id')
+        vigentes = ProrrogaProcesoModel.objects.filter(
+            nueva_fecha_limite__gte=ahora, reemplazada_por__isnull=True,
+        ).values('proceso_id')
         qs = ProcesoFeDeVidaModel.objects.filter(pk__in=vigentes).exclude(estado=ProcesoFeDeVidaModel.Estado.BORRADOR)
         return [proceso_a_entidad(m) for m in qs]
 
@@ -72,6 +74,11 @@ class RepoProcesosORM:
 
     def listar_prorrogas(self, proceso_id: str) -> list[ProrrogaProceso]:
         return [prorroga_a_entidad(m) for m in ProrrogaProcesoModel.objects.filter(proceso_id=proceso_id)]
+
+    def marcar_prorroga_reemplazada(self, prorroga_id: str, nueva_id: str, ahora: datetime) -> None:
+        ProrrogaProcesoModel.objects.filter(pk=prorroga_id).update(
+            reemplazada_por_id=nueva_id, reemplazada_en=ahora,
+        )
 
     def ha_visto_guia(self, proceso_id: str, cedula: str) -> bool:
         return GuiaFeDeVidaVistaModel.objects.filter(proceso_id=proceso_id, cedula=cedula).exists()
