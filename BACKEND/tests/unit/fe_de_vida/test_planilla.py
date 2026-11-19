@@ -72,9 +72,9 @@ class _Almacen:
         return self.contenido
 
 
-def _foto_bytes() -> bytes:
+def _foto_bytes(ancho: int = 80, alto: int = 100) -> bytes:
     buffer = BytesIO()
-    Image.new('RGB', (80, 100), (120, 90, 60)).save(buffer, format='JPEG')
+    Image.new('RGB', (ancho, alto), (120, 90, 60)).save(buffer, format='JPEG')
     return buffer.getvalue()
 
 
@@ -93,6 +93,13 @@ def test_familiares_contactos_y_vivienda_se_normalizan():
 def test_pdf_con_foto(monkeypatch):
     monkeypatch.setattr(planilla_pdf, 'construir_config_pdf', lambda: {})
     monkeypatch.setattr(planilla_pdf, 'SeaweedFSStorage', lambda: _Almacen(_foto_bytes()))
+    pdf = planilla_pdf.generar_planilla_pdf(_datos(foto=True))
+    assert pdf.startswith(b'%PDF') and len(pdf) > 1000
+
+
+def test_pdf_con_foto_horizontal_usa_la_banda_ancha(monkeypatch):
+    monkeypatch.setattr(planilla_pdf, 'construir_config_pdf', lambda: {})
+    monkeypatch.setattr(planilla_pdf, 'SeaweedFSStorage', lambda: _Almacen(_foto_bytes(400, 160)))
     pdf = planilla_pdf.generar_planilla_pdf(_datos(foto=True))
     assert pdf.startswith(b'%PDF') and len(pdf) > 1000
 
