@@ -5,6 +5,7 @@ from PIL import Image
 
 from apps.fe_de_vida.infrastructure.planilla import _contactos, _familiares, _vivienda
 from apps.fe_de_vida.infrastructure.pdf import planilla_pdf
+from apps.fe_de_vida.infrastructure.pdf.planilla_pdf import _telefono
 
 
 def _ficha():
@@ -76,6 +77,11 @@ def _foto_bytes(ancho: int = 80, alto: int = 100) -> bytes:
     buffer = BytesIO()
     Image.new('RGB', (ancho, alto), (120, 90, 60)).save(buffer, format='JPEG')
     return buffer.getvalue()
+
+
+def test_telefono_se_muestra_con_codigo_de_pais():
+    assert _telefono('4247701906') == '+58 424 7701906'
+    assert _telefono('') == ''
 
 
 def test_familiares_contactos_y_vivienda_se_normalizan():
