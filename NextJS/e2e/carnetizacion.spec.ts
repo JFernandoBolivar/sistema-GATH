@@ -155,7 +155,8 @@ test.describe("Carnetización UI - Consola de emisión, plantillas y estadístic
       page.getByText(/motor institucional de plantillas de carnet/i),
     ).toBeVisible();
     await expect(page.getByRole("tab", { name: /plantillas por capas/i })).toBeVisible();
-    await expect(page.getByRole("tab", { name: /fondos fijos/i })).toBeVisible();
+    // B-7: la pestaña «Fondos fijos» (CarnetTemplate) se retiró; el diseño heredado es la plantilla LEGACY.
+    await expect(page.getByRole("tab", { name: /fondos fijos/i })).toHaveCount(0);
     await expect(page.getByRole("tab", { name: /biblioteca de medios/i })).toBeVisible();
     await expect(page.getByRole("tab", { name: /registro de campos/i })).toBeVisible();
 
