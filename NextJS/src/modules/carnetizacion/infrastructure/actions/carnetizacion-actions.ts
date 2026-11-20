@@ -30,6 +30,8 @@ import {
   guardarPreferenciasPrivacidadUC,
 } from "../../application/use-cases/consultar-qr-ficha";
 import type { CategoriaBiblioteca, ParamsPagina, PreferenciasPrivacidadCarnet } from "../../domain/entities/carnet";
+import type { ColaImpresionCarnet } from "../../domain/entities/cola-impresion";
+import type { ModoDuplex } from "../../domain/entities/modo-duplex";
 
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
@@ -943,5 +945,38 @@ export async function guardarPreferenciasPrivacidadAction(preferencias: Preferen
     throw error;
   }
 }
+// --- Impresión por lote de carnets de trabajadores (B-6) ---
+export async function getColaImpresionCarnetsAction(): Promise<ColaImpresionCarnet[] | { error: string }> {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await repoCarnetizacionApi.colaImpresionCarnets();
+    await logAudit({ traceId, action: "getColaImpresionCarnetsAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    unstable_rethrow(error);
+    await logAudit({ traceId, action: "getColaImpresionCarnetsAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return errorDeAccion(error, "No fue posible cargar la cola de impresión.");
+  }
+}
 
+export async function generarLoteCarnetsTrabajadoresPdfAction(
+  ids: number[],
+  modo: ModoDuplex,
+  marcarImpresos: boolean,
+): Promise<Blob | { error: string }> {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await repoCarnetizacionApi.loteCarnetsTrabajadoresPdf(ids, modo, marcarImpresos);
+    await logAudit({ traceId, action: "generarLoteCarnetsTrabajadoresPdfAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    unstable_rethrow(error);
+    await logAudit({ traceId, action: "generarLoteCarnetsTrabajadoresPdfAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return errorDeAccion(error, "No fue posible generar el lote de carnets.");
+  }
+}
 

@@ -88,6 +88,16 @@ class RepoCarnetizacionMemoria implements RepoCarnetizacion {
   async descargarPdf(_carnetId: number) {
     return new Blob(["%PDF-simulado"], { type: "application/pdf" });
   }
+  async colaImpresionCarnets() {
+    return [];
+  }
+  async loteCarnetsTrabajadoresPdf(
+    _ids: number[],
+    _modo: "ninguno" | "largo" | "corto",
+    _marcarImpresos: boolean,
+  ) {
+    return new Blob(["%PDF-simulado"], { type: "application/pdf" });
+  }
   async revocarCarnet(carnetId: number) {
     const c = this.carnets.find((x) => x.id === carnetId)!;
     c.activo = false;

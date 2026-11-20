@@ -210,4 +210,22 @@ export const repoCarnetizacionApi: RepoCarnetizacion = {
   async guardarPreferenciasPrivacidad(preferencias) {
     return carnetizacionApi.guardarPreferenciasPrivacidad(preferencias);
   },
+
+  // Impresión por lote de carnets de trabajadores (B-6)
+  async colaImpresionCarnets() {
+    const raw = await carnetizacionApi.colaImpresionCarnets();
+    return raw.map((item) => ({
+      carnetId: item.carnet_id,
+      cedula: item.cedula,
+      nombre: item.nombre,
+      cargo: item.cargo,
+      departamento: item.departamento,
+      motivo: item.motivo,
+      fechaEmision: item.fecha_emision,
+    }));
+  },
+
+  async loteCarnetsTrabajadoresPdf(ids, modo, marcarImpresos) {
+    return carnetizacionApi.loteTrabajadoresPdf(ids, modo, marcarImpresos);
+  },
 };

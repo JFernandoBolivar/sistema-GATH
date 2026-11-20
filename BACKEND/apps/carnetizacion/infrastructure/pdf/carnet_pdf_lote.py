@@ -11,6 +11,12 @@ from typing import Any
 from reportlab.lib.colors import HexColor
 from reportlab.pdfgen import canvas
 
+from apps.carnetizacion.domain.value_objects.modo_duplex import (
+    BORDE_CORTO,
+    BORDE_LARGO,
+    MODOS,
+    SIN_ESPEJO,
+)
 from apps.carnetizacion.infrastructure.pdf.carnet_pdf import (
     MM_A_PT,
     dibujar_cara,
@@ -39,10 +45,17 @@ def _marcas_corte(c: canvas.Canvas, x: float, y: float, ancho: float, alto: floa
     c.restoreState()
 
 
-def generar_pdf_lote(tarjetas: list[dict[str, Any]]) -> bytes:
-    """Devuelve un PDF A4: una hoja de anversos y otra de reversos, 9 por hoja."""
+def generar_pdf_lote(tarjetas: list[dict[str, Any]], modo_duplex: str = SIN_ESPEJO) -> bytes:
+    """Devuelve un PDF A4: una hoja de anversos y otra de reversos, 9 por hoja.
+
+    `modo_duplex` decide cómo se espeja la hoja de reversos para que cada uno quede detrás de
+    su anverso: sin espejo, borde largo (invierte columnas) o borde corto (invierte filas).
+    Lo elige el operador porque depende del equipo y de cómo voltee la hoja.
+    """
     if not tarjetas:
         raise ValueError('El lote no contiene credenciales.')
+    if modo_duplex not in MODOS:
+        raise ValueError(f'Modo de impresión no válido: {modo_duplex}')
     ancho_mm, alto_mm = dimensiones_mm(tarjetas[0]['definicion'])
     ancho_pt = ancho_mm * MM_A_PT
     alto_pt = alto_mm * MM_A_PT
@@ -65,6 +78,11 @@ def generar_pdf_lote(tarjetas: list[dict[str, Any]]) -> bytes:
             for indice, tarjeta in enumerate(bloque):
                 col = indice % COLUMNAS
                 row = indice // COLUMNAS
+                if cara == 'reverso':
+                    if modo_duplex == BORDE_LARGO:
+                        col = COLUMNAS - 1 - col
+                    elif modo_duplex == BORDE_CORTO:
+                        row = FILAS - 1 - row
                 x = inicio_x + col * (ancho_pt + SEPARACION)
                 y = A4_ALTO - inicio_y - (row + 1) * alto_pt - row * SEPARACION
                 dibujar_cara(c, tarjeta['definicion'], tarjeta['datos'], cara, x, y)

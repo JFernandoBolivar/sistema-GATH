@@ -6,6 +6,7 @@ from apps.carnetizacion.domain.entities.credencial_externa import CredencialExte
 from apps.carnetizacion.domain.ports.repo_credenciales_externas import (
     RepoCredencialesExternas,
 )
+from apps.carnetizacion.domain.value_objects.modo_duplex import SIN_ESPEJO, normalizar_modo
 
 
 def listar_credenciales_externas(
@@ -75,9 +76,9 @@ def generar_pdf_credencial_externa(
 
 
 def generar_pdf_lote_credenciales(
-    repo: RepoCredencialesExternas, ids: list[str]
+    repo: RepoCredencialesExternas, ids: list[str], modo_duplex: object = SIN_ESPEJO,
 ) -> bytes:
-    return repo.generar_pdf_lote(ids)
+    return repo.generar_pdf_lote(ids, normalizar_modo(modo_duplex))
 
 
 def enviar_credencial_externa(

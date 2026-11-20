@@ -21,6 +21,7 @@ from apps.carnetizacion.application.use_cases.gestionar_credenciales_externas im
     generar_pdf_lote_credenciales,
     listar_credenciales_externas,
 )
+from apps.carnetizacion.domain.value_objects.modo_duplex import SIN_ESPEJO
 from apps.carnetizacion.infrastructure.repositories.repo_credenciales_externas_orm import (
     RepoCredencialesExternasORM,
 )
@@ -192,7 +193,8 @@ class CredencialesLotePdfView(APIView):
         serializer = LoteCredencialesInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         pdf = generar_pdf_lote_credenciales(
-            RepoCredencialesExternasORM(), serializer.validated_data['ids']
+            RepoCredencialesExternasORM(), serializer.validated_data['ids'],
+            serializer.validated_data.get('modo_duplex', SIN_ESPEJO),
         )
         response = HttpResponse(pdf, content_type='application/pdf')
         response['Content-Disposition'] = 'attachment; filename="lote_credenciales.pdf"'

@@ -1,5 +1,6 @@
 import { apiClient } from "@/shared/infrastructure/http/fetcher-api";
 import type { ApiResponse } from "@/shared/types/api-response";
+import type { ModoDuplex } from "../../domain/entities/modo-duplex";
 import type {
   CrearCredencialExternaInput,
   CredencialExterna,
@@ -53,8 +54,8 @@ export const credencialesExternasApi = {
   pdf: (id: string) =>
     apiClient.getBlob(`/api/v1/carnetizacion/credenciales-externas/${id}/pdf/`),
 
-  lotePdf: (ids: string[]) =>
-    apiClient.postBlob("/api/v1/carnetizacion/credenciales-externas/lote/pdf/", { ids }),
+  lotePdf: (ids: string[], modo: ModoDuplex = "ninguno") =>
+    apiClient.postBlob("/api/v1/carnetizacion/credenciales-externas/lote/pdf/", { ids, modo_duplex: modo }),
 
   enviar: async (id: string, destinatario?: string) => {
     const envelope = await apiClient.post<ApiResponse<{ enviado: boolean }>>(

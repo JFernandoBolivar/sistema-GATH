@@ -1,6 +1,8 @@
 """Serializers de credenciales externas y temporales (O45-A)."""
 from rest_framework import serializers
 
+from apps.carnetizacion.domain.value_objects.modo_duplex import MODOS, SIN_ESPEJO
+
 
 class CredencialExternaSerializer(serializers.Serializer):
     id = serializers.CharField(read_only=True)
@@ -60,6 +62,10 @@ class CrearTemporalSerializer(CrearCredencialExternaSerializer):
 class LoteCredencialesInputSerializer(serializers.Serializer):
     ids = serializers.ListField(
         child=serializers.CharField(max_length=64), allow_empty=False, min_length=1
+    )
+    modo_duplex = serializers.ChoiceField(
+        choices=MODOS, required=False, default=SIN_ESPEJO,
+        help_text='Espejado del reverso: «ninguno», «largo» o «corto».',
     )
 
 

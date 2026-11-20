@@ -5,6 +5,7 @@ import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import { mensajeErrorCredencial } from "../../application/etiquetar-errores-credencial";
+import type { ModoDuplex } from "../../domain/entities/modo-duplex";
 import {
   credencialesExternasApi,
   type CrearCredencialExternaApiInput,
@@ -92,11 +93,11 @@ export async function descargarCredencialPdfAction(id: string) {
   }
 }
 
-export async function generarLoteCredencialesPdfAction(ids: string[]) {
+export async function generarLoteCredencialesPdfAction(ids: string[], modo: ModoDuplex = "ninguno") {
   const traceId = generateTraceId();
   const startedAt = Date.now();
   try {
-    const result = await credencialesExternasApi.lotePdf(ids);
+    const result = await credencialesExternasApi.lotePdf(ids, modo);
     await logAudit({ traceId, action: "generarLoteCredencialesPdfAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {

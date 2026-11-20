@@ -15,6 +15,7 @@ from apps.carnetizacion.domain.services.plantilla_defecto import (
     plantilla_defecto_trabajador,
 )
 from apps.carnetizacion.domain.services.vigencia_carnet import TIPO_VIGENCIA_EXTERNO
+from apps.carnetizacion.domain.value_objects.modo_duplex import SIN_ESPEJO
 from apps.carnetizacion.infrastructure.codigo_qr import codigo_qr_unico
 from apps.carnetizacion.infrastructure.mappers.mapper_carnetizacion import (
     credencial_externa_a_entidad,
@@ -332,7 +333,7 @@ class RepoCredencialesExternasORM:
         datos, definicion = self._datos_pdf(fila)
         return generar_carnet_pdf_fiel(definicion, datos)
 
-    def generar_pdf_lote(self, ids: list[str]) -> bytes:
+    def generar_pdf_lote(self, ids: list[str], modo_duplex: str = SIN_ESPEJO) -> bytes:
         filas = list(
             CredencialExternaModel.objects.select_related('tipo_credencial', 'empleado')
             .filter(pk__in=ids)
@@ -344,7 +345,7 @@ class RepoCredencialesExternasORM:
         for fila in filas:
             datos, definicion = self._datos_pdf(fila)
             tarjetas.append({'definicion': definicion, 'datos': datos})
-        return generar_pdf_lote(tarjetas)
+        return generar_pdf_lote(tarjetas, modo_duplex)
 
     def enviar_correo(self, credencial_id: str, destinatario: str | None = None) -> bool:
         fila = CredencialExternaModel.objects.select_related(

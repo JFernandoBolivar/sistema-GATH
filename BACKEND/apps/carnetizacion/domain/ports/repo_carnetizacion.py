@@ -373,3 +373,14 @@ class RepoCarnetizacion(Protocol):
 
     def anular_carnet(self, carnet_id: int, motivo: str, por: str) -> dict:
         ...
+
+    # --- Impresión por lote de carnets de trabajadores (B-6) ---
+
+    def cola_impresion_carnets(self) -> list[dict]:
+        ...
+
+    def generar_pdf_lote_carnets(
+        self, carnet_ids: list[int], marcar_impresos: bool = False, por: str = '',
+        modo_duplex: str = 'ninguno',
+    ) -> bytes:
+        ...

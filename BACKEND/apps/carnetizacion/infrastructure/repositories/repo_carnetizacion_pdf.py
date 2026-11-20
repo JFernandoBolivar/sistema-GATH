@@ -138,7 +138,17 @@ class RepoCarnetsPdfMixin:
         )
         if not fila:
             raise NotFoundError(f"Carnet con id {carnet_id} no encontrado")
+        datos, definicion = self._datos_y_definicion_de_carnet(fila, nombre_override)
+        if imprenta:
+            return generar_carnet_pdf(
+                datos, definicion=definicion, sangrado_mm=sangrado_imprenta_mm(), marcas_corte=True,
+            )
+        return generar_carnet_pdf(datos, definicion=definicion)
 
+    def _datos_y_definicion_de_carnet(
+        self, fila: Any, nombre_override: str | None = None,
+    ) -> tuple[DatosCarnetPdf, dict[str, Any] | None]:
+        """Datos del titular y diseño (copia congelada al emitir) de un carnet emitido."""
         empleado = fila.employee
         asignacion = (
             AsigTrabajoModel.objects.select_related('denominacioncargoid', 'DireccionGeneral')
@@ -180,11 +190,7 @@ class RepoCarnetsPdfMixin:
             vence=vence.strftime('%d/%m/%Y') if vence else '',
             campos_extra=valores_campos_personalizados(empleado, asignacion),
         )
-        if imprenta:
-            return generar_carnet_pdf(
-                datos, definicion=definicion, sangrado_mm=sangrado_imprenta_mm(), marcas_corte=True,
-            )
-        return generar_carnet_pdf(datos, definicion=definicion)
+        return datos, definicion
 
     # --- PDF tal como se emitió (B-4) ---------------------------------------------------------
 

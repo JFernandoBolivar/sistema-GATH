@@ -4,6 +4,7 @@
  * `carnetizacion_serializers.py` — Fase 1 y O44 - E3).
  */
 import type { SolicitudCarnetApi } from "../../domain/entities/solicitud-carnet";
+import type { ModoDuplex } from "../../domain/entities/modo-duplex";
 import { apiClient } from "@/shared/infrastructure/http/fetcher-api";
 import type { ApiResponse } from "@/shared/types/api-response";
 
@@ -21,6 +22,16 @@ export interface CarnetApiItem {
   plantilla_id?: string | null;
   plantilla_version?: number | null;
   plantilla_snapshot?: Record<string, unknown> | null;
+}
+
+export interface ColaImpresionCarnetApiItem {
+  carnet_id: number;
+  cedula: string;
+  nombre: string;
+  cargo: string;
+  departamento: string;
+  motivo: string;
+  fecha_emision: string | null;
 }
 
 export interface PlantillaCarnetApiItem {
@@ -361,6 +372,22 @@ export const carnetizacionApi = {
 
   descargarPdf: (carnetId: number) =>
     apiClient.getBlob(`/api/v1/carnetizacion/${carnetId}/pdf/`),
+
+  /** B-6: carnets de trabajadores vigentes pendientes de imprimir. */
+  colaImpresionCarnets: async () => {
+    const envelope = await apiClient.get<ApiResponse<ColaImpresionCarnetApiItem[]>>(
+      "/api/v1/carnetizacion/cola-impresion/",
+    );
+    return envelope.data ?? [];
+  },
+
+  /** B-6: hoja A4 del lote de trabajadores. `modo_duplex` define el espejado del reverso. */
+  loteTrabajadoresPdf: (ids: number[], modo: ModoDuplex, marcarImpresos: boolean) =>
+    apiClient.postBlob("/api/v1/carnetizacion/lote-trabajadores/pdf/", {
+      carnet_ids: ids,
+      modo_duplex: modo,
+      marcar_impresos: marcarImpresos,
+    }),
 
   /** B-5: ciclo físico del carnet. `anular` exige motivo. */
   cicloCarnet: async (

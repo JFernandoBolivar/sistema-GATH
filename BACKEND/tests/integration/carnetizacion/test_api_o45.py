@@ -284,11 +284,17 @@ def test_flujo_visitante_y_temporal(datos_base):
     assert api.post(f"{BASE}/credenciales-externas/{visitante['id']}/anular/").status_code == 200
     lote = api.post(
         f"{BASE}/credenciales-externas/lote/pdf/",
-        {"ids": [visitante["id"]]},
+        {"ids": [visitante["id"]], "modo_duplex": "largo"},
         format="json",
     )
     assert lote.status_code == 200
     assert lote.content.startswith(b"%PDF")
+    invalido = api.post(
+        f"{BASE}/credenciales-externas/lote/pdf/",
+        {"ids": [visitante["id"]], "modo_duplex": "diagonal"},
+        format="json",
+    )
+    assert invalido.status_code == 400
     correo = api.post(
         f"{BASE}/credenciales-externas/{visitante['id']}/enviar/", {}, format="json"
     )

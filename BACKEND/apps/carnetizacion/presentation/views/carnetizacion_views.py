@@ -21,7 +21,7 @@ from core.presentation.audit import origen_de_peticion, registrar_auditoria
 from core.presentation.envelope import fail, ok
 from apps.carnetizacion.domain.exceptions import ReemisionSinMotivoError
 from apps.carnetizacion.domain.value_objects.paginacion import Paginacion
-from core.presentation.permissions import HasPermission
+from core.presentation.permissions import HasAnyPermission, HasPermission
 from apps.carnetizacion.application.use_cases.consultar_qr import (
     consultar_ficha_qr_uc,
     guardar_privacidad_por_cedula_uc,
@@ -33,6 +33,8 @@ from apps.carnetizacion.application.use_cases.emitir_carnet import (
 )
 from apps.carnetizacion.application.use_cases.generar_pdf_carnet import generar_pdf_carnet
 from apps.carnetizacion.application.use_cases.vista_previa_plantilla import vista_previa_plantilla_uc
+from apps.carnetizacion.application.use_cases.lote_carnets import cola_impresion_uc, generar_lote_carnets_uc
+from apps.carnetizacion.domain.value_objects.modo_duplex import SIN_ESPEJO
 from apps.carnetizacion.application.use_cases.ciclo_carnet import (
     anular_carnet_uc,
     marcar_entregado_uc,
@@ -186,6 +188,56 @@ def _auditar_ciclo(request, accion: str, resumen: dict) -> None:
         logging.getLogger('security_backend').exception(
             'No se pudo auditar el ciclo del carnet %s', resumen.get('carnet_id'),
         )
+
+
+class ColaImpresionCarnetsView(APIView):
+    """B-6: carnets de trabajadores vigentes aún sin imprimir."""
+
+    permission_classes = [IsAuthenticated, HasAnyPermission('carnetizacion.lote', 'carnetizacion.emitir')]
+
+    @extend_schema(tags=['Carnetización'], summary='Cola de impresión de carnets de trabajadores')
+    def get(self, request):
+        return ok(cola_impresion_uc(RepoCarnetizacionORM()))
+
+
+class LoteCarnetsPdfView(APIView):
+    """B-6: hoja A4 con varios carnets de trabajadores (marcas de corte, reverso para dúplex)."""
+
+    permission_classes = [IsAuthenticated, HasAnyPermission('carnetizacion.lote', 'carnetizacion.emitir')]
+
+    @extend_schema(
+        tags=['Carnetización'],
+        summary='PDF del lote de carnets de trabajadores',
+        responses={(200, 'application/pdf'): OpenApiTypes.BINARY},
+    )
+    def post(self, request):
+        marcar = bool(request.data.get('marcar_impresos'))
+        modo = request.data.get('modo_duplex', SIN_ESPEJO)
+        pdf = generar_lote_carnets_uc(
+            RepoCarnetizacionORM(), request.data.get('carnet_ids'), marcar,
+            _cedula_actor(request), modo,
+        )
+        try:
+            registrar_auditoria(
+                trace_id=getattr(request, 'trace_id', None) or uuid.uuid4().hex,
+                actor_id=getattr(request.user, 'pk', None),
+                actor_cedula=_cedula_actor(request),
+                accion='carnetizacion.lote_trabajadores',
+                modulo='carnetizacion',
+                recurso_tipo='CarnetEmitido',
+                recurso_id='lote',
+                estado_nuevo={
+                    'carnet_ids': request.data.get('carnet_ids'),
+                    'marcar_impresos': marcar,
+                    'modo_duplex': modo,
+                },
+                **origen_de_peticion(request),
+            )
+        except Exception:  # noqa: BLE001 - la auditoría no debe tumbar la impresión
+            logging.getLogger('security_backend').exception('No se pudo auditar el lote de carnets')
+        response = HttpResponse(pdf, content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="lote_carnets_trabajadores.pdf"'
+        return response
 
 
 class CarnetEstadoFisicoView(APIView):

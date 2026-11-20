@@ -1,6 +1,8 @@
 /**
  * Puerto del Repositorio de Carnetización (Reglas R1, R4, O44 - E3).
  */
+import type { ColaImpresionCarnet } from "../entities/cola-impresion";
+import type { ModoDuplex } from "../entities/modo-duplex";
 import type {
   CampoCredencial,
   Carnet,
@@ -93,4 +95,8 @@ export interface RepoCarnetizacion {
   consultarSaludEmergencia(securityHash: string): Promise<FichaQr>;
   obtenerPreferenciasPrivacidad(): Promise<PreferenciasPrivacidadCarnet>;
   guardarPreferenciasPrivacidad(preferencias: PreferenciasPrivacidadCarnet): Promise<PreferenciasPrivacidadCarnet>;
+
+  // Impresión por lote de carnets de trabajadores (B-6)
+  colaImpresionCarnets(): Promise<ColaImpresionCarnet[]>;
+  loteCarnetsTrabajadoresPdf(ids: number[], modo: ModoDuplex, marcarImpresos: boolean): Promise<Blob>;
 }

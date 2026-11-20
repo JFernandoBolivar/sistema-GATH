@@ -10,6 +10,7 @@ from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
 from .repo_carnetizacion_biblioteca import RepoBibliotecaMixin
 from .repo_carnetizacion_campos import RepoCamposCredencialMixin
 from .repo_carnetizacion_ciclo import RepoCicloCarnetMixin
+from .repo_carnetizacion_lote import RepoLoteCarnetsMixin
 from .repo_carnetizacion_carnets import RepoCarnetsEmitidosMixin
 from .repo_carnetizacion_comun import (  # noqa: F401 - re-exportadas
     vencimiento_de_carnet,
@@ -30,6 +31,7 @@ class RepoCarnetizacionORM(
     RepoCarnetsEmitidosMixin,
     RepoSolicitudesCarnetMixin,
     RepoCicloCarnetMixin,
+    RepoLoteCarnetsMixin,
     RepoCarnetsPdfMixin,
     RepoBibliotecaMixin,
     RepoCamposCredencialMixin,

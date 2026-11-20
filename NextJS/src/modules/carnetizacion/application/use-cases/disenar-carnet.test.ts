@@ -34,6 +34,12 @@ class RepoCarnetizacionMock implements RepoCarnetizacion {
   async crearPlantilla(): Promise<PlantillaCarnet> { throw new Error("not implemented"); }
   async activarPlantilla(): Promise<PlantillaCarnet> { throw new Error("not implemented"); }
   async descargarPdf(): Promise<Blob> { return new Blob(); }
+  async colaImpresionCarnets() { return []; }
+  async loteCarnetsTrabajadoresPdf(
+    _ids: number[],
+    _modo: "ninguno" | "largo" | "corto",
+    _marcarImpresos: boolean,
+  ): Promise<Blob> { return new Blob(); }
   async revocarCarnet(): Promise<Carnet> { throw new Error("not implemented"); }
   async obtenerEstadisticas(): Promise<EstadisticasCarnet> {
     return { total: 0, activos: 0, revocados: 0, emitidosHoy: 0, emitidosMes: 0, porMotivo: [] };

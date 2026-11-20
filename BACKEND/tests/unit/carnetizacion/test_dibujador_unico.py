@@ -185,3 +185,37 @@ def test_el_pdf_sigue_teniendo_dos_paginas():
     pdf = generar_carnet_pdf_fiel(_definicion([{'id': 'a', 'tipo': 'rect', 'x': 0, 'y': 0, 'w': 5, 'h': 5}]), DATOS)
     assert pdf.startswith(b'%PDF')
     assert pdf.count(b'/Type /Page') - pdf.count(b'/Type /Pages') == 2
+
+
+def _posiciones_del_lote(monkeypatch, modo: str) -> dict[tuple[str, str], tuple[float, float]]:
+    from apps.carnetizacion.infrastructure.pdf import carnet_pdf_lote
+
+    posiciones: list[tuple[str, str, float, float]] = []
+
+    def espia(c, definicion, datos, cara, x, y, *args, **kwargs):
+        posiciones.append((datos['cedula'], cara, round(x, 1), round(y, 1)))
+
+    monkeypatch.setattr(carnet_pdf_lote, 'dibujar_cara', espia)
+    definicion = _definicion([])
+    cedulas = 'ABCDEFGHI'  # 3 columnas × 3 filas: una tarjeta por celda
+    tarjetas = [{'definicion': definicion, 'datos': {**DATOS, 'cedula': c}} for c in cedulas]
+    generar_pdf_lote(tarjetas, modo)
+    return {(ced, cara): (x, y) for ced, cara, x, y in posiciones}
+
+
+def test_en_el_lote_el_reverso_puede_espejarse_segun_el_equipo(monkeypatch):
+    """B-6: el operador elige cómo voltea la hoja. Sin espejo no se mueve nada; por el borde
+    largo se invierten las columnas y por el borde corto, las filas."""
+    sin_espejo = _posiciones_del_lote(monkeypatch, 'ninguno')
+    assert sin_espejo[('A', 'reverso')] == sin_espejo[('A', 'anverso')]
+    assert sin_espejo[('I', 'reverso')] == sin_espejo[('I', 'anverso')]
+
+    largo = _posiciones_del_lote(monkeypatch, 'largo')
+    assert largo[('A', 'reverso')] == largo[('C', 'anverso')]  # 1.ª columna → 3.ª
+    assert largo[('E', 'reverso')] == largo[('E', 'anverso')]
+    assert largo[('I', 'reverso')] == largo[('G', 'anverso')]  # 3.ª columna → 1.ª
+
+    corto = _posiciones_del_lote(monkeypatch, 'corto')
+    assert corto[('A', 'reverso')] == corto[('G', 'anverso')]  # 1.ª fila → 3.ª
+    assert corto[('E', 'reverso')] == corto[('E', 'anverso')]
+    assert corto[('I', 'reverso')] == corto[('C', 'anverso')]  # 3.ª fila → 1.ª
