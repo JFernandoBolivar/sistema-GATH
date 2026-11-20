@@ -9,7 +9,11 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { CampoNumerico, SeccionPropiedades } from "./disenador-campos";
-import type { ElementoKonva, PosicionAlineacion } from "../../../domain/entities/disenador";
+import {
+  normalizarGrados,
+  type ElementoKonva,
+  type PosicionAlineacion,
+} from "../../../domain/entities/disenador";
 
 interface DisenadorPropiedadesGeometriaProps {
   elemento: ElementoKonva;
@@ -54,6 +58,18 @@ export function DisenadorPropiedadesGeometria({
             step="0.5"
             value={el.h}
             onChange={(e) => onActualizarElemento(el.id, { h: parseFloat(e.target.value) || 1 })}
+          />
+          {/* El tirador de giro de Konva queda 50 px sobre el elemento: si este está cerca
+              del borde superior, cae fuera del lienzo y no hay forma de girarlo sin este campo. */}
+          <CampoNumerico
+            etiqueta="Rotación"
+            aria-label="Rotación en grados"
+            sufijo="°"
+            step="1"
+            min={-360}
+            max={360}
+            value={el.r || 0}
+            onChange={(e) => onActualizarElemento(el.id, { r: normalizarGrados(e.target.value) })}
           />
         </div>
       </SeccionPropiedades>

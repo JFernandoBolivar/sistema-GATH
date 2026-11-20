@@ -10,6 +10,7 @@ import {
   duplicarElementoKonva,
   moverCapaKonva,
   normalizarClaveColor,
+  normalizarGrados,
   PERSONA_FICTICIA_DEFECTO,
   REGLAS_COLOR_DEFECTO,
   resolverColorDeRegla,
@@ -265,5 +266,19 @@ describe("cargar todos los valores sugeridos", () => {
 
   it("sin valores devuelve las reglas intactas", () => {
     expect(cargarValoresSugeridos(base, []).valores).toEqual(base.valores);
+  });
+});
+
+describe("normalizarGrados", () => {
+  it("acepta grados válidos con un decimal", () => {
+    expect(normalizarGrados("30")).toBe(30);
+    expect(normalizarGrados("-45.25")).toBe(-45.3);
+  });
+
+  it("reduce vueltas completas y trata vacío o texto como 0", () => {
+    expect(normalizarGrados("400")).toBe(40);
+    expect(normalizarGrados("360")).toBe(0);
+    expect(normalizarGrados("")).toBe(0);
+    expect(normalizarGrados("abc")).toBe(0);
   });
 });

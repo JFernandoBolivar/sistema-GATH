@@ -11,7 +11,7 @@ import type {
   ReglasColorConfig,
   TipoElementoKonva,
 } from "../../domain/entities/disenador";
-import { REGLAS_COLOR_DEFECTO } from "../../domain/entities/disenador";
+import { REGLAS_COLOR_DEFECTO, urlArchivoBiblioteca } from "../../domain/entities/disenador";
 import { normalizarPuntos } from "../../domain/entities/forma-puntos";
 import { normalizarQrEstilo } from "../../domain/entities/qr-estilo";
 
@@ -55,6 +55,7 @@ const CAMPOS_CONOCIDOS = new Set([
   "w",
   "h",
   "r",
+  "op",
   "props",
   "campo",
   "texto",
@@ -101,6 +102,10 @@ function elementoDesdePlantilla(elemento: Json, cara: "anverso" | "reverso"): El
       ? String(color ?? props.fill ?? COLOR_TEXTO_DEFECTO)
       : String(props.fill ?? color ?? "#e2e8f0");
   const asset = typeof props.asset === "string" ? props.asset : undefined;
+  const bibliotecaId =
+    props.biblioteca_id !== undefined && props.biblioteca_id !== null && props.biblioteca_id !== ""
+      ? String(props.biblioteca_id)
+      : undefined;
 
   return {
     id: String(elemento.id ?? `el-${cara}-${Math.random().toString(36).slice(2)}`),
@@ -117,7 +122,7 @@ function elementoDesdePlantilla(elemento: Json, cara: "anverso" | "reverso"): El
     sw: numero(props.sw ?? props.strokeWidth),
     rad: numero(props.rad ?? props.radius),
     shadow: numero(props.shadow),
-    op: numero(props.op, 100),
+    op: numero(elemento.op ?? props.op, 100),
     text: elemento.texto !== undefined ? String(elemento.texto) : undefined,
     field: elemento.campo !== undefined ? String(elemento.campo) : undefined,
     font: typeof elemento.font === "string" ? elemento.font : "Source Sans 3, Arial",
@@ -128,8 +133,9 @@ function elementoDesdePlantilla(elemento: Json, cara: "anverso" | "reverso"): El
       elemento.align === "center" || elemento.align === "right" || elemento.align === "left"
         ? elemento.align
         : "left",
-    src: asset ? ASSETS_PUBLICOS[asset] : undefined,
-    biblioteca_id: asset,
+    // La imagen de la biblioteca manda sobre el asset fijo, igual que en el PDF.
+    src: bibliotecaId ? urlArchivoBiblioteca(bibliotecaId) : asset ? ASSETS_PUBLICOS[asset] : undefined,
+    biblioteca_id: bibliotecaId,
     etiqueta: typeof props.label === "string" ? props.label : undefined,
     qr_estilo:
       t === "qr" && props.qr_estilo && typeof props.qr_estilo === "object"
@@ -214,7 +220,16 @@ function elementoAPlantilla(elemento: ElementoKonva, original?: Json): Json {
     h: redondear(elemento.h),
   };
 
+  // `resultado` parte del original: si la rotación vuelve a 0 o la opacidad a 100 hay que
+  // borrar el valor anterior, o el PDF seguiría usándolo.
   if (elemento.r) resultado.r = redondear(elemento.r);
+  else delete resultado.r;
+  // Opacidad 0..100: solo se guarda si el elemento no es opaco (el PDF asume 100).
+  if (Number.isFinite(elemento.op) && elemento.op < 100) {
+    resultado.op = Math.max(0, Math.round(elemento.op));
+  } else {
+    delete resultado.op;
+  }
 
   if (tipo === "field") {
     resultado.campo = elemento.field;
@@ -247,6 +262,12 @@ function elementoAPlantilla(elemento: ElementoKonva, original?: Json): Json {
       else delete props.radios;
     }
     if (tipo === "qr" && elemento.qr_estilo) props.qr_estilo = elemento.qr_estilo;
+    if (tipo === "image") {
+      // Sin esto la imagen elegida en la biblioteca se perdía al guardar y el PDF
+      // dibujaba el marcador «LOGO».
+      if (elemento.biblioteca_id) props.biblioteca_id = elemento.biblioteca_id;
+      else delete props.biblioteca_id;
+    }
     resultado.props = props;
   }
 

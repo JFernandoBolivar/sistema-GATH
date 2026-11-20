@@ -1,6 +1,8 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
+
+import { urlArchivoBiblioteca } from "../../../domain/entities/disenador";
 
 interface ElementoPlano {
   t: string;
@@ -18,6 +20,11 @@ interface ElementoPlano {
   sw?: number;
   label?: string;
   asset?: string;
+  bibliotecaId?: string;
+  /** Rotación en grados (horaria, alrededor de la esquina superior izquierda, como el PDF). */
+  r?: number;
+  /** Opacidad 0..100. */
+  op?: number;
 }
 
 interface PlantillaMiniaturaProps {
@@ -89,6 +96,8 @@ function elementosDe(
         align: e.align === "center" || e.align === "right" ? e.align : "left",
         rad: typeof e.rad === "number" ? e.rad : 0,
         bold: Boolean(e.bold),
+        r: Number(e.r ?? 0) || 0,
+        op: Number(e.op ?? 100),
       }));
   }
 
@@ -123,11 +132,225 @@ function elementosDe(
           sw: Number(e.sw ?? props.sw ?? 0) || 0,
           label: typeof props.label === "string" ? props.label : nombre,
           asset: typeof props.asset === "string" ? props.asset : undefined,
+          r: Number(e.r ?? e.rotation ?? 0) || 0,
+          op: Number(e.op ?? props.op ?? 100),
+          bibliotecaId:
+            props.biblioteca_id !== undefined && props.biblioteca_id !== null && props.biblioteca_id !== ""
+              ? String(props.biblioteca_id)
+              : undefined,
         };
       });
   }
 
   return [];
+}
+
+/**
+ * Rotación y opacidad del elemento, igual que el PDF: Konva gira en sentido horario
+ * alrededor de la esquina superior izquierda, que en SVG es `rotate(r x y)`.
+ */
+function envolverTransformacion(el: ElementoPlano, clave: string, nodo: ReactNode): ReactNode {
+  if (!nodo) return null;
+  const rotacion = el.r ?? 0;
+  const opacidad = Math.min(100, Math.max(0, el.op ?? 100));
+  if (!rotacion && opacidad >= 100) return nodo;
+  return (
+    <g
+      key={clave}
+      transform={rotacion ? `rotate(${rotacion} ${el.x} ${el.y})` : undefined}
+      opacity={opacidad < 100 ? opacidad / 100 : undefined}
+    >
+      {nodo}
+    </g>
+  );
+}
+
+function nodoElemento(el: ElementoPlano, indice: number, reglas: Reglas): ReactNode {
+  const fill = resolverColor(el.fill, reglas);
+  const clave = `${el.t}-${indice}`;
+
+  if (el.t === "rect" || el.t === "forma") {
+    const conBorde = !!el.sw && !!el.stroke;
+    return (
+      <rect
+        key={clave}
+        x={el.x}
+        y={el.y}
+        width={el.w}
+        height={el.h}
+        rx={el.rad ?? 0}
+        fill={fill}
+        stroke={conBorde ? el.stroke : undefined}
+        strokeWidth={conBorde ? el.sw : undefined}
+      />
+    );
+  }
+  if (el.t === "circle" || el.t === "ellipse") {
+    return (
+      <ellipse
+        key={clave}
+        cx={el.x + el.w / 2}
+        cy={el.y + el.h / 2}
+        rx={el.w / 2}
+        ry={el.h / 2}
+        fill={fill}
+      />
+    );
+  }
+  if (el.t === "tri") {
+    return (
+      <polygon
+        key={clave}
+        points={`${el.x + el.w / 2},${el.y} ${el.x + el.w},${el.y + el.h} ${el.x},${el.y + el.h}`}
+        fill={fill}
+      />
+    );
+  }
+  if (el.t === "diag" || el.t === "diagr") {
+    // Mismas formas que el PDF: diag recorta abajo a la derecha; diagr, arriba a la izquierda.
+    const puntos =
+      el.t === "diag"
+        ? `${el.x},${el.y} ${el.x + el.w},${el.y} ${el.x + el.w * 0.72},${el.y + el.h} ${el.x},${el.y + el.h}`
+        : `${el.x + el.w * 0.28},${el.y} ${el.x + el.w},${el.y} ${el.x + el.w},${el.y + el.h} ${el.x},${el.y + el.h}`;
+    return <polygon key={clave} points={puntos} fill={fill} />;
+  }
+  if (el.t === "line" || el.t === "signline") {
+    // El PDF dibuja una línea horizontal centrada en la caja, de grosor h (mín. 0,4 pt).
+    const grosor = Math.max(el.h, 0.4 * PT_A_MM);
+    return (
+      <line
+        key={clave}
+        x1={el.x}
+        y1={el.y + el.h / 2}
+        x2={el.x + el.w}
+        y2={el.y + el.h / 2}
+        stroke={fill}
+        strokeWidth={grosor}
+      />
+    );
+  }
+  if (el.t === "image") {
+    // Igual que el PDF: primero la imagen de la biblioteca, después el asset fijo.
+    const src = el.bibliotecaId
+      ? urlArchivoBiblioteca(el.bibliotecaId)
+      : el.asset
+        ? ASSETS_PUBLICOS[el.asset]
+        : undefined;
+    if (src) {
+      return (
+        <image
+          key={clave}
+          href={src}
+          x={el.x}
+          y={el.y}
+          width={el.w}
+          height={el.h}
+          preserveAspectRatio="xMidYMid meet"
+        />
+      );
+    }
+    // Sin asset el PDF dibuja un marcador con borde y su etiqueta (LOGO, FIRMA...).
+    return (
+      <g key={clave}>
+        <rect
+          x={el.x}
+          y={el.y}
+          width={el.w}
+          height={el.h}
+          rx={0.35}
+          fill="none"
+          stroke={fill}
+          strokeWidth={0.2}
+        />
+        <text
+          x={el.x + el.w / 2}
+          y={el.y + el.h / 2}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fontSize={Math.min(el.h * 0.45, 7 * PT_A_MM)}
+          fontWeight="bold"
+          fill={fill}
+          fontFamily="Source Sans 3, Arial, sans-serif"
+        >
+          {el.label ?? "LOGO"}
+        </text>
+      </g>
+    );
+  }
+  if (el.t === "photo" || el.t === "qr") {
+    // El PDF dibuja el QR como cuadrado de lado min(w, h).
+    const lado = Math.min(el.w, el.h);
+    const w = el.t === "qr" ? lado : el.w;
+    const h = el.t === "qr" ? lado : el.h;
+    return (
+      <g key={clave}>
+        <rect
+          x={el.x}
+          y={el.y}
+          width={w}
+          height={h}
+          rx={el.rad ?? 0}
+          fill={el.t === "qr" ? "#ffffff" : "#e2e8f0"}
+          stroke="#cbd5e1"
+          strokeWidth={0.3}
+        />
+        <text
+          x={el.x + w / 2}
+          y={el.y + h / 2}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fontSize={Math.max(2.4, w / 4)}
+          fill="#64748b"
+        >
+          {el.t === "qr" ? "QR" : "FOTO"}
+        </text>
+      </g>
+    );
+  }
+  if (el.t === "text" || el.t === "field") {
+    const lineas = (el.texto ?? "").split("\n");
+    const pt0 = el.size ?? 7.5;
+    // Ajuste como el PDF: si no cabe en el ancho, se reduce hasta 3,5 pt (ancho estimado).
+    const factor = el.bold ? 0.56 : 0.5;
+    const largo = Math.max(...lineas.map((l) => l.length), 1);
+    const anchoTexto = largo * pt0 * PT_A_MM * factor;
+    const pt =
+      lineas.length === 1 && anchoTexto > el.w
+        ? Math.max(3.5, pt0 * (el.w / anchoTexto))
+        : pt0;
+    const tamano = pt * PT_A_MM;
+    const ancla =
+      el.align === "center" ? "middle" : el.align === "right" ? "end" : "start";
+    const x =
+      el.align === "center"
+        ? el.x + el.w / 2
+        : el.align === "right"
+          ? el.x + el.w
+          : el.x;
+    // Origen vertical como el PDF: bloque centrado en la caja (no pegado arriba).
+    const interlineado = tamano * 1.2;
+    const y0 =
+      lineas.length > 1
+        ? el.y + (el.h - lineas.length * interlineado) / 2 + tamano
+        : el.y + (el.h + tamano) / 2 - 0.5 * PT_A_MM;
+    return (
+      <text
+        key={clave}
+        textAnchor={ancla}
+        fontSize={tamano}
+        fontWeight={el.bold ? "bold" : "normal"}
+        fill={fill}
+        fontFamily="Source Sans 3, Arial, sans-serif"
+      >
+        {lineas.map((linea, i) => (
+          <tspan key={i} x={x} y={y0 + i * interlineado}>
+            {linea}
+          </tspan>
+        ))}
+      </text>
+    );
+  }
+  return null;
 }
 
 /** Miniatura SVG de una cara de una plantilla del motor, con las mismas reglas que el PDF. */
@@ -174,188 +397,7 @@ export function PlantillaMiniatura({
             </text>
           </>
         )}
-        {elementos.map((el, indice) => {
-          const fill = resolverColor(el.fill, reglas);
-          const clave = `${el.t}-${indice}`;
-
-          if (el.t === "rect" || el.t === "forma") {
-            const conBorde = !!el.sw && !!el.stroke;
-            return (
-              <rect
-                key={clave}
-                x={el.x}
-                y={el.y}
-                width={el.w}
-                height={el.h}
-                rx={el.rad ?? 0}
-                fill={fill}
-                stroke={conBorde ? el.stroke : undefined}
-                strokeWidth={conBorde ? el.sw : undefined}
-              />
-            );
-          }
-          if (el.t === "circle" || el.t === "ellipse") {
-            return (
-              <ellipse
-                key={clave}
-                cx={el.x + el.w / 2}
-                cy={el.y + el.h / 2}
-                rx={el.w / 2}
-                ry={el.h / 2}
-                fill={fill}
-              />
-            );
-          }
-          if (el.t === "tri") {
-            return (
-              <polygon
-                key={clave}
-                points={`${el.x + el.w / 2},${el.y} ${el.x + el.w},${el.y + el.h} ${el.x},${el.y + el.h}`}
-                fill={fill}
-              />
-            );
-          }
-          if (el.t === "diag" || el.t === "diagr") {
-            // Mismas formas que el PDF: diag recorta abajo a la derecha; diagr, arriba a la izquierda.
-            const puntos =
-              el.t === "diag"
-                ? `${el.x},${el.y} ${el.x + el.w},${el.y} ${el.x + el.w * 0.72},${el.y + el.h} ${el.x},${el.y + el.h}`
-                : `${el.x + el.w * 0.28},${el.y} ${el.x + el.w},${el.y} ${el.x + el.w},${el.y + el.h} ${el.x},${el.y + el.h}`;
-            return <polygon key={clave} points={puntos} fill={fill} />;
-          }
-          if (el.t === "line" || el.t === "signline") {
-            // El PDF dibuja una línea horizontal centrada en la caja, de grosor h (mín. 0,4 pt).
-            const grosor = Math.max(el.h, 0.4 * PT_A_MM);
-            return (
-              <line
-                key={clave}
-                x1={el.x}
-                y1={el.y + el.h / 2}
-                x2={el.x + el.w}
-                y2={el.y + el.h / 2}
-                stroke={fill}
-                strokeWidth={grosor}
-              />
-            );
-          }
-          if (el.t === "image") {
-            const src = el.asset ? ASSETS_PUBLICOS[el.asset] : undefined;
-            if (src) {
-              return (
-                <image
-                  key={clave}
-                  href={src}
-                  x={el.x}
-                  y={el.y}
-                  width={el.w}
-                  height={el.h}
-                  preserveAspectRatio="xMidYMid meet"
-                />
-              );
-            }
-            // Sin asset el PDF dibuja un marcador con borde y su etiqueta (LOGO, FIRMA...).
-            return (
-              <g key={clave}>
-                <rect
-                  x={el.x}
-                  y={el.y}
-                  width={el.w}
-                  height={el.h}
-                  rx={0.35}
-                  fill="none"
-                  stroke={fill}
-                  strokeWidth={0.2}
-                />
-                <text
-                  x={el.x + el.w / 2}
-                  y={el.y + el.h / 2}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  fontSize={Math.min(el.h * 0.45, 7 * PT_A_MM)}
-                  fontWeight="bold"
-                  fill={fill}
-                  fontFamily="Source Sans 3, Arial, sans-serif"
-                >
-                  {el.label ?? "LOGO"}
-                </text>
-              </g>
-            );
-          }
-          if (el.t === "photo" || el.t === "qr") {
-            // El PDF dibuja el QR como cuadrado de lado min(w, h).
-            const lado = Math.min(el.w, el.h);
-            const w = el.t === "qr" ? lado : el.w;
-            const h = el.t === "qr" ? lado : el.h;
-            return (
-              <g key={clave}>
-                <rect
-                  x={el.x}
-                  y={el.y}
-                  width={w}
-                  height={h}
-                  rx={el.rad ?? 0}
-                  fill={el.t === "qr" ? "#ffffff" : "#e2e8f0"}
-                  stroke="#cbd5e1"
-                  strokeWidth={0.3}
-                />
-                <text
-                  x={el.x + w / 2}
-                  y={el.y + h / 2}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  fontSize={Math.max(2.4, w / 4)}
-                  fill="#64748b"
-                >
-                  {el.t === "qr" ? "QR" : "FOTO"}
-                </text>
-              </g>
-            );
-          }
-          if (el.t === "text" || el.t === "field") {
-            const lineas = (el.texto ?? "").split("\n");
-            const pt0 = el.size ?? 7.5;
-            // Ajuste como el PDF: si no cabe en el ancho, se reduce hasta 3,5 pt (ancho estimado).
-            const factor = el.bold ? 0.56 : 0.5;
-            const largo = Math.max(...lineas.map((l) => l.length), 1);
-            const anchoTexto = largo * pt0 * PT_A_MM * factor;
-            const pt =
-              lineas.length === 1 && anchoTexto > el.w
-                ? Math.max(3.5, pt0 * (el.w / anchoTexto))
-                : pt0;
-            const tamano = pt * PT_A_MM;
-            const ancla =
-              el.align === "center" ? "middle" : el.align === "right" ? "end" : "start";
-            const x =
-              el.align === "center"
-                ? el.x + el.w / 2
-                : el.align === "right"
-                  ? el.x + el.w
-                  : el.x;
-            // Origen vertical como el PDF: bloque centrado en la caja (no pegado arriba).
-            const interlineado = tamano * 1.2;
-            const y0 =
-              lineas.length > 1
-                ? el.y + (el.h - lineas.length * interlineado) / 2 + tamano
-                : el.y + (el.h + tamano) / 2 - 0.5 * PT_A_MM;
-            return (
-              <text
-                key={clave}
-                textAnchor={ancla}
-                fontSize={tamano}
-                fontWeight={el.bold ? "bold" : "normal"}
-                fill={fill}
-                fontFamily="Source Sans 3, Arial, sans-serif"
-              >
-                {lineas.map((linea, i) => (
-                  <tspan key={i} x={x} y={y0 + i * interlineado}>
-                    {linea}
-                  </tspan>
-                ))}
-              </text>
-            );
-          }
-          return null;
-        })}
+        {elementos.map((el, indice) => envolverTransformacion(el, `${el.t}-${indice}`, nodoElemento(el, indice, reglas)))}
       </svg>
     </div>
   );

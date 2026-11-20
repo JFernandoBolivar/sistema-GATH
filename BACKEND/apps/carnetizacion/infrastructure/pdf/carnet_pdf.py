@@ -21,8 +21,8 @@ from django.conf import settings
 from django.core.cache import cache
 from PIL import Image
 from core.infrastructure.pdf.fuentes import FUENTE, FUENTE_NEGRITA
-from core.infrastructure.pdf.pdf_components import ruta_asset
-from reportlab.lib.colors import HexColor
+from core.infrastructure.pdf.pdf_components import reducir_imagen_para_pdf, ruta_asset
+from reportlab.lib.colors import Color, HexColor
 from reportlab.lib.units import cm
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase.pdfmetrics import stringWidth
@@ -168,18 +168,18 @@ def _hex_seguro(valor: str | None, defecto: str = '#111827') -> HexColor:
         return HexColor(defecto)
 
 
-def logo_qr_de_biblioteca(medio_id: str | None) -> bytes | None:
-    """Bytes del logo elegido en la Biblioteca de Medios (misma vía que el resto de sus
-    archivos: `obtener_archivo_biblioteca`); None si no hay medio o no se puede leer."""
+def _bytes_de_biblioteca(medio_id: str | None, prefijo_cache: str) -> bytes | None:
+    """Bytes de un archivo de la Biblioteca de Medios (vía `obtener_archivo_biblioteca`),
+    cacheados unos minutos; None si no hay medio o no se puede leer."""
     if not medio_id:
         return None
-    clave = f"carnet:qr-logo:{medio_id}"
+    clave = f"{prefijo_cache}:{medio_id}"
     try:
         guardado = cache.get(clave)
         if guardado:
             return guardado
     except Exception:
-        logger.warning("Caché no disponible al leer el logo del QR.", exc_info=True)
+        logger.warning("Caché no disponible al leer el medio %s de la biblioteca.", medio_id, exc_info=True)
     try:
         from apps.carnetizacion.infrastructure.repositories.repo_carnetizacion_orm import (
             RepoCarnetizacionORM,
@@ -187,13 +187,24 @@ def logo_qr_de_biblioteca(medio_id: str | None) -> bytes | None:
 
         datos, _mime, _nombre = RepoCarnetizacionORM().obtener_archivo_biblioteca(medio_id)
     except Exception:
-        logger.warning("No se pudo leer el logo %s de la biblioteca; se usa el de CONATEL.", medio_id)
+        logger.warning("No se pudo leer el medio %s de la biblioteca.", medio_id)
         return None
     try:
         cache.set(clave, datos, _TTL_QR_SEGUNDOS)
     except Exception:
-        logger.warning("Caché no disponible al guardar el logo del QR.", exc_info=True)
+        logger.warning("Caché no disponible al guardar el medio %s de la biblioteca.", medio_id, exc_info=True)
     return datos
+
+
+def logo_qr_de_biblioteca(medio_id: str | None) -> bytes | None:
+    """Bytes del logo del QR elegido en la Biblioteca de Medios; None si no hay medio o no se
+    puede leer (entonces se usa el logo de CONATEL)."""
+    return _bytes_de_biblioteca(medio_id, "carnet:qr-logo")
+
+
+def imagen_de_biblioteca(medio_id: str | None) -> bytes | None:
+    """Bytes de una imagen de la biblioteca colocada en el carnet (logo, firma, sello)."""
+    return _bytes_de_biblioteca(medio_id, "carnet:imagen")
 
 
 def _qr_png_cacheado(contenido: str, con_logo: bool, estilo: dict[str, Any] | None = None) -> bytes:
@@ -545,21 +556,8 @@ def _dibujar_svg_path(
     c.drawPath(path, fill=1, stroke=1 if (sw_pt > 0 and stroke_color) else 0)
 
 
-def generar_carnet_pdf_fiel(definicion: dict[str, Any], datos: DatosCarnetPdf | dict[str, Any]) -> bytes:
-    """
-    Motor canónico de impresión fiel ReportLab (O44 - E8).
-    Interpreta capa por capa la definición geométrica y genera un documento PDF de 2 páginas
-    (anverso y reverso) respetando dimensiones milimétricas, fuentes institucionales y reglas de color.
-    """
-    # 1. Resolver dimensiones físicas en puntos
-    dims = definicion.get('dimensiones', {})
-    ancho_mm = float(definicion.get('ancho_mm') or dims.get('ancho_mm') or 54.0)
-    alto_mm = float(definicion.get('alto_mm') or dims.get('alto_mm') or 85.6)
-
-    ancho_pt = ancho_mm * MM_A_PT
-    alto_pt = alto_mm * MM_A_PT
-
-    # 2. Convertir datos a dict para resolución de reglas
+def _normalizar_datos(datos: DatosCarnetPdf | dict[str, Any]) -> tuple[dict[str, Any], bytes | None]:
+    """Datos del titular como diccionario (para reglas y campos) y bytes de su foto."""
     if isinstance(datos, DatosCarnetPdf):
         datos_dict = {
             'nombre_completo': datos.nombre_completo,
@@ -572,226 +570,325 @@ def generar_carnet_pdf_fiel(definicion: dict[str, Any], datos: DatosCarnetPdf | 
             'vence': datos.vence,
         }
         # Los campos personalizados nunca pisan los datos base del titular.
-        datos_dict = {**datos.campos_extra, **datos_dict}
-        foto_bytes = datos.foto_bytes
-    else:
-        datos_dict = datos
-        foto_bytes = datos.get('foto_bytes')
+        return {**datos.campos_extra, **datos_dict}, datos.foto_bytes
+    return datos, datos.get('foto_bytes')
 
-    # 3. Resolver reglas de color institucionales (O44 - E7)
+
+def dimensiones_mm(definicion: dict[str, Any]) -> tuple[float, float]:
+    """(ancho, alto) de la tarjeta en mm según la definición (ID-1 vertical por defecto)."""
+    dims = definicion.get('dimensiones', {}) or {}
+    ancho_mm = float(definicion.get('ancho_mm') or dims.get('ancho_mm') or 54.0)
+    alto_mm = float(definicion.get('alto_mm') or dims.get('alto_mm') or 85.6)
+    return ancho_mm, alto_mm
+
+
+def elementos_de_cara(definicion: dict[str, Any], cara: str) -> list[dict[str, Any]]:
+    """Elementos de `cara` ('anverso'/'reverso'), en formato por caras o en el formato plano heredado."""
+    if 'anverso' in definicion and 'reverso' in definicion:
+        return list(definicion.get(cara, []) or [])
+    return [e for e in definicion.get('elementos', []) or [] if (e.get('cara') or 'anverso') == cara]
+
+
+def _resolver_color(val: str | None, colores_regla: dict[str, Any], defecto: str = '#111827') -> HexColor:
+    if not val:
+        return HexColor(defecto)
+    if val == 'rule:primario':
+        return _hex_seguro(colores_regla.get('primario'), '#1f3a5f')
+    if val == 'rule:acento':
+        return _hex_seguro(colores_regla.get('acento'), '#1273bd')
+    if val == 'rule:texto':
+        return _hex_seguro(colores_regla.get('texto'), '#ffffff')
+    return _hex_seguro(val, defecto)
+
+
+def _numero(valor: Any, defecto: float = 0.0) -> float:
+    try:
+        n = float(valor)
+    except (TypeError, ValueError):
+        return defecto
+    return n if math.isfinite(n) else defecto
+
+
+def _con_alfa(color: Color, alfa: float) -> Color:
+    """El mismo color con transparencia. ReportLab restablece el alfa del estado gráfico al
+    del color en cada `setFillColor`/`setStrokeColor`, así que la opacidad tiene que viajar
+    en el propio color; `setFillAlpha` sola se perdería en el siguiente cambio de color."""
+    if alfa >= 1.0:
+        return color
+    return Color(color.red, color.green, color.blue, alpha=alfa)
+
+
+def _opacidad(el: dict[str, Any], props: dict[str, Any]) -> float:
+    """Opacidad 0..1 del elemento; el diseñador la guarda como `op` en 0..100."""
+    op = el.get('op', props.get('op'))
+    if op is None:
+        return 1.0
+    return min(1.0, max(0.0, _numero(op, 100.0) / 100.0))
+
+
+def _imagen_elemento(props: dict[str, Any], w_pt: float, h_pt: float) -> ImageReader | None:
+    """Imagen de un elemento `image`: primero la de la biblioteca (`biblioteca_id`), después el
+    asset institucional fijo (`asset`). None si no hay ninguna legible."""
+    medio_id = props.get('biblioteca_id')
+    if medio_id:
+        datos = imagen_de_biblioteca(str(medio_id))
+        if datos:
+            return ImageReader(BytesIO(reducir_imagen_para_pdf(datos, _lado_maximo_px(w_pt, h_pt))))
+    asset = props.get('asset')
+    ruta = ruta_asset(asset) if asset else None
+    return ImageReader(ruta) if ruta else None
+
+
+def _dibujar_elemento(
+    c: canvas.Canvas,
+    el: dict[str, Any],
+    datos_dict: dict[str, Any],
+    foto_bytes: bytes | None,
+    colores_regla: dict[str, Any],
+    ancho_pt: float,
+    alto_mm: float,
+) -> None:
+    """Dibuja un elemento en coordenadas locales de la tarjeta (origen abajo a la izquierda)."""
+    tipo = el.get('tipo') or el.get('t')
+    props = el.get('props', {}) or {}
+
+    x_mm = _numero(el.get('x'))
+    y_mm = _numero(el.get('y'))
+    w_mm = _numero(el.get('w'), 10.0)
+    h_mm = _numero(el.get('h'), 10.0)
+
+    # Conversión milimétrica a puntos con origen superior invertido
+    x_pt = x_mm * MM_A_PT
+    w_pt = w_mm * MM_A_PT
+    h_pt = h_mm * MM_A_PT
+    y_pt = (alto_mm - y_mm - h_mm) * MM_A_PT
+
+    opacidad = _opacidad(el, props)
+
+    raw_fill = el.get('fill') or props.get('fill') or el.get('color') or props.get('color')
+    fill_color = _con_alfa(_resolver_color(raw_fill, colores_regla, '#1f3a5f'), opacidad)
+
+    stroke_raw = el.get('stroke') or props.get('stroke')
+    stroke_color = _con_alfa(_hex_seguro(stroke_raw, '#111827'), opacidad) if stroke_raw else None
+    sw_pt = _numero(el.get('sw') or props.get('sw')) * MM_A_PT
+    tiene_stroke = sw_pt > 0 and stroke_raw
+
+    c.saveState()
+
+    # Rotación igual que Konva: grados en sentido horario alrededor de la esquina
+    # superior izquierda del elemento (en PDF el eje Y sube, de ahí el signo).
+    rotacion = _numero(el.get('r', el.get('rotation')))
+    if rotacion:
+        pivote_x, pivote_y = x_pt, y_pt + h_pt
+        c.translate(pivote_x, pivote_y)
+        c.rotate(-rotacion)
+        c.translate(-pivote_x, -pivote_y)
+
+    c.setFillColor(fill_color)
+    if tiene_stroke:
+        c.setStrokeColor(stroke_color)
+        c.setLineWidth(sw_pt)
+    if opacidad < 1.0:
+        # Para foto, QR e imágenes (drawImage no cambia de color, así que el alfa se mantiene).
+        c.setFillAlpha(opacidad)
+        c.setStrokeAlpha(opacidad)
+
+    rad_pt = _numero(el.get('rad') or props.get('rad') or el.get('radius')) * MM_A_PT
+
+    # Renderizado por tipo de primitiva gráfica
+    if tipo in ('rect', 'forma'):
+        radios_mm = _radios_esquinas_mm(props.get('radios') or el.get('radios'), w_mm, h_mm)
+        if radios_mm is not None:
+            _dibujar_rect_radios(
+                c, x_pt, y_pt, w_pt, h_pt, [r * MM_A_PT for r in radios_mm], True, bool(tiene_stroke),
+            )
+        else:
+            c.roundRect(x_pt, y_pt, w_pt, h_pt, rad_pt, fill=1, stroke=1 if tiene_stroke else 0)
+
+    elif tipo in ('circle', 'ellipse'):
+        c.ellipse(x_pt, y_pt, x_pt + w_pt, y_pt + h_pt, fill=1, stroke=1 if tiene_stroke else 0)
+
+    elif tipo == 'tri':
+        path = c.beginPath()
+        path.moveTo(x_pt, y_pt)
+        path.lineTo(x_pt + w_pt / 2, y_pt + h_pt)
+        path.lineTo(x_pt + w_pt, y_pt)
+        path.close()
+        c.drawPath(path, fill=1, stroke=1 if tiene_stroke else 0)
+
+    elif tipo == 'diag':
+        # Franja superior/inferior diagonal
+        path = c.beginPath()
+        path.moveTo(x_pt, y_pt + h_pt)
+        path.lineTo(x_pt + w_pt, y_pt + h_pt)
+        path.lineTo(x_pt + w_pt * 0.72, y_pt)
+        path.lineTo(x_pt, y_pt)
+        path.close()
+        c.drawPath(path, fill=1, stroke=1 if tiene_stroke else 0)
+
+    elif tipo == 'diagr':
+        # Acento diagonal opuesto
+        path = c.beginPath()
+        path.moveTo(x_pt + w_pt * 0.28, y_pt + h_pt)
+        path.lineTo(x_pt + w_pt, y_pt + h_pt)
+        path.lineTo(x_pt + w_pt, y_pt)
+        path.lineTo(x_pt, y_pt)
+        path.close()
+        c.drawPath(path, fill=1, stroke=1 if tiene_stroke else 0)
+
+    elif tipo == 'path':
+        puntos = _puntos_validos(props.get('puntos'))
+        path_forma = path_desde_puntos(puntos, w_mm, h_mm) if puntos else ''
+        _dibujar_svg_path(
+            c,
+            path_forma or el.get('path') or props.get('d'),
+            x_pt, y_pt, w_pt, h_pt,
+            fill_color,
+            stroke_color if tiene_stroke else None,
+            sw_pt,
+        )
+
+    elif tipo in ('line', 'signline'):
+        c.setLineWidth(max(h_pt, 0.4))
+        c.setStrokeColor(fill_color)
+        c.line(x_pt, y_pt + h_pt / 2, x_pt + w_pt, y_pt + h_pt / 2)
+
+    elif tipo == 'photo':
+        _dibujar_foto(c, foto_bytes, x_pt, y_pt, w_pt, h_pt, rad_pt)
+
+    elif tipo == 'qr':
+        _dibujar_qr(
+            c, datos_dict, x_pt, y_pt,
+            tamano=min(w_pt, h_pt),
+            con_logo=bool(props.get('logo', True)),
+            estilo=props.get('qr_estilo'),
+        )
+
+    elif tipo == 'image':
+        # Logo, firma o sello: imagen de la biblioteca o asset institucional; si no hay
+        # ninguna legible, se conserva el marcador de texto.
+        dibujado = False
+        try:
+            imagen = _imagen_elemento(props, w_pt, h_pt)
+            if imagen is not None:
+                c.drawImage(
+                    imagen, x_pt, y_pt, w_pt, h_pt,
+                    preserveAspectRatio=True, anchor='c', mask='auto',
+                )
+                dibujado = True
+        except Exception:
+            logger.warning(
+                "No se pudo dibujar la imagen del carnet (biblioteca=%s, asset=%s).",
+                props.get('biblioteca_id'), props.get('asset'), exc_info=True,
+            )
+        if not dibujado:
+            label = props.get('label') or el.get('name') or 'LOGO'
+            c.setStrokeColor(fill_color)
+            c.setLineWidth(0.6)
+            c.roundRect(x_pt, y_pt, w_pt, h_pt, 1, fill=0, stroke=1)
+            c.setFont(FUENTE_NEGRITA, min(h_pt * 0.45, 7))
+            c.drawCentredString(x_pt + w_pt / 2, y_pt + (h_pt - 5) / 2, label)
+
+    elif tipo in ('text', 'field'):
+        # Resolución de cadena de texto
+        if tipo == 'field':
+            campo = el.get('campo') or el.get('field') or ''
+            texto_render = _extraer_valor_campo(campo, datos_dict)
+            if not texto_render:
+                texto_render = el.get('nombre') or el.get('name') or ''
+        else:
+            texto_render = el.get('texto') or el.get('text') or ''
+
+        if el.get('upper'):
+            texto_render = texto_render.upper()
+
+        font_size = _numero(el.get('fontSize') or el.get('size'), 7.5) or 7.5
+        bold = bool(el.get('bold', False))
+        fuente_elegida = FUENTE_NEGRITA if bold else FUENTE
+
+        # La caja nunca pasa del borde de la tarjeta (menos el margen).
+        x_txt, w_txt = _limitar_caja_a_tarjeta(x_pt, w_pt, ancho_pt)
+        lineas, font_size = ajustar_texto(
+            texto_render, fuente_elegida, font_size, w_txt, h_pt,
+        )
+        c.setFont(fuente_elegida, font_size)
+        c.setFillColor(fill_color)
+
+        align = el.get('align', 'left')
+        interlineado = font_size * 1.2
+        if len(lineas) > 1:
+            total_h = len(lineas) * interlineado
+            y_actual = y_pt + h_pt - (h_pt - total_h) / 2 - font_size
+        else:
+            y_actual = y_pt + (h_pt - font_size) / 2 + 0.5
+        for linea in lineas:
+            if align == 'center':
+                c.drawCentredString(x_txt + w_txt / 2, y_actual, linea)
+            elif align == 'right':
+                c.drawRightString(x_txt + w_txt, y_actual, linea)
+            else:
+                c.drawString(x_txt, y_actual, linea)
+            y_actual -= interlineado
+
+    c.restoreState()
+
+
+def dibujar_cara(
+    c: canvas.Canvas,
+    definicion: dict[str, Any],
+    datos: DatosCarnetPdf | dict[str, Any],
+    cara: str,
+    x_offset: float = 0.0,
+    y_offset: float = 0.0,
+) -> None:
+    """Dibuja una cara completa de la credencial con su esquina inferior izquierda en
+    (`x_offset`, `y_offset`). Es el ÚNICO dibujador de caras: lo usan el PDF individual y el
+    de lote, así un mismo diseño sale idéntico por ambas vías. Lo que sobresale de la tarjeta
+    se recorta, para no invadir las tarjetas vecinas en una hoja de lote."""
+    ancho_mm, alto_mm = dimensiones_mm(definicion)
+    ancho_pt = ancho_mm * MM_A_PT
+    alto_pt = alto_mm * MM_A_PT
+    datos_dict, foto_bytes = _normalizar_datos(datos)
     colores_regla = resolver_color_carnet(definicion, datos_dict)
 
-    def resolver_color_elemento(val: str | None, defecto: str = '#111827') -> HexColor:
-        if not val:
-            return HexColor(defecto)
-        if val == 'rule:primario':
-            return _hex_seguro(colores_regla.get('primario'), '#1f3a5f')
-        if val == 'rule:acento':
-            return _hex_seguro(colores_regla.get('acento'), '#1273bd')
-        if val == 'rule:texto':
-            return _hex_seguro(colores_regla.get('texto'), '#ffffff')
-        return _hex_seguro(val, defecto)
-
-    # 4. Agrupar elementos por cara (anverso / reverso)
-    if 'anverso' in definicion and 'reverso' in definicion:
-        caras = [
-            ('anverso', definicion.get('anverso', [])),
-            ('reverso', definicion.get('reverso', [])),
-        ]
-    else:
-        elementos_totales = definicion.get('elementos', [])
-        caras = [
-            ('anverso', [e for e in elementos_totales if e.get('cara', 'anverso') == 'anverso']),
-            ('reverso', [e for e in elementos_totales if e.get('cara') == 'reverso']),
-        ]
+    c.saveState()
+    c.translate(x_offset, y_offset)
+    recorte = c.beginPath()
+    recorte.rect(0, 0, ancho_pt, alto_pt)
+    c.clipPath(recorte, stroke=0, fill=0)
 
     bg_cfg = definicion.get('bg', {})
+    color_fondo = bg_cfg.get(cara, '#ffffff') if isinstance(bg_cfg, dict) else '#ffffff'
+    c.setFillColor(_hex_seguro(color_fondo, '#ffffff'))
+    c.rect(0, 0, ancho_pt, alto_pt, fill=1, stroke=0)
 
-    # 5. Inicializar Canvas de ReportLab
+    for el in elementos_de_cara(definicion, cara):
+        if el.get('oculto') or el.get('hidden'):
+            continue
+        _dibujar_elemento(c, el, datos_dict, foto_bytes, colores_regla, ancho_pt, alto_mm)
+
+    c.restoreState()
+
+
+def generar_carnet_pdf_fiel(definicion: dict[str, Any], datos: DatosCarnetPdf | dict[str, Any]) -> bytes:
+    """
+    Motor canónico de impresión fiel ReportLab (O44 - E8).
+    Interpreta capa por capa la definición geométrica y genera un documento PDF de 2 páginas
+    (anverso y reverso) respetando dimensiones milimétricas, fuentes institucionales y reglas de color.
+    """
+    ancho_mm, alto_mm = dimensiones_mm(definicion)
+    datos_dict, _ = _normalizar_datos(datos)
+
     buffer = BytesIO()
-    c = canvas.Canvas(buffer, pagesize=(ancho_pt, alto_pt), pageCompression=0)
+    c = canvas.Canvas(buffer, pagesize=(ancho_mm * MM_A_PT, alto_mm * MM_A_PT), pageCompression=0)
     c.setAuthor("GATH - Sistema de Carnetización Institucional")
     nombre_doc = datos_dict.get('nombre_completo', 'Credencial')
     c.setTitle(f"Carnet {nombre_doc}")
     c.setSubject("Credencial Institucional Oficial")
 
-    for idx_cara, (nombre_cara, lista_elementos) in enumerate(caras):
-        # Color de fondo de la cara
-        color_fondo = bg_cfg.get(nombre_cara, '#ffffff') if isinstance(bg_cfg, dict) else '#ffffff'
-        c.setFillColor(_hex_seguro(color_fondo, '#ffffff'))
-        c.rect(0, 0, ancho_pt, alto_pt, fill=1, stroke=0)
-
-        for el in lista_elementos:
-            if el.get('oculto') or el.get('hidden'):
-                continue
-
-            tipo = el.get('tipo') or el.get('t')
-            props = el.get('props', {})
-
-            x_mm = float(el.get('x', 0))
-            y_mm = float(el.get('y', 0))
-            w_mm = float(el.get('w', 10))
-            h_mm = float(el.get('h', 10))
-
-            # Conversión milimétrica a puntos con origen superior invertido
-            x_pt = x_mm * MM_A_PT
-            w_pt = w_mm * MM_A_PT
-            h_pt = h_mm * MM_A_PT
-            y_pt = (alto_mm - y_mm - h_mm) * MM_A_PT
-
-            raw_fill = el.get('fill') or props.get('fill') or el.get('color') or props.get('color')
-            fill_color = resolver_color_elemento(raw_fill, '#1f3a5f')
-
-            stroke_raw = el.get('stroke') or props.get('stroke')
-            sw_mm = float(el.get('sw', 0) or props.get('sw', 0))
-            sw_pt = sw_mm * MM_A_PT
-            tiene_stroke = sw_pt > 0 and stroke_raw
-
-            c.saveState()
-            c.setFillColor(fill_color)
-            if tiene_stroke:
-                c.setStrokeColor(_hex_seguro(stroke_raw, '#111827'))
-                c.setLineWidth(sw_pt)
-
-            rad_mm = float(el.get('rad', 0) or props.get('rad', 0) or el.get('radius', 0))
-            rad_pt = rad_mm * MM_A_PT
-
-            # Renderizado por tipo de primitiva gráfica
-            if tipo in ('rect', 'forma'):
-                radios_mm = _radios_esquinas_mm(props.get('radios') or el.get('radios'), w_mm, h_mm)
-                if radios_mm is not None:
-                    _dibujar_rect_radios(
-                        c, x_pt, y_pt, w_pt, h_pt, [r * MM_A_PT for r in radios_mm], True, bool(tiene_stroke),
-                    )
-                else:
-                    c.roundRect(x_pt, y_pt, w_pt, h_pt, rad_pt, fill=1, stroke=1 if tiene_stroke else 0)
-
-            elif tipo in ('circle', 'ellipse'):
-                c.ellipse(x_pt, y_pt, x_pt + w_pt, y_pt + h_pt, fill=1, stroke=1 if tiene_stroke else 0)
-
-            elif tipo == 'tri':
-                path = c.beginPath()
-                path.moveTo(x_pt, y_pt)
-                path.lineTo(x_pt + w_pt / 2, y_pt + h_pt)
-                path.lineTo(x_pt + w_pt, y_pt)
-                path.close()
-                c.drawPath(path, fill=1, stroke=1 if tiene_stroke else 0)
-
-            elif tipo == 'diag':
-                # Franja superior/inferior diagonal
-                path = c.beginPath()
-                path.moveTo(x_pt, y_pt + h_pt)
-                path.lineTo(x_pt + w_pt, y_pt + h_pt)
-                path.lineTo(x_pt + w_pt * 0.72, y_pt)
-                path.lineTo(x_pt, y_pt)
-                path.close()
-                c.drawPath(path, fill=1, stroke=1 if tiene_stroke else 0)
-
-            elif tipo == 'diagr':
-                # Acento diagonal opuesto
-                path = c.beginPath()
-                path.moveTo(x_pt + w_pt * 0.28, y_pt + h_pt)
-                path.lineTo(x_pt + w_pt, y_pt + h_pt)
-                path.lineTo(x_pt + w_pt, y_pt)
-                path.lineTo(x_pt, y_pt)
-                path.close()
-                c.drawPath(path, fill=1, stroke=1 if tiene_stroke else 0)
-
-            elif tipo == 'path':
-                puntos = _puntos_validos(props.get('puntos'))
-                path_forma = path_desde_puntos(puntos, w_mm, h_mm) if puntos else ''
-                _dibujar_svg_path(
-                    c,
-                    path_forma or el.get('path') or props.get('d'),
-                    x_pt, y_pt, w_pt, h_pt,
-                    fill_color,
-                    stroke_raw if tiene_stroke else None,
-                    sw_pt,
-                )
-
-            elif tipo in ('line', 'signline'):
-                c.setLineWidth(max(h_pt, 0.4))
-                c.setStrokeColor(fill_color)
-                c.line(x_pt, y_pt + h_pt / 2, x_pt + w_pt, y_pt + h_pt / 2)
-
-            elif tipo == 'photo':
-                _dibujar_foto(c, foto_bytes, x_pt, y_pt, w_pt, h_pt, rad_pt)
-
-            elif tipo == 'qr':
-                _dibujar_qr(
-                    c, datos_dict, x_pt, y_pt,
-                    tamano=min(w_pt, h_pt),
-                    con_logo=bool(props.get('logo', True)),
-                    estilo=props.get('qr_estilo'),
-                )
-
-            elif tipo == 'image':
-                # Logo o firma: si el elemento trae un asset institucional, se
-                # dibuja la imagen; si no, se conserva el marcador de texto.
-                label = props.get('label') or el.get('name') or 'LOGO'
-                ruta = ruta_asset(props.get('asset')) if props.get('asset') else None
-                dibujado = False
-                if ruta:
-                    try:
-                        c.drawImage(
-                            ImageReader(ruta), x_pt, y_pt, w_pt, h_pt,
-                            preserveAspectRatio=True, anchor='c', mask='auto',
-                        )
-                        dibujado = True
-                    except Exception:
-                        logger.warning("No se pudo dibujar el asset '%s' del carnet.", props.get('asset'))
-                if not dibujado:
-                    c.setStrokeColor(fill_color)
-                    c.setLineWidth(0.6)
-                    c.roundRect(x_pt, y_pt, w_pt, h_pt, 1, fill=0, stroke=1)
-                    c.setFont(FUENTE_NEGRITA, min(h_pt * 0.45, 7))
-                    c.drawCentredString(x_pt + w_pt / 2, y_pt + (h_pt - 5) / 2, label)
-
-            elif tipo in ('text', 'field'):
-                # Resolución de cadena de texto
-                if tipo == 'field':
-                    campo = el.get('campo') or el.get('field') or ''
-                    texto_render = _extraer_valor_campo(campo, datos_dict)
-                    if not texto_render:
-                        texto_render = el.get('nombre') or el.get('name') or ''
-                else:
-                    texto_render = el.get('texto') or el.get('text') or ''
-
-                if el.get('upper'):
-                    texto_render = texto_render.upper()
-
-                font_size = float(el.get('fontSize') or el.get('size') or 7.5)
-                bold = bool(el.get('bold', False))
-                fuente_elegida = FUENTE_NEGRITA if bold else FUENTE
-
-                # La caja nunca pasa del borde de la tarjeta (menos el margen).
-                x_txt, w_txt = _limitar_caja_a_tarjeta(x_pt, w_pt, ancho_pt)
-                lineas, font_size = ajustar_texto(
-                    texto_render, fuente_elegida, font_size, w_txt, h_pt,
-                )
-                c.setFont(fuente_elegida, font_size)
-                c.setFillColor(fill_color)
-
-                align = el.get('align', 'left')
-                interlineado = font_size * 1.2
-                if len(lineas) > 1:
-                    total_h = len(lineas) * interlineado
-                    y_actual = y_pt + h_pt - (h_pt - total_h) / 2 - font_size
-                else:
-                    y_actual = y_pt + (h_pt - font_size) / 2 + 0.5
-                for linea in lineas:
-                    if align == 'center':
-                        c.drawCentredString(x_txt + w_txt / 2, y_actual, linea)
-                    elif align == 'right':
-                        c.drawRightString(x_txt + w_txt, y_actual, linea)
-                    else:
-                        c.drawString(x_txt, y_actual, linea)
-                    y_actual -= interlineado
-
-            c.restoreState()
-
-        # Finalizar cara actual
-        if idx_cara < len(caras) - 1:
+    for idx_cara, cara in enumerate(('anverso', 'reverso')):
+        dibujar_cara(c, definicion, datos, cara)
+        if idx_cara == 0:
             c.showPage()
 
     c.save()

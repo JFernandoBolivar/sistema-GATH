@@ -459,3 +459,19 @@ export function qrInsuficiente(
 ): boolean {
   return ladoQrMasGrandeMm(elementos) < minimoMm;
 }
+
+/**
+ * URL autenticada (vía el proxy /api/v1) del archivo de un medio de la Biblioteca.
+ * La plantilla guarda solo `props.biblioteca_id`; la URL se reconstruye al cargarla,
+ * y el PDF descarga el mismo archivo por id en el backend.
+ */
+export function urlArchivoBiblioteca(bibliotecaId: string): string {
+  return `/api/v1/carnetizacion/biblioteca/${encodeURIComponent(bibliotecaId)}/archivo/`;
+}
+
+/** Grados en (-360, 360) con un decimal, como guarda el Transformer de Konva; vacío o inválido = 0. */
+export function normalizarGrados(valor: string | number): number {
+  const n = typeof valor === "number" ? valor : parseFloat(valor);
+  if (!Number.isFinite(n)) return 0;
+  return Number((n % 360).toFixed(1)) || 0;
+}
