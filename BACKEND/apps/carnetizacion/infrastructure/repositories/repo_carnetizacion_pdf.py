@@ -1,7 +1,8 @@
-"""Repositorio de carnetizaciÃ³n: carnets."""
+"""Repositorio de carnetización: carnets."""
 import hashlib
 import base64
 import os
+from datetime import timedelta
 from io import BytesIO
 from typing import Any
 from django.core.cache import cache
@@ -39,6 +40,24 @@ from .repo_carnetizacion_comun import (
     tipo_credencial_para,
     vencimiento_de_carnet,
 )
+
+
+def _rasterizar_caras(pdf_bytes: bytes) -> dict[str, str | None]:
+    """PNG (data URL) de cada página: la 1 es el anverso y la 2 el reverso (None si el diseño
+    heredado de una sola cara no lo tiene)."""
+    paginas = convert_from_bytes(pdf_bytes, first_page=1, last_page=2, fmt='png', dpi=110)
+    if not paginas:
+        raise ValidationError("No se pudo rasterizar la vista previa del carnet")
+
+    def a_data_url(imagen) -> str:
+        buffer = BytesIO()
+        imagen.save(buffer, format='PNG')
+        return f"data:image/png;base64,{base64.b64encode(buffer.getvalue()).decode('utf-8')}"
+
+    return {
+        'anverso': a_data_url(paginas[0]),
+        'reverso': a_data_url(paginas[1]) if len(paginas) > 1 else None,
+    }
 
 
 class RepoCarnetsPdfMixin:
@@ -160,20 +179,16 @@ class RepoCarnetsPdfMixin:
         return generar_carnet_pdf(datos, definicion=definicion)
 
     def generar_vista_previa(self, cedula: str, nombre_override: str | None = None, foto_bytes: bytes | None = None) -> str:
+        """Anverso de la vista previa (PNG en data URL). Se conserva para quien solo usa el frente."""
+        return self.generar_vista_previa_caras(cedula, nombre_override, foto_bytes)['anverso']
+
+    def generar_vista_previa_caras(
+        self, cedula: str, nombre_override: str | None = None, foto_bytes: bytes | None = None,
+    ) -> dict[str, str | None]:
+        """Anverso y reverso (PNG en data URL) del carnet que se emitiría hoy para el titular."""
         empleado = EmployeeModel.objects.filter(cedulaidentidad=cedula).first()
         if not empleado:
             raise NotFoundError(f"Empleado con cédula {cedula} no encontrado")
-
-        asignacion = (
-            AsigTrabajoModel.objects.select_related('denominacioncargoid', 'DireccionGeneral')
-            .filter(employee=empleado)
-            .order_by('-fecha_actualizacion')
-            .first()
-        )
-        cargo, departamento = cargo_y_departamento(asignacion)
-
-        if foto_bytes is None and empleado.profile:
-            foto_bytes = self._foto_carnet(empleado.profile)
 
         # La misma plantilla con la que se emitiría: la vigente del tipo que corresponde a la
         # condición del titular (mismo resolutor que el resto del sistema). Sin asignación
@@ -195,28 +210,65 @@ class RepoCarnetsPdfMixin:
                 except Exception:
                     plantilla_path = None
 
-        nombre = nombre_override or f"{empleado.nombres} {empleado.apellidos}".strip()
-        sec_hash = hashlib.sha256(f"PREVIEW|{cedula}|{timezone.now().date()}".encode()).hexdigest()
+        datos = self._datos_titular_vista_previa(empleado, nombre_override, foto_bytes, plantilla_path)
+        return _rasterizar_caras(generar_carnet_pdf(datos, definicion=definicion))
 
-        datos = DatosCarnetPdf(
+    def vista_previa_plantilla(
+        self, plantilla_id: str, definicion: dict[str, Any] | None = None, cedula: str | None = None,
+    ) -> dict[str, str | None]:
+        """Vista previa de una plantilla (también en borrador), con las dos caras y el MISMO motor
+        que emite. `definicion` permite ver los cambios aún sin guardar del diseñador; sin
+        `cedula` se usan datos de ejemplo."""
+        plantilla = PlantillaCarnetModel.objects.filter(pk=plantilla_id).first()
+        if plantilla is None:
+            raise NotFoundError('Plantilla no encontrada.')
+        if definicion is None:
+            definicion = plantilla.definicion if isinstance(plantilla.definicion, dict) else {}
+        if not isinstance(definicion, dict):
+            raise ValidationError('La definición de la plantilla no es válida.', campo='definicion')
+
+        if cedula:
+            empleado = EmployeeModel.objects.filter(cedulaidentidad=cedula).first()
+            if not empleado:
+                raise NotFoundError(f"Empleado con cédula {cedula} no encontrado")
+            datos = self._datos_titular_vista_previa(empleado)
+        else:
+            datos = DatosCarnetPdf(
+                nombre_completo='NOMBRE APELLIDO DE EJEMPLO',
+                cedula='00000000',
+                cargo='CARGO DE EJEMPLO',
+                departamento='OFICINA DE ADSCRIPCIÓN DE EJEMPLO',
+                nomina='Jubilado(a)' if plantilla.tipo_credencial_id == 'pasivo' else 'Funcionario',
+                security_hash=hashlib.sha256(f"PREVIEW|{plantilla_id}".encode()).hexdigest(),
+                vence=(timezone.now() + timedelta(days=365)).strftime('%d/%m/%Y'),
+            )
+        return _rasterizar_caras(generar_carnet_pdf(datos, definicion=definicion))
+
+    def _datos_titular_vista_previa(
+        self, empleado: Any, nombre_override: str | None = None, foto_bytes: bytes | None = None,
+        plantilla_path: str | None = None,
+    ) -> DatosCarnetPdf:
+        asignacion = (
+            AsigTrabajoModel.objects.select_related('denominacioncargoid', 'DireccionGeneral')
+            .filter(employee=empleado)
+            .order_by('-fecha_actualizacion')
+            .first()
+        )
+        cargo, departamento = cargo_y_departamento(asignacion)
+        if foto_bytes is None and empleado.profile:
+            foto_bytes = self._foto_carnet(empleado.profile)
+        nombre = nombre_override or f"{empleado.nombres} {empleado.apellidos}".strip()
+        cedula = str(empleado.cedulaidentidad)
+        return DatosCarnetPdf(
             nombre_completo=nombre,
-            cedula=str(empleado.cedulaidentidad),
+            cedula=cedula,
             cargo=cargo,
             departamento=departamento,
-            security_hash=sec_hash,
+            security_hash=hashlib.sha256(f"PREVIEW|{cedula}|{timezone.now().date()}".encode()).hexdigest(),
             plantilla_path=plantilla_path,
             foto_bytes=foto_bytes,
             campos_extra=valores_campos_personalizados(empleado, asignacion),
         )
-        pdf_bytes = generar_carnet_pdf(datos, definicion=definicion)
-        images = convert_from_bytes(pdf_bytes, first_page=1, last_page=1, fmt='png', dpi=110)
-        if not images:
-            raise ValidationError("No se pudo rasterizar la vista previa del carnet")
-
-        buffer = BytesIO()
-        images[0].save(buffer, format='PNG')
-        encoded = base64.b64encode(buffer.getvalue()).decode('utf-8')
-        return f"data:image/png;base64,{encoded}"
 
     def obtener_estadisticas_carnets(self) -> dict[str, Any]:
         """Cuenta carnets de trabajadores/pasivos (CarnetEmitido) y credenciales externas o temporales.

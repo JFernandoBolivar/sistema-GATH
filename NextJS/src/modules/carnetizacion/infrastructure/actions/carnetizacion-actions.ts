@@ -339,6 +339,30 @@ export async function rechazarSolicitudCarnetAction(solicitudId: string, motivo:
   }
 }
 
+export async function vistaPreviaPlantillaAction(
+  plantillaId: string,
+  definicion?: Record<string, unknown>,
+  cedula?: string,
+) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const { carnetizacionApi } = await import("../http/carnetizacion-api");
+    const data = await carnetizacionApi.vistaPreviaPlantilla(plantillaId, definicion, cedula);
+    await logAudit({ traceId, action: "vistaPreviaPlantillaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const, data };
+  } catch (error) {
+    unstable_rethrow(error);
+    await logAudit({ traceId, action: "vistaPreviaPlantillaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return {
+      success: false as const,
+      data: null,
+      message: error instanceof ApiHttpError ? error.message : "No se pudo generar la vista previa.",
+    };
+  }
+}
+
 export async function getMotivosCarnetAction() {
   const traceId = generateTraceId();
   const startedAt = Date.now();
@@ -367,7 +391,7 @@ export async function actualizarVistaPreviaAction(cedula: string, nombre: string
     unstable_rethrow(error);
     await logAudit({ traceId, action: "actualizarVistaPreviaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    return { success: false as const, message: "Error al actualizar vista previa", vista_previa: "" };
+    return { success: false as const, message: "Error al actualizar vista previa", vista_previa: "", vista_previa_reverso: "" };
   }
 }
 

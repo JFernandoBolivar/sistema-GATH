@@ -403,19 +403,29 @@ export const carnetizacionApi = {
     return envelope.data;
   },
 
+  /** Vista previa con el motor PDF (dos caras) de una plantilla; `definicion` = cambios sin guardar. */
+  vistaPreviaPlantilla: async (plantillaId: string, definicion?: Record<string, unknown>, cedula?: string) => {
+    const envelope = await apiClient.post<ApiResponse<{ anverso: string; reverso: string | null }>>(
+      `/api/v1/carnetizacion/plantillas-motor/${encodeURIComponent(plantillaId)}/vista-previa/`,
+      { definicion, cedula: cedula || undefined },
+    );
+    return envelope.data;
+  },
+
   getMotivos: async () => {
     const envelope = await apiClient.get<ApiResponse<{ id: number; nombre: string }[]>>("/api/v1/carnetizacion/motivos/");
     return envelope.data ?? [];
   },
 
   actualizarVistaPrevia: async (cedula: string, nombre: string) => {
-    const envelope = await apiClient.post<ApiResponse<{ vista_previa: string }>>(`/api/v1/carnetizacion/actualizar-vista-previa/${cedula}/`, {
+    const envelope = await apiClient.post<ApiResponse<{ vista_previa: string; vista_previa_reverso?: string | null }>>(`/api/v1/carnetizacion/actualizar-vista-previa/${cedula}/`, {
       nombre,
       cedula,
     });
     return {
       success: envelope.status === "success",
       vista_previa: envelope.data?.vista_previa || "",
+      vista_previa_reverso: envelope.data?.vista_previa_reverso || "",
     };
   },
 

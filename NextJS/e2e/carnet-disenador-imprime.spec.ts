@@ -77,6 +77,13 @@ test.describe("Diseñador de carnet: imagen de biblioteca, rotación y opacidad"
 
       await page.getByLabel("Rotación en grados").fill("30");
 
+      // Vista previa con el motor PDF (B-1), de los cambios aún sin guardar: dos caras.
+      await page.getByRole("button", { name: /vista previa pdf/i }).click();
+      const dialogo = page.getByRole("dialog");
+      await expect(dialogo.getByRole("img", { name: /impresión: anverso/i })).toBeVisible();
+      await expect(dialogo.getByRole("img", { name: /impresión: reverso/i })).toBeVisible();
+      await page.keyboard.press("Escape");
+
       await page.getByRole("button", { name: /guardar borrador/i }).click();
       await expect(page.getByText(/plantilla guardada/i)).toBeVisible();
 

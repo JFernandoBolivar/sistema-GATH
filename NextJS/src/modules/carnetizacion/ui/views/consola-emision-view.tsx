@@ -102,6 +102,8 @@ export function ConsolaEmisionView() {
   const [detalleReemision, setDetalleReemision] = useState("");
   const [avisoReemision, setAvisoReemision] = useState<string | null>(null);
   const [vistaPreviaRaster, setVistaPreviaRaster] = useState<string>("");
+  // Reverso real de la plantilla (antes el navegador dibujaba una tarjeta fija).
+  const [vistaPreviaReversoRaster, setVistaPreviaReversoRaster] = useState<string>("");
   const [isPendingEmision, startTransitionEmision] = useTransition();
   // Cédula con vista previa en curso (ref: evita lanzar una segunda petición para la misma
   // cédula) y cédula actualmente seleccionada (para descartar respuestas de otra selección).
@@ -196,6 +198,7 @@ export function ConsolaEmisionView() {
         const ok = Boolean(res.success && res.vista_previa);
         if (ok && cedulaActualRef.current === cedula) {
           setVistaPreviaRaster(res.vista_previa as string);
+          setVistaPreviaReversoRaster((res.vista_previa_reverso as string) || "");
         }
         return ok;
       } finally {
@@ -215,6 +218,7 @@ export function ConsolaEmisionView() {
     // Sin asignación vigente el backend rechaza la vista previa: no se pide.
     if (!puedeEmitirCarnet(trabajadorSeleccionado.condicion)) {
       setVistaPreviaRaster("");
+      setVistaPreviaReversoRaster("");
       return;
     }
     void solicitarVistaPrevia(trabajadorSeleccionado.cedula, trabajadorSeleccionado.nombre_completo);
@@ -254,6 +258,7 @@ export function ConsolaEmisionView() {
     setBusqueda("");
     setDebouncedQuery("");
     setVistaPreviaRaster("");
+    setVistaPreviaReversoRaster("");
     setMotivoReemision("");
     setDetalleReemision("");
     setAvisoReemision(null);
@@ -874,18 +879,22 @@ export function ConsolaEmisionView() {
                         El titular no tiene una asignación vigente.
                       </p>
                     </div>
-                  ) : caraPreview === "anverso" && vistaPreviaRaster ? (
+                  ) : (caraPreview === "anverso" ? vistaPreviaRaster : vistaPreviaReversoRaster) ? (
                     /* La vista previa raster del backend ya contiene la plantilla, la foto y los
-                       datos con las proporciones reales del carnet. */
+                       datos con las proporciones reales del carnet, en cada cara. */
                     <div className="w-[240px] h-[380px] overflow-hidden rounded-xl border border-border bg-white shadow-sm">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={vistaPreviaRaster}
-                        alt={`Vista previa del carnet de ${trabajadorSeleccionado.nombre_completo}`}
+                        src={caraPreview === "anverso" ? vistaPreviaRaster : vistaPreviaReversoRaster}
+                        alt={
+                          caraPreview === "anverso"
+                            ? `Vista previa del carnet de ${trabajadorSeleccionado.nombre_completo}`
+                            : `Vista previa del reverso del carnet de ${trabajadorSeleccionado.nombre_completo}`
+                        }
                         className="size-full object-contain"
                       />
                     </div>
-                  ) : caraPreview === "anverso" && generandoPreview ? (
+                  ) : generandoPreview ? (
                     /* Mientras se genera el raster real del anverso, un esqueleto de carga en
                        vez de la tarjeta de relleno: evita el efecto de "cambio de plantilla". */
                     <div className="w-[240px] h-[380px] rounded-xl border border-border bg-white shadow-sm p-3 flex flex-col items-center">

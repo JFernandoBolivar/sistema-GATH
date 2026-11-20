@@ -112,6 +112,11 @@ test.describe("Carnetización UI - Consola de emisión, plantillas y estadístic
     await expect(
       page.getByRole("img", { name: `Vista previa del carnet de ${titular.nombre_completo}` }),
     ).toBeVisible({ timeout: 30_000 });
+    // El reverso es el real de la plantilla (generado por el backend), no una tarjeta fija.
+    await page.getByRole("button", { name: "Reverso", exact: true }).click();
+    await expect(
+      page.getByRole("img", { name: `Vista previa del reverso del carnet de ${titular.nombre_completo}` }),
+    ).toBeVisible();
   });
 
   test("2b. a un titular sin asignación vigente no se le ofrece emitir carnet", async ({ page }) => {

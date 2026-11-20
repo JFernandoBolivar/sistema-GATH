@@ -36,6 +36,7 @@ from apps.carnetizacion.presentation.views.carnetizacion_views import (
     CarnetActualizarVistaPreviaView,
     CarnetBuscarPersonalView,
     SolicitudCarnetRechazarView,
+    PlantillaMotorVistaPreviaView,
     SolicitudesCarnetListView,
     CarnetGenerarView,
     CarnetPdfView,
@@ -106,6 +107,11 @@ urlpatterns = [
     path('plantillas-motor/<str:plantilla_id>/', PlantillaMotorDetalleView.as_view(), name='plantilla-motor-detalle'),
     path('plantillas-motor/<str:plantilla_id>/publicar/', PlantillaMotorPublicarView.as_view(), name='plantilla-motor-publicar'),
     path('plantillas-motor/<str:plantilla_id>/activar/', PlantillaMotorActivarView.as_view(), name='plantilla-motor-activar'),
+    path(
+        'plantillas-motor/<str:plantilla_id>/vista-previa/',
+        PlantillaMotorVistaPreviaView.as_view(),
+        name='plantilla-motor-vista-previa',
+    ),
     path('plantillas-motor/<str:plantilla_id>/versiones/', PlantillaMotorVersionesView.as_view(), name='plantilla-motor-versiones'),
     path('reglas-color/sugerencias/', SugerenciasReglasColorView.as_view(), name='reglas-color-sugerencias'),
 

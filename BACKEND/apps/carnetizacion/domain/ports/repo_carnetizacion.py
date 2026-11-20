@@ -333,3 +333,17 @@ class RepoCarnetizacion(Protocol):
 
     def rechazar_solicitud_carnet(self, solicitud_id: str, motivo: str, resuelta_por: str) -> dict:
         ...
+
+    # --- Vista previa con las dos caras (B-1) ---
+
+    def generar_vista_previa_caras(
+        self, cedula: str, nombre_override: str | None = None, foto_bytes: bytes | None = None,
+    ) -> dict:
+        """{'anverso', 'reverso'} en PNG (data URL) del carnet que se emitiría para el titular."""
+        ...
+
+    def vista_previa_plantilla(
+        self, plantilla_id: str, definicion: dict | None = None, cedula: str | None = None,
+    ) -> dict:
+        """{'anverso', 'reverso'} de una plantilla (también borrador o con cambios sin guardar)."""
+        ...

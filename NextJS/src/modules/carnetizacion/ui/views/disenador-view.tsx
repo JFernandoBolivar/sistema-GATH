@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import useSWR from "swr";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, Palette, Save } from "lucide-react";
+import { ArrowLeft, Eye, Loader2, Palette, Save } from "lucide-react";
 
 import PageLayout from "@/components/layout/page-layout";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import {
   getPlantillaMotorAction,
   getSugerenciasReglasColorAction,
   getTiposCredencialAction,
+  vistaPreviaPlantillaAction,
 } from "../../infrastructure/actions/carnetizacion-actions";
 import { useDisenadorEditor } from "../hooks/use-disenador-editor";
 import { DisenadorToolbar } from "../components/disenador/disenador-toolbar";
@@ -27,6 +28,10 @@ import { DisenadorPropiedadesPanel } from "../components/disenador/disenador-pro
 import { DisenadorSeleccionMultiple } from "../components/disenador/disenador-seleccion-multiple";
 import { DisenadorReglasColorPanel } from "../components/disenador/disenador-reglas-color-panel";
 import { DisenadorBibliotecaDialog } from "../components/disenador/disenador-biblioteca-dialog";
+import {
+  DisenadorVistaPreviaDialog,
+  type CarasVistaPrevia,
+} from "../components/disenador/disenador-vista-previa-dialog";
 
 // Carga dinámica de Konva sin SSR
 const KonvaCanvasStage = dynamic(
@@ -52,6 +57,9 @@ interface Props {
 export function DisenadorView({ plantillaId }: Props) {
   const [isPending, startTransition] = useTransition();
   const [modalBibliotecaOpen, setModalBibliotecaOpen] = useState(false);
+  const [vistaPreviaAbierta, setVistaPreviaAbierta] = useState(false);
+  const [carasVistaPrevia, setCarasVistaPrevia] = useState<CarasVistaPrevia | null>(null);
+  const [isPendingVistaPrevia, startVistaPrevia] = useTransition();
 
   // Consultas SWR
   const { data: respuestaPlantilla, mutate: mutatePlantilla } = useSWR(
@@ -104,6 +112,30 @@ export function DisenadorView({ plantillaId }: Props) {
       ? camposDisponibles.find((c) => c.codigo === editor.elementoSeleccionado?.field) || null
       : null;
 
+  // Vista previa con el motor PDF, de lo que está en pantalla (aunque no se haya guardado).
+  const abrirVistaPrevia = () => {
+    if (!plantilla) return;
+    setCarasVistaPrevia(null);
+    setVistaPreviaAbierta(true);
+    startVistaPrevia(async () => {
+      const definicion = adaptarEditorADefinicion(
+        plantilla.definicion,
+        editor.elementos,
+        editor.reglasColor,
+        anchoMm,
+        altoMm,
+        plantilla.orientacion,
+      );
+      const res = await vistaPreviaPlantillaAction(String(plantilla.id), definicion);
+      if (res.success && res.data) {
+        setCarasVistaPrevia(res.data);
+      } else {
+        setVistaPreviaAbierta(false);
+        toast.error(res.message || "No se pudo generar la vista previa.");
+      }
+    });
+  };
+
   // Guardar Borrador en Backend
   const guardarBorrador = () => {
     if (!plantilla) return;
@@ -143,16 +175,35 @@ export function DisenadorView({ plantillaId }: Props) {
             Volver a Plantillas
           </Link>
         </Button>
-        <Button
-          size="sm"
-          onClick={guardarBorrador}
-          disabled={isPending}
-          className="gap-1.5"
-        >
-          {isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-          Guardar Borrador
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={abrirVistaPrevia}
+            disabled={!plantilla || isPendingVistaPrevia}
+            className="gap-1.5"
+          >
+            {isPendingVistaPrevia ? <Loader2 className="size-4 animate-spin" /> : <Eye className="size-4" />}
+            Vista previa PDF
+          </Button>
+          <Button
+            size="sm"
+            onClick={guardarBorrador}
+            disabled={isPending}
+            className="gap-1.5"
+          >
+            {isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+            Guardar Borrador
+          </Button>
+        </div>
       </div>
+
+      <DisenadorVistaPreviaDialog
+        open={vistaPreviaAbierta}
+        onOpenChange={setVistaPreviaAbierta}
+        caras={carasVistaPrevia}
+        cargando={isPendingVistaPrevia}
+      />
 
       {/* Barra superior de herramientas y caras */}
       <DisenadorToolbar

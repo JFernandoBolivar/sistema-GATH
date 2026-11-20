@@ -32,6 +32,7 @@ from apps.carnetizacion.application.use_cases.emitir_carnet import (
     listar_motivos_emision,
 )
 from apps.carnetizacion.application.use_cases.generar_pdf_carnet import generar_pdf_carnet
+from apps.carnetizacion.application.use_cases.vista_previa_plantilla import vista_previa_plantilla_uc
 from apps.carnetizacion.application.use_cases.solicitudes_carnet import (
     listar_solicitudes_carnet_uc,
     rechazar_solicitud_carnet_uc,
@@ -658,8 +659,25 @@ class CarnetActualizarVistaPreviaView(APIView):
     def post(self, request, cedula: str):
         nombre = request.data.get('nombre')
         repo = RepoCarnetizacionORM()
-        html = repo.generar_vista_previa(cedula=cedula, nombre_override=nombre)
-        return ok({"vista_previa": html})
+        caras = repo.generar_vista_previa_caras(cedula=cedula, nombre_override=nombre)
+        # `vista_previa` (anverso) se conserva por compatibilidad; el reverso es el real de la
+        # plantilla, no la tarjeta fija que dibujaba el navegador.
+        return ok({"vista_previa": caras['anverso'], "vista_previa_reverso": caras['reverso']})
+
+
+class PlantillaMotorVistaPreviaView(APIView):
+    """Vista previa de una plantilla (incluso borrador o con cambios sin guardar), dos caras."""
+
+    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.disenar')]
+
+    @extend_schema(tags=['Carnetización'], summary='Vista previa de una plantilla con el motor PDF (dos caras)')
+    def post(self, request, plantilla_id: str):
+        return ok(vista_previa_plantilla_uc(
+            RepoCarnetizacionORM(),
+            plantilla_id,
+            definicion=request.data.get('definicion'),
+            cedula=request.data.get('cedula'),
+        ))
 
 
 class CarnetSubirFotoView(APIView):
