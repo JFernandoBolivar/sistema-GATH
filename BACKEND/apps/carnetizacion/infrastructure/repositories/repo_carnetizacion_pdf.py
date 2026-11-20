@@ -10,9 +10,6 @@ from django.db.models import Count
 from django.utils import timezone
 from pdf2image import convert_from_bytes
 
-from core.domain.catalogos import (
-    TIPO_PERSONAL_PASIVO,
-)
 from core.domain.exceptions import NotFoundError, ValidationError
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
 from apps.carnetizacion.infrastructure.resolver_origen_campos import valores_campos_personalizados
@@ -31,13 +28,15 @@ from apps.carnetizacion.infrastructure.pdf.carnet_pdf import (
 # Import entre módulos en infrastructure (apps.cargos y apps.personal): mismo patrón ya
 # establecido en `apps.reportes`/`apps.autogestion`/`apps.pasivos`.
 from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
-from apps.pasivos.infrastructure.models.pasivo_models import EmployeeEgresadoModel
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 
 
 from .repo_carnetizacion_comun import (
     cargo_y_departamento,
+    exigir_condicion_para_carnet,
     logger,
+    plantilla_vigente,
+    tipo_credencial_para,
     vencimiento_de_carnet,
 )
 
@@ -176,23 +175,11 @@ class RepoCarnetsPdfMixin:
         if foto_bytes is None and empleado.profile:
             foto_bytes = self._foto_carnet(empleado.profile)
 
-        # Preferir la plantilla por capas activa (con su versión más reciente).
-        # El fondo fijo legado solo se usa si no hay definición por capas.
-        es_pasivo = (
-            AsigTrabajoModel.objects.filter(
-                employee=empleado,
-                Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO,
-            ).exists()
-            or EmployeeEgresadoModel.objects.filter(employee=empleado).exists()
-        )
-        tipo_plantilla = 'pasivo' if es_pasivo else 'trabajador'
-        plantilla_motor = (
-            PlantillaCarnetModel.objects.filter(
-                tipo_credencial_id=tipo_plantilla, activa=True,
-            )
-            .order_by('-version')
-            .first()
-        )
+        # La misma plantilla con la que se emitiría: la vigente del tipo que corresponde a la
+        # condición del titular (mismo resolutor que el resto del sistema). Sin asignación
+        # vigente no hay vista previa. El fondo fijo legado solo se usa sin definición por capas.
+        condicion = exigir_condicion_para_carnet(empleado)
+        plantilla_motor = plantilla_vigente(tipo_credencial_para(condicion))
         definicion = (
             plantilla_motor.definicion
             if plantilla_motor and isinstance(plantilla_motor.definicion, dict) and plantilla_motor.definicion

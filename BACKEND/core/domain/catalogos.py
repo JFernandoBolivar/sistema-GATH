@@ -25,6 +25,12 @@ TIPO_PERSONAL_PASIVO = 'PASIVO'
 # --- Condición laboral derivada (activo / pasivo).
 CONDICION_ACTIVO = 'ACTIVO'
 CONDICION_PASIVO = 'PASIVO'
+CONDICION_SIN_ASIGNACION = 'SIN_ASIGNACION'
+
+# --- `CategoriaMovimiento.categoria`: las categorías de motivos que convierten o mantienen a
+# alguien como pasivo («PASE A PASIVO», «EGRESO PASIVO», «ESTATUS PASIVO») llevan esta marca.
+# Un egreso de otra categoría (renuncia, destitución, abandono de cargo…) no es un pasivo.
+MARCA_CATEGORIA_PASIVO = 'PASIVO'
 
 # --- Población objetivo de una carga masiva o solicitud de carnet.
 POBLACION_ACTIVO = 'ACTIVO'

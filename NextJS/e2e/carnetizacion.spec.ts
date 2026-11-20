@@ -11,11 +11,53 @@ import { iniciarSesionE2E } from "./credenciales";
  * `/carnetizacion/generar` renderizan la misma consola. La spec comprueba esa
  * interfaz; no emite carnets para no alterar datos de la base local.
  */
+// Cualquier cédula sirve para comprobar que /generar?cedula= abre la consola.
 const CEDULA = "30540767";
-const NOMBRE = "HITLER MOISES MACHADO CORRO";
+const DJANGO = process.env.E2E_DJANGO_URL ?? "http://127.0.0.1:8001";
+
+interface TitularBuscado {
+  cedula: string;
+  nombre_completo: string;
+  condicion?: string;
+}
 
 async function login(page: Page) {
   await iniciarSesionE2E(page);
+}
+
+/**
+ * Un titular con la condición pedida, tomado de la misma búsqueda que usa la consola: así la
+ * prueba no depende de cédulas fijas de la base local. Se salta si no hay ninguno.
+ */
+async function buscarTitularPorCondicion(page: Page, condicion: string): Promise<TitularBuscado> {
+  const token = (await page.context().cookies()).find((c) => c.name === "dj_access")?.value;
+  for (const q of ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]) {
+    const respuesta = await page.request.get(`${DJANGO}/api/v1/carnetizacion/buscar/`, {
+      params: { q },
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const filas = ((await respuesta.json()) as { data?: TitularBuscado[] }).data ?? [];
+    const titular = filas.find((f) => f.condicion === condicion);
+    if (titular) return titular;
+  }
+  test.skip(true, `No hay titulares con condición ${condicion} en la base de prueba.`);
+  throw new Error("inalcanzable");
+}
+
+async function seleccionarEnConsola(page: Page, titular: TitularBuscado) {
+  await page.goto("/carnetizacion/emision", { waitUntil: "domcontentloaded" });
+  // Espera la hidratación: si se escribe antes, React reinicia el input
+  // controlado al montar y la búsqueda nunca se dispara.
+  await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => {});
+  const buscador = page.getByRole("searchbox", { name: /buscar personal para emisión de carnet/i });
+  await buscador.fill(titular.cedula);
+  await expect(buscador).toHaveValue(titular.cedula);
+  const resultado = page.getByRole("button").filter({ hasText: titular.cedula }).first();
+  await expect(resultado).toBeVisible({ timeout: 30_000 });
+  await resultado.click();
+  await expect(
+    page.getByRole("heading", { level: 3, name: titular.nombre_completo.toUpperCase() }),
+  ).toBeVisible();
 }
 
 test.describe("Carnetización UI - Consola de emisión, plantillas y estadísticas", () => {
@@ -54,38 +96,34 @@ test.describe("Carnetización UI - Consola de emisión, plantillas y estadístic
     ).toBeVisible();
   });
 
-  test("2. la consola busca por cédula y muestra los parámetros de emisión del titular", async ({
+  test("2. la consola muestra la condición real y la vista previa de un titular activo", async ({
     page,
   }) => {
-    await page.goto("/carnetizacion/emision", { waitUntil: "domcontentloaded" });
-    // Espera la hidratación: si se escribe antes, React reinicia el input
-    // controlado al montar y la búsqueda nunca se dispara.
-    await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => {});
+    const titular = await buscarTitularPorCondicion(page, "ACTIVO");
+    await seleccionarEnConsola(page, titular);
 
-    const buscador = page.getByRole("searchbox", {
-      name: /buscar personal para emisión de carnet/i,
-    });
-    await buscador.fill(CEDULA);
-    await expect(buscador).toHaveValue(CEDULA);
-
-    const resultado = page.getByRole("button").filter({ hasText: NOMBRE }).first();
-    await expect(resultado).toBeVisible({ timeout: 30_000 });
-    await resultado.click();
-
-    await expect(page.getByRole("heading", { level: 3, name: NOMBRE })).toBeVisible();
-    await expect(page.getByText(`C.I. V-${CEDULA}`).first()).toBeVisible();
+    await expect(page.getByText(`C.I. V-${titular.cedula}`).first()).toBeVisible();
+    await expect(page.getByText("ACTIVO", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Parámetros de Emisión Oficial")).toBeVisible();
     await expect(page.getByRole("combobox", { name: /motivo de emisión/i })).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: /emitir y descargar pdf/i }),
-    ).toBeVisible();
-    // La vista previa puede ser una imagen o una tarjeta dibujada en el DOM
-    // según la plantilla; el nombre del titular dentro de la vista previa es el
-    // ancla estable.
+    await expect(page.getByRole("button", { name: /emitir y descargar pdf/i })).toBeVisible();
+    // La vista previa la rasteriza el backend con la plantilla con la que se emitiría.
     await expect(page.getByText("Vista Previa Oficial")).toBeVisible();
-    await expect(page.getByRole("heading", { level: 4, name: NOMBRE })).toBeVisible({
-      timeout: 20_000,
-    });
+    await expect(
+      page.getByRole("img", { name: `Vista previa del carnet de ${titular.nombre_completo}` }),
+    ).toBeVisible({ timeout: 30_000 });
+  });
+
+  test("2b. a un titular sin asignación vigente no se le ofrece emitir carnet", async ({ page }) => {
+    const titular = await buscarTitularPorCondicion(page, "SIN_ASIGNACION");
+    await seleccionarEnConsola(page, titular);
+
+    await expect(page.getByText("SIN ASIGNACIÓN", { exact: true })).toBeVisible();
+    await expect(page.getByText("No se puede emitir el carnet")).toBeVisible();
+    await expect(page.getByRole("button", { name: /emitir y descargar pdf/i })).toBeDisabled();
+    // Ni vista previa ni tarjeta de relleno que sugiera que se puede emitir.
+    await expect(page.getByText("Sin vista previa")).toBeVisible();
+    await expect(page.getByLabel(/vista previa del carnet:/i)).toHaveCount(0);
   });
 
   test("3. /carnetizacion/buscar y /carnetizacion/generar abren la misma consola", async ({

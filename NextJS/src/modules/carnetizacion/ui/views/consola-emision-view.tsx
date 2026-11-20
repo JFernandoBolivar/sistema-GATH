@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 
 import PageLayout from "@/components/layout/page-layout";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,6 +45,7 @@ import {
   getPlantillasCarnetAction,
 } from "../../infrastructure/actions/carnetizacion-actions";
 import type { EmployeeCarnet, MotivoOption, PlantillaCarnet } from "../../domain/entities/carnet";
+import { etiquetaCondicion, puedeEmitirCarnet } from "../../domain/entities/carnet";
 
 function truncarNombre(nombreCompleto: string): string {
   const partes = nombreCompleto.trim().split(/\s+/);
@@ -210,6 +212,11 @@ export function ConsolaEmisionView() {
   useEffect(() => {
     cedulaActualRef.current = trabajadorSeleccionado?.cedula ?? null;
     if (!trabajadorSeleccionado) return;
+    // Sin asignación vigente el backend rechaza la vista previa: no se pide.
+    if (!puedeEmitirCarnet(trabajadorSeleccionado.condicion)) {
+      setVistaPreviaRaster("");
+      return;
+    }
     void solicitarVistaPrevia(trabajadorSeleccionado.cedula, trabajadorSeleccionado.nombre_completo);
   }, [trabajadorSeleccionado, solicitarVistaPrevia]);
 
@@ -512,8 +519,14 @@ export function ConsolaEmisionView() {
                           <h3 className="text-base sm:text-lg font-bold text-foreground leading-tight">
                             {trabajadorSeleccionado.nombre_completo.toUpperCase()}
                           </h3>
-                          <Badge variant="default" className="text-[10px] font-bold">
-                            {trabajadorSeleccionado.cargo?.toLowerCase().includes("jubilad") ? "PASIVO" : "ACTIVO"}
+                          {/* Condición real calculada en el servidor (antes se adivinaba por el texto del cargo). */}
+                          <Badge
+                            variant={
+                              puedeEmitirCarnet(trabajadorSeleccionado.condicion) ? "default" : "destructive"
+                            }
+                            className="text-[10px] font-bold"
+                          >
+                            {etiquetaCondicion(trabajadorSeleccionado.condicion)}
                           </Badge>
                         </div>
                         <p className="text-xs font-semibold text-primary mt-0.5">
@@ -596,6 +609,16 @@ export function ConsolaEmisionView() {
                 </CardHeader>
 
                 <CardContent className="pt-4 space-y-4">
+                  {!puedeEmitirCarnet(trabajadorSeleccionado.condicion) && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="size-4" />
+                      <AlertTitle>No se puede emitir el carnet</AlertTitle>
+                      <AlertDescription>
+                        El titular no tiene una asignación vigente (activa ni pasiva), por ejemplo
+                        por un egreso. Regularice su situación en Gestión de Personal antes de emitir.
+                      </AlertDescription>
+                    </Alert>
+                  )}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="motivo-emision" className="text-xs font-semibold">
@@ -759,7 +782,11 @@ export function ConsolaEmisionView() {
                         variant="outline"
                         size="sm"
                         onClick={handleActualizarPreview}
-                        disabled={generandoPreview || isPendingEmision}
+                        disabled={
+                          generandoPreview ||
+                          isPendingEmision ||
+                          !puedeEmitirCarnet(trabajadorSeleccionado.condicion)
+                        }
                         className="text-xs min-h-11 px-3"
                       >
                         {generandoPreview ? (
@@ -774,7 +801,11 @@ export function ConsolaEmisionView() {
                         type="button"
                         onClick={handleEmitirCarnet}
                         disabled={
-                          isPendingEmision || generandoPreview || !motivoEfectivoId || !reemisionCompleta
+                          isPendingEmision ||
+                          generandoPreview ||
+                          !motivoEfectivoId ||
+                          !reemisionCompleta ||
+                          !puedeEmitirCarnet(trabajadorSeleccionado.condicion)
                         }
                         className="text-xs font-semibold min-h-11 px-5 shadow-sm"
                       >
@@ -833,7 +864,17 @@ export function ConsolaEmisionView() {
                 </CardHeader>
 
                 <CardContent className="pt-6 pb-6 flex flex-col items-center w-full">
-                  {caraPreview === "anverso" && vistaPreviaRaster ? (
+                  {!puedeEmitirCarnet(trabajadorSeleccionado.condicion) ? (
+                    /* Sin asignación vigente no hay carnet que previsualizar: una tarjeta de
+                       relleno haría creer que se puede emitir. */
+                    <div className="w-[240px] h-[380px] rounded-xl border border-dashed border-border bg-muted/30 flex flex-col items-center justify-center gap-2 px-6 text-center">
+                      <AlertCircle className="size-8 text-destructive" />
+                      <p className="text-sm font-semibold text-foreground">Sin vista previa</p>
+                      <p className="text-xs text-muted-foreground">
+                        El titular no tiene una asignación vigente.
+                      </p>
+                    </div>
+                  ) : caraPreview === "anverso" && vistaPreviaRaster ? (
                     /* La vista previa raster del backend ya contiene la plantilla, la foto y los
                        datos con las proporciones reales del carnet. */
                     <div className="w-[240px] h-[380px] overflow-hidden rounded-xl border border-border bg-white shadow-sm">

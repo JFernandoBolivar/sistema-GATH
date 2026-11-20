@@ -160,3 +160,34 @@ def test_empleado_legado_con_asignacion_activa_es_activo(escenario):
     assert repo.condicion_por_cedula(CEDULA_LEGADO) is CondicionTrabajador.ACTIVO
     assert CEDULA_LEGADO in repo.cedulas_por_condicion(CondicionTrabajador.ACTIVO.value)
     assert CEDULA_LEGADO not in repo.cedulas_por_condicion(CondicionTrabajador.PASIVO.value)
+
+
+def test_egresado_por_abandono_sin_asignacion_no_es_pasivo(escenario):
+    """Un egreso que no es jubilación ni pensión (renuncia, abandono…) no convierte en pasivo:
+    sin asignación vigente queda SIN_ASIGNACION (antes recibía el carnet de jubilado)."""
+    emp = escenario['empleado'](CEDULA_LEGADO)
+    cat_egreso = CategoriaMovimientoModel.objects.create(categoria='EGRESO')
+    abandono = TipoMovimientoModel.objects.create(movimiento='ABANDONO DE CARGO', categoria=cat_egreso)
+    EmployeeEgresadoModel.objects.create(
+        employee=emp, n_contrato='ABANDONO', fechaingresoorganismo=datetime.date(2020, 1, 1),
+        motivo_egreso=abandono,
+    )
+    repo = RepoCondicionTrabajadorORM()
+
+    assert repo.condicion_por_cedula(CEDULA_LEGADO) is CondicionTrabajador.SIN_ASIGNACION
+    assert CEDULA_LEGADO not in repo.cedulas_por_condicion(CondicionTrabajador.PASIVO.value)
+    assert CEDULA_LEGADO not in repo.cedulas_por_condicion(CondicionTrabajador.ACTIVO.value)
+
+
+def test_pasivo_legado_por_jubilacion_sigue_siendo_pasivo(escenario):
+    emp = escenario['empleado'](CEDULA_LEGADO)
+    cat_pase = CategoriaMovimientoModel.objects.create(categoria='PASE A PASIVO')
+    jubilacion = TipoMovimientoModel.objects.create(movimiento='JUBILACION ORDINARIA', categoria=cat_pase)
+    EmployeeEgresadoModel.objects.create(
+        employee=emp, n_contrato='LEGADO', fechaingresoorganismo=datetime.date(2020, 1, 1),
+        motivo_egreso=jubilacion,
+    )
+    repo = RepoCondicionTrabajadorORM()
+
+    assert repo.condicion_por_cedula(CEDULA_LEGADO) is CondicionTrabajador.PASIVO
+    assert CEDULA_LEGADO in repo.cedulas_por_condicion(CondicionTrabajador.PASIVO.value)

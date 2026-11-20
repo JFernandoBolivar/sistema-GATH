@@ -20,7 +20,6 @@ from apps.carnetizacion.infrastructure.mappers.mapper_carnetizacion import (
 from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
     CarnetEmitidoModel,
     MotivosEmisionModel,
-    PlantillaCarnetModel,
 )
 
 # Import entre módulos en infrastructure (apps.cargos y apps.personal): mismo patrón ya
@@ -30,9 +29,13 @@ from apps.personal.infrastructure.models.personal_models import EmployeeModel
 
 
 from .repo_carnetizacion_comun import (
-    _es_pasivo,
+    condicion_titular,
+    exigir_condicion_para_carnet,
+    plantilla_elegida_para_emitir,
+    tipo_credencial_para,
     vencimiento_segun_parametros,
 )
+from core.domain.catalogos import CONDICION_PASIVO
 
 
 class RepoCarnetsEmitidosMixin:
@@ -99,28 +102,23 @@ class RepoCarnetsEmitidosMixin:
                 'El motivo de emisión seleccionado no existe.', campo='motivo_id',
             )
 
+        # Mismo criterio de condición que el resto del sistema; sin asignación vigente no hay carnet.
+        condicion = exigir_condicion_para_carnet(empleado)
+
         sec_hash = codigo_qr_unico()
         emision = timezone.now()
-        tipo_vigencia = TIPO_VIGENCIA_PASIVO if _es_pasivo(empleado) else TIPO_VIGENCIA_TRABAJADOR
+        tipo_vigencia = TIPO_VIGENCIA_PASIVO if condicion == CONDICION_PASIVO else TIPO_VIGENCIA_TRABAJADOR
         vence = vencimiento_segun_parametros(emision, tipo_vigencia)
 
-        # Determinar versión de plantilla para conservación inmutable (O44 - E3)
-        plantilla_obj = None
-        if plantilla_id:
-            plantilla_obj = PlantillaCarnetModel.objects.filter(pk=plantilla_id).first()
-        if not plantilla_obj:
-            es_pasivo = _es_pasivo(empleado)
-            tipo_plantilla = 'pasivo' if es_pasivo else 'trabajador'
-            plantilla_obj = (
-                PlantillaCarnetModel.objects.filter(
-                    tipo_credencial_id=tipo_plantilla, activa=True,
-                )
-                .order_by('-version')
-                .first()
-            )
+        # Plantilla con la que se emite (O44 - E3): la indicada, si está publicada, o la vigente
+        # del tipo que corresponde a la condición del titular.
+        plantilla_obj = plantilla_elegida_para_emitir(
+            str(plantilla_id) if plantilla_id else None, tipo_credencial_para(condicion),
+        )
 
         p_id = str(plantilla_obj.id) if plantilla_obj else None
-        p_version = plantilla_obj.version if plantilla_obj else 1
+        # Sin plantilla (diseño por defecto) no hay versión que registrar.
+        p_version = plantilla_obj.version if plantilla_obj else None
         p_snapshot = plantilla_obj.definicion if plantilla_obj else None
 
         # Atómico: si el alta falla, el trabajador no pierde su carnet activo previo.
@@ -224,6 +222,9 @@ class RepoCarnetsEmitidosMixin:
                 'correo': (e.correo or '').strip(),
                 'telefono': (e.telefono_movil or e.telefono_habitacion or '').strip(),
                 'tipo_personal': str(getattr(e, 'tipo_trabajador', '') or 'Activo'),
+                # Condición real (ACTIVO / PASIVO / SIN_ASIGNACION): la consola la muestra y no
+                # ofrece emitir a quien no tiene asignación vigente.
+                'condicion': condicion_titular(e),
                 'total_solicitudes': totales.get(e.cedulaidentidad, 0),
                 'tiene_carnet': tiene_carnet,
                 'tiene_carnet_activo': tiene_carnet,

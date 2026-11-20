@@ -3,12 +3,16 @@ Condición del trabajador (ACTIVO/PASIVO), derivada de los datos de personal.
 
 Criterio:
 - PASIVO: tiene una asignación PASIVO vigente (no EGRESADO) o, por compatibilidad
-  con datos legados, solo un registro en `EmployeeEgresado` y ninguna asignación PASIVO.
+  con datos legados, solo un registro en `EmployeeEgresado` cuyo motivo es de una categoría
+  pasiva (jubilación, pensión…) y ninguna asignación PASIVO. Un egreso por renuncia,
+  destitución o abandono de cargo NO es un pasivo: queda SIN_ASIGNACION.
 - ACTIVO: tiene una asignación no PASIVO vigente (no EGRESADO).
 - SIN_ASIGNACION: no tiene asignaciones vigentes. Un pasivo con todas sus
   asignaciones PASIVO en EGRESADO entra aquí, para que el egreso desactive la cuenta.
 """
-from core.domain.catalogos import ESTATUS_EGRESADO, TIPO_PERSONAL_PASIVO
+from django.db.models import Q
+
+from core.domain.catalogos import ESTATUS_EGRESADO, MARCA_CATEGORIA_PASIVO, TIPO_PERSONAL_PASIVO
 from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
 from apps.pasivos.infrastructure.models.pasivo_models import EmployeeEgresadoModel
 
@@ -16,6 +20,15 @@ from apps.identidad.domain.value_objects.condicion_trabajador import CondicionTr
 
 
 class RepoCondicionTrabajadorORM:
+    @staticmethod
+    def _egresados_pasivos_legado():
+        """Registros de egresado que cuentan como pasivo legado: motivo de categoría pasiva, o
+        sin motivo (datos muy antiguos, se conserva el criterio previo)."""
+        return EmployeeEgresadoModel.objects.filter(
+            Q(motivo_egreso__isnull=True)
+            | Q(motivo_egreso__categoria__categoria__icontains=MARCA_CATEGORIA_PASIVO)
+        )
+
     @staticmethod
     def _pasivas(asignaciones):
         return asignaciones.filter(Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO)
@@ -35,8 +48,8 @@ class RepoCondicionTrabajadorORM:
         # Solo quedan asignaciones PASIVO en EGRESADO: ya no es un pasivo vigente.
         if pasivas.exists():
             return CondicionTrabajador.SIN_ASIGNACION
-        # Legado: pasivo sin asignación, solo con el registro de egresado/pasivo.
-        if EmployeeEgresadoModel.objects.filter(employee_id=cedula).exists():
+        # Legado: pasivo sin asignación, solo con el registro de egresado por jubilación o pensión.
+        if self._egresados_pasivos_legado().filter(employee_id=cedula).exists():
             return CondicionTrabajador.PASIVO
         return CondicionTrabajador.SIN_ASIGNACION
 
@@ -59,7 +72,7 @@ class RepoCondicionTrabajadorORM:
             .values_list('employee_id', flat=True)
         ) - pasivos_vigentes
         pasivos_legado = set(
-            EmployeeEgresadoModel.objects
+            self._egresados_pasivos_legado()
             .exclude(employee_id__in=con_pasiva)
             .values_list('employee_id', flat=True)
         ) - activos_vigentes

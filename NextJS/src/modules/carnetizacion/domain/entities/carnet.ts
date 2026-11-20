@@ -77,6 +77,26 @@ export interface EmployeeCarnet {
   tiene_carnet: boolean;
   /** ISO de la emisión del carnet vigente; null si no tiene. */
   carnet_activo_emitido_en?: string | null;
+  /** Condición real del titular calculada en el servidor (mismo criterio que el resto del sistema). */
+  condicion?: CondicionTitular;
+}
+
+export type CondicionTitular = "ACTIVO" | "PASIVO" | "SIN_ASIGNACION";
+
+/** Texto del distintivo de condición en la consola de emisión. */
+export function etiquetaCondicion(condicion: CondicionTitular | undefined): string {
+  if (condicion === "PASIVO") return "PASIVO";
+  if (condicion === "SIN_ASIGNACION") return "SIN ASIGNACIÓN";
+  return "ACTIVO";
+}
+
+/**
+ * Solo se emite (y se previsualiza) el carnet de quien tiene una asignación vigente, activa o
+ * pasiva. Un egresado por abandono de cargo, renuncia, etc. queda SIN_ASIGNACION. El backend
+ * aplica la misma regla; aquí solo se evita ofrecer lo que va a rechazar.
+ */
+export function puedeEmitirCarnet(condicion: CondicionTitular | undefined): boolean {
+  return condicion !== "SIN_ASIGNACION";
 }
 
 export interface MotivoOption {

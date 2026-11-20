@@ -16,6 +16,7 @@ from apps.catalogos.infrastructure.models.catalogo_models import (
     NacionalidadModel,
     SexoModel,
 )
+from apps.carnetizacion.infrastructure.repositories import repo_carnetizacion_comun as comun_mod
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from core.infrastructure.models.auditoria import AuditoriaLog
 
@@ -38,6 +39,13 @@ class Usuario:
 
     def tiene_permiso(self, codigo):
         return True
+
+
+@pytest.fixture(autouse=True)
+def titular_activo(monkeypatch):
+    """Los titulares de estas pruebas no tienen asignación; se fija su condición (la emisión
+    exige una vigente: ver test_condicion_carnet.py)."""
+    monkeypatch.setattr(comun_mod, 'condicion_titular', lambda empleado: 'ACTIVO')
 
 
 @pytest.fixture(scope="module")

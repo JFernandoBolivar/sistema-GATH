@@ -164,6 +164,7 @@ export interface EmpleadoCarnetApiItem {
   total_solicitudes?: number;
   tiene_carnet?: boolean;
   carnet_activo_emitido_en?: string | null;
+  condicion?: "ACTIVO" | "PASIVO" | "SIN_ASIGNACION";
 }
 
 export const carnetizacionApi = {
