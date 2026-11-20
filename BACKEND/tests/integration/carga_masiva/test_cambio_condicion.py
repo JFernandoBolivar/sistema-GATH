@@ -339,11 +339,18 @@ def test_endpoint_confirma_filas_y_valida_permiso_de_poblacion():
         },
     )
     url = f'/api/v1/carga-masiva/cargas/{carga.id}/confirmar/'
-    assert _cliente({'personal.carga_masiva'}).post(
+    assert _cliente({'personal.carga_masiva', 'personal.carga_masiva_aplicar'}).post(
         url, {'filas': [str(fila.id)]}, format='json',
     ).status_code == 403
 
-    r = _cliente({'pasivos.carga_masiva'}).post(
+    # H-8: tener el permiso de población pero no el de aplicar también es 403.
+    assert _cliente({'pasivos.carga_masiva'}).post(
+        url, {'filas': [str(fila.id)]}, format='json',
+    ).status_code == 403
+    fila.refresh_from_db()
+    assert fila.confirmada is False
+
+    r = _cliente({'pasivos.carga_masiva', 'personal.carga_masiva_aplicar'}).post(
         url, {'filas': [str(fila.id)]}, format='json',
     )
     assert r.status_code == 200, r.content

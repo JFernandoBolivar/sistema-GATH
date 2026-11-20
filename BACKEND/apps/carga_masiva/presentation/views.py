@@ -213,7 +213,9 @@ class CargaMasivaDetalleView(APIView):
 
 
 class ConfirmarFilasCargaMasivaView(APIView):
-    permission_classes = [IsAuthenticated]
+    # Confirmar movimientos es un paso de escritura previo a la aplicación: exige el
+    # mismo permiso que aplicar (además del permiso de población en _carga_visible).
+    permission_classes = [IsAuthenticated, HasPermission(APLICAR)]
 
     @extend_schema(
         tags=TAG, summary='Confirmar los movimientos de cambio de condición seleccionados',
