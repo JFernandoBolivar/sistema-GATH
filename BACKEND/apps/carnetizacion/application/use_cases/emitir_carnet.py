@@ -99,6 +99,8 @@ def emitir_carnet_y_pdf(
         pdf = repo.generar_pdf(carnet_id=carnet.id, nombre_override=nombre_override, imprenta=True)
     else:
         pdf = repo.generar_pdf(carnet_id=carnet.id, nombre_override=nombre_override)
+    # B-4: copia del PDF emitido, para reimprimirlo idéntico aunque cambien plantilla o datos.
+    repo.guardar_pdf_emitido(carnet.id, pdf, 'imprenta' if imprenta else 'normal')
     return EmisionCarnet(
         carnet=carnet,
         pdf=pdf,

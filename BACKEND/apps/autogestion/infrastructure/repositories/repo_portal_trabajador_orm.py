@@ -81,7 +81,9 @@ class RepoPortalTrabajadorORM:
         )
         if carnet is None:
             return None
-        return RepoCarnetizacionORM().generar_pdf(carnet.pk)
+        # El mismo PDF que se emitió (B-4); sin copia guardada, se regenera.
+        repo = RepoCarnetizacionORM()
+        return repo.pdf_emitido_guardado(carnet.pk) or repo.generar_pdf(carnet.pk)
 
     def generar_vista_previa_carnet_activo(self, cedula: str) -> str | None:
         """PNG (data URL) del carnet vigente; reutiliza la vista previa de carnetización."""

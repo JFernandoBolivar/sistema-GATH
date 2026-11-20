@@ -14,7 +14,9 @@ from pdf2image import convert_from_bytes
 from core.domain.exceptions import NotFoundError, ValidationError
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
 from apps.carnetizacion.infrastructure.resolver_origen_campos import valores_campos_personalizados
+from core.infrastructure.storage.validacion_archivo import clave_segura
 from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
+    CarnetEmitidoArchivoModel,
     CarnetEmitidoModel,
     CarnetTemplateModel,
     PlantillaCarnetModel,
@@ -183,6 +185,41 @@ class RepoCarnetsPdfMixin:
                 datos, definicion=definicion, sangrado_mm=sangrado_imprenta_mm(), marcas_corte=True,
             )
         return generar_carnet_pdf(datos, definicion=definicion)
+
+    # --- PDF tal como se emitió (B-4) ---------------------------------------------------------
+
+    def guardar_pdf_emitido(self, carnet_id: int, pdf: bytes, formato: str = 'normal') -> None:
+        """Guarda el PDF emitido para poder reimprimirlo idéntico. Si el almacén falla, la emisión
+        no se cae: queda en el log y la reimpresión regenera el PDF como antes."""
+        try:
+            clave = clave_segura('carnets', '.pdf')
+            self._almacen.subir(clave, pdf, 'application/pdf')
+            CarnetEmitidoArchivoModel.objects.update_or_create(
+                carnet_id=carnet_id,
+                defaults={
+                    'clave': clave,
+                    'sha256': hashlib.sha256(pdf).hexdigest(),
+                    'tamano': len(pdf),
+                    'formato': formato,
+                },
+            )
+        except Exception:  # noqa: BLE001 - guardar la copia no debe tumbar la emisión
+            logger.warning('No se pudo guardar el PDF emitido del carnet %s.', carnet_id, exc_info=True)
+
+    def pdf_emitido_guardado(self, carnet_id: int) -> bytes | None:
+        """El PDF normal tal como se emitió, si se guardó y su sha256 coincide; si no, None."""
+        registro = CarnetEmitidoArchivoModel.objects.filter(carnet_id=carnet_id, formato='normal').first()
+        if registro is None:
+            return None
+        try:
+            datos = self._almacen.descargar(registro.clave)
+        except Exception:  # noqa: BLE001 - sin copia se regenera
+            logger.warning('No se pudo leer el PDF guardado del carnet %s.', carnet_id, exc_info=True)
+            return None
+        if not datos or hashlib.sha256(datos).hexdigest() != registro.sha256:
+            logger.error('El PDF guardado del carnet %s no coincide con su huella sha256.', carnet_id)
+            return None
+        return datos
 
     def generar_vista_previa(self, cedula: str, nombre_override: str | None = None, foto_bytes: bytes | None = None) -> str:
         """Anverso de la vista previa (PNG en data URL). Se conserva para quien solo usa el frente."""

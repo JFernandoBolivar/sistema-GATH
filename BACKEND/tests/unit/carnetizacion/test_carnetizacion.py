@@ -79,11 +79,14 @@ class RepoCarnetizacionMemoria:
     def listar_plantillas(self):
         return list(self.plantillas)
 
-    def generar_pdf(self, carnet_id):
+    def generar_pdf(self, carnet_id, nombre_override=None, imprenta=False):
         carnet = self.obtener_por_id(carnet_id)
         if not carnet:
             raise NotFoundError(f"Carnet con id {carnet_id} no encontrado")
-        return b"%PDF-1.4-simulado-para-test"
+        return b"%PDF-imprenta" if imprenta else b"%PDF-1.4-simulado-para-test"
+
+    def pdf_emitido_guardado(self, carnet_id):
+        return getattr(self, "guardados", {}).get(carnet_id)
 
     def revocar_carnet(self, carnet_id):
         idx = next((i for i, c in enumerate(self.carnets) if c.id == carnet_id), None)
@@ -163,3 +166,14 @@ def test_revocar_carnet_inexistente_lanza_error():
     repo = RepoCarnetizacionMemoria()
     with pytest.raises(NotFoundError):
         revocar_carnet(repo, carnet_id=999)
+
+
+def test_reimprimir_entrega_la_copia_guardada_al_emitir():
+    """B-4: en formato normal se entrega el PDF tal como se emitió, no uno regenerado."""
+    repo = RepoCarnetizacionMemoria()
+    carnet = repo.emitir_carnet(empleado_cedula="V-12345678", motivo_id=1)
+    repo.guardados = {carnet.id: b"%PDF-tal-como-se-emitio"}
+
+    assert generar_pdf_carnet(repo, carnet_id=carnet.id) == b"%PDF-tal-como-se-emitio"
+    # El formato imprenta siempre se genera (la copia guardada es la normal).
+    assert generar_pdf_carnet(repo, carnet_id=carnet.id, imprenta=True) == b"%PDF-imprenta"

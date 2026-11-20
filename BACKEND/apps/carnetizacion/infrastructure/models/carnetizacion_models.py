@@ -140,6 +140,26 @@ class SolicitudCarnetModel(BaseModel):
         return f"Solicitud de carnet {self.cedula} ({self.estado})"
 
 
+class CarnetEmitidoArchivoModel(BaseModel):
+    """PDF tal como se emitió (B-4). `CarnetEmitido` es una tabla heredada sin migraciones, así
+    que el archivo se registra aparte, enlazado por el id del carnet. La clave del objeto es
+    opaca (no deriva de la cédula) y el sha256 permite comprobar que no cambió."""
+
+    carnet_id = models.PositiveIntegerField(unique=True, db_column='carnetId')
+    clave = models.CharField(max_length=200)
+    sha256 = models.CharField(max_length=64)
+    tamano = models.PositiveIntegerField(default=0)
+    formato = models.CharField(max_length=12, default='normal')  # normal | imprenta
+
+    class Meta:
+        db_table = 'CarnetEmitidoArchivo'
+        verbose_name = 'PDF de carnet emitido'
+        verbose_name_plural = 'PDF de carnets emitidos'
+
+    def __str__(self) -> str:
+        return f"PDF del carnet #{self.carnet_id} ({self.formato})"
+
+
 class CarnetEmitidoModel(models.Model):
     employee = models.ForeignKey(
         'personal.EmployeeModel',

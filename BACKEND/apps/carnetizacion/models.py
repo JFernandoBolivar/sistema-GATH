@@ -2,6 +2,7 @@
 from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
     BitacoraAccesoQrModel,
     CampoPersonalizadoModel,
+    CarnetEmitidoArchivoModel,
     CarnetEmitidoModel,
     CarnetTemplateModel,
     ElementoBibliotecaModel,
@@ -37,4 +38,5 @@ __all__ = [
     'EventoInvitadoModel',
     'EventoRegistroAccesoModel',
     'SolicitudCarnetModel',
+    'CarnetEmitidoArchivoModel',
 ]

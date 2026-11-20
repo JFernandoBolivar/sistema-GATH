@@ -44,9 +44,12 @@ class RepoCarnetsMemoria:
         )
         return _carnet(id_=99)
 
-    def generar_pdf(self, carnet_id, nombre_override=None):
+    def generar_pdf(self, carnet_id, nombre_override=None, imprenta=False):
         self.pdf_pedido = carnet_id
         return b'%PDF-1.4'
+
+    def guardar_pdf_emitido(self, carnet_id, pdf, formato='normal'):
+        self.pdf_guardado = (carnet_id, pdf, formato)
 
 
 def test_normalizar_motivo():
@@ -124,3 +127,10 @@ def test_otro_incluye_el_detalle_en_las_observaciones():
 
     assert emision.detalle == 'Se mojó en una lluvia fuerte'
     assert 'Se mojó en una lluvia fuerte' in repo.emitidos[0]['observaciones']
+
+
+def test_la_emision_guarda_una_copia_del_pdf_emitido():
+    """B-4: el PDF emitido se guarda para reimprimirlo idéntico."""
+    repo = RepoCarnetsMemoria()
+    emision = emitir_carnet_y_pdf(repo, empleado_cedula='V-1', motivo_id=1)
+    assert repo.pdf_guardado == (emision.carnet.id, b'%PDF-1.4', 'normal')

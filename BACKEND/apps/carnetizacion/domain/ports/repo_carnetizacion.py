@@ -347,3 +347,12 @@ class RepoCarnetizacion(Protocol):
     ) -> dict:
         """{'anverso', 'reverso'} de una plantilla (también borrador o con cambios sin guardar)."""
         ...
+
+    # --- PDF tal como se emitió (B-4) ---
+
+    def guardar_pdf_emitido(self, carnet_id: int, pdf: bytes, formato: str = 'normal') -> None:
+        ...
+
+    def pdf_emitido_guardado(self, carnet_id: int) -> bytes | None:
+        """El PDF normal tal como se emitió (sha256 verificado), o None si no hay copia válida."""
+        ...
