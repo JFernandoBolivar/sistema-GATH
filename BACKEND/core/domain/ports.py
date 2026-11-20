@@ -47,6 +47,10 @@ class FileStorage(Protocol):
 
     def descargar_flujo(self, clave: str, tamano_bloque: int = 65536) -> Iterator[bytes]: ...
 
+    def existe(self, clave: str) -> bool:
+        """Indica si el objeto existe; un objeto ausente no es un error."""
+        ...
+
     def eliminar(self, clave: str) -> None:
         """Borra el objeto (idempotente: una clave inexistente no es error)."""
         ...

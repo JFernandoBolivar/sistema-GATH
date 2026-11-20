@@ -72,6 +72,25 @@ def test_seaweedfs_storage_eliminar_falla_cerrado_si_el_cliente_falla():
         storage.eliminar("autogestion/soportes/1/a.pdf")
 
 
+def test_seaweedfs_storage_existe_distingue_objeto_ausente_de_almacen_caido():
+    storage = SeaweedFSStorage(endpoint_url="http://mock-s3:8333", bucket_name="gath-test")
+    cliente_falso = MagicMock()
+    storage._s3_client = cliente_falso
+
+    assert storage.existe("biblioteca/logo.png") is True
+
+    ausente = RuntimeError("Not Found")
+    ausente.response = {"Error": {"Code": "NoSuchKey"}}
+    cliente_falso.head_object.side_effect = ausente
+    assert storage.existe("biblioteca/logo.png") is False
+
+    caido = RuntimeError("conexión rechazada")
+    caido.response = {}
+    cliente_falso.head_object.side_effect = caido
+    with pytest.raises(AlmacenamientoNoDisponible):
+        storage.existe("biblioteca/logo.png")
+
+
 def test_celery_task_queue_sin_app_falla_explicito_en_vez_de_simular_exito():
     """Antes devolvía "simulated-task-..." aparentando que la tarea se encoló."""
     queue = CeleryTaskQueue()

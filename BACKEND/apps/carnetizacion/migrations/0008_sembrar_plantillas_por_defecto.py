@@ -5,7 +5,6 @@ from django.db import migrations
 def sembrar_plantillas_y_biblioteca(apps, schema_editor):
     TipoCredencial = apps.get_model('carnetizacion', 'TipoCredencialModel')
     PlantillaCarnet = apps.get_model('carnetizacion', 'PlantillaCarnetModel')
-    ElementoBiblioteca = apps.get_model('carnetizacion', 'ElementoBibliotecaModel')
 
     # 1. Tipos de credencial
     tipo_trabajador, _ = TipoCredencial.objects.get_or_create(
@@ -79,46 +78,12 @@ def sembrar_plantillas_y_biblioteca(apps, schema_editor):
         p_pas.plantilla_raiz = p_pas
         p_pas.save(update_fields=['plantilla_raiz'])
 
-    # 4. Elementos de biblioteca iniciales (logos / firma institucional)
-    elementos = [
-        {
-            'nombre': 'Logo Oficial CONATEL',
-            'categoria': 'logo',
-            'archivo_clave': 'logos/logo_conatel_oficial.png',
-            'nombre_archivo': 'logo_conatel_oficial.png',
-            'tamano_bytes': 24500,
-            'mime_type': 'image/png',
-            'ancho_px': 450,
-            'alto_px': 140,
-            'descripcion': 'Isotipo y logotipo oficial de la Comisión Nacional de Telecomunicaciones.',
-        },
-        {
-            'nombre': 'Firma Dirección General',
-            'categoria': 'firma',
-            'archivo_clave': 'firmas/firma_autoridad_dg.png',
-            'nombre_archivo': 'firma_autoridad_dg.png',
-            'tamano_bytes': 18200,
-            'mime_type': 'image/png',
-            'ancho_px': 320,
-            'alto_px': 120,
-            'descripcion': 'Rúbrica autorizada para emisión y verificación de credenciales institucionales.',
-        },
-        {
-            'nombre': 'Sello y Marca de Agua CONATEL',
-            'categoria': 'imagen',
-            'archivo_clave': 'marcas/sello_institucional_seguridad.png',
-            'nombre_archivo': 'sello_institucional_seguridad.png',
-            'tamano_bytes': 31000,
-            'mime_type': 'image/png',
-            'ancho_px': 300,
-            'alto_px': 300,
-            'descripcion': 'Sello de seguridad institucional para fondos y reverso de carnet.',
-        },
-    ]
-
-    for elem in elementos:
-        if not ElementoBiblioteca.objects.filter(nombre=elem['nombre']).exists():
-            ElementoBiblioteca.objects.create(**elem)
+    # 4. Elementos de biblioteca.
+    # No se siembran filas con claves de archivo que no existen en SeaweedFS:
+    # eso producía 404 en el diseñador y un recuadro en el PDF. Los medios
+    # institucionales se siembran con `manage.py verificar_biblioteca_institucional`
+    # cuando el área usuaria entrega los archivos. La migración 0016 retira las
+    # filas fantasma creadas por versiones anteriores de esta migración.
 
 
 def revertir_sembrado(apps, schema_editor):

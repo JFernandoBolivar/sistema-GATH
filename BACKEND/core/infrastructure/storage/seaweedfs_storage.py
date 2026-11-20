@@ -89,6 +89,27 @@ class SeaweedFSStorage:
                 "No fue posible descargar el archivo del almacenamiento."
             ) from exc
 
+    def existe(self, clave: str) -> bool:
+        """Indica si el objeto existe, sin descargar su contenido.
+
+        Un 404/NoSuchKey es un resultado normal (``False``). Cualquier otro
+        error se propaga como ``AlmacenamientoNoDisponible``: no se debe
+        confundir «el almacén no responde» con «el archivo no existe».
+        """
+        client = self._get_client()
+        try:
+            client.head_object(Bucket=self.bucket_name, Key=clave)
+            return True
+        except Exception as exc:
+            respuesta = getattr(exc, 'response', {}) or {}
+            codigo = str(respuesta.get('Error', {}).get('Code', ''))
+            if codigo in ('404', 'NoSuchKey', 'NotFound'):
+                return False
+            logger.error("Error al verificar el objeto %s en SeaweedFS: %s", clave, exc)
+            raise AlmacenamientoNoDisponible(
+                "No fue posible verificar el archivo en el almacenamiento."
+            ) from exc
+
     def eliminar(self, clave: str) -> None:
         """Borra un objeto. Idempotente: S3 responde 204 aunque la clave ya no exista."""
         client = self._get_client()

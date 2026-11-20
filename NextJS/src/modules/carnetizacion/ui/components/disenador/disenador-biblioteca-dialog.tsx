@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { ImageOff } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -28,7 +30,20 @@ export function DisenadorBibliotecaDialog({
   caraActual,
   onAnadirElemento,
 }: DisenadorBibliotecaDialogProps) {
+  // Medios cuyo archivo no se pudo cargar: se marcan y no se dejan insertar.
+  const [mediosNoDisponibles, setMediosNoDisponibles] = useState<Set<string>>(
+    () => new Set(),
+  );
+
+  const marcarNoDisponible = (id: string) => {
+    setMediosNoDisponibles((previos) => new Set(previos).add(id));
+  };
+
   const handleSeleccionarMedio = (medio: ElementoBiblioteca) => {
+    if (mediosNoDisponibles.has(medio.id)) {
+      toast.error(`'${medio.nombre}': archivo no disponible.`);
+      return;
+    }
     onAnadirElemento({
       t: "image",
       name: medio.nombre,
@@ -71,15 +86,27 @@ export function DisenadorBibliotecaDialog({
               <div
                 key={medio.id}
                 onClick={() => handleSeleccionarMedio(medio)}
-                className="p-2 border rounded-lg cursor-pointer hover:border-primary/60 hover:bg-muted/30 transition-all flex flex-col items-center justify-between text-center gap-1.5"
+                className={`p-2 border rounded-lg transition-all flex flex-col items-center justify-between text-center gap-1.5 ${
+                  mediosNoDisponibles.has(medio.id)
+                    ? "cursor-not-allowed border-dashed opacity-70"
+                    : "cursor-pointer hover:border-primary/60 hover:bg-muted/30"
+                }`}
               >
                 <div className="h-16 w-full flex items-center justify-center p-1 bg-muted/20 rounded">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={medio.archivo_url}
-                    alt={medio.nombre}
-                    className="max-h-full max-w-full object-contain"
-                  />
+                  {mediosNoDisponibles.has(medio.id) ? (
+                    <span className="flex flex-col items-center gap-1 text-[9px] text-muted-foreground">
+                      <ImageOff className="size-5" aria-hidden="true" />
+                      Archivo no disponible
+                    </span>
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={medio.archivo_url}
+                      alt={medio.nombre}
+                      className="max-h-full max-w-full object-contain"
+                      onError={() => marcarNoDisponible(medio.id)}
+                    />
+                  )}
                 </div>
                 <span className="text-[11px] font-medium truncate w-full">{medio.nombre}</span>
                 <Badge variant="outline" className="text-[9px] uppercase">
