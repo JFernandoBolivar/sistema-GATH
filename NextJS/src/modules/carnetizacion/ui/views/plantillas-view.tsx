@@ -1,6 +1,6 @@
 "use client";
 
-import { Database, ImagePlus, Images, Layers } from "lucide-react";
+import { Database, Images, Layers } from "lucide-react";
 
 import PageLayout from "@/components/layout/page-layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,7 +8,6 @@ import { BibliotecaMediosTab } from "../components/biblioteca-medios-tab";
 import { RegistroCamposTab } from "../components/registro-campos-tab";
 import { usePlantillasGestor } from "../hooks/use-plantillas-gestor";
 import { PlantillasMotorGrid } from "../components/plantillas/plantillas-motor-grid";
-import { PlantillasClasicasTab } from "../components/plantillas/plantillas-clasicas-tab";
 import { PlantillasCrearDialog } from "../components/plantillas/plantillas-crear-dialog";
 import { PlantillasVersionesDialog } from "../components/plantillas/plantillas-versiones-dialog";
 
@@ -26,10 +25,6 @@ export function PlantillasView() {
             <TabsTrigger value="motor" className="flex items-center gap-2">
               <Layers className="size-4" />
               Plantillas por Capas (Motor)
-            </TabsTrigger>
-            <TabsTrigger value="clasicas" className="flex items-center gap-2">
-              <ImagePlus className="size-4" />
-              Fondos Fijos (Clásico)
             </TabsTrigger>
             <TabsTrigger value="biblioteca" className="flex items-center gap-2">
               <Images className="size-4" />
@@ -61,28 +56,6 @@ export function PlantillasView() {
             onActivarMotor={gestor.activarMotor}
             onDuplicarMotor={gestor.duplicarMotor}
             onEliminarMotor={gestor.eliminarMotor}
-          />
-        </TabsContent>
-
-        {/* --- PESTAÑA CLÁSICA (COMPATIBILIDAD CON IMÁGENES FIJAS) --- */}
-        <TabsContent value="clasicas">
-          <PlantillasClasicasTab
-            formClasico={gestor.formClasico}
-            isPending={gestor.isPending}
-            fileInputKey={gestor.fileInputKey}
-            fileInputRef={gestor.fileInputRef}
-            preview={gestor.preview}
-            fileName={gestor.fileName}
-            onFileChange={gestor.handleFileChange}
-            onSubmitClasico={gestor.onSubmitClasico}
-            cargandoClasicas={gestor.cargandoClasicas}
-            paginaFondos={gestor.paginaFondosDatos}
-            busqueda={gestor.busquedaFondos}
-            onCambiarBusqueda={gestor.setBusquedaFondos}
-            onCambiarPagina={gestor.setPaginaFondos}
-            onCambiarTamano={gestor.cambiarTamanoFondos}
-            onActivarPlantillaClasica={gestor.activarPlantillaClasica}
-            onEliminarFondo={gestor.eliminarFondo}
           />
         </TabsContent>
 

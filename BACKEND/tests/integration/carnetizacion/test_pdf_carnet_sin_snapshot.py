@@ -82,3 +82,21 @@ def test_id_invalido_no_lanza_y_devuelve_none():
     )
 
     assert RepoCarnetizacionORM()._definicion_plantilla_emitida(fila) is None
+
+
+def test_sin_snapshot_ni_plantilla_cae_en_la_legacy_sembrada():
+    """B-7: un carnet anterior al versionado no se queda sin diseño ni lanza."""
+    fila = SimpleNamespace(plantilla_id=None, plantilla_version=None, plantilla_snapshot=None)
+
+    definicion = RepoCarnetizacionORM()._definicion_de_carnet(fila)
+
+    assert definicion is not None
+    assert definicion.get('legacy') is True
+    assert definicion.get('caras') == ['anverso']
+
+
+def test_la_copia_congelada_siempre_gana():
+    snapshot = {"anverso": [{"id": "congelado"}], "reverso": []}
+    fila = SimpleNamespace(plantilla_id="no-es-un-uuid", plantilla_version=1, plantilla_snapshot=snapshot)
+
+    assert RepoCarnetizacionORM()._definicion_de_carnet(fila) == snapshot

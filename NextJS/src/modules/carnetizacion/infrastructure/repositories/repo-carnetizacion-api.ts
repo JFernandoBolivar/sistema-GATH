@@ -50,16 +50,6 @@ export const repoCarnetizacionApi: RepoCarnetizacion = {
     return raw.map(plantillaCarnetApiAEntidad);
   },
 
-  async crearPlantilla(nombre, imagen, activar) {
-    const raw = await carnetizacionApi.crearPlantilla(nombre, imagen, activar);
-    return plantillaCarnetApiAEntidad(raw);
-  },
-
-  async activarPlantilla(plantillaId) {
-    const raw = await carnetizacionApi.activarPlantilla(plantillaId);
-    return plantillaCarnetApiAEntidad(raw);
-  },
-
   async descargarPdf(carnetId) {
     return carnetizacionApi.descargarPdf(carnetId);
   },
@@ -95,15 +85,6 @@ export const repoCarnetizacionApi: RepoCarnetizacion = {
   async listarPlantillasMotorPagina(tipo, params) {
     const raw = await carnetizacionApi.getPlantillasMotorPagina(tipo, params);
     return paginaApiAEntidad(raw, plantillaMotorApiAEntidad);
-  },
-
-  async listarFondosFijos(params) {
-    const raw = await carnetizacionApi.getFondosFijos(params);
-    return paginaApiAEntidad(raw, plantillaCarnetApiAEntidad);
-  },
-
-  async eliminarFondoFijo(id) {
-    await carnetizacionApi.eliminarFondoFijo(id);
   },
 
   async obtenerPlantillaMotor(id) {

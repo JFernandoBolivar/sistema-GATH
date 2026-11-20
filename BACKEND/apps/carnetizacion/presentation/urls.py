@@ -28,7 +28,6 @@ from apps.carnetizacion.presentation.views.evento_views import (
     EventoZonasView,
 )
 from apps.carnetizacion.presentation.views.carnetizacion_views import (
-    ActivarPlantillaView,
     AutogestionPrivacidadCarnetView,
     CampoCredencialListView,
     CampoPersonalizadoCreateView,
@@ -46,8 +45,6 @@ from apps.carnetizacion.presentation.views.carnetizacion_views import (
     CarnetImpresoView,
     CarnetEntregadoView,
     CarnetsListView,
-    FondoFijoDetalleView,
-    FondosFijosListView,
     CarnetSubirFotoView,
     ElementoBibliotecaArchivoView,
     ElementoBibliotecaDetailView,
@@ -56,9 +53,7 @@ from apps.carnetizacion.presentation.views.carnetizacion_views import (
     FichaQrMedicaView,
     FichaQrPublicaView,
     MotivosEmisionListView,
-    PlantillaCreateView,
     QrVistaPreviaView,
-    PlantillaImagenView,
     PlantillaMotorActivaView,
     PlantillaMotorActivarView,
     PlantillaMotorDetalleView,
@@ -175,13 +170,6 @@ urlpatterns = [
     path('eventos/<str:evento_id>/invitados/agregar-en-bloque/', EventoInvitadosEnBloqueView.as_view(), name='evento-invitados-bloque'),
     path('control-eventos/check-in/', EventoControlEntradaCheckInView.as_view(), name='evento-checkin'),
 
-    # Fondos fijos (clásicos): listado paginado y eliminación
-    path('fondos-fijos/', FondosFijosListView.as_view(), name='fondos-fijos-list'),
-    path('fondos-fijos/<int:fondo_id>/', FondoFijoDetalleView.as_view(), name='fondo-fijo-detalle'),
-
-    # Plantillas Legacy
+    # Listado retrocompatible de plantillas (ya devuelve el motor, sin CarnetTemplate)
     path('plantillas/', PlantillasListView.as_view(), name='plantillas-list'),
-    path('plantillas/crear/', PlantillaCreateView.as_view(), name='plantilla-crear'),
-    path('plantillas/<int:plantilla_id>/imagen/', PlantillaImagenView.as_view(), name='plantilla-imagen'),
-    path('plantillas/<int:plantilla_id>/activar/', ActivarPlantillaView.as_view(), name='plantilla-activar'),
 ]

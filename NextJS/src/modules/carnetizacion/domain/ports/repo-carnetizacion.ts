@@ -37,8 +37,6 @@ export interface RepoCarnetizacion {
   validarPorHash(securityHash: string): Promise<{ esValido: boolean; mensaje: string; carnet: Carnet | null }>;
   validarPorId(carnetId: number): Promise<{ esValido: boolean; mensaje: string; carnet: Carnet | null }>;
   listarPlantillas(): Promise<PlantillaCarnet[]>;
-  crearPlantilla(nombre: string, imagen: File, activar?: boolean): Promise<PlantillaCarnet>;
-  activarPlantilla(plantillaId: number | string): Promise<PlantillaCarnet>;
   descargarPdf(carnetId: number): Promise<Blob>;
   revocarCarnet(carnetId: number): Promise<Carnet>;
   obtenerEstadisticas(): Promise<EstadisticasCarnet>;
@@ -49,8 +47,6 @@ export interface RepoCarnetizacion {
   obtenerSugerenciasReglasColor(): Promise<{ cargos: string[]; oficinas: string[] }>;
   listarPlantillasMotor(tipo?: string, estado?: string, activas?: boolean): Promise<PlantillaMotor[]>;
   listarPlantillasMotorPagina(tipo: string | undefined, params: ParamsPagina): Promise<PaginaCarnet<PlantillaMotor>>;
-  listarFondosFijos(params: ParamsPagina): Promise<PaginaCarnet<PlantillaCarnet>>;
-  eliminarFondoFijo(id: number | string): Promise<void>;
   obtenerPlantillaMotor(id: string): Promise<PlantillaMotor>;
   crearPlantillaBorrador(input: CrearPlantillaBorradorInput): Promise<PlantillaMotor>;
   actualizarPlantillaBorrador(id: string, input: Partial<CrearPlantillaBorradorInput>): Promise<PlantillaMotor>;

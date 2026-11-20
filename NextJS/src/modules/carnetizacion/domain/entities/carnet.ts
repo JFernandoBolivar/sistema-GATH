@@ -144,7 +144,7 @@ export interface PlantillaMotor {
   orientacion: "vertical" | "horizontal";
   regla_criterio: string;
   regla_valor: string;
-  estado: "borrador" | "publicada" | "archivada";
+  estado: "borrador" | "publicada" | "archivada" | "LEGACY";
   activa: boolean;
   version: number;
   definicion: Record<string, unknown>;

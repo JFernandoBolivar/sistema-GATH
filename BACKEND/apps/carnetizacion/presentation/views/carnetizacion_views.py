@@ -61,13 +61,10 @@ from apps.carnetizacion.application.use_cases.gestionar_biblioteca import (
     subir_elemento_biblioteca_uc,
 )
 from apps.carnetizacion.application.use_cases.gestionar_plantillas import (
-    activar_plantilla,
     activar_plantilla_motor,
     actualizar_borrador_plantilla,
     crear_plantilla_borrador,
-    eliminar_fondo_fijo,
     eliminar_plantilla_motor,
-    listar_fondos_fijos,
     listar_plantillas,
     listar_plantillas_motor,
     listar_plantillas_motor_paginado,
@@ -711,81 +708,6 @@ class PlantillasListView(APIView):
         repo = RepoCarnetizacionORM()
         dtos = listar_plantillas(repo)
         return ok(PlantillaCarnetSerializer(dtos, many=True).data)
-
-
-class FondosFijosListView(APIView):
-    """Fondos fijos (clásicos): listado paginado en el servidor con búsqueda por nombre."""
-    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.ver')]
-
-    @extend_schema(
-        tags=['Carnetización'],
-        summary='Listar fondos fijos (paginado)',
-        description='Paginación: ?pagina= y ?page_size= (12, 24 o 48; 12 por defecto). Búsqueda: ?busqueda= por nombre.',
-    )
-    def get(self, request):
-        paginacion = Paginacion.desde_parametros(request.query_params.dict())
-        pagina, total = listar_fondos_fijos(
-            RepoCarnetizacionORM(), paginacion, busqueda=request.query_params.get('busqueda', ''),
-        )
-        return ok(paginacion.sobre(PlantillaCarnetSerializer(pagina, many=True).data, total))
-
-
-class FondoFijoDetalleView(APIView):
-    """Eliminación de un fondo fijo; el fondo activo (en uso) está protegido."""
-    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.disenar')]
-
-    @extend_schema(tags=['Carnetización'], summary='Eliminar un fondo fijo inactivo')
-    def delete(self, request, fondo_id: int):
-        eliminar_fondo_fijo(RepoCarnetizacionORM(), fondo_id)
-        return ok(None, 'Fondo fijo eliminado.')
-
-
-class PlantillaImagenView(APIView):
-    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.ver')]
-
-    @extend_schema(
-        tags=['Carnetización'],
-        summary='Obtener imagen de fondo de plantilla',
-        responses={(200, 'image/png'): OpenApiTypes.BINARY},
-    )
-    def get(self, request, plantilla_id: int):
-        repo = RepoCarnetizacionORM()
-        ruta = repo.ruta_imagen_plantilla(plantilla_id)
-        ext = ruta.rsplit('.', 1)[-1].lower() if '.' in ruta else 'png'
-        content_type = 'image/jpeg' if ext in ('jpg', 'jpeg') else 'image/png'
-        with open(ruta, 'rb') as f:
-            return HttpResponse(f.read(), content_type=content_type)
-
-
-class ActivarPlantillaView(APIView):
-    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.disenar')]
-
-    @extend_schema(tags=['Carnetización'], summary='Activar plantilla de carnet', responses={200: PlantillaCarnetSerializer})
-    def post(self, request, plantilla_id: int):
-        repo = RepoCarnetizacionORM()
-        dto = activar_plantilla(repo, plantilla_id=plantilla_id)
-        return ok(PlantillaCarnetSerializer(dto).data)
-
-
-class PlantillaCreateView(APIView):
-    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.disenar')]
-
-    @extend_schema(tags=['Carnetización'], summary='Subir imagen de plantilla de carnet')
-    def post(self, request):
-        from rest_framework import serializers as _sr
-        class _S(_sr.Serializer):
-            nombre = _sr.CharField(min_length=2, max_length=100, trim_whitespace=True)
-            imagen = _sr.ImageField()
-            activar = _sr.BooleanField(required=False, default=False)
-        s = _S(data=request.data)
-        s.is_valid(raise_exception=True)
-        repo = RepoCarnetizacionORM()
-        plantilla = repo.crear_plantilla(
-            nombre=s.validated_data['nombre'],
-            imagen=s.validated_data['imagen'],
-            activar=s.validated_data.get('activar', False),
-        )
-        return ok(PlantillaCarnetSerializer(plantilla).data, 'Plantilla subida.', status=201)
 
 
 class CarnetBuscarPersonalView(APIView):

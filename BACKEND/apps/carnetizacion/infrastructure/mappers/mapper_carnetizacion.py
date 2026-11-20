@@ -9,7 +9,6 @@ from apps.carnetizacion.domain.entities.plantilla import PlantillaCarnet
 from apps.carnetizacion.domain.entities.tipo_credencial import TipoCredencial
 from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
     CarnetEmitidoModel,
-    CarnetTemplateModel,
     ElementoBibliotecaModel,
     PlantillaCarnetModel,
     TipoCredencialModel,
@@ -100,19 +99,6 @@ def carnet_a_entidad(modelo: CarnetEmitidoModel) -> Carnet:
         plantilla_id=getattr(modelo, 'plantilla_id', None),
         plantilla_version=getattr(modelo, 'plantilla_version', None),
         plantilla_snapshot=getattr(modelo, 'plantilla_snapshot', None),
-    )
-
-
-def plantilla_a_entidad(modelo: CarnetTemplateModel) -> PlantillaCarnet:
-    """Compatibilidad con plantilla legacy."""
-    return PlantillaCarnet(
-        id=modelo.pk,
-        nombre=modelo.nombre,
-        imagen_url=(
-            f"/api/v1/carnetizacion/plantillas/{modelo.pk}/imagen/" if modelo.imagen else ""
-        ),
-        activa=modelo.activo,
-        creado=str(modelo.creado),
     )
 
 

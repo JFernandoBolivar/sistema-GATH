@@ -37,8 +37,6 @@ import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import {
-  activarPlantillaCarnet,
-  crearPlantillaCarnet,
   emitirCarnet,
   listarCarnets,
   listarPlantillasCarnet,
@@ -52,8 +50,6 @@ import {
   buscarEmpleadoCarnetSchema,
   carnetIdSchema,
   emitirCarnetSchema,
-  plantillaIdSchema,
-  subirPlantillaCarnetSchema,
   validarHashSchema,
 } from "../../ui/schema/schema-carnet";
 
@@ -163,48 +159,6 @@ export async function getPlantillasCarnetAction() {
     await logAudit({ traceId, action: "getPlantillasCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
-  }
-}
-
-export async function subirPlantillaCarnetAction(nombre: string, imagen: File, activar?: boolean) {
-  const validation = subirPlantillaCarnetSchema.safeParse({ nombre, imagen, activar });
-  if (!validation.success) {
-    const errorMsg = validation.error.issues[0]?.message ?? "Datos de plantilla inválidos.";
-    return { error: errorMsg, errores: erroresDeZod(validation.error) };
-  }
-
-  const { nombre: validNombre, imagen: validImagen, activar: validActivar } = validation.data;
-  const traceId = generateTraceId();
-  const startedAt = Date.now();
-  try {
-    const result = await crearPlantillaCarnet(repoCarnetizacionApi, validNombre, validImagen, validActivar);
-    await logAudit({ traceId, action: "subirPlantillaCarnetAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
-    return result;
-  } catch (error) {
-    unstable_rethrow(error);
-    await logAudit({ traceId, action: "subirPlantillaCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
-    handleSessionExpired(error);
-    return errorDeAccion(error, "No fue posible subir la plantilla.");
-  }
-}
-
-export async function activarPlantillaCarnetAction(plantillaId: number) {
-  const validation = plantillaIdSchema.safeParse({ plantillaId });
-  if (!validation.success) {
-    return { error: "Plantilla inválida." };
-  }
-
-  const traceId = generateTraceId();
-  const startedAt = Date.now();
-  try {
-    const result = await activarPlantillaCarnet(repoCarnetizacionApi, validation.data.plantillaId);
-    await logAudit({ traceId, action: "activarPlantillaCarnetAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
-    return result;
-  } catch (error) {
-    unstable_rethrow(error);
-    await logAudit({ traceId, action: "activarPlantillaCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
-    handleSessionExpired(error);
-    return errorDeAccion(error, "No fue posible activar la plantilla.");
   }
 }
 
@@ -550,38 +504,6 @@ export async function getPlantillasMotorPaginaAction(tipo: string | undefined, p
     await logAudit({ traceId, action: "getPlantillasMotorPaginaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return { success: false as const, error: "No fue posible listar las plantillas." };
-  }
-}
-
-/** Una página de fondos fijos (clásicos), paginada y con búsqueda por nombre en el servidor. */
-export async function getFondosFijosAction(params: ParamsPagina) {
-  const traceId = generateTraceId();
-  const startedAt = Date.now();
-  try {
-    const result = await repoCarnetizacionApi.listarFondosFijos(params);
-    await logAudit({ traceId, action: "getFondosFijosAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
-    return { success: true as const, data: result };
-  } catch (error) {
-    unstable_rethrow(error);
-    await logAudit({ traceId, action: "getFondosFijosAction", status: "FAILED", durationMs: Date.now() - startedAt });
-    handleSessionExpired(error);
-    return { success: false as const, error: "No fue posible listar los fondos fijos." };
-  }
-}
-
-/** Elimina un fondo fijo; el servidor rechaza el que está activo (en uso) con un mensaje en español. */
-export async function eliminarFondoFijoAction(id: number | string) {
-  const traceId = generateTraceId();
-  const startedAt = Date.now();
-  try {
-    await repoCarnetizacionApi.eliminarFondoFijo(id);
-    await logAudit({ traceId, action: "eliminarFondoFijoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
-    return { success: true as const };
-  } catch (error) {
-    unstable_rethrow(error);
-    await logAudit({ traceId, action: "eliminarFondoFijoAction", status: "FAILED", durationMs: Date.now() - startedAt });
-    handleSessionExpired(error);
-    return { success: false as const, ...errorDeAccion(error, "No fue posible eliminar el fondo fijo.") };
   }
 }
 

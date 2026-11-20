@@ -1,32 +1,23 @@
 "use client";
 
-import { useCallback, useRef, useState, useTransition } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useState, useTransition } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
 
-import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import type {
   PaginaCarnet,
-  PlantillaCarnet,
   PlantillaMotor,
   TipoCredencial,
 } from "../../domain/entities/carnet";
 import {
-  activarPlantillaCarnetAction,
   activarPlantillaMotorAction,
   crearPlantillaBorradorAction,
-  eliminarFondoFijoAction,
   eliminarPlantillaMotorAction,
-  getFondosFijosAction,
   getPlantillasMotorPaginaAction,
   getTiposCredencialAction,
   getVersionesPlantillaAction,
   publicarPlantillaMotorAction,
-  subirPlantillaCarnetAction,
 } from "../../infrastructure/actions/carnetizacion-actions";
-import { schemaPlantilla, type PlantillaFormType } from "../schema/schema-carnet";
 import { useBusquedaDiferida } from "./use-busqueda-diferida";
 
 const TAMANO_INICIAL = 12;
@@ -37,15 +28,10 @@ function paginaVacia<T>(): PaginaCarnet<T> {
 
 export function usePlantillasGestor() {
   const [tipoActivo, setTipoActivoCrudo] = useState<string>("trabajador");
-  // Paginación y búsqueda en el servidor: plantillas por capas y fondos fijos.
   const [paginaMotor, setPaginaMotor] = useState(1);
   const [tamanoMotor, setTamanoMotor] = useState(TAMANO_INICIAL);
   const [busquedaMotor, setBusquedaMotorCruda] = useState("");
   const busquedaMotorAplicada = useBusquedaDiferida(busquedaMotor);
-  const [paginaFondos, setPaginaFondos] = useState(1);
-  const [tamanoFondos, setTamanoFondos] = useState(TAMANO_INICIAL);
-  const [busquedaFondos, setBusquedaFondosCruda] = useState("");
-  const busquedaFondosAplicada = useBusquedaDiferida(busquedaFondos);
   const [modalNuevoOpen, setModalNuevoOpen] = useState(false);
   const [modalVersionesOpen, setModalVersionesOpen] = useState(false);
   const [plantillaSeleccionada, setPlantillaSeleccionada] = useState<PlantillaMotor | null>(null);
@@ -59,11 +45,6 @@ export function usePlantillasGestor() {
   const [nuevoAlto, setNuevoAlto] = useState(85.6);
   const [nuevoCriterio, setNuevoCriterio] = useState("todos");
 
-  // Estado subida clásica
-  const [preview, setPreview] = useState<string | null>(null);
-  const [fileName, setFileName] = useState("");
-  const [fileInputKey, setFileInputKey] = useState(0);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isPending, startTransition] = useTransition();
 
   // Consultas SWR
@@ -87,27 +68,9 @@ export function usePlantillasGestor() {
     { keepPreviousData: true },
   );
 
-  const {
-    data: respuestaFondos,
-    isLoading: cargandoClasicas,
-    mutate: mutateClasicas,
-  } = useSWR(
-    ["fondos-fijos", paginaFondos, tamanoFondos, busquedaFondosAplicada],
-    () =>
-      getFondosFijosAction({
-        pagina: paginaFondos,
-        tamano: tamanoFondos,
-        busqueda: busquedaFondosAplicada,
-      }),
-    { keepPreviousData: true },
-  );
-
   const paginaMotorDatos: PaginaCarnet<PlantillaMotor> =
     respuestaMotor && respuestaMotor.success ? respuestaMotor.data : paginaVacia();
-  const paginaFondosDatos: PaginaCarnet<PlantillaCarnet> =
-    respuestaFondos && respuestaFondos.success ? respuestaFondos.data : paginaVacia();
   const listaMotor = paginaMotorDatos.resultados;
-  const listaClasicas = paginaFondosDatos.resultados;
 
   const setTipoActivo = (tipo: string) => {
     setTipoActivoCrudo(tipo);
@@ -120,84 +83,6 @@ export function usePlantillasGestor() {
   const cambiarTamanoMotor = (tamano: number) => {
     setTamanoMotor(tamano);
     setPaginaMotor(1);
-  };
-  const setBusquedaFondos = (valor: string) => {
-    setBusquedaFondosCruda(valor);
-    setPaginaFondos(1);
-  };
-  const cambiarTamanoFondos = (tamano: number) => {
-    setTamanoFondos(tamano);
-    setPaginaFondos(1);
-  };
-
-  const formClasico = useForm<PlantillaFormType>({
-    resolver: zodResolver(schemaPlantilla),
-    defaultValues: { nombre: "", imagen: undefined },
-  });
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    formClasico.setValue("imagen", file);
-    formClasico.clearErrors("imagen");
-    setFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = () => setPreview(reader.result as string);
-    reader.readAsDataURL(file);
-  };
-
-  const onSubmitClasico = useCallback(
-    (values: PlantillaFormType) => {
-      startTransition(async () => {
-        const result = await subirPlantillaCarnetAction(values.nombre, values.imagen);
-        if (result && !("error" in result)) {
-          toast.success("Plantilla institucional subida exitosamente");
-          formClasico.reset({ nombre: "", imagen: undefined });
-          setPreview(null);
-          setFileName("");
-          setFileInputKey((k) => k + 1);
-          mutateClasicas();
-        } else {
-          const fallo = result as { error?: string; errores?: Record<string, string[]> };
-          const sinUbicar = aplicarErroresServidor(formClasico, fallo.errores, {
-            nombre: "nombre",
-            imagen: "imagen",
-          });
-          toast.error(
-            sinUbicar.length > 0 || !fallo.errores
-              ? fallo.error || "Error al subir la plantilla"
-              : "Revise los campos marcados en rojo."
-          );
-        }
-      });
-    },
-    [mutateClasicas, formClasico]
-  );
-
-  const activarPlantillaClasica = (id: number) => {
-    startTransition(async () => {
-      const result = await activarPlantillaCarnetAction(id);
-      if (result && !("error" in result)) {
-        toast.success("Plantilla clásica activada");
-        mutateClasicas();
-      } else {
-        toast.error((result as { error?: string })?.error || "Error al activar plantilla");
-      }
-    });
-  };
-
-  const eliminarFondo = (fondo: PlantillaCarnet) => {
-    startTransition(async () => {
-      const res = await eliminarFondoFijoAction(fondo.id);
-      if (res.success) {
-        toast.success(`Fondo «${fondo.nombre}» eliminado`);
-        // Si era el último de la página, retrocede para no dejar una página vacía.
-        if (listaClasicas.length === 1) setPaginaFondos((p) => Math.max(1, p - 1));
-        mutateClasicas();
-      } else {
-        toast.error(res.error || "No se pudo eliminar el fondo");
-      }
-    });
   };
 
   const crearNuevoBorrador = () => {
@@ -326,36 +211,20 @@ export function usePlantillasGestor() {
     setNuevoAlto,
     nuevoCriterio,
     setNuevoCriterio,
-    preview,
-    fileName,
-    fileInputKey,
-    fileInputRef,
     isPending,
-    formClasico,
-    handleFileChange,
-    onSubmitClasico,
-    activarPlantillaClasica,
     crearNuevoBorrador,
     duplicarMotor,
     activarMotor,
     publicarMotor,
     eliminarMotor,
     abrirHistorialVersiones,
-    listaClasicas,
     listaMotor,
     cargandoMotor,
-    cargandoClasicas,
-    eliminarFondo,
     // Paginación y búsqueda en el servidor
     paginaMotorDatos,
     setPaginaMotor,
     cambiarTamanoMotor,
     busquedaMotor,
     setBusquedaMotor,
-    paginaFondosDatos,
-    setPaginaFondos,
-    cambiarTamanoFondos,
-    busquedaFondos,
-    setBusquedaFondos,
   };
 }

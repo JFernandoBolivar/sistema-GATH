@@ -31,8 +31,6 @@ class RepoCarnetizacionMock implements RepoCarnetizacion {
   async validarPorHash() { return { esValido: false, mensaje: "", carnet: null }; }
   async validarPorId() { return { esValido: false, mensaje: "", carnet: null }; }
   async listarPlantillas(): Promise<PlantillaCarnet[]> { return []; }
-  async crearPlantilla(): Promise<PlantillaCarnet> { throw new Error("not implemented"); }
-  async activarPlantilla(): Promise<PlantillaCarnet> { throw new Error("not implemented"); }
   async descargarPdf(): Promise<Blob> { return new Blob(); }
   async colaImpresionCarnets() { return []; }
   async loteCarnetsTrabajadoresPdf(
@@ -49,10 +47,6 @@ class RepoCarnetizacionMock implements RepoCarnetizacion {
   async listarPlantillasMotorPagina() {
     return paginaVaciaPrueba<PlantillaMotor>();
   }
-  async listarFondosFijos() {
-    return paginaVaciaPrueba<PlantillaCarnet>();
-  }
-  async eliminarFondoFijo(): Promise<void> {}
   async listarBibliotecaPagina() {
     return paginaVaciaPrueba<ElementoBiblioteca>();
   }

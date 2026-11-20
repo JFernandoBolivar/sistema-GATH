@@ -183,6 +183,7 @@ export function PlantillasMotorGrid({
           {visibles.map((p) => {
             const esActiva = p.activa;
             const esBorrador = p.estado === "borrador";
+            const esLegacy = p.estado === "LEGACY";
             return (
               <Card
                 key={p.id}
@@ -208,6 +209,10 @@ export function PlantillasMotorGrid({
                         <Badge className="gap-1 bg-primary text-primary-foreground">
                           <Star className="size-3 fill-current" aria-hidden />
                           Activa
+                        </Badge>
+                      ) : esLegacy ? (
+                        <Badge variant="outline" className="text-xs">
+                          Respaldo LEGACY
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="text-xs text-muted-foreground">
@@ -322,12 +327,14 @@ export function PlantillasMotorGrid({
                       size="sm"
                       variant="ghost"
                       className="min-h-9 gap-1.5 px-2 text-muted-foreground hover:text-destructive disabled:opacity-40"
-                      disabled={isPending || esActiva}
+                      disabled={isPending || esActiva || esLegacy}
                       onClick={() => setPlantillaAEliminar(p)}
                       title={
                         esActiva
                           ? "No se puede eliminar la plantilla activa"
-                          : "Eliminar esta versión"
+                          : esLegacy
+                            ? "La plantilla LEGACY es el respaldo de los carnets antiguos y no se elimina"
+                            : "Eliminar esta versión"
                       }
                     >
                       <Trash2 className="size-3.5" aria-hidden />
@@ -348,7 +355,7 @@ export function PlantillasMotorGrid({
                         Publicar
                       </Button>
                     )}
-                    {!esActiva && !esBorrador && (
+                    {!esActiva && !esBorrador && !esLegacy && (
                       <Button
                         size="sm"
                         variant="outline"

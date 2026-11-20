@@ -3,7 +3,6 @@ import pytest
 from rest_framework.test import APIClient
 
 from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
-    CarnetTemplateModel,
     ElementoBibliotecaModel,
     PlantillaCarnetModel,
 )
@@ -78,31 +77,7 @@ def test_plantillas_motor_paginadas_y_busqueda(api):
     assert len(_datos(api.get(f"{BASE}/plantillas-motor/"))) == total
 
 
-def test_fondos_fijos_paginados_y_busqueda(api):
-    for n in range(1, 14):
-        CarnetTemplateModel.objects.create(nombre=f"Fondo {n:02d}", imagen=f"carnet_templates/f{n}.png", activo=n == 1)
-    d = _datos(api.get(f"{BASE}/fondos-fijos/"))
-    assert set(d) == CLAVES
-    assert (d["total"], d["tamano"], d["total_paginas"], len(d["resultados"])) == (13, 12, 2, 12)
-    assert d["resultados"][0]["activo"] is True
-    assert len(_datos(api.get(f"{BASE}/fondos-fijos/?pagina=2"))["resultados"]) == 1
-    assert _datos(api.get(f"{BASE}/fondos-fijos/?busqueda=fondo 13"))["total"] == 1
-
-
-def test_eliminar_fondo_inactivo(api):
-    fondo = CarnetTemplateModel.objects.create(nombre="Viejo", imagen="carnet_templates/v.png", activo=False)
-    respuesta = api.delete(f"{BASE}/fondos-fijos/{fondo.pk}/")
-    assert respuesta.status_code == 200
-    assert not CarnetTemplateModel.objects.filter(pk=fondo.pk).exists()
-
-
-def test_no_se_elimina_el_fondo_activo(api):
-    fondo = CarnetTemplateModel.objects.create(nombre="En uso", imagen="carnet_templates/u.png", activo=True)
-    respuesta = api.delete(f"{BASE}/fondos-fijos/{fondo.pk}/")
-    assert respuesta.status_code == 400
-    assert "fondo fijo activo" in respuesta.json()["message"]
-    assert CarnetTemplateModel.objects.filter(pk=fondo.pk).exists()
-
-
-def test_eliminar_fondo_inexistente_da_404(api):
+def test_los_fondos_fijos_legacy_ya_no_existen(api):
+    """B-7: el fondo fijo clásico se retiró; la maqueta vive en el motor como LEGACY."""
+    assert api.get(f"{BASE}/fondos-fijos/").status_code == 404
     assert api.delete(f"{BASE}/fondos-fijos/999999/").status_code == 404

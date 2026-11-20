@@ -125,21 +125,6 @@ def listar_plantillas_motor_paginado(
     return [_plantilla_a_detalle_dto(p) for p in plantillas], total
 
 
-def listar_fondos_fijos(
-    repo: RepoCarnetizacion, paginacion: Paginacion, busqueda: str = '',
-) -> tuple[list[PlantillaCarnetDTO], int]:
-    """Una página de fondos fijos (clásicos); devuelve (página, total)."""
-    fondos, total = repo.listar_fondos_fijos(
-        busqueda=busqueda.strip(), offset=paginacion.offset, limite=paginacion.tamano,
-    )
-    return [_plantilla_a_dto(f) for f in fondos], total
-
-
-def eliminar_fondo_fijo(repo: RepoCarnetizacion, fondo_id: int | str) -> None:
-    """Elimina un fondo fijo; el repositorio rechaza el que está activo (en uso)."""
-    repo.eliminar_fondo_fijo(fondo_id)
-
-
 def obtener_plantilla_detalle(repo: RepoCarnetizacion, plantilla_id: str | int) -> PlantillaDetalleDTO:
     """Obtiene la definición completa de una plantilla."""
     p = repo.obtener_plantilla(plantilla_id)

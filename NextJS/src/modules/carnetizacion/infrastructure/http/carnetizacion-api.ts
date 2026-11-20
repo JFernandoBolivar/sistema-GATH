@@ -344,32 +344,6 @@ export const carnetizacionApi = {
     return envelope.data ?? [];
   },
 
-  getFondosFijos: async (p: { pagina: number; tamano: number; busqueda?: string }) => {
-    const envelope = await apiClient.get<ApiResponse<PaginaApi<PlantillaCarnetApiItem>>>(
-      "/api/v1/carnetizacion/fondos-fijos/",
-      { params: { pagina: p.pagina, page_size: p.tamano, busqueda: p.busqueda || undefined } },
-    );
-    return envelope.data;
-  },
-
-  eliminarFondoFijo: async (id: number | string) => {
-    await apiClient.delete<ApiResponse<null>>(`/api/v1/carnetizacion/fondos-fijos/${id}/`);
-  },
-
-  activarPlantilla: async (plantillaId: number | string) => {
-    const envelope = await apiClient.post<ApiResponse<PlantillaCarnetApiItem>>(`/api/v1/carnetizacion/plantillas/${plantillaId}/activar/`);
-    return envelope.data;
-  },
-
-  crearPlantilla: async (nombre: string, imagen: File, activar?: boolean) => {
-    const formData = new FormData();
-    formData.append("nombre", nombre);
-    formData.append("imagen", imagen);
-    if (activar) formData.append("activar", "true");
-    const envelope = await apiClient.postForm<ApiResponse<PlantillaCarnetApiItem>>("/api/v1/carnetizacion/plantillas/crear/", formData);
-    return envelope.data;
-  },
-
   descargarPdf: (carnetId: number) =>
     apiClient.getBlob(`/api/v1/carnetizacion/${carnetId}/pdf/`),
 

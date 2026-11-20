@@ -1,24 +1,22 @@
 """Repositorio de carnetización: carnets."""
-import hashlib
 import base64
-import os
+import hashlib
 from datetime import timedelta
 from io import BytesIO
 from typing import Any
+
 from django.core.cache import cache
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Count
 from django.utils import timezone
 from pdf2image import convert_from_bytes
 
-from core.domain.exceptions import NotFoundError, ValidationError
-from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
-from apps.carnetizacion.infrastructure.resolver_origen_campos import valores_campos_personalizados
-from core.infrastructure.storage.validacion_archivo import clave_segura
+# Import entre módulos en infrastructure (apps.cargos y apps.personal): mismo patrón ya
+# establecido en `apps.reportes`/`apps.autogestion`/`apps.pasivos`.
+from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
 from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
     CarnetEmitidoArchivoModel,
     CarnetEmitidoModel,
-    CarnetTemplateModel,
     PlantillaCarnetModel,
 )
 from apps.carnetizacion.infrastructure.pdf.carnet_pdf import (
@@ -27,15 +25,17 @@ from apps.carnetizacion.infrastructure.pdf.carnet_pdf import (
     generar_carnet_pdf,
     reducir_foto_carnet,
 )
-
-# Import entre módulos en infrastructure (apps.cargos y apps.personal): mismo patrón ya
-# establecido en `apps.reportes`/`apps.autogestion`/`apps.pasivos`.
-from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
+from apps.carnetizacion.infrastructure.resolver_origen_campos import (
+    valores_campos_personalizados,
+)
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
-
+from core.domain.exceptions import NotFoundError, ValidationError
+from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
+from core.infrastructure.storage.validacion_archivo import clave_segura
 
 from .repo_carnetizacion_comun import (
     cargo_y_departamento,
+    definicion_plantilla_legacy,
     exigir_condicion_para_carnet,
     logger,
     plantilla_vigente,
@@ -145,6 +145,31 @@ class RepoCarnetsPdfMixin:
             )
         return generar_carnet_pdf(datos, definicion=definicion)
 
+    def _definicion_de_carnet(self, fila: Any) -> dict[str, Any] | None:
+        """Diseño con el que se reimprime un carnet emitido.
+
+        Orden de resolución: copia congelada (`plantilla_snapshot`), versión exacta del
+        motor y, si no hay ninguna, la plantilla v1 LEGACY sembrada. Así un carnet
+        anterior al versionado nunca cae en un error ni cambia de diseño.
+        """
+        definicion = fila.plantilla_snapshot
+        if not definicion and fila.plantilla_id:
+            definicion = self._definicion_plantilla_emitida(fila)
+        if not definicion:
+            definicion = definicion_plantilla_legacy()
+        if not definicion:
+            # Instalación sin la siembra aplicada (o con la tabla vacía): se crea la
+            # maqueta LEGACY en caliente; si aun así no hay definición, `generar_carnet_pdf`
+            # cae en la plantilla por defecto y nunca devuelve un error.
+            try:
+                self._asegurar_catalogos_semilla()
+                self._asegurar_plantilla_legacy()
+                definicion = definicion_plantilla_legacy()
+            except Exception:  # noqa: BLE001 - reimprimir no debe caerse por la siembra
+                logger.warning('No se pudo resolver la plantilla LEGACY; se usa la de defecto.', exc_info=True)
+                definicion = None
+        return definicion
+
     def _datos_y_definicion_de_carnet(
         self, fila: Any, nombre_override: str | None = None,
     ) -> tuple[DatosCarnetPdf, dict[str, Any] | None]:
@@ -160,22 +185,7 @@ class RepoCarnetsPdfMixin:
 
         foto_bytes = self._foto_carnet(empleado.profile) if empleado and empleado.profile else None
 
-        # Si el carnet emitido tiene su propia plantilla snapshot, se usa esa versión
-        # inmutable (O44 - E3, E8). `plantilla_version` es un entero (número de
-        # versión), no la entidad: se resuelve contra el motor de plantillas.
-        definicion = fila.plantilla_snapshot
-        if not definicion and fila.plantilla_id:
-            definicion = self._definicion_plantilla_emitida(fila)
-
-        plantilla_path = None
-        plantilla = CarnetTemplateModel.objects.filter(activo=True).first()
-        if plantilla and plantilla.imagen:
-            try:
-                plantilla_path = plantilla.imagen.path
-            except Exception:
-                logger.warning("No se pudo resolver la ruta de la plantilla activa del carnet.", exc_info=True)
-                plantilla_path = None
-
+        definicion = self._definicion_de_carnet(fila)
         vence = vencimiento_de_carnet(fila)
         nombre = nombre_override or (f"{empleado.nombres} {empleado.apellidos}".strip() if empleado else '')
 
@@ -185,7 +195,6 @@ class RepoCarnetsPdfMixin:
             cargo=cargo,
             departamento=departamento,
             security_hash=fila.security_hash,
-            plantilla_path=plantilla_path,
             foto_bytes=foto_bytes,
             vence=vence.strftime('%d/%m/%Y') if vence else '',
             campos_extra=valores_campos_personalizados(empleado, asignacion),
@@ -241,25 +250,17 @@ class RepoCarnetsPdfMixin:
 
         # La misma plantilla con la que se emitiría: la vigente del tipo que corresponde a la
         # condición del titular (mismo resolutor que el resto del sistema). Sin asignación
-        # vigente no hay vista previa. El fondo fijo legado solo se usa sin definición por capas.
+        # vigente no hay vista previa. Sin plantilla por capas se usa la maqueta LEGACY,
+        # que es el respaldo de los carnets anteriores al versionado.
         condicion = exigir_condicion_para_carnet(empleado)
         plantilla_motor = plantilla_vigente(tipo_credencial_para(condicion))
         definicion = (
             plantilla_motor.definicion
             if plantilla_motor and isinstance(plantilla_motor.definicion, dict) and plantilla_motor.definicion
-            else None
+            else definicion_plantilla_legacy()
         )
 
-        plantilla_path = None
-        if definicion is None:
-            plantilla = CarnetTemplateModel.objects.filter(activo=True).first()
-            if plantilla and plantilla.imagen:
-                try:
-                    plantilla_path = plantilla.imagen.path
-                except Exception:
-                    plantilla_path = None
-
-        datos = self._datos_titular_vista_previa(empleado, nombre_override, foto_bytes, plantilla_path)
+        datos = self._datos_titular_vista_previa(empleado, nombre_override, foto_bytes)
         return _rasterizar_caras(generar_carnet_pdf(datos, definicion=definicion))
 
     def vista_previa_plantilla(
@@ -295,7 +296,6 @@ class RepoCarnetsPdfMixin:
 
     def _datos_titular_vista_previa(
         self, empleado: Any, nombre_override: str | None = None, foto_bytes: bytes | None = None,
-        plantilla_path: str | None = None,
     ) -> DatosCarnetPdf:
         asignacion = (
             AsigTrabajoModel.objects.select_related('denominacioncargoid', 'DireccionGeneral')
@@ -314,7 +314,6 @@ class RepoCarnetsPdfMixin:
             cargo=cargo,
             departamento=departamento,
             security_hash=hashlib.sha256(f"PREVIEW|{cedula}|{timezone.now().date()}".encode()).hexdigest(),
-            plantilla_path=plantilla_path,
             foto_bytes=foto_bytes,
             campos_extra=valores_campos_personalizados(empleado, asignacion),
         )
@@ -391,15 +390,3 @@ class RepoCarnetsPdfMixin:
             'por_motivo': por_motivo,
             'ultimos': ultimos,
         }
-
-    def ruta_imagen_plantilla(self, plantilla_id: int | str) -> str:
-        obj = CarnetTemplateModel.objects.filter(pk=plantilla_id).first()
-        if obj is None or not obj.imagen:
-            raise NotFoundError(f"Plantilla con id {plantilla_id} sin imagen")
-        try:
-            ruta = obj.imagen.path
-        except Exception as exc:
-            raise NotFoundError("Imagen de plantilla no disponible") from exc
-        if not os.path.isfile(ruta):
-            raise NotFoundError("Imagen de plantilla no disponible")
-        return ruta

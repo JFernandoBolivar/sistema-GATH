@@ -1,5 +1,5 @@
 """
-Paginación de los listados de plantillas, fondos fijos y biblioteca de medios.
+Paginación de los listados de plantillas y biblioteca de medios.
 
 Pura: convierte `?pagina=` y `?page_size=` en valores validados. Tamaños
 permitidos 12, 24 y 48 (12 por defecto); cualquier otro tamaño se ajusta al

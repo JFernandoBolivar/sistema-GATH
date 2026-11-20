@@ -69,22 +69,6 @@ class RepoCarnetizacionMemoria implements RepoCarnetizacion {
   async listarPlantillas() {
     return this.plantillas;
   }
-  async crearPlantilla(nombre: string, _imagen: File, activar?: boolean): Promise<PlantillaCarnet> {
-    const p: PlantillaCarnet = {
-      id: this.plantillas.length + 1,
-      nombre,
-      imagenUrl: `/storage/plantillas/${nombre}.png`,
-      activo: activar ?? false,
-      creado: "2026-08-01",
-    };
-    this.plantillas.push(p);
-    return p;
-  }
-  async activarPlantilla(plantillaId: number) {
-    const p = this.plantillas.find((x) => x.id === plantillaId)!;
-    p.activo = true;
-    return p;
-  }
   async descargarPdf(_carnetId: number) {
     return new Blob(["%PDF-simulado"], { type: "application/pdf" });
   }
@@ -149,10 +133,6 @@ class RepoCarnetizacionMemoria implements RepoCarnetizacion {
   async listarPlantillasMotorPagina() {
     return paginaVaciaPrueba<PlantillaMotor>();
   }
-  async listarFondosFijos() {
-    return paginaVaciaPrueba<PlantillaCarnet>();
-  }
-  async eliminarFondoFijo(): Promise<void> {}
   async listarBibliotecaPagina() {
     return paginaVaciaPrueba<ElementoBiblioteca>();
   }

@@ -218,24 +218,6 @@ class CarnetEmitidoModel(models.Model):
         return f"Carnet #{self.id} - {self.employee_id} (v{self.plantilla_version or 'legacy'})"
 
 
-class CarnetTemplateModel(models.Model):
-    """Plantilla de fondo legacy (mantenida para paridad retrocompatible)."""
-    nombre = models.CharField(max_length=100)
-    imagen = models.ImageField(upload_to='carnet_templates/')
-    activo = models.BooleanField(default=False)
-    creado = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        managed = False
-        db_table = 'CarnetTemplate'
-        ordering = ['-activo', '-creado']
-        verbose_name = 'plantilla legacy'
-        verbose_name_plural = 'plantillas legacy'
-
-    def __str__(self) -> str:
-        return self.nombre
-
-
 class ElementoBibliotecaModel(BaseModel):
     """
     Biblioteca compartida de logos, firmas e imágenes institucionales (O44 - E4).

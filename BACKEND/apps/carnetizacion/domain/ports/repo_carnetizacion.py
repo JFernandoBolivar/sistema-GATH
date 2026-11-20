@@ -118,24 +118,6 @@ class RepoCarnetizacion(Protocol):
         """Elimina una plantilla no activa (la activa está protegida)."""
         ...
 
-    def crear_plantilla(self, nombre: str, imagen: object, activar: bool = False) -> PlantillaCarnet:
-        """Compatibilidad con subida legacy de imagen de fondo."""
-        ...
-
-    def listar_fondos_fijos(
-        self, busqueda: str = "", offset: int = 0, limite: int = 12,
-    ) -> tuple[list[PlantillaCarnet], int]:
-        """Una página de fondos fijos (clásicos) y el total."""
-        ...
-
-    def eliminar_fondo_fijo(self, fondo_id: int | str) -> None:
-        """Elimina un fondo fijo inactivo; el activo (en uso) está protegido."""
-        ...
-
-    def ruta_imagen_plantilla(self, plantilla_id: int | str) -> str:
-        """Ruta local de la imagen de la plantilla legacy; NotFoundError si no existe."""
-        ...
-
     # --- Carnets Emitidos ---
     def listar_carnets(self, empleado_cedula: str | None = None) -> list[Carnet]:
         ...

@@ -6,6 +6,7 @@ geometría vectorial y tipografía embebida con fallback métrico exacto).
 
 Mantiene total compatibilidad con DatosCarnetPdf y la API previa de generar_carnet_pdf.
 """
+import base64
 import hashlib
 import json
 import logging
@@ -15,13 +16,8 @@ from dataclasses import dataclass, field
 from io import BytesIO
 from typing import Any
 
-from apps.carnetizacion.domain.services.qr_estilo import normalizar_estilo
-from apps.carnetizacion.infrastructure.qr_institucional import LOGO_QR, generar_qr_png
-from django.conf import settings
 from django.core.cache import cache
 from PIL import Image
-from core.infrastructure.pdf.fuentes import FUENTE, FUENTE_NEGRITA
-from core.infrastructure.pdf.pdf_components import reducir_imagen_para_pdf, ruta_asset
 from reportlab.lib.colors import Color, HexColor
 from reportlab.lib.units import cm
 from reportlab.lib.utils import ImageReader
@@ -31,10 +27,14 @@ from reportlab.pdfgen import canvas
 from apps.carnetizacion.domain.services.plantilla_defecto import (
     plantilla_defecto_trabajador,
 )
+from apps.carnetizacion.domain.services.qr_estilo import normalizar_estilo
 from apps.carnetizacion.domain.services.resolver_color import (
     resolver_color_carnet,
 )
 from apps.carnetizacion.domain.services.validador_multimedia import detectar_mime
+from apps.carnetizacion.infrastructure.qr_institucional import LOGO_QR, generar_qr_png
+from core.infrastructure.pdf.fuentes import FUENTE, FUENTE_NEGRITA
+from core.infrastructure.pdf.pdf_components import reducir_imagen_para_pdf, ruta_asset
 
 logger = logging.getLogger('gath.carnetizacion')
 
@@ -100,7 +100,7 @@ def ajustar_texto(
     lineas = texto.split('\n')
     ancho_max = max(stringWidth(ln, fuente, tamano) for ln in lineas)
     if ancho_max > ancho:
-        tamano = max(_TEXTO_MIN_FUENTE if tamano > _TEXTO_MIN_FUENTE else tamano, tamano * ancho / ancho_max)
+        tamano = max(min(tamano, _TEXTO_MIN_FUENTE), tamano * ancho / ancho_max)
     # La reducción proporcional puede quedar un pelo corta por el redondeo de métricas.
     while tamano > _TEXTO_MIN_FUENTE and max(stringWidth(ln, fuente, tamano) for ln in lineas) > ancho:
         tamano = max(_TEXTO_MIN_FUENTE, tamano - 0.1)
@@ -149,7 +149,6 @@ class DatosCarnetPdf:
     departamento: str
     security_hash: str
     nomina: str = "Funcionario"
-    plantilla_path: str | None = None
     foto_bytes: bytes | None = None
     vence: str = ''
     # Valores de los campos personalizados ya resueltos por su origen: {codigo_del_campo: valor}.
@@ -642,9 +641,37 @@ def _opacidad(el: dict[str, Any], props: dict[str, Any]) -> float:
     return min(1.0, max(0.0, _numero(op, 100.0) / 100.0))
 
 
+_MIMES_IMAGEN_INCRUSTADA = ('image/png', 'image/jpeg', 'image/webp')
+
+
+def _imagen_incrustada(data_url: Any) -> bytes | None:
+    """Bytes de una imagen `data:` incrustada en la definición (maqueta heredada).
+
+    La plantilla LEGACY guarda así la imagen que antes vivía en `CarnetTemplate`, sin
+    depender del almacén de medios. Solo se aceptan imágenes raster y un tamaño acotado.
+    """
+    if not isinstance(data_url, str) or not data_url.startswith('data:image/'):
+        return None
+    try:
+        cabecera, contenido = data_url.split(',', 1)
+        mime = cabecera[5:].split(';', 1)[0].lower()
+        if mime not in _MIMES_IMAGEN_INCRUSTADA:
+            return None
+        datos = base64.b64decode(contenido, validate=True)
+    except Exception:
+        logger.warning('La imagen incrustada de la plantilla no es válida.', exc_info=True)
+        return None
+    if not datos or len(datos) > 8 * 1024 * 1024:
+        return None
+    return datos
+
+
 def _imagen_elemento(props: dict[str, Any], w_pt: float, h_pt: float) -> ImageReader | None:
-    """Imagen de un elemento `image`: primero la de la biblioteca (`biblioteca_id`), después el
-    asset institucional fijo (`asset`). None si no hay ninguna legible."""
+    """Imagen de un elemento `image`: la incrustada en la definición, la de la biblioteca
+    (`biblioteca_id`) o el asset institucional fijo (`asset`). None si no hay ninguna legible."""
+    datos = _imagen_incrustada(props.get('data'))
+    if datos:
+        return ImageReader(BytesIO(reducir_imagen_para_pdf(datos, _lado_maximo_px(w_pt, h_pt))))
     medio_id = props.get('biblioteca_id')
     if medio_id:
         datos = imagen_de_biblioteca(str(medio_id))
@@ -789,7 +816,8 @@ def _dibujar_elemento(
             if imagen is not None:
                 c.drawImage(
                     imagen, x_pt, y_pt, w_pt, h_pt,
-                    preserveAspectRatio=True, anchor='c', mask='auto',
+                    preserveAspectRatio=bool(props.get('preserveAspectRatio', True)),
+                    anchor='c', mask='auto',
                 )
                 dibujado = True
         except Exception:
@@ -814,6 +842,10 @@ def _dibujar_elemento(
                 texto_render = el.get('nombre') or el.get('name') or ''
         else:
             texto_render = el.get('texto') or el.get('text') or ''
+
+        prefijo = el.get('prefijo') or el.get('prefix') or ''
+        if prefijo:
+            texto_render = f"{prefijo}{texto_render}"
 
         if el.get('upper'):
             texto_render = texto_render.upper()
@@ -968,7 +1000,13 @@ def generar_carnet_pdf_fiel(
     c.setTitle(f"Carnet {nombre_doc}")
     c.setSubject("Credencial Institucional Oficial")
 
-    for idx_cara, cara in enumerate(('anverso', 'reverso')):
+    # La maqueta LEGACY declara una sola cara: no se añade un reverso en blanco que
+    # antes no existía al reimprimir los carnets antiguos.
+    caras = tuple(
+        cara for cara in (definicion.get('caras') or ('anverso', 'reverso'))
+        if cara in ('anverso', 'reverso')
+    ) or ('anverso', 'reverso')
+    for idx_cara, cara in enumerate(caras):
         dibujar_cara(c, definicion, datos, cara, desplazamiento, desplazamiento, sangrado_mm)
         if marcas_corte:
             _marcas_corte_individual(c, desplazamiento, desplazamiento, ancho_pt, alto_pt, sangrado_pt, margen_pt)
@@ -993,39 +1031,10 @@ def generar_carnet_pdf(
     """
     Función fachada retrocompatible.
     Si se suministra una definición JSON (o se recurre a la plantilla por defecto),
-    invoca el motor fiel de 2 caras (O44 - E8).
-    Si se solicita la plantilla legada en imagen fija con datos.plantilla_path, conserva
-    el renderizado de compatibilidad previa.
+    invoca el motor fiel (O44 - E8). Las plantillas LEGACY declaran una sola cara.
     """
     if definicion is not None:
         return generar_carnet_pdf_fiel(definicion, datos, sangrado_mm, marcas_corte)
-
-    # Si hay una imagen fija legada explícita y no hay definición nueva, usar el layout previo
-    if datos.plantilla_path and not definicion:
-        buffer = BytesIO()
-        c = canvas.Canvas(buffer, pagesize=(CARNET_WIDTH, CARNET_HEIGHT))
-        try:
-            c.drawImage(ImageReader(datos.plantilla_path), 0, 0, CARNET_WIDTH, CARNET_HEIGHT, preserveAspectRatio=False, anchor="c")
-        except Exception:
-            c.rect(0, 0, CARNET_WIDTH, CARNET_HEIGHT, fill=1)
-
-        qr_tamano = 1.2 * cm
-        x_qr, y_qr = 0.4 * cm, 0.8 * cm
-        _dibujar_qr(c, datos, x_qr, y_qr, tamano=qr_tamano)
-
-        photo_width, photo_height = 2.0 * cm, 2.4 * cm
-        x_foto = (CARNET_WIDTH - photo_width) / 2
-        y_foto = 4.6 * cm
-        _dibujar_foto(c, datos.foto_bytes, x_foto, y_foto, photo_width, photo_height)
-
-        center_x = CARNET_WIDTH / 2
-        text_start_y = y_foto - 0.3 * cm
-        c.setFont(FUENTE_NEGRITA, 7)
-        c.drawCentredString(center_x, text_start_y, datos.nombre_completo.upper()[:30])
-        c.setFont(FUENTE, 7)
-        c.drawCentredString(center_x, text_start_y - 0.45 * cm, f"C.I: {datos.cedula}")
-        c.save()
-        return buffer.getvalue()
 
     # Por defecto en GATH: motor canónico de dos caras de alta fidelidad
     def_canonica = plantilla_defecto_trabajador()

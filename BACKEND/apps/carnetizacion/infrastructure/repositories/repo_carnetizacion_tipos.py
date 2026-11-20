@@ -14,32 +14,68 @@ from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
 
 
 
+# Catálogo base. Contratado, pasante y autoridad son credenciales internas (grupo
+# trabajador): comparten la plantilla institucional y no son credenciales externas.
+TIPOS_CREDENCIAL_BASE = (
+    {
+        'codigo': 'trabajador',
+        'nombre': 'Trabajador Activo',
+        'descripcion': 'Credencial oficial para personal activo institucional',
+        'grupo': 'trabajador',
+        'orden': 1,
+    },
+    {
+        'codigo': 'pasivo',
+        'nombre': 'Pasivo / Jubilado / Pensionado',
+        'descripcion': 'Credencial oficial para personal jubilado, pensionado o sobreviviente',
+        'grupo': 'pasivo',
+        'orden': 2,
+    },
+    {
+        'codigo': 'contratado',
+        'nombre': 'Contratado',
+        'descripcion': 'Credencial oficial para personal contratado por la institución',
+        'grupo': 'trabajador',
+        'orden': 3,
+    },
+    {
+        'codigo': 'pasante',
+        'nombre': 'Pasante',
+        'descripcion': 'Credencial oficial para pasantes y personal en formación',
+        'grupo': 'trabajador',
+        'orden': 4,
+    },
+    {
+        'codigo': 'autoridad',
+        'nombre': 'Autoridad',
+        'descripcion': 'Credencial oficial para autoridades y directivos de la institución',
+        'grupo': 'trabajador',
+        'orden': 5,
+    },
+)
+
+
 class RepoTiposCredencialMixin:
     def _asegurar_catalogos_semilla(self) -> None:
-        """Siembra los tipos de credencial base (trabajadores y pasivos) si la tabla está vacía."""
-        if not TipoCredencialModel.objects.exists():
-            TipoCredencialModel.objects.bulk_create([
-                TipoCredencialModel(
-                    codigo='trabajador',
-                    nombre='Trabajador Activo',
-                    descripcion='Credencial oficial para personal activo institucional',
-                    ancho_mm=54.00,
-                    alto_mm=85.60,
-                    orientacion='vertical',
-                    activo=True,
-                    orden=1,
-                ),
-                TipoCredencialModel(
-                    codigo='pasivo',
-                    nombre='Pasivo / Jubilado / Pensionado',
-                    descripcion='Credencial oficial para personal jubilado, pensionado o sobreviviente',
-                    ancho_mm=54.00,
-                    alto_mm=85.60,
-                    orientacion='vertical',
-                    activo=True,
-                    orden=2,
-                ),
-            ])
+        """Siembra de forma idempotente los tipos de credencial base.
+
+        No actualiza los que ya existen (el área usuaria puede haber ajustado nombre,
+        orden o grupo); solo agrega los que falten en instalaciones anteriores.
+        """
+        for datos in TIPOS_CREDENCIAL_BASE:
+            TipoCredencialModel.objects.get_or_create(
+                codigo=datos['codigo'],
+                defaults={
+                    'nombre': datos['nombre'],
+                    'descripcion': datos['descripcion'],
+                    'ancho_mm': 54.00,
+                    'alto_mm': 85.60,
+                    'orientacion': 'vertical',
+                    'grupo': datos['grupo'],
+                    'activo': True,
+                    'orden': datos['orden'],
+                },
+            )
 
     def listar_tipos_credencial(
         self, solo_activos: bool = True, grupo: str | None = None

@@ -2,21 +2,9 @@
 import logging
 from typing import Any
 
-from core.domain.catalogos import (
-    CONDICION_ACTIVO,
-    CONDICION_PASIVO,
-    CONDICION_SIN_ASIGNACION,
-    TIPO_PERSONAL_PASIVO,
-)
-from core.domain.exceptions import ValidationError
-from core.domain.configuracion import (
-    CLAVE_CARNETIZACION_SANGRADO_MM,
-    CLAVE_CARNETIZACION_VENCIMIENTO_MESES,
-    CLAVE_CARNETIZACION_VIGENCIA_EXTERNO_DIAS,
-    CLAVE_CARNETIZACION_VIGENCIA_PASIVO_MESES,
-    CLAVE_CARNETIZACION_VIGENCIA_TRABAJADOR_MESES,
-)
-from core.infrastructure.providers import obtener_lector_configuracion, obtener_resolutor_condicion
+# Import entre módulos en infrastructure (apps.cargos y apps.personal): mismo patrón ya
+# establecido en `apps.reportes`/`apps.autogestion`/`apps.pasivos`.
+from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
 from apps.carnetizacion.domain.services.vigencia_carnet import (
     TIPO_VIGENCIA_EXTERNO,
     TIPO_VIGENCIA_PASIVO,
@@ -24,13 +12,27 @@ from apps.carnetizacion.domain.services.vigencia_carnet import (
     VIGENCIA_RESPALDO_MESES,
     calcular_vencimiento,
 )
-
-# Import entre módulos en infrastructure (apps.cargos y apps.personal): mismo patrón ya
-# establecido en `apps.reportes`/`apps.autogestion`/`apps.pasivos`.
-from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
-from apps.carnetizacion.infrastructure.models.carnetizacion_models import PlantillaCarnetModel
-
-
+from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
+    PlantillaCarnetModel,
+)
+from core.domain.catalogos import (
+    CONDICION_ACTIVO,
+    CONDICION_PASIVO,
+    CONDICION_SIN_ASIGNACION,
+    TIPO_PERSONAL_PASIVO,
+)
+from core.domain.configuracion import (
+    CLAVE_CARNETIZACION_SANGRADO_MM,
+    CLAVE_CARNETIZACION_VENCIMIENTO_MESES,
+    CLAVE_CARNETIZACION_VIGENCIA_EXTERNO_DIAS,
+    CLAVE_CARNETIZACION_VIGENCIA_PASIVO_MESES,
+    CLAVE_CARNETIZACION_VIGENCIA_TRABAJADOR_MESES,
+)
+from core.domain.exceptions import ValidationError
+from core.infrastructure.providers import (
+    obtener_lector_configuracion,
+    obtener_resolutor_condicion,
+)
 
 logger = logging.getLogger('gath.carnetizacion')
 
@@ -110,6 +112,26 @@ def exigir_condicion_para_carnet(empleado: Any) -> str:
             campo='cedula',
         )
     return condicion
+
+
+def plantilla_legacy() -> Any:
+    """Plantilla v1 LEGACY sembrada: respaldo de los carnets anteriores al versionado.
+
+    No se marca activa ni publicada a propósito: nunca se usa para emitir carnets nuevos;
+    solo se resuelve cuando un carnet emitido no tiene snapshot ni plantilla recuperable.
+    """
+    return (
+        PlantillaCarnetModel.objects.filter(estado='LEGACY')
+        .order_by('version', 'created_at')
+        .first()
+    )
+
+
+def definicion_plantilla_legacy() -> dict[str, Any] | None:
+    """Definición de la maqueta heredada, o None si la siembra no está disponible."""
+    plantilla = plantilla_legacy()
+    definicion = plantilla.definicion if plantilla else None
+    return definicion if isinstance(definicion, dict) and definicion else None
 
 
 def plantilla_vigente(codigo_tipo: str) -> Any:

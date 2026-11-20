@@ -1,41 +1,66 @@
 """Repositorio de carnetizaciÃ³n: tipos plantillas."""
 from typing import Any
+
 from django.db import transaction
 from django.db.models import Max, Q
 
-from core.domain.exceptions import NotFoundError, ValidationError
 from apps.carnetizacion.domain.entities.plantilla import PlantillaCarnet
 from apps.carnetizacion.domain.services.plantilla_defecto import (
+    NOMBRE_PLANTILLA_LEGACY,
+    plantilla_defecto_heredada,
     plantilla_defecto_pasivo,
     plantilla_defecto_trabajador,
 )
 from apps.carnetizacion.infrastructure.mappers.mapper_carnetizacion import (
-    plantilla_a_entidad,
     plantilla_motor_a_entidad,
 )
 from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
     CarnetEmitidoModel,
-    CarnetTemplateModel,
     PlantillaCarnetModel,
     TipoCredencialModel,
 )
+from core.domain.exceptions import NotFoundError, ValidationError
 
 # Import entre módulos en infrastructure (apps.cargos y apps.personal): mismo patrón ya
 # establecido en `apps.reportes`/`apps.autogestion`/`apps.pasivos`.
-
-
-from .repo_carnetizacion_comun import (
-    logger,
-)
 
 
 class RepoPlantillasMixin:
 
 
 
+    def _asegurar_plantilla_legacy(self) -> None:
+        """Crea la maqueta heredada v1 si no existe (nunca duplica ni la activa)."""
+        if PlantillaCarnetModel.objects.filter(estado='LEGACY').exists():
+            return
+        tipo = TipoCredencialModel.objects.filter(codigo='trabajador').first()
+        if not tipo:
+            return
+        definicion = plantilla_defecto_heredada()
+        legacy = PlantillaCarnetModel.objects.create(
+            nombre=NOMBRE_PLANTILLA_LEGACY,
+            tipo_credencial=tipo,
+            ancho_mm=definicion['dimensiones']['ancho_mm'],
+            alto_mm=definicion['dimensiones']['alto_mm'],
+            orientacion=definicion['orientacion'],
+            regla_criterio='legacy',
+            regla_valor='*',
+            estado='LEGACY',
+            activa=False,
+            version=1,
+            definicion=definicion,
+            descripcion=(
+                'Maqueta heredada de CarnetTemplate: respaldo de los carnets emitidos antes '
+                'del versionado. No se usa para emitir carnets nuevos.'
+            ),
+        )
+        legacy.plantilla_raiz = legacy
+        legacy.save(update_fields=['plantilla_raiz'])
+
     def _asegurar_plantilla_semilla(self) -> None:
         """Garantiza al menos una plantilla publicada y activa para trabajador y pasivo."""
         self._asegurar_catalogos_semilla()
+        self._asegurar_plantilla_legacy()
         tipo_trabajador = TipoCredencialModel.objects.filter(codigo='trabajador').first()
         if tipo_trabajador and not PlantillaCarnetModel.objects.filter(tipo_credencial_id='trabajador', activa=True).exists():
             def_trabajador = plantilla_defecto_trabajador()
@@ -117,14 +142,7 @@ class RepoPlantillasMixin:
     def obtener_plantilla(self, plantilla_id: str | int) -> PlantillaCarnet | None:
         self._asegurar_plantilla_semilla()
         obj = PlantillaCarnetModel.objects.select_related('tipo_credencial').filter(pk=plantilla_id).first()
-        if obj:
-            return plantilla_motor_a_entidad(obj)
-        # Fallback a tabla legacy por id numérico
-        if isinstance(plantilla_id, int) or (isinstance(plantilla_id, str) and plantilla_id.isdigit()):
-            legacy = CarnetTemplateModel.objects.filter(pk=int(plantilla_id)).first()
-            if legacy:
-                return plantilla_a_entidad(legacy)
-        return None
+        return plantilla_motor_a_entidad(obj) if obj else None
 
     def obtener_plantilla_activa(
         self,
@@ -268,6 +286,11 @@ class RepoPlantillasMixin:
         obj = PlantillaCarnetModel.objects.filter(pk=plantilla_id).first()
         if not obj:
             raise NotFoundError(f"Plantilla con id {plantilla_id} no encontrada")
+        if obj.estado == 'LEGACY':
+            raise ValidationError(
+                'La plantilla heredada (LEGACY) es el respaldo de los carnets antiguos: '
+                'no se publica ni se activa. Duplíquela para crear un diseño nuevo.'
+            )
 
         with transaction.atomic():
             if obj.estado == 'borrador':
@@ -337,16 +360,6 @@ class RepoPlantillasMixin:
                 obj.save(update_fields=['activa', 'updated_at'])
             return plantilla_motor_a_entidad(obj)
 
-        # Fallback a tabla legacy
-        if isinstance(plantilla_id, int) or (isinstance(plantilla_id, str) and plantilla_id.isdigit()):
-            legacy = CarnetTemplateModel.objects.filter(pk=int(plantilla_id)).first()
-            if not legacy:
-                raise NotFoundError(f"Plantilla con id {plantilla_id} no encontrada")
-            CarnetTemplateModel.objects.exclude(pk=legacy.pk).update(activo=False)
-            legacy.activo = True
-            legacy.save(update_fields=['activo'])
-            return plantilla_a_entidad(legacy)
-
         raise NotFoundError(f"Plantilla con id {plantilla_id} no encontrada")
 
     def listar_versiones_plantilla(self, plantilla_raiz_id: str | int) -> list[PlantillaCarnet]:
@@ -359,6 +372,11 @@ class RepoPlantillasMixin:
         obj = PlantillaCarnetModel.objects.filter(pk=plantilla_id).first()
         if obj is None:
             raise NotFoundError(f"Plantilla con id {plantilla_id} no encontrada")
+        if obj.estado == 'LEGACY':
+            raise ValidationError(
+                'La plantilla heredada (LEGACY) no se puede eliminar: es el respaldo de los '
+                'carnets emitidos antes del versionado.'
+            )
         if obj.activa:
             raise ValidationError(
                 "No se puede eliminar la plantilla activa. Actívela otra versión o archívela primero."
@@ -380,38 +398,5 @@ class RepoPlantillasMixin:
                 f"Hay {emitidos} carnet(s) emitido(s) con esta plantilla; no se puede eliminar "
                 "porque se usa para reimprimirlos."
             )
-        obj.delete()
-
-    def crear_plantilla(self, nombre: str, imagen: object, activar: bool = False) -> PlantillaCarnet:
-        """Soporte legacy para subida de imagen física."""
-        if activar:
-            CarnetTemplateModel.objects.all().update(activo=False)
-        obj = CarnetTemplateModel.objects.create(nombre=nombre, imagen=imagen, activo=activar)
-        return plantilla_a_entidad(obj)
-
-    def listar_fondos_fijos(
-        self, busqueda: str = '', offset: int = 0, limite: int = 12,
-    ) -> tuple[list[PlantillaCarnet], int]:
-        """Fondos fijos (clásicos) subidos como imagen, paginados y con búsqueda por nombre."""
-        qs = CarnetTemplateModel.objects.all().order_by('-activo', '-creado', '-pk')
-        if busqueda:
-            qs = qs.filter(nombre__icontains=busqueda)
-        total = qs.count()
-        return [plantilla_a_entidad(f) for f in qs[offset:offset + limite]], total
-
-    def eliminar_fondo_fijo(self, fondo_id: int | str) -> None:
-        obj = CarnetTemplateModel.objects.filter(pk=fondo_id).first()
-        if obj is None:
-            raise NotFoundError(f"Fondo fijo con id {fondo_id} no encontrado")
-        if obj.activo:
-            raise ValidationError(
-                "No se puede eliminar un fondo fijo activo: se está usando al generar carnets. "
-                "Active otro fondo primero."
-            )
-        if obj.imagen:
-            try:
-                obj.imagen.delete(save=False)
-            except Exception:
-                logger.warning("No se pudo borrar el archivo del fondo fijo %s.", fondo_id, exc_info=True)
         obj.delete()
 
