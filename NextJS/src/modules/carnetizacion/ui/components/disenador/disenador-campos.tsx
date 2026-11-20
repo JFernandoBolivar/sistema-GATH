@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,16 +25,23 @@ export function SeccionPropiedades({
 export function CampoNumerico({
   etiqueta,
   sufijo,
+  id,
   ...props
 }: {
   etiqueta?: string;
   sufijo: string;
 } & Omit<React.ComponentProps<"input">, "type" | "className">) {
+  const idGenerado = useId();
+  const campoId = id ?? idGenerado;
   return (
     <div className="space-y-1">
-      {etiqueta && <Label className="text-xs font-medium">{etiqueta}</Label>}
+      {etiqueta && (
+        <Label htmlFor={campoId} className="text-xs font-medium">
+          {etiqueta}
+        </Label>
+      )}
       <div className="relative">
-        <Input type="number" className="h-9 pr-9 font-mono text-xs" {...props} />
+        <Input type="number" className="h-9 pr-9 font-mono text-xs" {...props} id={campoId} />
         <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-[11px] text-muted-foreground">
           {sufijo}
         </span>
