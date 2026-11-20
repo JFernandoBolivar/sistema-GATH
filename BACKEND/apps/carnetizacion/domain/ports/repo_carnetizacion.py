@@ -356,3 +356,20 @@ class RepoCarnetizacion(Protocol):
     def pdf_emitido_guardado(self, carnet_id: int) -> bytes | None:
         """El PDF normal tal como se emitió (sha256 verificado), o None si no hay copia válida."""
         ...
+
+    # --- Ciclo físico del carnet (B-5) ---
+
+    def estado_fisico_carnet(self, carnet_id: int) -> dict:
+        ...
+
+    def estados_fisicos(self, carnet_ids: list[int]) -> dict[int, str]:
+        ...
+
+    def marcar_carnet_impreso(self, carnet_id: int, por: str) -> dict:
+        ...
+
+    def marcar_carnet_entregado(self, carnet_id: int, recibido_por: str, por: str) -> dict:
+        ...
+
+    def anular_carnet(self, carnet_id: int, motivo: str, por: str) -> dict:
+        ...

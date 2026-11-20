@@ -79,6 +79,25 @@ export interface EmployeeCarnet {
   carnet_activo_emitido_en?: string | null;
   /** Condición real del titular calculada en el servidor (mismo criterio que el resto del sistema). */
   condicion?: CondicionTitular;
+  /** B-5: id y estado físico del carnet vigente. */
+  carnet_activo_id?: number | null;
+  carnet_activo_estado?: EstadoFisicoCarnet | null;
+}
+
+/** Ciclo físico del carnet (B-5): EMITIDO → IMPRESO → ENTREGADO; ANULADO con motivo. */
+export type EstadoFisicoCarnet = "EMITIDO" | "IMPRESO" | "ENTREGADO" | "ANULADO";
+
+export function etiquetaEstadoFisico(estado: EstadoFisicoCarnet | null | undefined): string {
+  switch (estado) {
+    case "IMPRESO":
+      return "Impreso · listo para entregar";
+    case "ENTREGADO":
+      return "Entregado al titular";
+    case "ANULADO":
+      return "Anulado";
+    default:
+      return "Emitido · pendiente de impresión";
+  }
 }
 
 export type CondicionTitular = "ACTIVO" | "PASIVO" | "SIN_ASIGNACION";

@@ -33,6 +33,11 @@ from apps.carnetizacion.application.use_cases.emitir_carnet import (
 )
 from apps.carnetizacion.application.use_cases.generar_pdf_carnet import generar_pdf_carnet
 from apps.carnetizacion.application.use_cases.vista_previa_plantilla import vista_previa_plantilla_uc
+from apps.carnetizacion.application.use_cases.ciclo_carnet import (
+    anular_carnet_uc,
+    marcar_entregado_uc,
+    marcar_impreso_uc,
+)
 from apps.carnetizacion.application.use_cases.solicitudes_carnet import (
     listar_solicitudes_carnet_uc,
     rechazar_solicitud_carnet_uc,
@@ -68,7 +73,6 @@ from apps.carnetizacion.application.use_cases.gestionar_plantillas import (
     publicar_plantilla,
 )
 from apps.carnetizacion.application.use_cases.listar_carnets import listar_carnets
-from apps.carnetizacion.application.use_cases.revocar_carnet import revocar_carnet
 from apps.carnetizacion.application.use_cases.validar_carnet import (
     validar_carnet_por_hash,
     validar_carnet_por_id,
@@ -151,11 +155,67 @@ class CarnetPdfView(APIView):
 class RevocarCarnetView(APIView):
     permission_classes = [IsAuthenticated, HasPermission('carnetizacion.revocar')]
 
-    @extend_schema(tags=['Carnetización'], summary='Revocar o invalidar carnet emitido', responses={200: CarnetSerializer})
+    @extend_schema(tags=['Carnetización'], summary='Anular (revocar) un carnet emitido, con motivo obligatorio')
     def post(self, request, carnet_id: int):
-        repo = RepoCarnetizacionORM()
-        dto = revocar_carnet(repo, carnet_id=carnet_id)
-        return ok(CarnetSerializer(dto).data, 'Carnet revocado exitosamente.')
+        # B-5: la anulación exige motivo y queda registrada (antes solo desactivaba el carnet).
+        resumen = anular_carnet_uc(
+            RepoCarnetizacionORM(), carnet_id, request.data.get('motivo'), _cedula_actor(request),
+        )
+        _auditar_ciclo(request, 'carnetizacion.carnet_anulado', resumen)
+        return ok(resumen, 'Carnet anulado.')
+
+
+def _cedula_actor(request) -> str:
+    return str(getattr(request.user, 'cedula_id', '') or '')
+
+
+def _auditar_ciclo(request, accion: str, resumen: dict) -> None:
+    try:
+        registrar_auditoria(
+            trace_id=getattr(request, 'trace_id', None) or uuid.uuid4().hex,
+            actor_id=getattr(request.user, 'pk', None),
+            actor_cedula=_cedula_actor(request),
+            accion=accion,
+            modulo='carnetizacion',
+            recurso_tipo='CarnetEmitido',
+            recurso_id=str(resumen['carnet_id']),
+            estado_nuevo=resumen,
+            **origen_de_peticion(request),
+        )
+    except Exception:  # noqa: BLE001 - la auditoría no debe tumbar la operación
+        logging.getLogger('security_backend').exception(
+            'No se pudo auditar el ciclo del carnet %s', resumen.get('carnet_id'),
+        )
+
+
+class CarnetEstadoFisicoView(APIView):
+    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.ver')]
+
+    @extend_schema(tags=['Carnetización'], summary='Estado físico del carnet (emitido, impreso, entregado, anulado)')
+    def get(self, request, carnet_id: int):
+        return ok(RepoCarnetizacionORM().estado_fisico_carnet(carnet_id))
+
+
+class CarnetImpresoView(APIView):
+    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.emitir')]
+
+    @extend_schema(tags=['Carnetización'], summary='Marcar el carnet como impreso (avisa al trabajador)')
+    def post(self, request, carnet_id: int):
+        resumen = marcar_impreso_uc(RepoCarnetizacionORM(), carnet_id, _cedula_actor(request))
+        _auditar_ciclo(request, 'carnetizacion.carnet_impreso', resumen)
+        return ok(resumen, 'Carnet marcado como impreso; se avisó al trabajador.')
+
+
+class CarnetEntregadoView(APIView):
+    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.emitir')]
+
+    @extend_schema(tags=['Carnetización'], summary='Registrar la entrega del carnet impreso')
+    def post(self, request, carnet_id: int):
+        resumen = marcar_entregado_uc(
+            RepoCarnetizacionORM(), carnet_id, request.data.get('recibido_por'), _cedula_actor(request),
+        )
+        _auditar_ciclo(request, 'carnetizacion.carnet_entregado', resumen)
+        return ok(resumen, 'Entrega registrada.')
 
 
 class ValidarCarnetHashView(APIView):

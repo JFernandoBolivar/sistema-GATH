@@ -46,7 +46,8 @@ import {
   getPlantillasCarnetAction,
 } from "../../infrastructure/actions/carnetizacion-actions";
 import type { EmployeeCarnet, MotivoOption, PlantillaCarnet } from "../../domain/entities/carnet";
-import { etiquetaCondicion, puedeEmitirCarnet } from "../../domain/entities/carnet";
+import { etiquetaCondicion, etiquetaEstadoFisico, puedeEmitirCarnet } from "../../domain/entities/carnet";
+import { CicloCarnetAcciones } from "../components/ciclo-carnet-acciones";
 
 function truncarNombre(nombreCompleto: string): string {
   const partes = nombreCompleto.trim().split(/\s+/);
@@ -188,6 +189,15 @@ export function ConsolaEmisionView() {
       activo = false;
     };
   }, [cedulaParam, trabajadorSeleccionado]);
+
+  // Vuelve a leer al titular del servidor (estado del carnet tras emitir, imprimir, entregar o anular).
+  const refrescarTitular = useCallback(async (cedula: string) => {
+    const lista = await buscarPersonalCarnetAction(cedula);
+    const actualizado = Array.isArray(lista) ? lista.find((e) => e.cedula === cedula) : undefined;
+    if (actualizado) {
+      setTrabajadorSeleccionado((prev) => (prev && prev.cedula === cedula ? { ...prev, ...actualizado } : prev));
+    }
+  }, []);
 
   // Genera la vista previa (≈ segundos): una sola petición por cédula a la vez.
   const solicitarVistaPrevia = useCallback(
@@ -332,17 +342,8 @@ export function ConsolaEmisionView() {
         setMotivoReemision("");
         setDetalleReemision("");
 
-        // Actualizar el estado local para reflejar la nueva emisión
-        setTrabajadorSeleccionado((prev) =>
-          prev
-            ? {
-                ...prev,
-                tiene_carnet: true,
-                total_solicitudes: (prev.total_solicitudes || 0) + 1,
-                carnet_activo_emitido_en: new Date().toISOString(),
-              }
-            : null,
-        );
+        // Recargar del servidor: id y estado físico del carnet recién emitido (B-5).
+        await refrescarTitular(cedula);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Error durante la emisión del carnet.";
         toast.error(msg);
@@ -587,7 +588,12 @@ export function ConsolaEmisionView() {
                         {trabajadorSeleccionado.tiene_carnet ? (
                           <>
                             <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-                            <span className="text-emerald-600 dark:text-emerald-400">Activo y Vigente</span>
+                            <span className="text-emerald-600 dark:text-emerald-400">
+                              Activo y Vigente
+                              {trabajadorSeleccionado.carnet_activo_estado
+                                ? ` · ${etiquetaEstadoFisico(trabajadorSeleccionado.carnet_activo_estado)}`
+                                : ""}
+                            </span>
                           </>
                         ) : (
                           <>
@@ -607,6 +613,17 @@ export function ConsolaEmisionView() {
                       </span>
                     </div>
                   </div>
+                  {/* B-5: ciclo físico del carnet vigente (imprimir → entregar; anular con motivo). */}
+                  {trabajadorSeleccionado.tiene_carnet && trabajadorSeleccionado.carnet_activo_id ? (
+                    <div className="mt-3 pt-3 border-t border-border/50">
+                      <CicloCarnetAcciones
+                        carnetId={trabajadorSeleccionado.carnet_activo_id}
+                        estado={trabajadorSeleccionado.carnet_activo_estado ?? "EMITIDO"}
+                        nombreTitular={trabajadorSeleccionado.nombre_completo}
+                        onCambio={() => refrescarTitular(trabajadorSeleccionado.cedula)}
+                      />
+                    </div>
+                  ) : null}
                 </CardContent>
               </Card>
 

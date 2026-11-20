@@ -189,6 +189,14 @@ class RepoCarnetsEmitidosMixin:
             )
         }
 
+        ids_activos = dict(
+            CarnetEmitidoModel.objects
+            .filter(employee__cedulaidentidad__in=cedulas, activo=True)
+            .order_by('fecha_emision')
+            .values_list('employee__cedulaidentidad', 'pk')
+        )
+        estados = self.estados_fisicos(list(ids_activos.values())) if ids_activos else {}
+
         filas = []
         for e in qs:
             asig = asignaciones_activas.get(e.cedulaidentidad) or asignaciones_recientes.get(e.cedulaidentidad)
@@ -232,6 +240,9 @@ class RepoCarnetsEmitidosMixin:
                     fecha_emision_activa.isoformat()
                     if tiene_carnet and fecha_emision_activa else None
                 ),
+                # B-5: id y estado físico (EMITIDO / IMPRESO / ENTREGADO) del carnet vigente.
+                'carnet_activo_id': ids_activos.get(e.cedulaidentidad),
+                'carnet_activo_estado': estados.get(ids_activos.get(e.cedulaidentidad)),
             })
         return filas
 

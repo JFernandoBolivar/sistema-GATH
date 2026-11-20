@@ -160,6 +160,30 @@ class CarnetEmitidoArchivoModel(BaseModel):
         return f"PDF del carnet #{self.carnet_id} ({self.formato})"
 
 
+class CarnetCicloModel(BaseModel):
+    """Ciclo físico del carnet emitido (B-5): impresión, entrega y anulación con motivo.
+    Tabla propia enlazada por el id del carnet (CarnetEmitido es heredada, sin migraciones)."""
+
+    carnet_id = models.PositiveIntegerField(unique=True, db_column='carnetId')
+    estado = models.CharField(max_length=10, default='EMITIDO')
+    fecha_impresion = models.DateTimeField(null=True, blank=True)
+    impreso_por_cedula = models.CharField(max_length=15, blank=True, default='')
+    fecha_entrega = models.DateTimeField(null=True, blank=True)
+    entregado_por_cedula = models.CharField(max_length=15, blank=True, default='')
+    recibido_por = models.CharField(max_length=150, blank=True, default='')
+    fecha_anulacion = models.DateTimeField(null=True, blank=True)
+    anulado_por_cedula = models.CharField(max_length=15, blank=True, default='')
+    motivo_anulacion = models.TextField(blank=True, default='')
+
+    class Meta:
+        db_table = 'CarnetCiclo'
+        verbose_name = 'ciclo físico de carnet'
+        verbose_name_plural = 'ciclos físicos de carnets'
+
+    def __str__(self) -> str:
+        return f"Carnet #{self.carnet_id}: {self.estado}"
+
+
 class CarnetEmitidoModel(models.Model):
     employee = models.ForeignKey(
         'personal.EmployeeModel',

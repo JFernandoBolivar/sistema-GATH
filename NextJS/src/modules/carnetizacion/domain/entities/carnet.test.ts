@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { etiquetaCondicion, puedeEmitirCarnet } from "./carnet";
+import { etiquetaCondicion, etiquetaEstadoFisico, puedeEmitirCarnet } from "./carnet";
 
 describe("condición del titular en la consola de emisión", () => {
   it("muestra la condición real que calcula el servidor", () => {
@@ -18,5 +18,14 @@ describe("condición del titular en la consola de emisión", () => {
   it("un servidor anterior sin el campo no bloquea la emisión (el backend decide)", () => {
     expect(puedeEmitirCarnet(undefined)).toBe(true);
     expect(etiquetaCondicion(undefined)).toBe("ACTIVO");
+  });
+});
+
+describe("estado físico del carnet (B-5)", () => {
+  it("describe cada etapa del ciclo", () => {
+    expect(etiquetaEstadoFisico("EMITIDO")).toMatch(/pendiente de impresión/);
+    expect(etiquetaEstadoFisico("IMPRESO")).toMatch(/listo para entregar/);
+    expect(etiquetaEstadoFisico("ENTREGADO")).toMatch(/Entregado/);
+    expect(etiquetaEstadoFisico(undefined)).toMatch(/pendiente de impresión/);
   });
 });

@@ -40,6 +40,9 @@ from apps.carnetizacion.presentation.views.carnetizacion_views import (
     SolicitudesCarnetListView,
     CarnetGenerarView,
     CarnetPdfView,
+    CarnetEstadoFisicoView,
+    CarnetImpresoView,
+    CarnetEntregadoView,
     CarnetsListView,
     FondoFijoDetalleView,
     FondosFijosListView,
@@ -98,6 +101,9 @@ urlpatterns = [
     path('validar/hash/<str:security_hash>/', ValidarCarnetHashView.as_view(), name='carnet-validar-hash'),
     path('validar/<int:carnet_id>/', ValidarCarnetIdView.as_view(), name='carnet-validar-id'),
     path('<int:carnet_id>/pdf/', CarnetPdfView.as_view(), name='carnet-pdf'),
+    path('<int:carnet_id>/estado/', CarnetEstadoFisicoView.as_view(), name='carnet-estado'),
+    path('<int:carnet_id>/impreso/', CarnetImpresoView.as_view(), name='carnet-impreso'),
+    path('<int:carnet_id>/entregado/', CarnetEntregadoView.as_view(), name='carnet-entregado'),
     path('<int:carnet_id>/revocar/', RevocarCarnetView.as_view(), name='carnet-revocar'),
 
     # Motor de Plantillas y Catálogo (O44 - E3)

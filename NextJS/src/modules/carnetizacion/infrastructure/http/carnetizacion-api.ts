@@ -362,6 +362,19 @@ export const carnetizacionApi = {
   descargarPdf: (carnetId: number) =>
     apiClient.getBlob(`/api/v1/carnetizacion/${carnetId}/pdf/`),
 
+  /** B-5: ciclo físico del carnet. `anular` exige motivo. */
+  cicloCarnet: async (
+    carnetId: number,
+    accion: "impreso" | "entregado" | "revocar",
+    datos: Record<string, unknown> = {},
+  ) => {
+    const envelope = await apiClient.post<ApiResponse<{ carnet_id: number; estado: string }>>(
+      `/api/v1/carnetizacion/${carnetId}/${accion}/`,
+      datos,
+    );
+    return envelope;
+  },
+
   revocar: (carnetId: number) =>
     apiClient.post<CarnetApiItem>(`/api/v1/carnetizacion/${carnetId}/revocar/`),
 

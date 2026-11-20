@@ -246,6 +246,31 @@ export async function revocarCarnetAction(carnetId: number) {
   }
 }
 
+/** B-5: marcar impreso, registrar entrega (`recibido_por`) o anular (`motivo`). */
+export async function cicloCarnetAction(
+  carnetId: number,
+  accion: "impreso" | "entregado" | "revocar",
+  datos: { recibido_por?: string; motivo?: string } = {},
+) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const { carnetizacionApi } = await import("../http/carnetizacion-api");
+    const envelope = await carnetizacionApi.cicloCarnet(carnetId, accion, datos);
+    await logAudit({ traceId, action: `cicloCarnetAction:${accion}`, status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const, message: envelope.message || "Listo.", data: envelope.data };
+  } catch (error) {
+    unstable_rethrow(error);
+    await logAudit({ traceId, action: `cicloCarnetAction:${accion}`, status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return {
+      success: false as const,
+      message: error instanceof ApiHttpError ? error.message : "No se pudo actualizar el carnet.",
+      data: null,
+    };
+  }
+}
+
 export async function getEstadisticasCarnetsAction() {
   const traceId = generateTraceId();
   const startedAt = Date.now();
