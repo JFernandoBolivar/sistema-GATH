@@ -14,6 +14,7 @@ from apps.carnetizacion.infrastructure.mappers.mapper_carnetizacion import (
     plantilla_motor_a_entidad,
 )
 from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
+    CarnetEmitidoModel,
     CarnetTemplateModel,
     PlantillaCarnetModel,
     TipoCredencialModel,
@@ -318,6 +319,12 @@ class RepoPlantillasMixin:
         """Activa o reactiva una versión de plantilla (motor o legacy)."""
         obj = PlantillaCarnetModel.objects.filter(pk=plantilla_id).first()
         if obj:
+            # Un borrador sigue siendo editable: activarlo pondría en producción un diseño que
+            # puede cambiar después de emitidos los carnets. Primero se publica.
+            if obj.estado != 'publicada':
+                raise ValidationError(
+                    'Solo se pueden activar plantillas publicadas. Publique el borrador primero.'
+                )
             with transaction.atomic():
                 # Enforza la regla canónica: una activa por tipo y regla
                 PlantillaCarnetModel.objects.filter(
@@ -355,6 +362,23 @@ class RepoPlantillasMixin:
         if obj.activa:
             raise ValidationError(
                 "No se puede eliminar la plantilla activa. Actívela otra versión o archívela primero."
+            )
+        # La raíz apunta a sí misma; sus versiones cuelgan de ella con borrado en cascada: borrar
+        # la raíz se llevaba todas las versiones, incluida la activa.
+        otras_versiones = (
+            PlantillaCarnetModel.objects.filter(plantilla_raiz_id=obj.pk).exclude(pk=obj.pk).count()
+        )
+        if otras_versiones:
+            raise ValidationError(
+                f"La plantilla tiene {otras_versiones} versión(es) derivada(s): eliminarla las "
+                "borraría también. Elimine primero las versiones que no use."
+            )
+        # Los carnets emitidos sin copia del diseño se reimprimen leyendo esta fila.
+        emitidos = CarnetEmitidoModel.objects.filter(plantilla_id=str(obj.pk)).count()
+        if emitidos:
+            raise ValidationError(
+                f"Hay {emitidos} carnet(s) emitido(s) con esta plantilla; no se puede eliminar "
+                "porque se usa para reimprimirlos."
             )
         obj.delete()
 
