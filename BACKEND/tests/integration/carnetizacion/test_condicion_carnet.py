@@ -154,6 +154,9 @@ def test_sin_plantilla_no_se_registra_una_version_falsa(escenario):
 
     assert emitido.plantilla_id is None
     assert emitido.plantilla_version is None
+    # Se congela el diseño por defecto con el que se emitió (dos caras), para reimprimirlo
+    # idéntico; si no, caería en la plantilla LEGACY de una cara (auditoría de B-7).
+    assert emitido.plantilla_snapshot['anverso'] and emitido.plantilla_snapshot['reverso']
 
 
 def test_la_busqueda_informa_la_condicion_real(escenario):

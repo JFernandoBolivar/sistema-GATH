@@ -1,10 +1,13 @@
-"""Repositorio de carnetizaciÃ³n: biblioteca."""
+"""Repositorio de carnetización: biblioteca."""
 import hashlib
 from io import BytesIO
 
-from core.domain.exceptions import NotFoundError
+from core.domain.exceptions import NotFoundError, ValidationError
 from apps.carnetizacion.domain.entities.elemento_biblioteca import ElementoBiblioteca
-from apps.carnetizacion.domain.services.validador_multimedia import validar_archivo_biblioteca
+from apps.carnetizacion.domain.services.validador_multimedia import (
+    MAX_PIXELES_IMAGEN,
+    validar_archivo_biblioteca,
+)
 from apps.carnetizacion.infrastructure.mappers.mapper_carnetizacion import (
     elemento_biblioteca_a_entidad,
 )
@@ -84,6 +87,17 @@ class RepoBibliotecaMixin:
                     'No se pudieron leer las dimensiones de la imagen de biblioteca %s.',
                     nombre_archivo, exc_info=True,
                 )
+        elif mime_type == 'application/pdf':
+            # B-2/K-4: se valida al subir (páginas, tamaño, tiempo) para no guardar un PDF
+            # que después no se pueda rasterizar o que cuelgue el servidor.
+            from apps.carnetizacion.infrastructure.pdf.rasterizar_pdf import inspeccionar_pdf
+            inspeccionar_pdf(contenido)
+        # K-5: imágenes enormes en píxeles se rechazan aunque pesen poco.
+        if ancho_px and alto_px and ancho_px * alto_px > MAX_PIXELES_IMAGEN:
+            raise ValidationError(
+                f'La imagen mide {ancho_px} x {alto_px} px; el máximo es {MAX_PIXELES_IMAGEN // 1_000_000} '
+                'megapíxeles. Redúzcala antes de subirla.'
+            )
 
         clave = f"carnet_biblioteca/{hashlib.sha256(contenido).hexdigest()[:16]}_{nombre_archivo}"
         self._almacen.subir(clave, contenido, mime_type)

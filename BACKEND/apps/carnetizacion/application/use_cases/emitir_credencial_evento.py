@@ -7,7 +7,6 @@ from typing import Any
 
 from apps.carnetizacion.domain.entities.evento import (
     EstadoInvitado,
-    EventoInvitado,
 )
 from apps.carnetizacion.domain.ports.repo_eventos import RepoEventosPort
 

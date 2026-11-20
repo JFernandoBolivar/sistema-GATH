@@ -14,6 +14,11 @@ from .svg_seguro import parece_svg
 
 MAX_SIZE_FIRMA = 2 * 1024 * 1024  # 2 MB
 MAX_SIZE_GENERAL = 5 * 1024 * 1024  # 5 MB
+MAX_SIZE_FONDO = 10 * 1024 * 1024  # 10 MB: fondos de carnet, incluidos PDF (B-2)
+# K-5: una imagen de más de 40 MP no se acepta (un PNG liso enorme pesa poco en disco pero
+# ocupa cientos de MB al decodificarse).
+MAX_PIXELES_IMAGEN = 40_000_000
+CATEGORIA_FONDO = "fondo"
 
 MIME_TYPES_PERMITIDOS = {
     "image/png",
@@ -82,7 +87,12 @@ def validar_archivo_biblioteca(
         raise ValidationError("El archivo subido está vacío.")
 
     # Validar límite de tamaño según categoría
-    limite = MAX_SIZE_FIRMA if categoria == "firma" else MAX_SIZE_GENERAL
+    es_fondo = categoria == CATEGORIA_FONDO
+    limite = MAX_SIZE_FIRMA if categoria == "firma" else (MAX_SIZE_FONDO if es_fondo else MAX_SIZE_GENERAL)
+    # Un PDF solo se acepta como fondo de carnet (decisión del 2026-11-20): se rasteriza la
+    # página elegida a PNG; nunca se sirve ni se dibuja el PDF tal cual.
+    mime_por_extension = {**MIME_POR_EXTENSION, ".pdf": "application/pdf"} if es_fondo else MIME_POR_EXTENSION
+    mimes_permitidos = MIME_TYPES_PERMITIDOS | {"application/pdf"} if es_fondo else MIME_TYPES_PERMITIDOS
     if tamano > limite:
         mb_limite = limite // (1024 * 1024)
         raise ValidationError(
@@ -92,28 +102,29 @@ def validar_archivo_biblioteca(
     # Validar extensión (solo formatos que el PDF puede incrustar)
     nombre_lower = nombre_archivo.lower()
     extension = next(
-        (ext for ext in MIME_POR_EXTENSION if nombre_lower.endswith(ext)),
+        (ext for ext in mime_por_extension if nombre_lower.endswith(ext)),
         None,
     )
     if nombre_lower.endswith(".svg"):
         raise ValidationError(MENSAJE_SVG_NO_SOPORTADO)
     if extension is None:
         raise ValidationError(
-            "Extensión de archivo no permitida. Formatos soportados: PNG, JPG, JPEG, WEBP."
+            "Extensión de archivo no permitida. Formatos soportados: PNG, JPG, JPEG, WEBP"
+            + (" y PDF (solo fondos)." if es_fondo else ". Un PDF solo se acepta en la categoría «Fondo».")
         )
 
     # Detección por firmas binarias (magic numbers)
     mime_detectado = detectar_mime(contenido)
     if mime_detectado == "image/svg+xml":
         raise ValidationError(MENSAJE_SVG_NO_SOPORTADO)
-    if mime_detectado not in MIME_TYPES_PERMITIDOS:
+    if mime_detectado not in mimes_permitidos:
         raise ValidationError(
             "El contenido del archivo no corresponde a una imagen válida (PNG, JPG o WebP)."
         )
 
     # La extensión debe coincidir con el contenido real: evita polyglots y
     # archivos renombrados que terminarían servidos con un tipo incorrecto.
-    if MIME_POR_EXTENSION[extension] != mime_detectado:
+    if mime_por_extension[extension] != mime_detectado:
         raise ValidationError(
             "La extensión del archivo no coincide con su contenido real. "
             f"Se detectó {mime_detectado}."

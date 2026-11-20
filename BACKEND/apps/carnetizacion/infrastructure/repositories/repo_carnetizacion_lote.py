@@ -90,7 +90,10 @@ class RepoLoteCarnetsMixin:
             tarjetas.append({'definicion': definicion, 'datos': datos})
 
         with transaction.atomic():
-            pdf = generar_pdf_lote(tarjetas, modo_duplex)
+            try:
+                pdf = generar_pdf_lote(tarjetas, modo_duplex)
+            except ValueError as exc:  # tamaños mezclados o formato que no cabe en A4
+                raise ValidationError(str(exc), campo='carnet_ids') from exc
             if marcar_impresos:
                 estados = self.estados_fisicos(ids)
                 for i in ids:

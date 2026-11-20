@@ -11,13 +11,14 @@ import hashlib
 import json
 import logging
 import math
+from functools import lru_cache
 import os
 from dataclasses import dataclass, field
 from io import BytesIO
 from typing import Any
 
 from django.core.cache import cache
-from PIL import Image
+from PIL import Image, ImageOps
 from reportlab.lib.colors import Color, HexColor
 from reportlab.lib.units import cm
 from reportlab.lib.utils import ImageReader
@@ -226,6 +227,10 @@ def imagen_de_biblioteca(medio_id: str | None) -> bytes | None:
 
 
 _MIMES_FONDO = ('image/png', 'image/jpeg', 'image/webp')
+_FALLO_RASTERIZADO = b'GATH:FONDO-PDF-ILEGIBLE'
+# K-5: una imagen de fondo de más de 40 MP no se decodifica (un PNG liso de 13000 x 13000 px
+# pesa < 1 MB en disco pero ocupa cientos de MB en memoria).
+MAX_PIXELES_FONDO = 40_000_000
 
 
 def fondo_de_biblioteca(medio_id: str | None) -> bytes | None:
@@ -248,6 +253,8 @@ def fondo_de_biblioteca(medio_id: str | None) -> bytes | None:
     clave = f"carnet:fondo-pdf:{hashlib.sha256(datos).hexdigest()}"
     try:
         guardado = cache.get(clave)
+        if guardado == _FALLO_RASTERIZADO:
+            return None  # K-4: ya falló; no se relanza pdftoppm en cada tarjeta del lote
         if guardado:
             return guardado
     except Exception:
@@ -260,6 +267,10 @@ def fondo_de_biblioteca(medio_id: str | None) -> bytes | None:
             "No se pudo rasterizar el PDF de fondo %s; se usa el color de fondo.",
             medio_id, exc_info=True,
         )
+        try:
+            cache.set(clave, _FALLO_RASTERIZADO, _TTL_QR_SEGUNDOS)
+        except Exception:
+            logger.warning("Caché no disponible al guardar el fallo del fondo PDF %s.", medio_id, exc_info=True)
         return None
     try:
         cache.set(clave, png, _TTL_QR_SEGUNDOS)
@@ -289,13 +300,30 @@ def fondo_id_de_cara(definicion: dict[str, Any], cara: str) -> str | None:
     return medio or None
 
 
+@lru_cache(maxsize=8)
 def _bytes_fondo_cover(datos: bytes, ancho_pt: float, alto_pt: float) -> bytes | None:
-    """Imagen recortada al centro para cubrir el rectángulo (como `object-fit: cover`)."""
+    """Imagen recortada al centro para cubrir el rectángulo (como `object-fit: cover`).
+
+    Memorizada (K-6): en un lote, todas las tarjetas con la misma plantilla comparten fondo y
+    no se vuelve a decodificar, recortar y recodificar por cada tarjeta y cara.
+    """
     if ancho_pt <= 0 or alto_pt <= 0:
         return None
     try:
-        with Image.open(BytesIO(datos)) as img:
-            img.load()
+        with Image.open(BytesIO(datos)) as original:
+            if original.width * original.height > MAX_PIXELES_FONDO:
+                logger.warning(
+                    "Imagen de fondo de %sx%s px supera el máximo de %s píxeles; se usa el color de fondo.",
+                    original.width, original.height, MAX_PIXELES_FONDO,
+                )
+                return None
+            # En JPEG se decodifica ya reducido (mucho menos memoria y CPU).
+            lado_objetivo = _lado_maximo_px(ancho_pt, alto_pt)
+            original.draft('RGB', (lado_objetivo, lado_objetivo))
+            original.load()
+            # H-11: la foto de un teléfono trae la orientación en EXIF; el navegador la respeta
+            # en el diseñador y el PDF debe verla igual.
+            img = ImageOps.exif_transpose(original)
             proporcion_objetivo = ancho_pt / alto_pt
             ancho_img, alto_img = img.size
             if ancho_img <= 0 or alto_img <= 0:

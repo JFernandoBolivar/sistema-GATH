@@ -345,7 +345,10 @@ class RepoCredencialesExternasORM:
         for fila in filas:
             datos, definicion = self._datos_pdf(fila)
             tarjetas.append({'definicion': definicion, 'datos': datos})
-        return generar_pdf_lote(tarjetas, modo_duplex)
+        try:
+            return generar_pdf_lote(tarjetas, modo_duplex)
+        except ValueError as exc:  # tamaños mezclados o formato que no cabe en A4
+            raise ValidationError(str(exc), campo='ids') from exc
 
     def enviar_correo(self, credencial_id: str, destinatario: str | None = None) -> bool:
         fila = CredencialExternaModel.objects.select_related(

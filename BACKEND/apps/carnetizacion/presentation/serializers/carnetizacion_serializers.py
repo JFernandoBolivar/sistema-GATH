@@ -124,7 +124,7 @@ class ElementoBibliotecaSerializer(serializers.Serializer):
 
 class SubirElementoBibliotecaInputSerializer(serializers.Serializer):
     nombre = serializers.CharField(max_length=150, min_length=2)
-    categoria = serializers.ChoiceField(choices=['logo', 'firma', 'imagen'])
+    categoria = serializers.ChoiceField(choices=['logo', 'firma', 'imagen', 'fondo'])
     archivo = serializers.FileField()
     descripcion = serializers.CharField(required=False, default='', allow_blank=True)
 

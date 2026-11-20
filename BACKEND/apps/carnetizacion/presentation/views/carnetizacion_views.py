@@ -583,7 +583,7 @@ class ElementoBibliotecaRasterizarFondoView(APIView):
 
     @extend_schema(
         tags=['Carnetización'],
-        summary='Convertir la primera página de un PDF de biblioteca a PNG para fondo',
+        summary='Convertir una página (`pagina`, 1 por defecto) de un PDF de biblioteca a PNG para fondo',
     )
     def post(self, request, elemento_id: str):
         creado_por = (
@@ -594,8 +594,9 @@ class ElementoBibliotecaRasterizarFondoView(APIView):
         elemento, creado = rasterizar_fondo_biblioteca_uc(
             RepoCarnetizacionORM(),
             elemento_id,
-            rasterizador=rasterizar_pdf.rasterizar_primera_pagina_pdf,
+            rasterizador=rasterizar_pdf.rasterizar_pagina_pdf,
             creado_por=creado_por,
+            pagina=request.data.get('pagina') or 1,
         )
         mensaje = (
             'Página del PDF convertida a PNG para el fondo.'

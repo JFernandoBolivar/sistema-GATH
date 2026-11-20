@@ -1,8 +1,8 @@
 """
 Impresión por lote de credenciales (O45-A).
 
-Genera hojas A4 con varias credenciales (anverso en una hoja y reverso en la
-siguiente) y marcas de corte. Cada tarjeta se dibuja con `dibujar_cara`, el mismo
+Genera hojas A4 con varias credenciales (anversos de una hoja y, a continuación, sus
+reversos) y marcas de corte. Cada tarjeta se dibuja con `dibujar_cara`, el mismo
 dibujador del PDF individual: un diseño sale idéntico por ambas vías.
 """
 from io import BytesIO
@@ -45,23 +45,41 @@ def _marcas_corte(c: canvas.Canvas, x: float, y: float, ancho: float, alto: floa
     c.restoreState()
 
 
-def generar_pdf_lote(tarjetas: list[dict[str, Any]], modo_duplex: str = SIN_ESPEJO) -> bytes:
-    """Devuelve un PDF A4: una hoja de anversos y otra de reversos, 9 por hoja.
+def _caras_de(definicion: dict[str, Any]) -> tuple[str, ...]:
+    """Caras que tiene el diseño: la plantilla LEGACY declara solo el anverso."""
+    declaradas = tuple(c for c in (definicion.get('caras') or ('anverso', 'reverso')) if c in ('anverso', 'reverso'))
+    return declaradas or ('anverso', 'reverso')
 
-    `modo_duplex` decide cómo se espeja la hoja de reversos para que cada uno quede detrás de
-    su anverso: sin espejo, borde largo (invierte columnas) o borde corto (invierte filas).
-    Lo elige el operador porque depende del equipo y de cómo voltee la hoja.
+
+def generar_pdf_lote(tarjetas: list[dict[str, Any]], modo_duplex: str = SIN_ESPEJO) -> bytes:
+    """PDF A4 con 9 credenciales por cara y marcas de corte.
+
+    K-1: las páginas van intercaladas por hoja (anversos de la hoja 1, reversos de la hoja 1,
+    anversos de la hoja 2…), así al imprimir a doble cara cada reverso cae detrás de su
+    anverso aunque el lote tenga más de 9 tarjetas. `modo_duplex` espeja la página de
+    reversos: sin espejo, borde largo (invierte columnas) o borde corto (invierte filas).
+    Si ninguna tarjeta de la hoja tiene reverso (LEGACY de una cara), no se agrega una
+    página de reversos en blanco. Todas las tarjetas deben tener el mismo tamaño.
     """
     if not tarjetas:
         raise ValueError('El lote no contiene credenciales.')
     if modo_duplex not in MODOS:
         raise ValueError(f'Modo de impresión no válido: {modo_duplex}')
+
     ancho_mm, alto_mm = dimensiones_mm(tarjetas[0]['definicion'])
+    if any(dimensiones_mm(t['definicion']) != (ancho_mm, alto_mm) for t in tarjetas[1:]):
+        raise ValueError(
+            'El lote mezcla carnets de distinto tamaño u orientación; genere un lote por cada formato.'
+        )
     ancho_pt = ancho_mm * MM_A_PT
     alto_pt = alto_mm * MM_A_PT
 
     total_ancho = COLUMNAS * ancho_pt + (COLUMNAS - 1) * SEPARACION
     total_alto = FILAS * alto_pt + (FILAS - 1) * SEPARACION
+    if total_ancho > A4_ANCHO - 2 * MARGEN or total_alto > A4_ALTO - 2 * MARGEN:
+        raise ValueError(
+            'El formato del carnet no cabe 3 x 3 en una hoja A4 vertical; use el carnet individual.'
+        )
     inicio_x = (A4_ANCHO - total_ancho) / 2
     inicio_y = (A4_ALTO - total_alto) / 2
 
@@ -71,11 +89,14 @@ def generar_pdf_lote(tarjetas: list[dict[str, Any]], modo_duplex: str = SIN_ESPE
     c.setTitle('Lote de credenciales')
     c.setSubject('Credenciales institucionales para impresión')
 
-    # Una hoja por cada bloque de 9; anverso y reverso por separado.
-    for cara in ('anverso', 'reverso'):
-        for bloque_inicio in range(0, len(tarjetas), COLUMNAS * FILAS):
-            bloque = tarjetas[bloque_inicio:bloque_inicio + COLUMNAS * FILAS]
+    por_hoja = COLUMNAS * FILAS
+    for bloque_inicio in range(0, len(tarjetas), por_hoja):
+        bloque = tarjetas[bloque_inicio:bloque_inicio + por_hoja]
+        hay_reverso = any('reverso' in _caras_de(t['definicion']) for t in bloque)
+        for cara in ('anverso', 'reverso') if hay_reverso else ('anverso',):
             for indice, tarjeta in enumerate(bloque):
+                if cara not in _caras_de(tarjeta['definicion']):
+                    continue
                 col = indice % COLUMNAS
                 row = indice // COLUMNAS
                 if cara == 'reverso':

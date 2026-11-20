@@ -36,6 +36,10 @@ from .repo_carnetizacion_comun import (
     vencimiento_segun_parametros,
 )
 from core.domain.catalogos import CONDICION_PASIVO
+from apps.carnetizacion.domain.services.plantilla_defecto import (
+    plantilla_defecto_pasivo,
+    plantilla_defecto_trabajador,
+)
 
 
 class RepoCarnetsEmitidosMixin:
@@ -119,7 +123,15 @@ class RepoCarnetsEmitidosMixin:
         p_id = str(plantilla_obj.id) if plantilla_obj else None
         # Sin plantilla (diseño por defecto) no hay versión que registrar.
         p_version = plantilla_obj.version if plantilla_obj else None
-        p_snapshot = plantilla_obj.definicion if plantilla_obj else None
+        if plantilla_obj:
+            p_snapshot = plantilla_obj.definicion
+        else:
+            # Sin plantilla publicada se emite con el diseño por defecto del tipo: se congela
+            # igual, para que la reimpresión salga idéntica (si no, desde B-7 caería en la
+            # plantilla LEGACY de una sola cara, pensada solo para carnets antiguos).
+            p_snapshot = (
+                plantilla_defecto_pasivo() if condicion == CONDICION_PASIVO else plantilla_defecto_trabajador()
+            )
 
         # Atómico: si el alta falla, el trabajador no pierde su carnet activo previo.
         with transaction.atomic():

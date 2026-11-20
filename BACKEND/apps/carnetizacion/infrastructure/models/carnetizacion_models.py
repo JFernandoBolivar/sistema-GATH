@@ -226,6 +226,7 @@ class ElementoBibliotecaModel(BaseModel):
         ('logo', 'Logo'),
         ('firma', 'Firma'),
         ('imagen', 'Imagen'),
+        ('fondo', 'Fondo de carnet'),
     ]
 
     nombre = models.CharField(max_length=150)

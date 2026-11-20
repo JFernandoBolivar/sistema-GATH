@@ -2,7 +2,6 @@
 Generador del PDF del Gafete de Evento (90 x 130 mm, dos caras) (Regla B2/B3, O45-B).
 """
 from io import BytesIO
-from typing import Any
 
 import qrcode
 import qrcode.constants

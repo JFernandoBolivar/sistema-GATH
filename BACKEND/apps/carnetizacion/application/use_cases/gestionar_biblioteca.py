@@ -100,10 +100,11 @@ def eliminar_elemento_biblioteca_uc(
 def rasterizar_fondo_biblioteca_uc(
     repo: RepoCarnetizacion,
     elemento_id: str | int,
-    rasterizador: Callable[[bytes], bytes],
+    rasterizador: Callable[[bytes, int], bytes],
     creado_por: str | None = None,
+    pagina: int = 1,
 ) -> tuple[ElementoBibliotecaDTO, bool]:
-    """Convierte en PNG la primera página de un PDF de la biblioteca para usarla de fondo.
+    """Convierte en PNG una página (H-13; 1 = primera) de un PDF de la biblioteca para fondo.
 
     Devuelve ``(elemento, creado)``. Una imagen raster ya válida se reutiliza sin
     duplicarla; un PDF se rasteriza y se guarda como un nuevo medio PNG (nunca se
@@ -119,11 +120,17 @@ def rasterizar_fondo_biblioteca_uc(
     if mime_real != 'application/pdf':
         raise ValidationError(MENSAJE_FONDO_NO_SOPORTADO)
 
-    png = rasterizador(contenido)
+    try:
+        pagina = int(pagina)
+    except (TypeError, ValueError):
+        raise ValidationError('La página indicada no es válida.', campo='pagina') from None
+    png = rasterizador(contenido, pagina)
     if detectar_mime(png) != 'image/png':
         raise ValidationError(MENSAJE_FONDO_NO_SOPORTADO)
 
     base = (nombre_archivo or 'fondo').rsplit('.', 1)[0][:80] or 'fondo'
+    if pagina > 1:
+        base = f"{base} p{pagina}"
     # Reutiliza el PNG si ese mismo PDF ya se convirtió antes (evita copias idénticas).
     existente = repo.buscar_elemento_biblioteca_por_contenido(png)
     if existente:
@@ -134,6 +141,6 @@ def rasterizar_fondo_biblioteca_uc(
         contenido=png,
         nombre_archivo=f"{base}-fondo.png",
         creado_por=creado_por,
-        descripcion=f"Primera página de {nombre_archivo} convertida a PNG para fondo de carnet.",
+        descripcion=f"Página {pagina} de {nombre_archivo} convertida a PNG para fondo de carnet.",
     )
     return elemento_biblioteca_a_dto(guardado), True
