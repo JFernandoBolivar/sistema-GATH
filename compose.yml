@@ -187,6 +187,12 @@ services:
       resources:
         limits: { memory: 512M }
 
+  # H-1: el gateway S3 exige identidades (sin ellas acepta peticiones anónimas).
+  # El archivo real NO se versiona. Antes del `up`:
+  #   ./infra-fase2/seaweedfs/generar-identidades.sh
+  # Las claves de identities.json deben coincidir con SEAWEEDFS_S3_ACCESS_KEY /
+  # SEAWEEDFS_S3_SECRET_KEY (y el bucket con SEAWEEDFS_S3_BUCKET) de BACKEND/.env.
+  # Si el archivo no existe, Docker crea un directorio y sw_s3 no arranca (fallo cerrado).
   sw_s3:
     image: chrislusf/seaweedfs:3.80
     container_name: sw_s3
@@ -195,6 +201,9 @@ services:
       s3 -filer=sw_filer:8888 -port=8333
       -ip.bind=0.0.0.0
       -allowEmptyFolder=false
+      -config=/etc/seaweedfs/identities.json
+    volumes:
+      - ./infra-fase2/seaweedfs/identities.json:/etc/seaweedfs/identities.json:ro
     networks:
       storage:
         aliases:

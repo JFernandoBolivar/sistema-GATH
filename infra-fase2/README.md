@@ -71,3 +71,22 @@ docker compose -f compose.yml -f infra-fase2/compose.fase2.yml ps
 - **`internal: true`** en las redes `storage` y `broker`: sin salida a internet.
   Si algún servicio necesitara alcanzar el exterior, quitarlo de forma explícita
   y dejar constancia del motivo.
+
+## H-1 · Identidades S3 en `compose.yml` (sw_s3 autenticado)
+
+`sw_s3` arranca con `-config=/etc/seaweedfs/identities.json`; sin identidades el
+gateway aceptaría peticiones anónimas. El archivo real **no se versiona**:
+
+```bash
+./infra-fase2/seaweedfs/generar-identidades.sh   # lee SEAWEEDFS_S3_* del entorno o de BACKEND/.env;
+                                                  # si faltan, genera claves y las imprime para BACKEND/.env
+docker compose up -d --force-recreate sw_s3       # solo sw_s3; el bucket ya existe en el filer
+```
+
+Deben coincidir `SEAWEEDFS_S3_ACCESS_KEY`, `SEAWEEDFS_S3_SECRET_KEY` y
+`SEAWEEDFS_S3_BUCKET` de `BACKEND/.env` con las de `identities.json` (plantilla:
+`seaweedfs/identities.app.example.json`; identidad única `gath-app`, sin `Admin`,
+acciones Read/Write/List/Tagging sobre el bucket). La identidad no puede crear
+buckets: si el bucket no existe, créalo con
+`echo "s3.bucket.create -name gath-storage" | docker exec -i sw_master weed shell -master=sw_master:9333 -filer=sw_filer:8888`.
+Tras el cambio, reinicia también `django`/workers para que lean las claves de `.env`.

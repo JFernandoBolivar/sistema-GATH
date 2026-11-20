@@ -1,0 +1,20 @@
+{
+  "//": "GATH · identidad S3 única de la app para el sw_s3 de compose.yml (H-1).",
+  "//1": "PLANTILLA versionada. El archivo real (identities.json) lo genera",
+  "//2": "generar-identidades.sh y está en .gitignore: nunca escribas claves aquí.",
+  "//3": "Sin 'Admin'. Bucket = SEAWEEDFS_S3_BUCKET (por defecto gath-storage).",
+  "identities": [
+    {
+      "name": "gath-app",
+      "credentials": [
+        { "accessKey": "__SEAWEEDFS_S3_ACCESS_KEY__", "secretKey": "__SEAWEEDFS_S3_SECRET_KEY__" }
+      ],
+      "actions": [
+        "Read:__SEAWEEDFS_S3_BUCKET__",
+        "Write:__SEAWEEDFS_S3_BUCKET__",
+        "List:__SEAWEEDFS_S3_BUCKET__",
+        "Tagging:__SEAWEEDFS_S3_BUCKET__"
+      ]
+    }
+  ]
+}

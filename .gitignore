@@ -72,3 +72,6 @@ BACKEND/_muestras/
 plantillas_prueba/
 /docker
 NextJS/e2e/auditoria/
+
+# H-1: identidades S3 reales de SeaweedFS (secretos; solo la plantilla se versiona)
+infra-fase2/seaweedfs/identities.json
