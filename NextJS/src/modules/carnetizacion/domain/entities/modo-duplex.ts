@@ -23,4 +23,4 @@ export const MODOS_DUPLEX: ReadonlyArray<{
   },
 ];
 
-export const MODO_DUPLEX_POR_DEFECTO: ModoDuplex = "largo";
+export const MODO_DUPLEX_POR_DEFECTO: ModoDuplex = "ninguno";

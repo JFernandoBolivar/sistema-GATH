@@ -6,6 +6,8 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import type { ElementoBiblioteca } from "../../../domain/entities/carnet";
 import {
   urlArchivoBiblioteca,
@@ -58,6 +60,10 @@ export function DisenadorFondoPanel({
 }: DisenadorFondoPanelProps) {
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
   const [convirtiendo, setConvirtiendo] = useState(false);
+  // PDF elegido a la espera de indicar la página que se usará como fondo (H-13).
+  const [pdfPendiente, setPdfPendiente] = useState<ElementoBiblioteca | null>(null);
+  const [paginaPdf, setPaginaPdf] = useState("1");
+  const [errorConversion, setErrorConversion] = useState<string | null>(null);
   const [estadoMiniatura, setEstadoMiniatura] = useState<"cargando" | "listo" | "error">(
     "cargando",
   );
@@ -80,15 +86,31 @@ export function DisenadorFondoPanel({
       toast.success(`Fondo del ${cara}: '${medio.nombre}'.`);
       return;
     }
+    setPdfPendiente(medio);
+    setPaginaPdf("1");
+    setErrorConversion(null);
+  };
+
+  const convertirPdf = async () => {
+    if (!pdfPendiente) return;
+    const pagina = Number(paginaPdf);
+    if (!Number.isInteger(pagina) || pagina < 1) {
+      setErrorConversion("Indique un número de página entero mayor o igual a 1.");
+      return;
+    }
     setConvirtiendo(true);
+    setErrorConversion(null);
     try {
-      const res = await rasterizarFondoBibliotecaAction(medio.id);
+      const res = await rasterizarFondoBibliotecaAction(pdfPendiente.id, pagina);
       if (!res.success || !res.data) {
-        toast.error(res.success ? "No se pudo convertir el PDF a PNG." : res.error);
+        const mensaje = res.success ? "No se pudo convertir el PDF a PNG." : res.error;
+        setErrorConversion(mensaje);
+        toast.error(mensaje);
         return;
       }
       onSeleccionarFondo(cara, fondoDesdeMedio(res.data));
-      toast.success(`Primera página de '${medio.nombre}' convertida a PNG y usada como fondo.`);
+      toast.success(`Página ${pagina} de '${pdfPendiente.nombre}' convertida a PNG y usada como fondo.`);
+      setPdfPendiente(null);
     } finally {
       setConvirtiendo(false);
     }
@@ -197,11 +219,60 @@ export function DisenadorFondoPanel({
           </div>
         )}
 
-        {convirtiendo && fondo && (
-          <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-            <Loader2 className="size-3.5 animate-spin" />
-            Convirtiendo la primera página del PDF a PNG…
-          </p>
+        {pdfPendiente && (
+          <div className="space-y-2 rounded-md border bg-muted/20 p-2">
+            <p className="truncate text-[11px] font-medium" title={pdfPendiente.nombre}>
+              PDF: {pdfPendiente.nombre}
+            </p>
+            <div className="space-y-1">
+              <Label htmlFor="pagina-pdf-fondo" className="text-[11px]">
+                Página del PDF
+              </Label>
+              <Input
+                id="pagina-pdf-fondo"
+                type="number"
+                min={1}
+                step={1}
+                value={paginaPdf}
+                onChange={(e) => setPaginaPdf(e.target.value)}
+                disabled={convirtiendo}
+                className="h-8 text-xs"
+              />
+            </div>
+            {errorConversion && (
+              <p role="alert" className="text-[11px] text-destructive">
+                {errorConversion}
+              </p>
+            )}
+            <div className="flex gap-1.5">
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 flex-1 text-xs"
+                onClick={convertirPdf}
+                disabled={convirtiendo}
+              >
+                {convirtiendo ? (
+                  <>
+                    <Loader2 className="size-3.5 animate-spin" />
+                    Convirtiendo PDF…
+                  </>
+                ) : (
+                  "Usar esta página como fondo"
+                )}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => setPdfPendiente(null)}
+                disabled={convirtiendo}
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
         )}
       </CardContent>
 
@@ -212,7 +283,7 @@ export function DisenadorFondoPanel({
         caraActual={cara}
         onSeleccionarMedio={elegirMedio}
         titulo={`Fondo del ${cara}`}
-        descripcion="Elige una imagen de la Biblioteca de Medios. Si eliges un PDF, el servidor convierte su primera página a PNG."
+        descripcion="Elige una imagen de la Biblioteca de Medios. Si eliges un PDF, indicarás la página y el servidor la convierte a PNG."
       />
     </Card>
   );

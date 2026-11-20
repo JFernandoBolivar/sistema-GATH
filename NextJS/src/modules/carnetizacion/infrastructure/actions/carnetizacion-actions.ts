@@ -718,30 +718,34 @@ export async function subirElementoBibliotecaAction(formData: FormData) {
   }
 }
 
-export async function eliminarElementoBibliotecaAction(id: string) {
+export async function eliminarElementoBibliotecaAction(id: string, forzar = false) {
   const traceId = generateTraceId();
   const startedAt = Date.now();
   try {
-    await eliminarElementoBiblioteca(repoCarnetizacionApi, id);
+    await eliminarElementoBiblioteca(repoCarnetizacionApi, id, forzar);
     await logAudit({ traceId, action: "eliminarElementoBibliotecaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return { success: true as const };
   } catch (error) {
     unstable_rethrow(error);
     await logAudit({ traceId, action: "eliminarElementoBibliotecaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
+    // K-12: 409 = una plantilla lo usa; el mensaje nombra las plantillas y se pide confirmar.
+    if (error instanceof ApiHttpError && error.status === 409) {
+      return { success: false as const, error: error.message, enUso: true as const };
+    }
     return { success: false as const, error: "No fue posible eliminar el elemento de la biblioteca." };
   }
 }
 
 /**
- * Convierte la primera página de un PDF de la biblioteca en PNG para usarlo de fondo (B-2).
+ * Convierte una página (1 = primera) de un PDF de la biblioteca en PNG para usarlo de fondo (B-2).
  * El diseñador nunca recibe el PDF inline.
  */
-export async function rasterizarFondoBibliotecaAction(id: string) {
+export async function rasterizarFondoBibliotecaAction(id: string, pagina = 1) {
   const traceId = generateTraceId();
   const startedAt = Date.now();
   try {
-    const result = await rasterizarFondoBiblioteca(repoCarnetizacionApi, id);
+    const result = await rasterizarFondoBiblioteca(repoCarnetizacionApi, id, pagina);
     await logAudit({ traceId, action: "rasterizarFondoBibliotecaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return { success: true as const, data: result };
   } catch (error) {

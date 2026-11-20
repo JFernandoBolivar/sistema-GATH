@@ -149,12 +149,12 @@ export const repoCarnetizacionApi: RepoCarnetizacion = {
     return elementoBibliotecaApiAEntidad(raw);
   },
 
-  async eliminarElementoBiblioteca(id) {
-    return carnetizacionApi.eliminarElementoBiblioteca(id);
+  async eliminarElementoBiblioteca(id, forzar) {
+    return carnetizacionApi.eliminarElementoBiblioteca(id, forzar);
   },
 
-  async rasterizarFondoBiblioteca(id) {
-    const raw = await carnetizacionApi.rasterizarFondoBiblioteca(id);
+  async rasterizarFondoBiblioteca(id, pagina = 1) {
+    const raw = await carnetizacionApi.rasterizarFondoBiblioteca(id, pagina);
     return elementoBibliotecaApiAEntidad(raw);
   },
 

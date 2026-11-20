@@ -185,7 +185,7 @@ describe("LoteCredencialesView", () => {
     await waitFor(() => {
       expect(mockGenerarTrabajadores).toHaveBeenCalledWith(
         [1],     // ids ordenados según cola
-        "largo", // modo duplex por defecto
+        "ninguno", // una cara por defecto
         true,    // marcarImpresos por defecto
       );
     });
@@ -258,7 +258,7 @@ describe("LoteCredencialesView", () => {
     await waitFor(() => {
       expect(mockGenerarTrabajadores).toHaveBeenCalledWith(
         [1],
-        "largo", // modo por defecto
+        "ninguno", // una cara por defecto
         false,   // marcarImpresos desmarcado
       );
     });

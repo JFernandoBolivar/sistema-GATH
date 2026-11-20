@@ -61,8 +61,9 @@ export interface RepoCarnetizacion {
   listarBibliotecaPagina(categoria: string | undefined, params: ParamsPagina): Promise<PaginaCarnet<ElementoBiblioteca>>;
   subirElementoBiblioteca(nombre: string, categoria: CategoriaBiblioteca, archivo: File, descripcion?: string): Promise<ElementoBiblioteca>;
   /** Convierte la primera página de un PDF de la biblioteca en un PNG de fondo (B-2). */
-  rasterizarFondoBiblioteca(id: string): Promise<ElementoBiblioteca>;
-  eliminarElementoBiblioteca(id: string): Promise<boolean>;
+  rasterizarFondoBiblioteca(id: string, pagina?: number): Promise<ElementoBiblioteca>;
+  /** Con `forzar` se borra aunque una plantilla lo use (el backend responde 409 si no). */
+  eliminarElementoBiblioteca(id: string, forzar?: boolean): Promise<boolean>;
 
   // Registro de Campos Autorizados y Personalizados (O44 - E5)
   listarCampos(tipo?: string): Promise<CampoCredencial[]>;

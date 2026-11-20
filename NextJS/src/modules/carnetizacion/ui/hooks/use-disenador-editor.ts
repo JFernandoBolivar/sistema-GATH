@@ -41,6 +41,12 @@ import {
 import { crearElementosInicialesDefecto } from "../../domain/entities/disenador-plantilla-defecto";
 import { buscarEmpleadoParaCarnetAction } from "../../infrastructure/actions/carnetizacion-actions";
 
+/** Estado que entra al historial de deshacer/rehacer: capas y fondos por cara. */
+interface InstantaneaEditor {
+  elementos: ElementoKonva[];
+  fondos: FondosCara;
+}
+
 interface UseDisenadorEditorParams {
   plantilla: PlantillaMotor | null;
   anchoMm: number;
@@ -72,11 +78,12 @@ export function useDisenadorEditor({
   const [elementos, setElementos] = useState<ElementoKonva[]>([]);
   // Fondo por cara (B-2): no es una capa; se guarda aparte para dibujarlo antes de todo.
   const [fondos, setFondos] = useState<FondosCara>({});
-  const [historial, setHistorial] = useState<ElementoKonva[][]>([]);
+  const [historial, setHistorial] = useState<InstantaneaEditor[]>([]);
   const [historialIndex, setHistorialIndex] = useState<number>(-1);
   // Refs: varias actualizaciones en el mismo tick (p. ej. mover N nodos) no pisan el estado.
   const elementosRef = useRef<ElementoKonva[]>([]);
-  const historialRef = useRef<ElementoKonva[][]>([]);
+  const fondosRef = useRef<FondosCara>({});
+  const historialRef = useRef<InstantaneaEditor[]>([]);
   const indiceRef = useRef<number>(-1);
 
   // Reglas de color (O44 - E7)
@@ -95,12 +102,15 @@ export function useDisenadorEditor({
     return resolverColorDeRegla(reglasColor, datosPersona);
   }, [reglasColor, datosPersona]);
 
-  const reiniciarHistorial = useCallback((lista: ElementoKonva[]) => {
+  const reiniciarHistorial = useCallback((lista: ElementoKonva[], fondosIniciales: FondosCara) => {
     elementosRef.current = lista;
-    historialRef.current = [lista];
+    fondosRef.current = fondosIniciales;
+    const inicial: InstantaneaEditor = { elementos: lista, fondos: fondosIniciales };
+    historialRef.current = [inicial];
     indiceRef.current = 0;
     setElementos(lista);
-    setHistorial([lista]);
+    setFondos(fondosIniciales);
+    setHistorial([inicial]);
     setHistorialIndex(0);
   }, []);
 
@@ -108,34 +118,49 @@ export function useDisenadorEditor({
   useEffect(() => {
     if (!plantilla) return;
     const adaptada = adaptarDefinicionAEditor(plantilla.definicion);
-    setFondos(adaptada.fondos);
     if (adaptada.elementos.length > 0) {
-      reiniciarHistorial(adaptada.elementos);
+      reiniciarHistorial(adaptada.elementos, adaptada.fondos);
       if (adaptada.reglasColor) setReglasColor(adaptada.reglasColor);
     } else {
       const iniciales = crearElementosInicialesDefecto(anchoMm);
-      reiniciarHistorial(iniciales);
+      reiniciarHistorial(iniciales, adaptada.fondos);
     }
   }, [plantilla, anchoMm, reiniciarHistorial]);
 
   // Actualizar historial para Deshacer / Rehacer
-  const registrarCambio = useCallback((nuevosElementos: ElementoKonva[]) => {
-    const nuevoHistorial = [...historialRef.current.slice(0, indiceRef.current + 1), nuevosElementos];
+  // Cada instantánea guarda elementos y fondos por cara, para deshacer también los fondos.
+  const registrarInstantanea = useCallback((instantanea: InstantaneaEditor) => {
+    const nuevoHistorial = [...historialRef.current.slice(0, indiceRef.current + 1), instantanea];
     historialRef.current = nuevoHistorial;
     indiceRef.current = nuevoHistorial.length - 1;
-    elementosRef.current = nuevosElementos;
-    setElementos(nuevosElementos);
+    elementosRef.current = instantanea.elementos;
+    fondosRef.current = instantanea.fondos;
+    setElementos(instantanea.elementos);
+    setFondos(instantanea.fondos);
     setHistorial(nuevoHistorial);
     setHistorialIndex(indiceRef.current);
   }, []);
+
+  const registrarCambio = useCallback(
+    (nuevosElementos: ElementoKonva[]) =>
+      registrarInstantanea({ elementos: nuevosElementos, fondos: fondosRef.current }),
+    [registrarInstantanea],
+  );
+
+  const restaurarInstantanea = () => {
+    const instantanea = historialRef.current[indiceRef.current];
+    elementosRef.current = instantanea.elementos;
+    fondosRef.current = instantanea.fondos;
+    setHistorialIndex(indiceRef.current);
+    setElementos(instantanea.elementos);
+    setFondos(instantanea.fondos);
+  };
 
   // Deshacer (Undo)
   const handleDeshacer = () => {
     if (indiceRef.current > 0) {
       indiceRef.current -= 1;
-      elementosRef.current = historialRef.current[indiceRef.current];
-      setHistorialIndex(indiceRef.current);
-      setElementos(elementosRef.current);
+      restaurarInstantanea();
     }
   };
 
@@ -143,9 +168,7 @@ export function useDisenadorEditor({
   const handleRehacer = () => {
     if (indiceRef.current < historialRef.current.length - 1) {
       indiceRef.current += 1;
-      elementosRef.current = historialRef.current[indiceRef.current];
-      setHistorialIndex(indiceRef.current);
-      setElementos(elementosRef.current);
+      restaurarInstantanea();
     }
   };
 
@@ -317,14 +340,15 @@ export function useDisenadorEditor({
 
   // Fondo de una cara (B-2): elegir una imagen de la biblioteca o quitarla.
   const seleccionarFondo = (cara: "anverso" | "reverso", fondo: FondoCara) => {
-    setFondos((previos) => ({ ...previos, [cara]: fondo }));
+    registrarInstantanea({
+      elementos: elementosRef.current,
+      fondos: { ...fondosRef.current, [cara]: fondo },
+    });
   };
   const quitarFondo = (cara: "anverso" | "reverso") => {
-    setFondos((previos) => {
-      const resto = { ...previos };
-      delete resto[cara];
-      return resto;
-    });
+    const resto = { ...fondosRef.current };
+    delete resto[cara];
+    registrarInstantanea({ elementos: elementosRef.current, fondos: resto });
   };
 
   // Alinear elemento seleccionado

@@ -31,15 +31,17 @@ export async function subirElementoBiblioteca(
 
 export async function eliminarElementoBiblioteca(
   repo: RepoCarnetizacion,
-  id: string
+  id: string,
+  forzar = false,
 ): Promise<boolean> {
-  return repo.eliminarElementoBiblioteca(id);
+  return repo.eliminarElementoBiblioteca(id, forzar);
 }
 
-/** Convierte la primera página de un PDF de la biblioteca en un PNG usable como fondo. */
+/** Convierte una página (1 = primera) de un PDF de la biblioteca en un PNG usable como fondo. */
 export async function rasterizarFondoBiblioteca(
   repo: RepoCarnetizacion,
-  id: string
+  id: string,
+  pagina = 1
 ): Promise<ElementoBiblioteca> {
-  return repo.rasterizarFondoBiblioteca(id);
+  return repo.rasterizarFondoBiblioteca(id, pagina);
 }

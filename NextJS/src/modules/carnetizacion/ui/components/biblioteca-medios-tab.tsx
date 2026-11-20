@@ -49,6 +49,7 @@ const CATEGORIAS_FILTRO: { valor: string; label: string }[] = [
   { valor: "logo", label: "Logos" },
   { valor: "firma", label: "Firmas" },
   { valor: "imagen", label: "Imágenes" },
+  { valor: "fondo", label: "Fondos de carnet" },
 ];
 
 function formatearBytes(bytes: number): string {
@@ -80,6 +81,8 @@ export function BibliotecaMediosTab() {
 
   // Estados de eliminación
   const [elementoAEliminar, setElementoAEliminar] = useState<ElementoBiblioteca | null>(null);
+  /** K-12: mensaje del backend cuando el medio lo usa alguna plantilla (pide confirmar). */
+  const [avisoEnUso, setAvisoEnUso] = useState<string | null>(null);
 
   const fileInputId = useId();
 
@@ -107,21 +110,36 @@ export function BibliotecaMediosTab() {
   const handleArchivoSeleccionado = (file: File) => {
     // Validar tipo permitido (SVG no: el PDF del carnet no lo incrusta y puede
     // contener código activo; el backend también lo rechaza).
-    const tiposPermitidos = ["image/png", "image/jpeg", "image/webp"];
+    // El PDF solo se admite en la categoría «fondo».
+    const esFondo = subirCategoria === "fondo";
+    const tiposPermitidos = esFondo
+      ? ["image/png", "image/jpeg", "image/webp", "application/pdf"]
+      : ["image/png", "image/jpeg", "image/webp"];
     if (!tiposPermitidos.includes(file.type)) {
-      toast.error("Formato no permitido. Solo se aceptan PNG, JPEG o WebP.");
+      toast.error(
+        file.type === "application/pdf"
+          ? "El PDF solo se admite en la categoría «Fondo de carnet»."
+          : esFondo
+            ? "Formato no permitido. Solo se aceptan PNG, JPEG, WebP o PDF."
+            : "Formato no permitido. Solo se aceptan PNG, JPEG o WebP.",
+      );
       return;
     }
 
     // Validar tamaño según categoría
-    const maxBytes = subirCategoria === "firma" ? 2 * 1024 * 1024 : 5 * 1024 * 1024;
+    const maxBytes = esFondo
+      ? 10 * 1024 * 1024
+      : subirCategoria === "firma"
+        ? 2 * 1024 * 1024
+        : 5 * 1024 * 1024;
     if (file.size > maxBytes) {
-      const maxMb = subirCategoria === "firma" ? "2MB" : "5MB";
+      const maxMb = esFondo ? "10MB" : subirCategoria === "firma" ? "2MB" : "5MB";
       toast.error(`El archivo supera el tamaño máximo permitido (${maxMb}).`);
       return;
     }
 
     setSubirArchivo(file);
+    setDimensionesArchivo(null);
     if (!subirNombre) {
       // Autocompletar nombre con nombre del archivo sin extensión
       const nombreLimpio = file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
@@ -133,6 +151,8 @@ export function BibliotecaMediosTab() {
     reader.onload = (e) => {
       const url = e.target?.result as string;
       setPreviewSubida(url);
+      // El PDF no se puede previsualizar como imagen ni tiene dimensiones en píxeles.
+      if (file.type === "application/pdf") return;
       const img = new Image();
       img.onload = () => {
         setDimensionesArchivo({ ancho: img.naturalWidth, alto: img.naturalHeight });
@@ -179,16 +199,27 @@ export function BibliotecaMediosTab() {
   };
 
   const confirmarEliminar = (elemento: ElementoBiblioteca) => {
+    setAvisoEnUso(null);
     setElementoAEliminar(elemento);
+  };
+
+  const cerrarEliminacion = () => {
+    setElementoAEliminar(null);
+    setAvisoEnUso(null);
   };
 
   const ejecutarEliminacion = () => {
     if (!elementoAEliminar) return;
+    const forzar = avisoEnUso !== null;
     startTransition(async () => {
-      const res = await eliminarElementoBibliotecaAction(elementoAEliminar.id);
+      const res = await eliminarElementoBibliotecaAction(elementoAEliminar.id, forzar);
+      if (!res.success && "enUso" in res && res.enUso) {
+        setAvisoEnUso(res.error);
+        return;
+      }
       if (res.success) {
         toast.success("Elemento eliminado de la biblioteca.");
-        setElementoAEliminar(null);
+        cerrarEliminacion();
         // Si era el último de la página, retrocede para no dejar una página vacía.
         if (elementos.length === 1) setPagina((p) => Math.max(1, p - 1));
         mutate();
@@ -388,7 +419,21 @@ export function BibliotecaMediosTab() {
                 <Label>Categoría de Medio</Label>
                 <Select
                   value={subirCategoria}
-                  onValueChange={(val: CategoriaBiblioteca) => setSubirCategoria(val)}
+                  onValueChange={(val: CategoriaBiblioteca) => {
+                    setSubirCategoria(val);
+                    // Si el archivo ya elegido deja de ser válido con la nueva categoría, se descarta.
+                    if (
+                      subirArchivo &&
+                      ((val !== "fondo" && subirArchivo.type === "application/pdf") ||
+                        subirArchivo.size >
+                          (val === "fondo" ? 10 : val === "firma" ? 2 : 5) * 1024 * 1024)
+                    ) {
+                      setSubirArchivo(null);
+                      setPreviewSubida(null);
+                      setDimensionesArchivo(null);
+                      toast.error("El archivo elegido no es válido para esa categoría; seleccione otro.");
+                    }
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -396,7 +441,8 @@ export function BibliotecaMediosTab() {
                   <SelectContent>
                     <SelectItem value="logo">Logo Institucional</SelectItem>
                     <SelectItem value="firma">Firma Digitalizada (Máx 2MB)</SelectItem>
-                    <SelectItem value="imagen">Imagen / Sello / Fondo</SelectItem>
+                    <SelectItem value="imagen">Imagen / Sello</SelectItem>
+                    <SelectItem value="fondo">Fondo de carnet (PNG, JPEG, WebP o PDF · Máx 10MB)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -417,7 +463,11 @@ export function BibliotecaMediosTab() {
                   <input
                     id={fileInputId}
                     type="file"
-                    accept="image/png,image/jpeg,image/webp"
+                    accept={
+                      subirCategoria === "fondo"
+                        ? "image/png,image/jpeg,image/webp,application/pdf"
+                        : "image/png,image/jpeg,image/webp"
+                    }
                     className="hidden"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
@@ -427,12 +477,19 @@ export function BibliotecaMediosTab() {
                   {previewSubida ? (
                     <div className="space-y-2">
                       <div className="h-28 flex items-center justify-center">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={previewSubida}
-                          alt="Previsualización"
-                          className="max-h-full max-w-full object-contain"
-                        />
+                        {subirArchivo?.type === "application/pdf" ? (
+                          <span className="flex flex-col items-center gap-1 text-xs text-muted-foreground">
+                            <FileImage className="size-8" aria-hidden="true" />
+                            Documento PDF (se elegirá la página al usarlo como fondo)
+                          </span>
+                        ) : (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={previewSubida}
+                            alt="Previsualización"
+                            className="max-h-full max-w-full object-contain"
+                          />
+                        )}
                       </div>
                       <p className="text-xs text-muted-foreground font-mono">
                         {subirArchivo?.name} ({subirArchivo && formatearBytes(subirArchivo.size)})
@@ -463,7 +520,7 @@ export function BibliotecaMediosTab() {
                         Haz clic para seleccionar archivo
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        PNG, JPEG o WebP (Firmas máx 2MB, otros máx 5MB)
+                        PNG, JPEG o WebP (Firmas máx 2MB, otros máx 5MB). Fondos: también PDF, máx 10MB
                       </span>
                     </label>
                   )}
@@ -501,7 +558,7 @@ export function BibliotecaMediosTab() {
       {/* --- MODAL CONFIRMACIÓN DE ELIMINACIÓN --- */}
       <Dialog
         open={!!elementoAEliminar}
-        onOpenChange={(open) => !open && setElementoAEliminar(null)}
+        onOpenChange={(open) => !open && cerrarEliminacion()}
       >
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
@@ -509,14 +566,18 @@ export function BibliotecaMediosTab() {
             <DialogDescription>
               Se eliminará{" "}
               <span className="font-semibold text-foreground">{elementoAEliminar?.nombre}</span> de
-              la biblioteca. Las plantillas que ya utilicen este recurso podrían dejar de
-              visualizarlo si se vuelve a renderizar.
+              la biblioteca.
             </DialogDescription>
           </DialogHeader>
+          {avisoEnUso && (
+            <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+              {avisoEnUso} Si lo elimina, esas plantillas quedarán sin esa imagen.
+            </p>
+          )}
           <DialogFooter className="gap-2 sm:gap-0">
             <Button
               variant="outline"
-              onClick={() => setElementoAEliminar(null)}
+              onClick={cerrarEliminacion}
               disabled={isPending}
             >
               Cancelar
@@ -528,7 +589,7 @@ export function BibliotecaMediosTab() {
               className="gap-2"
             >
               {isPending && <Loader2 className="size-4 animate-spin" />}
-              Eliminar
+              {avisoEnUso ? "Eliminar igualmente" : "Eliminar"}
             </Button>
           </DialogFooter>
         </DialogContent>

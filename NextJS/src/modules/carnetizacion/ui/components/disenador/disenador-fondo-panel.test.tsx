@@ -91,8 +91,11 @@ describe("DisenadorFondoPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: /Elegir de la biblioteca/ }));
     fireEvent.click(screen.getByText("Fondo PDF"));
 
+    fireEvent.change(screen.getByLabelText("Página del PDF"), { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: /Usar esta página como fondo/ }));
+
     await waitFor(() =>
-      expect(acciones.rasterizarFondoBibliotecaAction).toHaveBeenCalledWith("pdf1"),
+      expect(acciones.rasterizarFondoBibliotecaAction).toHaveBeenCalledWith("pdf1", 3),
     );
     await waitFor(() =>
       expect(props.onSeleccionarFondo).toHaveBeenCalledWith(

@@ -13,6 +13,7 @@ import {
   activarPlantillaMotorAction,
   crearPlantillaBorradorAction,
   eliminarPlantillaMotorAction,
+  getPlantillaMotorAction,
   getPlantillasMotorPaginaAction,
   getTiposCredencialAction,
   getVersionesPlantillaAction,
@@ -113,10 +114,16 @@ export function usePlantillasGestor() {
 
   const duplicarMotor = (plantilla: PlantillaMotor) => {
     startTransition(async () => {
+      // El listado omite las imágenes incrustadas (K-12): se copia la definición completa.
+      const detalle = await getPlantillaMotorAction(plantilla.id);
+      if (!detalle.success) {
+        toast.error(detalle.error);
+        return;
+      }
       const res = await crearPlantillaBorradorAction({
         nombre: `${plantilla.nombre} (copia)`,
         codigo_tipo: plantilla.codigo_tipo,
-        definicion: plantilla.definicion,
+        definicion: detalle.data.definicion,
         ancho_mm: plantilla.ancho_mm,
         alto_mm: plantilla.alto_mm,
         orientacion: plantilla.orientacion,

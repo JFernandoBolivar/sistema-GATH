@@ -86,7 +86,7 @@ export interface PaginaApi<T> {
 export interface ElementoBibliotecaApiItem {
   id: string;
   nombre: string;
-  categoria: "logo" | "firma" | "imagen";
+  categoria: "logo" | "firma" | "imagen" | "fondo";
   archivo_url: string;
   tamano_bytes: number;
   mime_type: string;
@@ -307,16 +307,18 @@ export const carnetizacionApi = {
     return envelope.data;
   },
 
-  rasterizarFondoBiblioteca: async (id: string) => {
+  rasterizarFondoBiblioteca: async (id: string, pagina = 1) => {
     const envelope = await apiClient.post<ApiResponse<ElementoBibliotecaApiItem>>(
       `/api/v1/carnetizacion/biblioteca/${id}/rasterizar-fondo/`,
-      {},
+      { pagina },
     );
     return envelope.data;
   },
 
-  eliminarElementoBiblioteca: async (id: string) => {
-    await apiClient.delete<ApiResponse<null>>(`/api/v1/carnetizacion/biblioteca/${id}/`);
+  eliminarElementoBiblioteca: async (id: string, forzar = false) => {
+    await apiClient.delete<ApiResponse<null>>(
+      `/api/v1/carnetizacion/biblioteca/${id}/${forzar ? "?forzar=1" : ""}`,
+    );
     return true;
   },
 

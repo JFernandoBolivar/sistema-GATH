@@ -156,7 +156,7 @@ export interface PlantillaMotor {
   imagen_url?: string;
 }
 
-export type CategoriaBiblioteca = "logo" | "firma" | "imagen";
+export type CategoriaBiblioteca = "logo" | "firma" | "imagen" | "fondo";
 
 export interface ElementoBiblioteca {
   id: string;

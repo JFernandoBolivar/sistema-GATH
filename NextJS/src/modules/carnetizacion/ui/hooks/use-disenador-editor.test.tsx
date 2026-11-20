@@ -68,6 +68,25 @@ describe("Fondo por cara", () => {
     expect(result.current.fondos.anverso).toBeUndefined();
     expect(result.current.fondos.reverso).toEqual(nuevo);
   });
+
+  it("cambiar y quitar un fondo se puede deshacer y rehacer", () => {
+    const fondo: FondoCara = { biblioteca_id: "m1", mime_type: "image/png" };
+    const { result } = renderHook(() =>
+      useDisenadorEditor({ plantilla, anchoMm: 54, altoMm: 85.6 }),
+    );
+
+    act(() => result.current.seleccionarFondo("anverso", fondo));
+    expect(result.current.fondos.anverso).toEqual(fondo);
+    act(() => result.current.quitarFondo("anverso"));
+    expect(result.current.fondos.anverso).toBeUndefined();
+
+    act(() => result.current.handleDeshacer());
+    expect(result.current.fondos.anverso).toEqual(fondo);
+    act(() => result.current.handleDeshacer());
+    expect(result.current.fondos.anverso).toBeUndefined();
+    act(() => result.current.handleRehacer());
+    expect(result.current.fondos.anverso).toEqual(fondo);
+  });
 });
 
 describe("Selección múltiple", () => {

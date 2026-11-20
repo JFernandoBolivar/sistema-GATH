@@ -19,7 +19,7 @@ import {
 } from "@/shared/ui/components/tabs";
 
 import type { TipoCredencial } from "../../domain/entities/carnet";
-import type { ColaImpresionCarnet } from "../../domain/entities/cola-impresion";
+import { MAXIMO_POR_LOTE, type ColaImpresionCarnet } from "../../domain/entities/cola-impresion";
 import type { CredencialExterna } from "../../domain/entities/credencial-externa";
 import { MODO_DUPLEX_POR_DEFECTO, MODOS_DUPLEX, type ModoDuplex } from "../../domain/entities/modo-duplex";
 import {
@@ -48,6 +48,16 @@ function descargarBlob(blob: Blob, nombre: string): void {
 // ---------------------------------------------------------------------------
 // Pestaña Trabajadores
 // ---------------------------------------------------------------------------
+/** Aviso visible cuando la selección alcanza el máximo permitido por lote. */
+function AvisoMaximoLote({ cantidad }: { cantidad: number }) {
+  if (cantidad < MAXIMO_POR_LOTE) return null;
+  return (
+    <p role="status" className="text-sm font-medium text-amber-700 dark:text-amber-400">
+      Máximo {MAXIMO_POR_LOTE} credenciales por lote: ya alcanzó el límite. Desmarque alguna para elegir otra.
+    </p>
+  );
+}
+
 interface TabTrabajadoresProps {
   modoDuplex: ModoDuplex;
 }
@@ -80,18 +90,20 @@ function TabTrabajadores({ modoDuplex }: TabTrabajadoresProps) {
     setSeleccion((actual) => {
       const nuevo = new Set(actual);
       if (nuevo.has(id)) nuevo.delete(id);
-      else nuevo.add(id);
+      else if (nuevo.size < MAXIMO_POR_LOTE) nuevo.add(id);
       return nuevo;
     });
   };
 
+  const loteLleno = seleccion.size >= MAXIMO_POR_LOTE;
   const todosMarcados = cola.length > 0 && cola.every((c) => seleccion.has(c.carnetId));
 
   const toggleTodos = () => {
     if (todosMarcados) {
       setSeleccion(new Set());
     } else {
-      setSeleccion(new Set(cola.map((c) => c.carnetId)));
+      // Solo entran las primeras MAXIMO_POR_LOTE de la cola.
+      setSeleccion(new Set(cola.slice(0, MAXIMO_POR_LOTE).map((c) => c.carnetId)));
     }
   };
 
@@ -119,6 +131,7 @@ function TabTrabajadores({ modoDuplex }: TabTrabajadoresProps) {
 
   return (
     <div className="flex flex-col gap-4">
+      <AvisoMaximoLote cantidad={seleccion.size} />
       {/* Tabla de la cola */}
       {cargando ? (
         <p className="text-sm text-muted-foreground">Cargando…</p>
@@ -154,6 +167,7 @@ function TabTrabajadores({ modoDuplex }: TabTrabajadoresProps) {
                   <Checkbox
                     aria-label={`Seleccionar a ${item.nombre}`}
                     checked={seleccion.has(item.carnetId)}
+                    disabled={loteLleno && !seleccion.has(item.carnetId)}
                     onCheckedChange={() => alternar(item.carnetId)}
                   />
                 </TableCell>
@@ -237,11 +251,12 @@ function TabExternas({ modoDuplex }: TabExternasProps) {
     setSeleccion((actual) => {
       const nuevo = new Set(actual);
       if (nuevo.has(id)) nuevo.delete(id);
-      else nuevo.add(id);
+      else if (nuevo.size < MAXIMO_POR_LOTE) nuevo.add(id);
       return nuevo;
     });
   };
 
+  const loteLleno = seleccion.size >= MAXIMO_POR_LOTE;
   const todosMarcados = visibles.length > 0 && visibles.every((f) => seleccion.has(f.id));
 
   const toggleTodos = () => {
@@ -254,7 +269,11 @@ function TabExternas({ modoDuplex }: TabExternasProps) {
     } else {
       setSeleccion((actual) => {
         const nuevo = new Set(actual);
-        visibles.forEach((f) => nuevo.add(f.id));
+        // Se agregan en orden hasta llegar al máximo por lote.
+        for (const f of visibles) {
+          if (nuevo.size >= MAXIMO_POR_LOTE) break;
+          nuevo.add(f.id);
+        }
         return nuevo;
       });
     }
@@ -292,6 +311,8 @@ function TabExternas({ modoDuplex }: TabExternasProps) {
         </select>
       </div>
 
+      <AvisoMaximoLote cantidad={seleccion.size} />
+
       {/* Tabla */}
       {cargando ? (
         <p className="text-sm text-muted-foreground">Cargando…</p>
@@ -327,6 +348,7 @@ function TabExternas({ modoDuplex }: TabExternasProps) {
                   <Checkbox
                     aria-label={`Seleccionar a ${fila.nombre}`}
                     checked={seleccion.has(fila.id)}
+                    disabled={loteLleno && !seleccion.has(fila.id)}
                     onCheckedChange={() => alternar(fila.id)}
                   />
                 </TableCell>
