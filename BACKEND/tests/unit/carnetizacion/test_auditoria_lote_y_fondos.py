@@ -155,3 +155,17 @@ def test_k4_un_pdf_de_fondo_ilegible_no_se_reintenta_en_cada_tarjeta(monkeypatch
     for _ in range(5):
         assert carnet_pdf.fondo_de_biblioteca('m-1') is None
     assert len(intentos) == 1
+
+
+def test_k12_los_listados_omiten_las_imagenes_incrustadas_grandes():
+    from apps.carnetizacion.presentation.views.carnetizacion_views import _definicion_para_listado
+
+    grande = 'data:image/png;base64,' + 'A' * 5000
+    filas = [{'definicion': {'anverso': [
+        {'id': 'legacy-fondo', 'props': {'data': grande}},
+        {'id': 'chica', 'props': {'data': 'data:image/png;base64,AAAA'}},
+    ], 'reverso': []}}, {'definicion': None}]
+    salida = _definicion_para_listado(filas)
+    fondo, chica = salida[0]['definicion']['anverso']
+    assert 'data' not in fondo['props'] and fondo['props']['data_omitida'] is True
+    assert chica['props']['data'] == 'data:image/png;base64,AAAA'

@@ -24,7 +24,7 @@ from apps.carnetizacion.domain.exceptions import ReemisionSinMotivoError
 from apps.carnetizacion.domain.services.svg_seguro import sanear_svg
 from apps.carnetizacion.domain.services.validador_multimedia import detectar_mime
 from apps.carnetizacion.domain.value_objects.paginacion import Paginacion
-from core.presentation.permissions import HasAnyPermission, HasPermission
+from core.presentation.permissions import HasAnyPermission, HasPermission, usuario_tiene_permiso
 from apps.carnetizacion.application.use_cases.consultar_qr import (
     consultar_ficha_qr_uc,
     guardar_privacidad_por_cedula_uc,
@@ -214,6 +214,13 @@ class LoteCarnetsPdfView(APIView):
     )
     def post(self, request):
         marcar = bool(request.data.get('marcar_impresos'))
+        # K-7: marcar impresos avisa a cada trabajador: exige el mismo permiso que marcar uno
+        # por uno (`carnetizacion.emitir`); con solo `carnetizacion.lote` se imprime sin marcar.
+        if marcar and not usuario_tiene_permiso(request.user, 'carnetizacion.emitir'):
+            return fail(
+                "Para marcar los carnets como impresos se requiere el permiso 'carnetizacion.emitir'.",
+                status=403,
+            )
         modo = request.data.get('modo_duplex', SIN_ESPEJO)
         pdf = generar_lote_carnets_uc(
             RepoCarnetizacionORM(), request.data.get('carnet_ids'), marcar,
@@ -318,6 +325,26 @@ class TiposCredencialListView(APIView):
         return ok(TipoCredencialSerializer(tipos, many=True).data)
 
 
+_LARGO_MAXIMO_DATA_EN_LISTADO = 4096
+
+
+def _definicion_para_listado(datos: list[dict]) -> list[dict]:
+    """K-12: los listados no envían imágenes incrustadas (la LEGACY lleva su fondo en base64,
+    cientos de KB por fila). Se marcan con `data_omitida`; el detalle las devuelve completas."""
+    for fila in datos:
+        definicion = fila.get('definicion')
+        if not isinstance(definicion, dict):
+            continue
+        for cara in ('anverso', 'reverso', 'elementos'):
+            for el in definicion.get(cara) or []:
+                props = el.get('props') if isinstance(el, dict) else None
+                dato = props.get('data') if isinstance(props, dict) else None
+                if isinstance(dato, str) and dato.startswith('data:') and len(dato) > _LARGO_MAXIMO_DATA_EN_LISTADO:
+                    props = el['props'] = {**props, 'data_omitida': True}
+                    props.pop('data')
+    return datos
+
+
 class PlantillaMotorListView(APIView):
     """
     Motor de plantillas por capas en mm, dos caras, tamaños libres (O44 - E3).
@@ -342,7 +369,9 @@ class PlantillaMotorListView(APIView):
                 solo_activas=solo_activas,
                 busqueda=request.query_params.get('busqueda', ''),
             )
-            return ok(paginacion.sobre(PlantillaMotorDetalleSerializer(pagina, many=True).data, total))
+            return ok(paginacion.sobre(
+                _definicion_para_listado(PlantillaMotorDetalleSerializer(pagina, many=True).data), total,
+            ))
         # Sin ?pagina= devuelve todo (selectores que necesitan la lista completa).
         plantillas = listar_plantillas_motor(
             repo,
@@ -350,7 +379,7 @@ class PlantillaMotorListView(APIView):
             estado=estado,
             solo_activas=solo_activas,
         )
-        return ok(PlantillaMotorDetalleSerializer(plantillas, many=True).data)
+        return ok(_definicion_para_listado(PlantillaMotorDetalleSerializer(plantillas, many=True).data))
 
     @extend_schema(tags=['Carnetización'], summary='Crear borrador de plantilla de carnet', request=CrearPlantillaBorradorInputSerializer, responses={201: PlantillaMotorDetalleSerializer})
     def post(self, request):
@@ -484,7 +513,7 @@ class PlantillaMotorVersionesView(APIView):
     def get(self, request, plantilla_id: str):
         repo = RepoCarnetizacionORM()
         versiones = listar_versiones_plantilla(repo, plantilla_raiz_id=plantilla_id)
-        return ok(PlantillaMotorDetalleSerializer(versiones, many=True).data)
+        return ok(_definicion_para_listado(PlantillaMotorDetalleSerializer(versiones, many=True).data))
 
 
 class PlantillaMotorActivaView(APIView):
@@ -568,7 +597,8 @@ class ElementoBibliotecaDetailView(APIView):
     @extend_schema(tags=['Carnetización'], summary='Eliminar recurso de biblioteca')
     def delete(self, request, elemento_id: str):
         repo = RepoCarnetizacionORM()
-        eliminar_elemento_biblioteca_uc(repo, elemento_id=elemento_id)
+        forzar = (request.query_params.get('forzar') or '').strip() in ('1', 'true', 'si')
+        eliminar_elemento_biblioteca_uc(repo, elemento_id=elemento_id, forzar=forzar)
         return ok(None, 'Recurso eliminado de la biblioteca.')
 
 

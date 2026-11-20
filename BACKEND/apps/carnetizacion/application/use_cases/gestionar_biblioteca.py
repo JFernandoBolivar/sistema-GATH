@@ -92,9 +92,11 @@ def subir_elemento_biblioteca_uc(
 def eliminar_elemento_biblioteca_uc(
     repo: RepoCarnetizacion,
     elemento_id: str | int,
+    forzar: bool = False,
 ) -> bool:
-    """Elimina un recurso de la biblioteca compartida."""
-    return repo.eliminar_elemento_biblioteca(elemento_id)
+    """Elimina un recurso de la biblioteca compartida. Si una plantilla lo usa, se rechaza
+    (409, con los nombres) salvo que se confirme con `forzar`."""
+    return repo.eliminar_elemento_biblioteca(elemento_id, forzar=forzar)
 
 
 def rasterizar_fondo_biblioteca_uc(

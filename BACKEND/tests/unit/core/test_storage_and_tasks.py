@@ -114,3 +114,23 @@ def test_celery_task_queue_traduce_fallo_del_broker():
     app.send_task.side_effect = ConnectionError("broker caído")
     with pytest.raises(ColaTareasNoDisponible):
         CeleryTaskQueue(celery_app=app).encolar("gath.tarea")
+
+
+def test_h12_el_cliente_s3_tiene_tiempos_acotados_y_una_copia_rapida():
+    """H-12: sin tiempos, boto3 espera 60 s y reintenta; con el almacén caído colgaba la emisión."""
+    import time
+
+    from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
+
+    almacen = SeaweedFSStorage(endpoint_url='http://10.255.255.1:8333', access_key='a', secret_key='b')
+    rapido = almacen.con_tiempos(connect_timeout=1, read_timeout=1, max_attempts=1)
+    config = rapido._get_client().meta.config
+    assert (config.connect_timeout, config.read_timeout) == (1, 1)
+    assert almacen._get_client().meta.config.connect_timeout == 3
+
+    inicio = time.monotonic()
+    try:
+        rapido.subir('x/y.pdf', b'%PDF', 'application/pdf')
+    except Exception:  # noqa: BLE001 - se espera que falle: el destino no responde
+        pass
+    assert time.monotonic() - inicio < 6

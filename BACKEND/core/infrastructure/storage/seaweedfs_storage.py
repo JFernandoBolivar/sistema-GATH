@@ -31,13 +31,28 @@ class SeaweedFSStorage:
         secret_key: Optional[str] = None,
         bucket_name: Optional[str] = None,
         region_name: str = 'us-east-1',
+        connect_timeout: float = 3,
+        read_timeout: float = 15,
+        max_attempts: int = 3,
     ):
         self.endpoint_url = endpoint_url or os.getenv('SEAWEEDFS_S3_ENDPOINT', '')
         self.access_key = access_key or os.getenv('SEAWEEDFS_S3_ACCESS_KEY', '')
         self.secret_key = secret_key or os.getenv('SEAWEEDFS_S3_SECRET_KEY', '')
         self.bucket_name = bucket_name or os.getenv('SEAWEEDFS_S3_BUCKET', 'gath-storage')
         self.region_name = region_name
+        # H-12 / plan §12.4: tiempos acotados. Los de boto3 por defecto (60 s y varios
+        # reintentos) dejaban colgada cada petición mientras el almacén no respondía.
+        self.connect_timeout = connect_timeout
+        self.read_timeout = read_timeout
+        self.max_attempts = max_attempts
         self._s3_client = None
+
+    def con_tiempos(self, connect_timeout: float, read_timeout: float, max_attempts: int) -> 'SeaweedFSStorage':
+        """Copia con otros tiempos (p. ej. corta, para escrituras opcionales que no deben frenar)."""
+        return SeaweedFSStorage(
+            self.endpoint_url, self.access_key, self.secret_key, self.bucket_name, self.region_name,
+            connect_timeout=connect_timeout, read_timeout=read_timeout, max_attempts=max_attempts,
+        )
 
     def _get_client(self):
         if self._s3_client is None:
@@ -51,7 +66,12 @@ class SeaweedFSStorage:
                     aws_access_key_id=self.access_key,
                     aws_secret_access_key=self.secret_key,
                     region_name=self.region_name,
-                    config=Config(signature_version='s3v4'),
+                    config=Config(
+                        signature_version='s3v4',
+                        connect_timeout=self.connect_timeout,
+                        read_timeout=self.read_timeout,
+                        retries={'max_attempts': self.max_attempts, 'mode': 'standard'},
+                    ),
                 )
             except Exception as exc:
                 logger.error("No fue posible construir el cliente S3 de SeaweedFS: %s", exc)

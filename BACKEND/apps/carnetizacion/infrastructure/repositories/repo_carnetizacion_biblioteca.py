@@ -1,8 +1,11 @@
 """Repositorio de carnetización: biblioteca."""
 import hashlib
 from io import BytesIO
+from typing import Any
 
-from core.domain.exceptions import NotFoundError, ValidationError
+from django.db import transaction
+
+from core.domain.exceptions import ConflictError, NotFoundError, ValidationError
 from apps.carnetizacion.domain.entities.elemento_biblioteca import ElementoBiblioteca
 from apps.carnetizacion.domain.services.validador_multimedia import (
     MAX_PIXELES_IMAGEN,
@@ -13,6 +16,7 @@ from apps.carnetizacion.infrastructure.mappers.mapper_carnetizacion import (
 )
 from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
     ElementoBibliotecaModel,
+    PlantillaCarnetModel,
 )
 
 # Import entre módulos en infrastructure (apps.cargos y apps.personal): mismo patrón ya
@@ -129,30 +133,65 @@ class RepoBibliotecaMixin:
         obj = ElementoBibliotecaModel.objects.filter(archivo_clave__startswith=prefijo).first()
         return elemento_biblioteca_a_entidad(obj) if obj else None
 
-    def eliminar_elemento_biblioteca(self, elemento_id: str | int) -> bool:
-        obj = ElementoBibliotecaModel.objects.filter(pk=elemento_id).first()
-        if not obj:
-            raise NotFoundError(f"Elemento de biblioteca con id {elemento_id} no encontrado")
-        if obj.archivo_clave:
-            # Varias filas pueden compartir la misma clave (mismo contenido). El objeto
-            # del storage solo se borra cuando ya no queda ninguna otra fila que lo use.
-            compartido = (
-                ElementoBibliotecaModel.objects.filter(archivo_clave=obj.archivo_clave)
-                .exclude(pk=obj.pk)
-                .exists()
-            )
-            if compartido:
-                logger.info(
-                    "Se conserva el objeto %s: otra fila de biblioteca lo comparte.",
-                    obj.archivo_clave,
-                )
-            else:
-                try:
-                    self._almacen.eliminar(obj.archivo_clave)
-                except Exception as e:
-                    logger.warning("No se pudo borrar el archivo del storage para biblioteca %s: %s", elemento_id, e)
-        obj.delete()
+    def plantillas_que_usan_medio(self, elemento_id: str | int) -> list[str]:
+        """Nombres de las plantillas no archivadas que usan el medio (fondo o imagen)."""
+        medio = str(elemento_id)
+
+        def usa(definicion: Any) -> bool:
+            if not isinstance(definicion, dict):
+                return False
+            fondos = definicion.get('fondos') or {}
+            if isinstance(fondos, dict):
+                for entrada in fondos.values():
+                    valor = entrada.get('biblioteca_id') if isinstance(entrada, dict) else entrada
+                    if str(valor or '') == medio:
+                        return True
+            for cara in ('anverso', 'reverso', 'elementos'):
+                for el in definicion.get(cara) or []:
+                    if isinstance(el, dict) and str((el.get('props') or {}).get('biblioteca_id') or '') == medio:
+                        return True
+            return False
+
+        return [
+            f'{p.nombre} v{p.version}'
+            for p in PlantillaCarnetModel.objects.exclude(estado='archivada').only('nombre', 'version', 'definicion')
+            if usa(p.definicion)
+        ]
+
+    def eliminar_elemento_biblioteca(self, elemento_id: str | int, forzar: bool = False) -> bool:
+        with transaction.atomic():
+            obj = ElementoBibliotecaModel.objects.select_for_update().filter(pk=elemento_id).first()
+            if not obj:
+                raise NotFoundError(f"Elemento de biblioteca con id {elemento_id} no encontrado")
+            # K-12: borrar un medio que una plantilla usa la deja sin fondo o con un recuadro.
+            if not forzar:
+                usadas = self.plantillas_que_usan_medio(obj.pk)
+                if usadas:
+                    raise ConflictError(
+                        'Este medio se usa en: ' + ', '.join(usadas[:5])
+                        + ('…' if len(usadas) > 5 else '')
+                        + '. Confirme para eliminarlo igualmente.'
+                    )
+            clave = obj.archivo_clave
+            if clave:
+                # Bloquea todas las filas que comparten el archivo: dos borrados simultáneos no
+                # pueden dejar el objeto huérfano ni borrarlo mientras otra fila lo usa.
+                list(ElementoBibliotecaModel.objects.select_for_update().filter(archivo_clave=clave))
+            obj.delete()
+            if clave and not ElementoBibliotecaModel.objects.filter(archivo_clave=clave).exists():
+                transaction.on_commit(lambda: self._borrar_objeto_si_huerfano(clave))
+            elif clave:
+                logger.info("Se conserva el objeto %s: otra fila de biblioteca lo comparte.", clave)
         return True
+
+    def _borrar_objeto_si_huerfano(self, clave: str) -> None:
+        """Tras confirmar: se vuelve a comprobar (una subida del mismo contenido pudo reusarlo)."""
+        if ElementoBibliotecaModel.objects.filter(archivo_clave=clave).exists():
+            return
+        try:
+            self._almacen.eliminar(clave)
+        except Exception as e:  # noqa: BLE001 - el registro ya se borró; queda en el log
+            logger.warning("No se pudo borrar el archivo %s del storage: %s", clave, e)
 
     def obtener_archivo_biblioteca(self, elemento_id: str | int) -> tuple[bytes, str, str]:
         obj = ElementoBibliotecaModel.objects.filter(pk=elemento_id).first()

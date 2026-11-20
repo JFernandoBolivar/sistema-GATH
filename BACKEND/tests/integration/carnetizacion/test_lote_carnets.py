@@ -117,3 +117,19 @@ def test_validaciones_del_lote(api, carnets):
     assert api.post(url, {'carnet_ids': list(range(1, 92))}, format='json').status_code == 400
     api.post(f'/api/v1/carnetizacion/{carnets[0].id}/revocar/', {'motivo': 'Extravío'}, format='json')
     assert api.post(url, {'carnet_ids': [carnets[0].id]}, format='json').status_code == 400
+
+
+class UsuarioSoloLote(Usuario):
+    def tiene_permiso(self, codigo):
+        return codigo == 'carnetizacion.lote'
+
+
+def test_k7_con_solo_permiso_de_lote_se_imprime_pero_no_se_marca(carnets):
+    api = APIClient()
+    api.force_authenticate(user=UsuarioSoloLote())
+    url = '/api/v1/carnetizacion/lote-trabajadores/pdf/'
+
+    assert api.post(url, {'carnet_ids': [carnets[0].id]}, format='json').status_code == 200
+    marcar = api.post(url, {'carnet_ids': [carnets[0].id], 'marcar_impresos': True}, format='json')
+    assert marcar.status_code == 403
+    assert not CarnetCicloModel.objects.filter(carnet_id=carnets[0].id).exists()

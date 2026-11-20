@@ -116,7 +116,7 @@ def test_repo_guardar_listar_y_eliminar_recurso_biblioteca():
 
 
 @pytest.mark.django_db
-def test_eliminar_un_medio_no_borra_el_archivo_si_otra_fila_lo_comparte():
+def test_eliminar_un_medio_no_borra_el_archivo_si_otra_fila_lo_comparte(django_capture_on_commit_callbacks):
     clave = "carnet_biblioteca/abc123_compartido.png"
     almacen = AlmacenEnMemoria()
     almacen.archivos[clave] = PNG_VALIDO
@@ -131,9 +131,53 @@ def test_eliminar_un_medio_no_borra_el_archivo_si_otra_fila_lo_comparte():
     segunda = ElementoBibliotecaModel.objects.create(nombre="Copia B", **base)
     repo = RepoCarnetizacionORM(almacen=almacen)
 
-    assert repo.eliminar_elemento_biblioteca(primera.id) is True
+    with django_capture_on_commit_callbacks(execute=True):
+        assert repo.eliminar_elemento_biblioteca(primera.id) is True
     assert clave in almacen.archivos
     assert ElementoBibliotecaModel.objects.filter(pk=segunda.id).exists()
 
-    assert repo.eliminar_elemento_biblioteca(segunda.id) is True
+    with django_capture_on_commit_callbacks(execute=True):
+        assert repo.eliminar_elemento_biblioteca(segunda.id) is True
+    assert clave not in almacen.archivos
+
+
+@pytest.mark.django_db
+def test_k12_no_se_borra_un_medio_que_una_plantilla_usa_salvo_que_se_confirme(django_capture_on_commit_callbacks):
+    from core.domain.exceptions import ConflictError
+    from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
+        PlantillaCarnetModel,
+        TipoCredencialModel,
+    )
+
+    tipo, _ = TipoCredencialModel.objects.get_or_create(codigo="k12", defaults={"nombre": "K12"})
+
+    clave = "carnet_biblioteca/k12_fondo.png"
+    almacen = AlmacenEnMemoria()
+    almacen.archivos[clave] = PNG_VALIDO
+    comun = {"categoria": "fondo", "archivo_clave": clave, "nombre_archivo": "fondo.png",
+             "tamano_bytes": len(PNG_VALIDO), "mime_type": "image/png"}
+    fondo = ElementoBibliotecaModel.objects.create(nombre="Fondo K12", **comun)
+    imagen = ElementoBibliotecaModel.objects.create(nombre="Imagen K12", **{**comun, "archivo_clave": "carnet_biblioteca/k12_img.png"})
+    libre = ElementoBibliotecaModel.objects.create(nombre="Libre K12", **{**comun, "archivo_clave": "carnet_biblioteca/k12_libre.png"})
+    PlantillaCarnetModel.objects.create(tipo_credencial=tipo, nombre="Usa fondo K12", definicion={
+        "fondos": {"anverso": {"biblioteca_id": str(fondo.id)}}, "anverso": [], "reverso": [],
+    })
+    PlantillaCarnetModel.objects.create(tipo_credencial=tipo, nombre="Usa imagen K12", definicion={
+        "anverso": [{"tipo": "imagen", "props": {"biblioteca_id": str(imagen.id)}}], "reverso": [],
+    })
+    PlantillaCarnetModel.objects.create(tipo_credencial=tipo, nombre="Archivada K12", estado="archivada", definicion={
+        "fondos": {"anverso": {"biblioteca_id": str(libre.id)}},
+    })
+    repo = RepoCarnetizacionORM(almacen=almacen)
+
+    with pytest.raises(ConflictError, match="Usa fondo K12"):
+        repo.eliminar_elemento_biblioteca(fondo.id)
+    with pytest.raises(ConflictError, match="Usa imagen K12"):
+        repo.eliminar_elemento_biblioteca(imagen.id)
+    assert ElementoBibliotecaModel.objects.filter(pk=fondo.id).exists()
+
+    # Las plantillas archivadas no bloquean; con confirmación se borra igual.
+    assert repo.eliminar_elemento_biblioteca(libre.id) is True
+    with django_capture_on_commit_callbacks(execute=True):
+        assert repo.eliminar_elemento_biblioteca(fondo.id, forzar=True) is True
     assert clave not in almacen.archivos

@@ -205,8 +205,9 @@ class RepoCarnetizacion(Protocol):
         """Valida y guarda un recurso multimedia en la biblioteca compartida."""
         ...
 
-    def eliminar_elemento_biblioteca(self, elemento_id: str | int) -> bool:
-        """Elimina un recurso de la biblioteca multimedia."""
+    def eliminar_elemento_biblioteca(self, elemento_id: str | int, forzar: bool = False) -> bool:
+        """Elimina un recurso de la biblioteca multimedia. Si una plantilla lo usa lanza
+        ConflictError, salvo con `forzar`."""
         ...
 
     # --- Registro de Campos Autorizados y Personalizados (O44 - E5) ---

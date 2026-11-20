@@ -206,9 +206,15 @@ class RepoCarnetsPdfMixin:
     def guardar_pdf_emitido(self, carnet_id: int, pdf: bytes, formato: str = 'normal') -> None:
         """Guarda el PDF emitido para poder reimprimirlo idéntico. Si el almacén falla, la emisión
         no se cae: queda en el log y la reimpresión regenera el PDF como antes."""
+        # H-12: la copia es opcional; con el almacén caído no debe frenar la emisión, así que se
+        # usa un cliente con tiempos cortos y un solo intento.
+        almacen = (
+            self._almacen.con_tiempos(connect_timeout=2, read_timeout=10, max_attempts=1)
+            if hasattr(self._almacen, 'con_tiempos') else self._almacen
+        )
         try:
             clave = clave_segura('carnets', '.pdf')
-            self._almacen.subir(clave, pdf, 'application/pdf')
+            almacen.subir(clave, pdf, 'application/pdf')
             CarnetEmitidoArchivoModel.objects.update_or_create(
                 carnet_id=carnet_id,
                 defaults={
