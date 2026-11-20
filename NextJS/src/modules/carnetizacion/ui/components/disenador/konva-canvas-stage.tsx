@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Layer, Line, Rect, Stage, Transformer } from "react-konva";
+import { Image as KonvaImage, Layer, Line, Rect, Stage, Transformer } from "react-konva";
 import Konva from "konva";
 
-import type { ElementoKonva, PersonaMuestra } from "../../../domain/entities/disenador";
+import type { ElementoKonva, FondoCara, PersonaMuestra } from "../../../domain/entities/disenador";
+import { urlArchivoBiblioteca } from "../../../domain/entities/disenador";
 import { claveVistaPreviaQr, QR_PREFIJO } from "../../../domain/entities/qr-estilo";
 import { vistaPreviaQrAction } from "../../../infrastructure/actions/carnetizacion-actions";
 import { KonvaEdicionPuntos } from "./konva-edicion-puntos";
@@ -23,11 +24,44 @@ interface Props {
   datosPersona: PersonaMuestra;
   coloresRegla?: { primario: string; acento: string; texto: string };
   mostrarGuias?: boolean;
+  /** Fondo a sangre de la cara activa (B-2), tomado de la Biblioteca de Medios. */
+  fondo?: FondoCara;
   /** Modo «Editar puntos»: elemento en edición y vértice seleccionado. */
   edicionPuntos?: { id: string; indice: number | null } | null;
   onSeleccionarPunto?: (indice: number | null) => void;
   onMoverPunto?: (indice: number, x: number, y: number) => void;
   onAgregarPunto?: (x: number, y: number) => void;
+}
+
+interface RecorteImagen {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** Recorte central tipo `object-fit: cover` para que el fondo cubra todo el lienzo. */
+export function recorteCover(
+  anchoImg: number,
+  altoImg: number,
+  anchoCaja: number,
+  altoCaja: number,
+): RecorteImagen | undefined {
+  if (
+    anchoImg <= 0 ||
+    altoImg <= 0 ||
+    anchoCaja <= 0 ||
+    altoCaja <= 0
+  ) {
+    return undefined;
+  }
+  const objetivo = anchoCaja / altoCaja;
+  if (anchoImg / altoImg > objetivo) {
+    const ancho = altoImg * objetivo;
+    return { x: (anchoImg - ancho) / 2, y: 0, width: ancho, height: altoImg };
+  }
+  const alto = anchoImg / objetivo;
+  return { x: 0, y: (altoImg - alto) / 2, width: anchoImg, height: alto };
 }
 
 export function KonvaCanvasStage({
@@ -43,6 +77,7 @@ export function KonvaCanvasStage({
   datosPersona,
   coloresRegla = { primario: "#16264a", acento: "#d9121f", texto: "#ffffff" },
   mostrarGuias = true,
+  fondo,
   edicionPuntos = null,
   onSeleccionarPunto,
   onMoverPunto,
@@ -61,9 +96,18 @@ export function KonvaCanvasStage({
 
   // Filtrar elementos de la cara visible
   const elementosCara = elementos.filter((e) => e.cara === caraActual && !e.oculto);
+  const urlFondo = fondo ? urlArchivoBiblioteca(fondo.biblioteca_id) : null;
 
   // Cargar imágenes en memoria para Konva
   useEffect(() => {
+    if (urlFondo && !imagenesCargadas[urlFondo]) {
+      const imgFondo = new window.Image();
+      imgFondo.crossOrigin = "anonymous";
+      imgFondo.src = urlFondo;
+      imgFondo.onload = () => {
+        setImagenesCargadas((prev) => ({ ...prev, [urlFondo]: imgFondo }));
+      };
+    }
     elementosCara.forEach((el) => {
       if ((el.t === "image" || el.t === "photo") && el.src && !imagenesCargadas[el.src]) {
         const img = new window.Image();
@@ -74,7 +118,7 @@ export function KonvaCanvasStage({
         };
       }
     });
-  }, [elementosCara, imagenesCargadas]);
+  }, [elementosCara, imagenesCargadas, urlFondo]);
 
   // Vista previa fiel del estilo del QR: el backend dibuja el mismo PNG que irá en el PDF.
   // Se pide con un pequeño retardo para no saturar mientras se arrastra un slider o color.
@@ -118,6 +162,10 @@ export function KonvaCanvasStage({
     e.target === stageRef.current || e.target.name() === "canvas-background";
 
   const posicion = () => stageRef.current?.getPointerPosition() ?? null;
+  const imagenFondo = urlFondo ? imagenesCargadas[urlFondo] : undefined;
+  const recorteFondo = imagenFondo
+    ? recorteCover(imagenFondo.width, imagenFondo.height, anchoPx, altoPx)
+    : undefined;
 
   const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     if (!esFondo(e)) return;
@@ -184,6 +232,19 @@ export function KonvaCanvasStage({
           fill="#ffffff"
           cornerRadius={4 * escala}
         />
+
+        {/* Fondo por cara de la Biblioteca (B-2): cubre la tarjeta, debajo de las capas */}
+        {imagenFondo && recorteFondo && (
+          <KonvaImage
+            image={imagenFondo}
+            x={0}
+            y={0}
+            width={anchoPx}
+            height={altoPx}
+            crop={recorteFondo}
+            listening={false}
+          />
+        )}
 
         {/* Guías de Imán en el Centro (Snap Guides) */}
         {mostrarGuias && guiasActivas.x !== undefined && (

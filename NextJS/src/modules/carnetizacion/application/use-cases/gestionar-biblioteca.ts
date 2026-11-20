@@ -35,3 +35,11 @@ export async function eliminarElementoBiblioteca(
 ): Promise<boolean> {
   return repo.eliminarElementoBiblioteca(id);
 }
+
+/** Convierte la primera página de un PDF de la biblioteca en un PNG usable como fondo. */
+export async function rasterizarFondoBiblioteca(
+  repo: RepoCarnetizacion,
+  id: string
+): Promise<ElementoBiblioteca> {
+  return repo.rasterizarFondoBiblioteca(id);
+}

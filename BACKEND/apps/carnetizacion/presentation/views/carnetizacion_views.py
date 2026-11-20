@@ -58,6 +58,7 @@ from apps.carnetizacion.application.use_cases.gestionar_biblioteca import (
     eliminar_elemento_biblioteca_uc,
     listar_elementos_biblioteca_paginado_uc,
     listar_elementos_biblioteca_uc,
+    rasterizar_fondo_biblioteca_uc,
     subir_elemento_biblioteca_uc,
 )
 from apps.carnetizacion.application.use_cases.gestionar_plantillas import (
@@ -82,6 +83,7 @@ from apps.carnetizacion.application.use_cases.validar_carnet import (
 from apps.carnetizacion.application.use_cases.sugerencias_reglas_color import (
     sugerencias_reglas_color,
 )
+from apps.carnetizacion.infrastructure.pdf import rasterizar_pdf
 from apps.carnetizacion.infrastructure.pdf.carnet_pdf import logo_qr_de_biblioteca
 from apps.carnetizacion.infrastructure.qr_institucional import (
     generar_qr_png,
@@ -568,6 +570,39 @@ class ElementoBibliotecaDetailView(APIView):
         repo = RepoCarnetizacionORM()
         eliminar_elemento_biblioteca_uc(repo, elemento_id=elemento_id)
         return ok(None, 'Recurso eliminado de la biblioteca.')
+
+
+class ElementoBibliotecaRasterizarFondoView(APIView):
+    """Convierte la primera página de un PDF de la biblioteca en un PNG de fondo (B-2).
+
+    El diseñador nunca recibe ni incrusta el PDF: selecciona el medio convertido.
+    Si no hay rasterizador instalado, el caso de uso responde 400 con el mensaje
+    que pide convertir la página a PNG.
+    """
+    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.disenar')]
+
+    @extend_schema(
+        tags=['Carnetización'],
+        summary='Convertir la primera página de un PDF de biblioteca a PNG para fondo',
+    )
+    def post(self, request, elemento_id: str):
+        creado_por = (
+            str(request.user.id)
+            if request.user and request.user.is_authenticated and getattr(request.user, 'id', None) is not None
+            else None
+        )
+        elemento, creado = rasterizar_fondo_biblioteca_uc(
+            RepoCarnetizacionORM(),
+            elemento_id,
+            rasterizador=rasterizar_pdf.rasterizar_primera_pagina_pdf,
+            creado_por=creado_por,
+        )
+        mensaje = (
+            'Página del PDF convertida a PNG para el fondo.'
+            if creado
+            else 'El medio ya es una imagen válida para el fondo.'
+        )
+        return ok(ElementoBibliotecaSerializer(elemento).data, mensaje, 201 if creado else 200)
 
 
 MIMES_BIBLIOTECA_SERVIBLES = {

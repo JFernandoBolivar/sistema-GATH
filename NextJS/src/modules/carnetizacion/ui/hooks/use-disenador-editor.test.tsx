@@ -2,6 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { PlantillaMotor } from "../../domain/entities/carnet";
+import type { FondoCara } from "../../domain/entities/disenador";
 import { useDisenadorEditor } from "./use-disenador-editor";
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
@@ -42,6 +43,30 @@ describe("Limpiar diseño", () => {
     expect(ids(result)).toEqual([]);
     act(() => result.current.handleDeshacer());
     expect(ids(result)).toHaveLength(5);
+  });
+});
+
+describe("Fondo por cara", () => {
+  it("carga el fondo guardado y permite cambiarlo o quitarlo", () => {
+    const fondo: FondoCara = { biblioteca_id: "m1", nombre: "Fondo", mime_type: "image/png" };
+    const conFondo = {
+      ...plantilla,
+      definicion: { ...plantilla.definicion, fondos: { anverso: fondo } },
+    } as unknown as PlantillaMotor;
+    const { result } = renderHook(() =>
+      useDisenadorEditor({ plantilla: conFondo, anchoMm: 54, altoMm: 85.6 }),
+    );
+
+    expect(result.current.fondos.anverso).toEqual(fondo);
+
+    const nuevo: FondoCara = { biblioteca_id: "m2", mime_type: "image/jpeg" };
+    act(() => result.current.seleccionarFondo("reverso", nuevo));
+    expect(result.current.fondos.reverso).toEqual(nuevo);
+    expect(result.current.fondos.anverso).toEqual(fondo);
+
+    act(() => result.current.quitarFondo("anverso"));
+    expect(result.current.fondos.anverso).toBeUndefined();
+    expect(result.current.fondos.reverso).toEqual(nuevo);
   });
 });
 

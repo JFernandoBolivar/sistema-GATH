@@ -49,6 +49,7 @@ from apps.carnetizacion.presentation.views.carnetizacion_views import (
     ElementoBibliotecaArchivoView,
     ElementoBibliotecaDetailView,
     ElementoBibliotecaListView,
+    ElementoBibliotecaRasterizarFondoView,
     EstadisticasCarnetsView,
     FichaQrMedicaView,
     FichaQrPublicaView,
@@ -125,6 +126,11 @@ urlpatterns = [
     path('biblioteca/', ElementoBibliotecaListView.as_view(), name='biblioteca-list'),
     path('biblioteca/<str:elemento_id>/', ElementoBibliotecaDetailView.as_view(), name='biblioteca-detail'),
     path('biblioteca/<str:elemento_id>/archivo/', ElementoBibliotecaArchivoView.as_view(), name='biblioteca-archivo'),
+    path(
+        'biblioteca/<str:elemento_id>/rasterizar-fondo/',
+        ElementoBibliotecaRasterizarFondoView.as_view(),
+        name='biblioteca-rasterizar-fondo',
+    ),
 
     # Registro de Campos Autorizados y Personalizados (O44 - E5)
     path('campos/', CampoCredencialListView.as_view(), name='campos-list'),

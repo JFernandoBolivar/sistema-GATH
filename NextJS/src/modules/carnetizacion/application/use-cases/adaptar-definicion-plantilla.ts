@@ -8,6 +8,8 @@
  */
 import type {
   ElementoKonva,
+  FondoCara,
+  FondosCara,
   ReglasColorConfig,
   TipoElementoKonva,
 } from "../../domain/entities/disenador";
@@ -165,6 +167,38 @@ function radiosDesdeProps(valor: unknown): [number, number, number, number] | un
 export interface DefinicionAdaptada {
   elementos: ElementoKonva[];
   reglasColor?: ReglasColorConfig;
+  fondos: FondosCara;
+}
+
+/** Lee `fondos` de la definición: solo caras con un `biblioteca_id` no vacío. */
+export function normalizarFondos(valor: unknown): FondosCara {
+  const objetoFondos = objeto(valor);
+  const salida: FondosCara = {};
+  for (const cara of ["anverso", "reverso"] as const) {
+    const entrada = objeto(objetoFondos[cara]);
+    if (Object.keys(entrada).length === 0) continue;
+    const id = entrada.biblioteca_id;
+    if (id === undefined || id === null || String(id).trim() === "") continue;
+    const fondo: FondoCara = {
+      biblioteca_id: String(id).trim(),
+      nombre: typeof entrada.nombre === "string" ? entrada.nombre : undefined,
+      mime_type: typeof entrada.mime_type === "string" ? entrada.mime_type : undefined,
+      ancho_px:
+        entrada.ancho_px !== undefined && entrada.ancho_px !== null && Number.isFinite(Number(entrada.ancho_px))
+          ? Number(entrada.ancho_px)
+          : undefined,
+      alto_px:
+        entrada.alto_px !== undefined && entrada.alto_px !== null && Number.isFinite(Number(entrada.alto_px))
+          ? Number(entrada.alto_px)
+          : undefined,
+    };
+    if (fondo.nombre === undefined) delete fondo.nombre;
+    if (fondo.mime_type === undefined) delete fondo.mime_type;
+    if (fondo.ancho_px === undefined) delete fondo.ancho_px;
+    if (fondo.alto_px === undefined) delete fondo.alto_px;
+    salida[cara] = fondo;
+  }
+  return salida;
 }
 
 /** Lee la definición guardada (formato motor o formato legado del editor). */
@@ -199,7 +233,7 @@ export function adaptarDefinicionAEditor(definicion: unknown): DefinicionAdaptad
     };
   }
 
-  return { elementos, reglasColor };
+  return { elementos, reglasColor, fondos: normalizarFondos(def.fondos) };
 }
 
 function elementoAPlantilla(elemento: ElementoKonva, original?: Json): Json {
@@ -280,7 +314,7 @@ function elementoAPlantilla(elemento: ElementoKonva, original?: Json): Json {
   return resultado;
 }
 
-/** Reconstruye la definición del motor preservando `bg` y las reglas. */
+/** Reconstruye la definición del motor preservando `bg`, las reglas y los fondos. */
 export function adaptarEditorADefinicion(
   definicionOriginal: unknown,
   elementos: ElementoKonva[],
@@ -288,6 +322,7 @@ export function adaptarEditorADefinicion(
   anchoMm: number,
   altoMm: number,
   orientacion: "vertical" | "horizontal",
+  fondos?: FondosCara,
 ): Json {
   const original = objeto(definicionOriginal);
   const anversoOriginal = Array.isArray(original.anverso) ? original.anverso : [];
@@ -308,7 +343,7 @@ export function adaptarEditorADefinicion(
 
   const reglasOriginal = objeto(original.reglas);
 
-  return {
+  const resultado: Json = {
     ...original,
     bg: original.bg ?? { anverso: "#ffffff", reverso: "#ffffff" },
     reglas: {
@@ -325,4 +360,14 @@ export function adaptarEditorADefinicion(
     dimensiones: { ancho_mm: anchoMm, alto_mm: altoMm },
     orientacion,
   };
+
+  // `fondos` solo se toca si el editor lo envía; así una definición antigua sin fondos
+  // conserva cualquier valor que traiga y «quitar» borra la clave de verdad.
+  if (fondos !== undefined) {
+    const limpios = normalizarFondos(fondos);
+    if (Object.keys(limpios).length > 0) resultado.fondos = limpios;
+    else delete resultado.fondos;
+  }
+
+  return resultado;
 }

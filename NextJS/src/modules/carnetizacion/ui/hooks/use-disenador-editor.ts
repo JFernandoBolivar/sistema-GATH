@@ -7,6 +7,8 @@ import type { PlantillaMotor } from "../../domain/entities/carnet";
 import type {
   AlcanceLimpieza,
   ElementoKonva,
+  FondoCara,
+  FondosCara,
   PersonaMuestra,
   PosicionAlineacion,
   ReglasColorConfig,
@@ -68,6 +70,8 @@ export function useDisenadorEditor({
 
   // Estados de definición y capas
   const [elementos, setElementos] = useState<ElementoKonva[]>([]);
+  // Fondo por cara (B-2): no es una capa; se guarda aparte para dibujarlo antes de todo.
+  const [fondos, setFondos] = useState<FondosCara>({});
   const [historial, setHistorial] = useState<ElementoKonva[][]>([]);
   const [historialIndex, setHistorialIndex] = useState<number>(-1);
   // Refs: varias actualizaciones en el mismo tick (p. ej. mover N nodos) no pisan el estado.
@@ -104,6 +108,7 @@ export function useDisenadorEditor({
   useEffect(() => {
     if (!plantilla) return;
     const adaptada = adaptarDefinicionAEditor(plantilla.definicion);
+    setFondos(adaptada.fondos);
     if (adaptada.elementos.length > 0) {
       reiniciarHistorial(adaptada.elementos);
       if (adaptada.reglasColor) setReglasColor(adaptada.reglasColor);
@@ -310,6 +315,18 @@ export function useDisenadorEditor({
     setSeleccionIds([]);
   };
 
+  // Fondo de una cara (B-2): elegir una imagen de la biblioteca o quitarla.
+  const seleccionarFondo = (cara: "anverso" | "reverso", fondo: FondoCara) => {
+    setFondos((previos) => ({ ...previos, [cara]: fondo }));
+  };
+  const quitarFondo = (cara: "anverso" | "reverso") => {
+    setFondos((previos) => {
+      const resto = { ...previos };
+      delete resto[cara];
+      return resto;
+    });
+  };
+
   // Alinear elemento seleccionado
   const alinearElemento = (pos: PosicionAlineacion) => {
     if (!elementoSeleccionado) return;
@@ -397,6 +414,9 @@ export function useDisenadorEditor({
     alinearSeleccion,
     elementos,
     setElementos,
+    fondos,
+    seleccionarFondo,
+    quitarFondo,
     historial,
     historialIndex,
     reglasColor,

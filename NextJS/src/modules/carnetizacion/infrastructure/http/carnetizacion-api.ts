@@ -307,6 +307,14 @@ export const carnetizacionApi = {
     return envelope.data;
   },
 
+  rasterizarFondoBiblioteca: async (id: string) => {
+    const envelope = await apiClient.post<ApiResponse<ElementoBibliotecaApiItem>>(
+      `/api/v1/carnetizacion/biblioteca/${id}/rasterizar-fondo/`,
+      {},
+    );
+    return envelope.data;
+  },
+
   eliminarElementoBiblioteca: async (id: string) => {
     await apiClient.delete<ApiResponse<null>>(`/api/v1/carnetizacion/biblioteca/${id}/`);
     return true;

@@ -32,6 +32,9 @@ from apps.carnetizacion.domain.services.resolver_color import (
     resolver_color_carnet,
 )
 from apps.carnetizacion.domain.services.validador_multimedia import detectar_mime
+from apps.carnetizacion.infrastructure.pdf.rasterizar_pdf import (
+    rasterizar_primera_pagina_pdf,
+)
 from apps.carnetizacion.infrastructure.qr_institucional import LOGO_QR, generar_qr_png
 from core.infrastructure.pdf.fuentes import FUENTE, FUENTE_NEGRITA
 from core.infrastructure.pdf.pdf_components import reducir_imagen_para_pdf, ruta_asset
@@ -220,6 +223,132 @@ def logo_qr_de_biblioteca(medio_id: str | None) -> bytes | None:
 def imagen_de_biblioteca(medio_id: str | None) -> bytes | None:
     """Bytes de una imagen de la biblioteca colocada en el carnet (logo, firma, sello)."""
     return _bytes_de_biblioteca(medio_id, "carnet:imagen")
+
+
+_MIMES_FONDO = ('image/png', 'image/jpeg', 'image/webp')
+
+
+def fondo_de_biblioteca(medio_id: str | None) -> bytes | None:
+    """Bytes rasterizados del fondo de una cara; None si no hay medio o no es usable.
+
+    Reutiliza `imagen_de_biblioteca` (misma caché y misma política que B-8 para SVG).
+    Un PDF histórico se rasteriza (primera página) con pdf2image/Poppler y se cachea
+    como PNG por huella del contenido. Nunca se entrega el PDF inline: ReportLab no
+    lo dibuja y B-8 prohíbe servirlo como imagen.
+    """
+    if not medio_id:
+        return None
+    datos = imagen_de_biblioteca(medio_id)
+    if not datos:
+        return None
+    mime = detectar_mime(datos)
+    if mime != 'application/pdf':
+        return datos if mime in _MIMES_FONDO else None
+
+    clave = f"carnet:fondo-pdf:{hashlib.sha256(datos).hexdigest()}"
+    try:
+        guardado = cache.get(clave)
+        if guardado:
+            return guardado
+    except Exception:
+        logger.warning("Caché no disponible al leer el fondo PDF %s.", medio_id, exc_info=True)
+
+    try:
+        png = rasterizar_primera_pagina_pdf(datos)
+    except Exception:
+        logger.warning(
+            "No se pudo rasterizar el PDF de fondo %s; se usa el color de fondo.",
+            medio_id, exc_info=True,
+        )
+        return None
+    try:
+        cache.set(clave, png, _TTL_QR_SEGUNDOS)
+    except Exception:
+        logger.warning("Caché no disponible al guardar el fondo PDF %s.", medio_id, exc_info=True)
+    return png if detectar_mime(png) in _MIMES_FONDO else None
+
+
+def fondo_id_de_cara(definicion: dict[str, Any], cara: str) -> str | None:
+    """`biblioteca_id` del fondo de `cara`, si la definición lo declara.
+
+    Formato canónico: ``fondos: {anverso: {biblioteca_id, ...}, reverso: {...}}``.
+    Se tolera un id suelto por compatibilidad con ediciones manuales.
+    """
+    fondos = definicion.get('fondos')
+    if not isinstance(fondos, dict):
+        return None
+    entrada = fondos.get(cara)
+    if isinstance(entrada, str):
+        return entrada.strip() or None
+    if not isinstance(entrada, dict):
+        return None
+    medio = entrada.get('biblioteca_id')
+    if medio is None:
+        return None
+    medio = str(medio).strip()
+    return medio or None
+
+
+def _bytes_fondo_cover(datos: bytes, ancho_pt: float, alto_pt: float) -> bytes | None:
+    """Imagen recortada al centro para cubrir el rectángulo (como `object-fit: cover`)."""
+    if ancho_pt <= 0 or alto_pt <= 0:
+        return None
+    try:
+        with Image.open(BytesIO(datos)) as img:
+            img.load()
+            proporcion_objetivo = ancho_pt / alto_pt
+            ancho_img, alto_img = img.size
+            if ancho_img <= 0 or alto_img <= 0:
+                return None
+            if ancho_img / alto_img > proporcion_objetivo:
+                nuevo_ancho = max(1, int(alto_img * proporcion_objetivo))
+                offset = (ancho_img - nuevo_ancho) // 2
+                img = img.crop((offset, 0, offset + nuevo_ancho, alto_img))
+            elif ancho_img / alto_img < proporcion_objetivo:
+                nuevo_alto = max(1, int(ancho_img / proporcion_objetivo))
+                offset = (alto_img - nuevo_alto) // 2
+                img = img.crop((0, offset, ancho_img, offset + nuevo_alto))
+            lado_max = _lado_maximo_px(ancho_pt, alto_pt)
+            if max(img.size) > lado_max:
+                img.thumbnail((lado_max, lado_max), Image.LANCZOS)
+            return _codificar_foto(img)
+    except Exception:
+        logger.warning("No se pudo preparar la imagen de fondo del carnet.", exc_info=True)
+        return None
+
+
+def _dibujar_fondo_cara(
+    c: canvas.Canvas,
+    definicion: dict[str, Any],
+    cara: str,
+    ancho_pt: float,
+    alto_pt: float,
+    sangrado_pt: float,
+) -> None:
+    """Dibuja la imagen de fondo de la cara ANTES de los elementos, de borde a borde."""
+    medio_id = fondo_id_de_cara(definicion, cara)
+    if not medio_id:
+        return
+    datos = fondo_de_biblioteca(medio_id)
+    if not datos:
+        return
+    ancho_fondo = ancho_pt + 2 * sangrado_pt
+    alto_fondo = alto_pt + 2 * sangrado_pt
+    recortada = _bytes_fondo_cover(datos, ancho_fondo, alto_fondo)
+    if not recortada:
+        return
+    try:
+        c.drawImage(
+            ImageReader(BytesIO(recortada)),
+            -sangrado_pt,
+            -sangrado_pt,
+            ancho_fondo,
+            alto_fondo,
+            preserveAspectRatio=False,
+            mask='auto',
+        )
+    except Exception:
+        logger.warning("No se pudo dibujar el fondo %s de la cara %s.", medio_id, cara, exc_info=True)
 
 
 def _qr_png_cacheado(contenido: str, con_logo: bool, estilo: dict[str, Any] | None = None) -> bytes:
@@ -956,6 +1085,10 @@ def dibujar_cara(
     color_fondo = bg_cfg.get(cara, '#ffffff') if isinstance(bg_cfg, dict) else '#ffffff'
     c.setFillColor(_hex_seguro(color_fondo, '#ffffff'))
     c.rect(-sangrado_pt, -sangrado_pt, ancho_pt + 2 * sangrado_pt, alto_pt + 2 * sangrado_pt, fill=1, stroke=0)
+
+    # B-2: la imagen de fondo de la cara se dibuja antes de los elementos y cubre la
+    # tarjeta (también el sangrado). Sin fondo declarado, queda el color de `bg`.
+    _dibujar_fondo_cara(c, definicion, cara, ancho_pt, alto_pt, sangrado_pt)
 
     for el in elementos_de_cara(definicion, cara):
         if el.get('oculto') or el.get('hidden'):

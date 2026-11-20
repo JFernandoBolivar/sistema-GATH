@@ -28,6 +28,7 @@ import { DisenadorPropiedadesPanel } from "../components/disenador/disenador-pro
 import { DisenadorSeleccionMultiple } from "../components/disenador/disenador-seleccion-multiple";
 import { DisenadorReglasColorPanel } from "../components/disenador/disenador-reglas-color-panel";
 import { DisenadorBibliotecaDialog } from "../components/disenador/disenador-biblioteca-dialog";
+import { DisenadorFondoPanel } from "../components/disenador/disenador-fondo-panel";
 import {
   DisenadorVistaPreviaDialog,
   type CarasVistaPrevia,
@@ -77,12 +78,17 @@ export function DisenadorView({ plantillaId }: Props) {
   const camposDisponibles: CampoCredencial[] =
     respuestaCampos && respuestaCampos.success ? respuestaCampos.data : [];
 
-  const { data: respuestaBiblioteca } = useSWR(
+  const { data: respuestaBiblioteca, isLoading: cargandoBiblioteca, error: errorBiblioteca } = useSWR(
     "biblioteca-medios-disenador",
     () => getBibliotecaAction()
   );
   const mediosBiblioteca: ElementoBiblioteca[] =
     respuestaBiblioteca && respuestaBiblioteca.success ? respuestaBiblioteca.data : [];
+  const errorBibliotecaMedios = errorBiblioteca
+    ? "No se pudo cargar la biblioteca de medios."
+    : respuestaBiblioteca && !respuestaBiblioteca.success
+      ? respuestaBiblioteca.error
+      : null;
 
   // Tipos de credencial externa del catálogo: se sugieren como valores de la regla por nómina.
   const { data: tiposCredencial } = useSWR("tipos-credencial-disenador", () =>
@@ -125,6 +131,7 @@ export function DisenadorView({ plantillaId }: Props) {
         anchoMm,
         altoMm,
         plantilla.orientacion,
+        editor.fondos,
       );
       const res = await vistaPreviaPlantillaAction(String(plantilla.id), definicion);
       if (res.success && res.data) {
@@ -147,6 +154,7 @@ export function DisenadorView({ plantillaId }: Props) {
         anchoMm,
         altoMm,
         plantilla.orientacion,
+        editor.fondos,
       );
 
       const res = await actualizarPlantillaBorradorAction(plantilla.id, {
@@ -239,6 +247,16 @@ export function DisenadorView({ plantillaId }: Props) {
             onAbrirBiblioteca={() => setModalBibliotecaOpen(true)}
           />
 
+          <DisenadorFondoPanel
+            cara={editor.caraActual}
+            fondo={editor.fondos[editor.caraActual]}
+            mediosBiblioteca={mediosBiblioteca}
+            cargandoMedios={cargandoBiblioteca}
+            errorMedios={errorBibliotecaMedios}
+            onSeleccionarFondo={editor.seleccionarFondo}
+            onQuitarFondo={editor.quitarFondo}
+          />
+
           <DisenadorCapasPanel
             caraActual={editor.caraActual}
             elementos={editor.elementos}
@@ -265,6 +283,7 @@ export function DisenadorView({ plantillaId }: Props) {
               datosPersona={editor.datosPersona}
               coloresRegla={editor.coloresResueltos}
               mostrarGuias={editor.mostrarGuias}
+              fondo={editor.fondos[editor.caraActual]}
               edicionPuntos={editor.edicionPuntos}
               onSeleccionarPunto={editor.seleccionarPunto}
               onMoverPunto={editor.moverPuntoEditado}

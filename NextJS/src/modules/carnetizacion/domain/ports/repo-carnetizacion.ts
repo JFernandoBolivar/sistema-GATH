@@ -60,6 +60,8 @@ export interface RepoCarnetizacion {
   listarBiblioteca(categoria?: string): Promise<ElementoBiblioteca[]>;
   listarBibliotecaPagina(categoria: string | undefined, params: ParamsPagina): Promise<PaginaCarnet<ElementoBiblioteca>>;
   subirElementoBiblioteca(nombre: string, categoria: CategoriaBiblioteca, archivo: File, descripcion?: string): Promise<ElementoBiblioteca>;
+  /** Convierte la primera página de un PDF de la biblioteca en un PNG de fondo (B-2). */
+  rasterizarFondoBiblioteca(id: string): Promise<ElementoBiblioteca>;
   eliminarElementoBiblioteca(id: string): Promise<boolean>;
 
   // Registro de Campos Autorizados y Personalizados (O44 - E5)

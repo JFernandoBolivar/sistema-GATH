@@ -295,6 +295,10 @@ class RepoCarnetizacionMemoria implements RepoCarnetizacion {
     return true;
   }
 
+  async rasterizarFondoBiblioteca(): Promise<ElementoBiblioteca> {
+    throw new Error("not implemented");
+  }
+
   campos: CampoCredencial[] = [];
 
   async listarCampos(): Promise<CampoCredencial[]> {

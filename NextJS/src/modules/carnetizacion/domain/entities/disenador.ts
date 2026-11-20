@@ -273,6 +273,7 @@ export interface DefinicionPlantillaKonva {
   orientacion: "vertical" | "horizontal";
   elementos: ElementoKonva[];
   reglas_color?: ReglasColorConfig;
+  fondos?: FondosCara;
 }
 
 export interface PersonaMuestra {
@@ -459,6 +460,22 @@ export function qrInsuficiente(
 ): boolean {
   return ladoQrMasGrandeMm(elementos) < minimoMm;
 }
+
+/**
+ * Fondo de una cara tomado de la Biblioteca de Medios (B-2). En la definición se
+ * guarda `fondos: { anverso: FondoCara, reverso: FondoCara }`; solo el
+ * `biblioteca_id` es imprescindible y los metadatos permiten mostrar la miniatura
+ * sin otra consulta. El PDF descarga el archivo por id y lo dibuja antes de los campos.
+ */
+export interface FondoCara {
+  biblioteca_id: string;
+  nombre?: string;
+  mime_type?: string;
+  ancho_px?: number | null;
+  alto_px?: number | null;
+}
+
+export type FondosCara = Partial<Record<"anverso" | "reverso", FondoCara>>;
 
 /**
  * URL autenticada (vía el proxy /api/v1) del archivo de un medio de la Biblioteca.

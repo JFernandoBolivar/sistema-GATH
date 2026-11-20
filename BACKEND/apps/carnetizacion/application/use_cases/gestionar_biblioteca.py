@@ -1,11 +1,24 @@
 """
 Casos de uso para la Biblioteca Compartida de Logos, Firmas e Imágenes (O44 - E4).
 """
+from collections.abc import Callable
+
 from apps.carnetizacion.application.dtos.carnetizacion_dtos import ElementoBibliotecaDTO
 from apps.carnetizacion.domain.entities.elemento_biblioteca import ElementoBiblioteca
 from apps.carnetizacion.domain.ports.repo_carnetizacion import RepoCarnetizacion
+from apps.carnetizacion.domain.services.validador_multimedia import (
+    detectar_mime,
+    validar_archivo_biblioteca,
+)
 from apps.carnetizacion.domain.value_objects.paginacion import Paginacion
-from apps.carnetizacion.domain.services.validador_multimedia import validar_archivo_biblioteca
+from core.domain.exceptions import ValidationError
+
+MIMES_FONDO_RASTER = ('image/png', 'image/jpeg', 'image/webp')
+MENSAJE_FONDO_NO_SOPORTADO = (
+    "Para el fondo del carnet use una imagen PNG, JPEG o WebP, o un PDF cuya "
+    "primera página se convierta a PNG. Los SVG, GIF y otros formatos no se "
+    "pueden incrustar en el PDF."
+)
 
 
 def elemento_biblioteca_a_dto(e: ElementoBiblioteca) -> ElementoBibliotecaDTO:
@@ -82,3 +95,41 @@ def eliminar_elemento_biblioteca_uc(
 ) -> bool:
     """Elimina un recurso de la biblioteca compartida."""
     return repo.eliminar_elemento_biblioteca(elemento_id)
+
+
+def rasterizar_fondo_biblioteca_uc(
+    repo: RepoCarnetizacion,
+    elemento_id: str | int,
+    rasterizador: Callable[[bytes], bytes],
+    creado_por: str | None = None,
+) -> tuple[ElementoBibliotecaDTO, bool]:
+    """Convierte en PNG la primera página de un PDF de la biblioteca para usarla de fondo.
+
+    Devuelve ``(elemento, creado)``. Una imagen raster ya válida se reutiliza sin
+    duplicarla; un PDF se rasteriza y se guarda como un nuevo medio PNG (nunca se
+    sirve el PDF inline en el diseñador ni en el PDF del carnet). ``rasterizador``
+    lo inyecta la infraestructura para no acoplar la capa de aplicación a
+    pdf2image/Poppler.
+    """
+    contenido, mime_guardado, nombre_archivo = repo.obtener_archivo_biblioteca(elemento_id)
+    mime_real = detectar_mime(contenido) or (mime_guardado or '').lower()
+
+    if mime_real in MIMES_FONDO_RASTER:
+        return elemento_biblioteca_a_dto(repo.obtener_elemento_biblioteca(elemento_id)), False
+    if mime_real != 'application/pdf':
+        raise ValidationError(MENSAJE_FONDO_NO_SOPORTADO)
+
+    png = rasterizador(contenido)
+    if detectar_mime(png) != 'image/png':
+        raise ValidationError(MENSAJE_FONDO_NO_SOPORTADO)
+
+    base = (nombre_archivo or 'fondo').rsplit('.', 1)[0][:80] or 'fondo'
+    guardado = repo.guardar_elemento_biblioteca(
+        nombre=f"{base} (fondo)"[:150],
+        categoria='imagen',
+        contenido=png,
+        nombre_archivo=f"{base}-fondo.png",
+        creado_por=creado_por,
+        descripcion=f"Primera página de {nombre_archivo} convertida a PNG para fondo de carnet.",
+    )
+    return elemento_biblioteca_a_dto(guardado), True

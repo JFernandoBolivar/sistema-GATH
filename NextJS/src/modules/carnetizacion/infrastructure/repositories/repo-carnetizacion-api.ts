@@ -153,6 +153,11 @@ export const repoCarnetizacionApi: RepoCarnetizacion = {
     return carnetizacionApi.eliminarElementoBiblioteca(id);
   },
 
+  async rasterizarFondoBiblioteca(id) {
+    const raw = await carnetizacionApi.rasterizarFondoBiblioteca(id);
+    return elementoBibliotecaApiAEntidad(raw);
+  },
+
   // --- Registro de Campos Autorizados y Personalizados (O44 - E5) ---
   async listarCampos(tipo = "trabajador") {
     const raw = await carnetizacionApi.getCampos(tipo);

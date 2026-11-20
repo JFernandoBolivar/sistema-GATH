@@ -20,7 +20,12 @@ interface DisenadorBibliotecaDialogProps {
   onOpenChange: (open: boolean) => void;
   mediosBiblioteca: ElementoBiblioteca[];
   caraActual: "anverso" | "reverso";
-  onAnadirElemento: (nuevo: Omit<ElementoKonva, "id">) => void;
+  /** Inserta el medio como capa de imagen (modo normal). */
+  onAnadirElemento?: (nuevo: Omit<ElementoKonva, "id">) => void;
+  /** Elige el medio sin insertarlo como capa (p. ej. como fondo de la cara). */
+  onSeleccionarMedio?: (medio: ElementoBiblioteca) => void;
+  titulo?: string;
+  descripcion?: string;
 }
 
 export function DisenadorBibliotecaDialog({
@@ -29,6 +34,9 @@ export function DisenadorBibliotecaDialog({
   mediosBiblioteca,
   caraActual,
   onAnadirElemento,
+  onSeleccionarMedio,
+  titulo = "Insertar Recurso de la Biblioteca",
+  descripcion = "Selecciona un logo, firma o imagen institucional para colocar en la credencial.",
 }: DisenadorBibliotecaDialogProps) {
   // Medios cuyo archivo no se pudo cargar: se marcan y no se dejan insertar.
   const [mediosNoDisponibles, setMediosNoDisponibles] = useState<Set<string>>(
@@ -44,7 +52,12 @@ export function DisenadorBibliotecaDialog({
       toast.error(`'${medio.nombre}': archivo no disponible.`);
       return;
     }
-    onAnadirElemento({
+    if (onSeleccionarMedio) {
+      onSeleccionarMedio(medio);
+      onOpenChange(false);
+      return;
+    }
+    onAnadirElemento?.({
       t: "image",
       name: medio.nombre,
       cara: caraActual,
@@ -70,10 +83,8 @@ export function DisenadorBibliotecaDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[560px]">
         <DialogHeader>
-          <DialogTitle>Insertar Recurso de la Biblioteca</DialogTitle>
-          <DialogDescription>
-            Selecciona un logo, firma o imagen institucional para colocar en la credencial.
-          </DialogDescription>
+          <DialogTitle>{titulo}</DialogTitle>
+          <DialogDescription>{descripcion}</DialogDescription>
         </DialogHeader>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[350px] overflow-y-auto p-1">

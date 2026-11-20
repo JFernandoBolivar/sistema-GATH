@@ -16,6 +16,7 @@ import {
   listarBibliotecaPagina,
   subirElementoBiblioteca,
   eliminarElementoBiblioteca,
+  rasterizarFondoBiblioteca,
 } from "../../application/use-cases/gestionar-biblioteca";
 import {
   listarCamposCredencial,
@@ -729,6 +730,26 @@ export async function eliminarElementoBibliotecaAction(id: string) {
     await logAudit({ traceId, action: "eliminarElementoBibliotecaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return { success: false as const, error: "No fue posible eliminar el elemento de la biblioteca." };
+  }
+}
+
+/**
+ * Convierte la primera página de un PDF de la biblioteca en PNG para usarlo de fondo (B-2).
+ * El diseñador nunca recibe el PDF inline.
+ */
+export async function rasterizarFondoBibliotecaAction(id: string) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await rasterizarFondoBiblioteca(repoCarnetizacionApi, id);
+    await logAudit({ traceId, action: "rasterizarFondoBibliotecaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const, data: result };
+  } catch (error) {
+    unstable_rethrow(error);
+    await logAudit({ traceId, action: "rasterizarFondoBibliotecaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const mensaje = error instanceof Error ? error.message : "No se pudo convertir el PDF a PNG.";
+    return { success: false as const, error: mensaje };
   }
 }
 

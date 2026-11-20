@@ -79,4 +79,64 @@ describe("adaptar-definicion-plantilla", () => {
     const derecho = guardar([imagenBiblioteca({ r: 0 })], girado);
     expect((derecho.anverso as Array<Record<string, unknown>>)[0]).not.toHaveProperty("r");
   });
+
+  it("guarda y recupera el fondo de cada cara con su biblioteca_id y metadatos", () => {
+    const fondos = {
+      anverso: {
+        biblioteca_id: "fondo-anv",
+        nombre: "Fondo anverso",
+        mime_type: "image/png",
+        ancho_px: 600,
+        alto_px: 950,
+      },
+      reverso: { biblioteca_id: "fondo-rev", mime_type: "image/jpeg" },
+    };
+
+    const definicion = adaptarEditorADefinicion(
+      { anverso: [], reverso: [] },
+      [],
+      REGLAS_COLOR_DEFECTO,
+      54,
+      85.6,
+      "vertical",
+      fondos,
+    );
+    expect(definicion.fondos).toEqual(fondos);
+
+    const recuperada = adaptarDefinicionAEditor(definicion);
+    expect(recuperada.fondos).toEqual(fondos);
+    expect(recuperada.fondos.reverso?.biblioteca_id).toBe("fondo-rev");
+  });
+
+  it("quitar el fondo borra la clave de la definición", () => {
+    const original = {
+      anverso: [],
+      reverso: [],
+      fondos: { anverso: { biblioteca_id: "fondo-anv" } },
+    };
+
+    const sinFondos = adaptarEditorADefinicion(
+      original,
+      [],
+      REGLAS_COLOR_DEFECTO,
+      54,
+      85.6,
+      "vertical",
+      {},
+    );
+    expect(sinFondos).not.toHaveProperty("fondos");
+
+    // Sin pasar `fondos` se conserva lo que traiga la definición original.
+    const intacta = adaptarEditorADefinicion(original, [], REGLAS_COLOR_DEFECTO, 54, 85.6, "vertical");
+    expect(intacta.fondos).toEqual({ anverso: { biblioteca_id: "fondo-anv" } });
+  });
+
+  it("ignora entradas de fondo sin biblioteca_id", () => {
+    const { fondos } = adaptarDefinicionAEditor({
+      anverso: [],
+      reverso: [],
+      fondos: { anverso: { nombre: "Sin id" }, reverso: { biblioteca_id: "  " } },
+    });
+    expect(fondos).toEqual({});
+  });
 });
