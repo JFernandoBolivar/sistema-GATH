@@ -139,9 +139,12 @@ class CarnetPdfView(APIView):
     )
     def get(self, request, carnet_id: int):
         repo = RepoCarnetizacionORM()
-        pdf_bytes = generar_pdf_carnet(repo, carnet_id=carnet_id)
+        # ?formato=imprenta: sangrado y marcas de corte para reimprimir en la imprenta (B-3).
+        imprenta = (request.query_params.get('formato') or '').strip().lower() == 'imprenta'
+        pdf_bytes = generar_pdf_carnet(repo, carnet_id=carnet_id, imprenta=imprenta)
         response = HttpResponse(pdf_bytes, content_type='application/pdf')
-        response['Content-Disposition'] = f'inline; filename="carnet_{carnet_id}.pdf"'
+        sufijo = '_imprenta' if imprenta else ''
+        response['Content-Disposition'] = f'inline; filename="carnet_{carnet_id}{sufijo}.pdf"'
         return response
 
 
@@ -775,6 +778,8 @@ class CarnetGenerarView(APIView):
         detalle = request.data.get('detalle')
         # Aprobación desde la bandeja: la emisión cierra la solicitud del trabajador.
         solicitud_id = str(request.data.get('solicitud_id') or '').strip() or None
+        # B-3: «formato imprenta» = sangrado y marcas de corte para la imprenta.
+        imprenta = str(request.data.get('formato') or '').strip().lower() == 'imprenta'
         repo = RepoCarnetizacionORM()
         if solicitud_id:
             repo.exigir_solicitud_pendiente(solicitud_id, cedula)
@@ -800,6 +805,7 @@ class CarnetGenerarView(APIView):
                     nombre_override=nombre_override,
                     motivo_reemision=motivo_reemision,
                     detalle=detalle,
+                    imprenta=imprenta,
                 )
                 if solicitud_id:
                     solicitud_aprobada = repo.aprobar_solicitud_carnet(
@@ -843,7 +849,8 @@ class CarnetGenerarView(APIView):
 
         # O46-A: el endpoint debe devolver el PDF binario, no un sobre JSON en base64.
         response = HttpResponse(emision.pdf, content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="carnet_{cedula}.pdf"'
+        sufijo = '_imprenta' if imprenta else ''
+        response['Content-Disposition'] = f'attachment; filename="carnet_{cedula}{sufijo}.pdf"'
         return response
 
 

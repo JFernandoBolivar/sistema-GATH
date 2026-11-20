@@ -37,6 +37,7 @@ from .repo_carnetizacion_comun import (
     exigir_condicion_para_carnet,
     logger,
     plantilla_vigente,
+    sangrado_imprenta_mm,
     tipo_credencial_para,
     vencimiento_de_carnet,
 )
@@ -126,7 +127,8 @@ class RepoCarnetsPdfMixin:
             logger.warning("Caché no disponible al guardar la foto del carnet.", exc_info=True)
         return reducida
 
-    def generar_pdf(self, carnet_id: int, nombre_override: str | None = None) -> bytes:
+    def generar_pdf(self, carnet_id: int, nombre_override: str | None = None, imprenta: bool = False) -> bytes:
+        """PDF del carnet emitido. `imprenta`: con sangrado (parámetro) y marcas de corte."""
         fila = (
             CarnetEmitidoModel.objects.select_related('employee', 'motivo')
             .filter(pk=carnet_id)
@@ -176,6 +178,10 @@ class RepoCarnetsPdfMixin:
             vence=vence.strftime('%d/%m/%Y') if vence else '',
             campos_extra=valores_campos_personalizados(empleado, asignacion),
         )
+        if imprenta:
+            return generar_carnet_pdf(
+                datos, definicion=definicion, sangrado_mm=sangrado_imprenta_mm(), marcas_corte=True,
+            )
         return generar_carnet_pdf(datos, definicion=definicion)
 
     def generar_vista_previa(self, cedula: str, nombre_override: str | None = None, foto_bytes: bytes | None = None) -> str:

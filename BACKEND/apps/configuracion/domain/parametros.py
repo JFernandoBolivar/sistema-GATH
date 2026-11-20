@@ -25,6 +25,7 @@ from core.domain.configuracion import (
     CLAVE_CARNETIZACION_MI_CARNET_ALCANCE,
     CLAVE_CARNETIZACION_MI_CARNET_USUARIOS,
     CLAVE_CARNETIZACION_QR_TAMANO_MINIMO_MM,
+    CLAVE_CARNETIZACION_SANGRADO_MM,
     CLAVE_CARNETIZACION_VIGENCIA_EXTERNO_DIAS,
     CLAVE_CARNETIZACION_VIGENCIA_PASIVO_MESES,
     CLAVE_CARNETIZACION_VIGENCIA_TRABAJADOR_MESES,
@@ -496,6 +497,20 @@ DEFINICIONES = (
         defecto='20',
         minimo=10,
         maximo=60,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_CARNETIZACION_SANGRADO_MM,
+        etiqueta='Sangrado del carnet en formato imprenta (mm)',
+        descripcion=(
+            'Milímetros que el fondo y las franjas que tocan el borde se prolongan más allá del '
+            'corte en el PDF «formato imprenta» (con marcas de corte), para que un corte '
+            'ligeramente desplazado no deje un filo blanco. 0 = sin sangrado.'
+        ),
+        grupo=GRUPO_CARNETIZACION,
+        tipo=TIPO_ENTERO,
+        defecto='2',
+        minimo=0,
+        maximo=5,
     ),
 )
 

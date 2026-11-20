@@ -176,7 +176,7 @@ class RepoCarnetizacion(Protocol):
     def registrar_foto_perfil(self, cedula: str, clave: str) -> None:
         ...
 
-    def generar_pdf(self, carnet_id: int, nombre_override: str | None = None) -> bytes:
+    def generar_pdf(self, carnet_id: int, nombre_override: str | None = None, imprenta: bool = False) -> bytes:
         ...
 
     def listar_motivos_emision(self) -> list[dict[str, Any]]:

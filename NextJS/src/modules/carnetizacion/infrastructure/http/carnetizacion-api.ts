@@ -457,10 +457,13 @@ export const carnetizacionApi = {
       observaciones?: string;
       /** Aprobación desde la bandeja: la emisión cierra esta solicitud del trabajador. */
       solicitudId?: string;
+      /** «imprenta»: PDF con sangrado y marcas de corte (B-3). */
+      formato?: "imprenta";
     },
   ) => {
     return apiClient.postBlob(`/api/v1/carnetizacion/generar/${cedula}/`, {
       motivo_id: motivoId,
+      formato: opciones?.formato ?? undefined,
       solicitud_id: opciones?.solicitudId ?? undefined,
       motivo_reemision: opciones?.motivoReemision ?? undefined,
       detalle: opciones?.detalle ?? undefined,

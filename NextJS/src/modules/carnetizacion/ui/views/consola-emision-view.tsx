@@ -22,6 +22,7 @@ import {
 import PageLayout from "@/components/layout/page-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -104,6 +105,7 @@ export function ConsolaEmisionView() {
   const [vistaPreviaRaster, setVistaPreviaRaster] = useState<string>("");
   // Reverso real de la plantilla (antes el navegador dibujaba una tarjeta fija).
   const [vistaPreviaReversoRaster, setVistaPreviaReversoRaster] = useState<string>("");
+  const [formatoImprenta, setFormatoImprenta] = useState(false);
   const [isPendingEmision, startTransitionEmision] = useTransition();
   // Cédula con vista previa en curso (ref: evita lanzar una segunda petición para la misma
   // cédula) y cédula actualmente seleccionada (para descartar respuestas de otra selección).
@@ -310,6 +312,7 @@ export function ConsolaEmisionView() {
                 ? detalleReemision.trim()
                 : undefined,
             observaciones: observaciones.trim() || undefined,
+            formato: formatoImprenta ? "imprenta" : undefined,
           },
         );
         if (!result.success || !result.data) {
@@ -320,7 +323,10 @@ export function ConsolaEmisionView() {
           return;
         }
 
-        downloadPdfBase64(result.data, `carnet_CONATEL_${cedula}.pdf`);
+        downloadPdfBase64(
+          result.data,
+          `carnet_CONATEL_${cedula}${formatoImprenta ? "_imprenta" : ""}.pdf`,
+        );
         toast.success(`Carnet emitido y descargado exitosamente para C.I. ${cedula}.`);
         setAvisoReemision(null);
         setMotivoReemision("");
@@ -772,6 +778,21 @@ export function ConsolaEmisionView() {
                       maxLength={300}
                       className="mt-1"
                     />
+                  </div>
+
+                  {/* B-3: PDF para la imprenta (sangrado del parámetro del sistema + marcas de corte). */}
+                  <div className="flex items-start gap-2">
+                    <Checkbox
+                      id="formato-imprenta"
+                      checked={formatoImprenta}
+                      onCheckedChange={(v) => setFormatoImprenta(v === true)}
+                      className="mt-0.5"
+                    />
+                    <Label htmlFor="formato-imprenta" className="text-xs font-normal leading-snug">
+                      <span className="font-semibold">Formato imprenta</span>: con sangrado y marcas de
+                      corte, para enviar a la imprenta. Sin marcar, el PDF tiene el tamaño exacto del
+                      carnet.
+                    </Label>
                   </div>
 
                   {/* Advertencia y Botones de Emisión */}

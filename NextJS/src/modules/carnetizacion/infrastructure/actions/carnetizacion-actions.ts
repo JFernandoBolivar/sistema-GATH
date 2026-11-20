@@ -416,7 +416,13 @@ export async function generarCarnetPdfAction(
   motivoId: number,
   nombre: string,
   plantillaId?: string,
-  opciones?: { motivoReemision?: string; detalle?: string; observaciones?: string; solicitudId?: string },
+  opciones?: {
+    motivoReemision?: string;
+    detalle?: string;
+    observaciones?: string;
+    solicitudId?: string;
+    formato?: "imprenta";
+  },
 ) {
   const traceId = generateTraceId();
   const startedAt = Date.now();

@@ -10,6 +10,7 @@ from core.domain.catalogos import (
 )
 from core.domain.exceptions import ValidationError
 from core.domain.configuracion import (
+    CLAVE_CARNETIZACION_SANGRADO_MM,
     CLAVE_CARNETIZACION_VENCIMIENTO_MESES,
     CLAVE_CARNETIZACION_VIGENCIA_EXTERNO_DIAS,
     CLAVE_CARNETIZACION_VIGENCIA_PASIVO_MESES,
@@ -50,6 +51,11 @@ def _entero_configurado(clave: str, defecto: int) -> int:
     except Exception:
         logger.warning("No se pudo leer el parámetro %s; se usa %s.", clave, defecto, exc_info=True)
         return defecto
+
+
+def sangrado_imprenta_mm() -> int:
+    """Sangrado del PDF «formato imprenta», del parámetro del sistema (2 mm por defecto)."""
+    return max(0, _entero_configurado(CLAVE_CARNETIZACION_SANGRADO_MM, 2))
 
 
 def vencimiento_segun_parametros(emision: Any, tipo: str) -> Any:

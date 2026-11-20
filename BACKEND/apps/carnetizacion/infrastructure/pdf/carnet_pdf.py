@@ -833,6 +833,49 @@ def _dibujar_elemento(
     c.restoreState()
 
 
+# Formato imprenta (B-3): margen alrededor del sangrado donde van las marcas de corte.
+MARGEN_MARCAS_MM = 6.0
+_TOLERANCIA_BORDE_MM = 0.05
+_TIPOS_EXTENSIBLES = ('rect', 'forma')
+
+
+def _extender_al_sangrado(el: dict[str, Any], ancho_mm: float, alto_mm: float, sangrado_mm: float) -> dict[str, Any]:
+    """Un rectángulo que toca un borde de la tarjeta se prolonga hasta el borde del sangrado, para
+    que un corte ligeramente desplazado no deje un filo blanco. Lo que no toca el borde (textos,
+    foto, QR, formas libres) no se toca: deformarlo cambiaría el diseño."""
+    if (el.get('tipo') or el.get('t')) not in _TIPOS_EXTENSIBLES:
+        return el
+    x, y = _numero(el.get('x')), _numero(el.get('y'))
+    w, h = _numero(el.get('w'), 10.0), _numero(el.get('h'), 10.0)
+    tol = _TOLERANCIA_BORDE_MM
+    if x + w >= ancho_mm - tol:
+        w = ancho_mm + sangrado_mm - x
+    if x <= tol:
+        w += x + sangrado_mm
+        x = -sangrado_mm
+    if y + h >= alto_mm - tol:
+        h = alto_mm + sangrado_mm - y
+    if y <= tol:
+        h += y + sangrado_mm
+        y = -sangrado_mm
+    return {**el, 'x': x, 'y': y, 'w': w, 'h': h}
+
+
+def _marcas_corte_individual(c: canvas.Canvas, x: float, y: float, ancho: float, alto: float,
+                             sangrado: float, margen: float) -> None:
+    """Marcas de corte en las cuatro esquinas del corte final, fuera del sangrado."""
+    separacion = sangrado + 1 * MM_A_PT
+    largo = max(margen - 1.5 * MM_A_PT, 2 * MM_A_PT)
+    c.saveState()
+    c.setStrokeColor(HexColor('#000000'))
+    c.setLineWidth(0.25)
+    for px, dx in ((x, -1), (x + ancho, 1)):
+        for py, dy in ((y, -1), (y + alto, 1)):
+            c.line(px + dx * separacion, py, px + dx * (separacion + largo), py)
+            c.line(px, py + dy * separacion, px, py + dy * (separacion + largo))
+    c.restoreState()
+
+
 def dibujar_cara(
     c: canvas.Canvas,
     definicion: dict[str, Any],
@@ -840,6 +883,7 @@ def dibujar_cara(
     cara: str,
     x_offset: float = 0.0,
     y_offset: float = 0.0,
+    sangrado_mm: float = 0.0,
 ) -> None:
     """Dibuja una cara completa de la credencial con su esquina inferior izquierda en
     (`x_offset`, `y_offset`). Es el ÚNICO dibujador de caras: lo usan el PDF individual y el
@@ -851,43 +895,72 @@ def dibujar_cara(
     datos_dict, foto_bytes = _normalizar_datos(datos)
     colores_regla = resolver_color_carnet(definicion, datos_dict)
 
+    sangrado_pt = max(0.0, sangrado_mm) * MM_A_PT
+
     c.saveState()
     c.translate(x_offset, y_offset)
     recorte = c.beginPath()
-    recorte.rect(0, 0, ancho_pt, alto_pt)
+    # Con sangrado, la cara se dibuja (y se recorta) un poco más allá del corte final.
+    recorte.rect(-sangrado_pt, -sangrado_pt, ancho_pt + 2 * sangrado_pt, alto_pt + 2 * sangrado_pt)
     c.clipPath(recorte, stroke=0, fill=0)
 
     bg_cfg = definicion.get('bg', {})
     color_fondo = bg_cfg.get(cara, '#ffffff') if isinstance(bg_cfg, dict) else '#ffffff'
     c.setFillColor(_hex_seguro(color_fondo, '#ffffff'))
-    c.rect(0, 0, ancho_pt, alto_pt, fill=1, stroke=0)
+    c.rect(-sangrado_pt, -sangrado_pt, ancho_pt + 2 * sangrado_pt, alto_pt + 2 * sangrado_pt, fill=1, stroke=0)
 
     for el in elementos_de_cara(definicion, cara):
         if el.get('oculto') or el.get('hidden'):
             continue
+        if sangrado_pt:
+            el = _extender_al_sangrado(el, ancho_mm, alto_mm, sangrado_mm)
         _dibujar_elemento(c, el, datos_dict, foto_bytes, colores_regla, ancho_pt, alto_mm)
 
     c.restoreState()
 
 
-def generar_carnet_pdf_fiel(definicion: dict[str, Any], datos: DatosCarnetPdf | dict[str, Any]) -> bytes:
+def generar_carnet_pdf_fiel(
+    definicion: dict[str, Any],
+    datos: DatosCarnetPdf | dict[str, Any],
+    sangrado_mm: float = 0.0,
+    marcas_corte: bool = False,
+) -> bytes:
     """
     Motor canónico de impresión fiel ReportLab (O44 - E8).
     Interpreta capa por capa la definición geométrica y genera un documento PDF de 2 páginas
     (anverso y reverso) respetando dimensiones milimétricas, fuentes institucionales y reglas de color.
+
+    Formato imprenta (B-3): con `sangrado_mm` y/o `marcas_corte` la página crece para alojar el
+    sangrado y las marcas; el PDF declara TrimBox (corte final) y BleedBox (sangrado).
     """
     ancho_mm, alto_mm = dimensiones_mm(definicion)
     datos_dict, _ = _normalizar_datos(datos)
+    ancho_pt, alto_pt = ancho_mm * MM_A_PT, alto_mm * MM_A_PT
+    sangrado_mm = max(0.0, float(sangrado_mm or 0))
+    sangrado_pt = sangrado_mm * MM_A_PT
+    margen_pt = MARGEN_MARCAS_MM * MM_A_PT if marcas_corte else 0.0
+    desplazamiento = sangrado_pt + margen_pt
 
     buffer = BytesIO()
-    c = canvas.Canvas(buffer, pagesize=(ancho_mm * MM_A_PT, alto_mm * MM_A_PT), pageCompression=0)
+    c = canvas.Canvas(
+        buffer,
+        pagesize=(ancho_pt + 2 * desplazamiento, alto_pt + 2 * desplazamiento),
+        pageCompression=0,
+    )
     c.setAuthor("GATH - Sistema de Carnetización Institucional")
     nombre_doc = datos_dict.get('nombre_completo', 'Credencial')
     c.setTitle(f"Carnet {nombre_doc}")
     c.setSubject("Credencial Institucional Oficial")
 
     for idx_cara, cara in enumerate(('anverso', 'reverso')):
-        dibujar_cara(c, definicion, datos, cara)
+        dibujar_cara(c, definicion, datos, cara, desplazamiento, desplazamiento, sangrado_mm)
+        if marcas_corte:
+            _marcas_corte_individual(c, desplazamiento, desplazamiento, ancho_pt, alto_pt, sangrado_pt, margen_pt)
+        if desplazamiento:
+            corte = (desplazamiento, desplazamiento, desplazamiento + ancho_pt, desplazamiento + alto_pt)
+            c.setTrimBox(corte)
+            c.setBleedBox((corte[0] - sangrado_pt, corte[1] - sangrado_pt,
+                           corte[2] + sangrado_pt, corte[3] + sangrado_pt))
         if idx_cara == 0:
             c.showPage()
 
@@ -895,7 +968,12 @@ def generar_carnet_pdf_fiel(definicion: dict[str, Any], datos: DatosCarnetPdf | 
     return buffer.getvalue()
 
 
-def generar_carnet_pdf(datos: DatosCarnetPdf, definicion: dict[str, Any] | None = None) -> bytes:
+def generar_carnet_pdf(
+    datos: DatosCarnetPdf,
+    definicion: dict[str, Any] | None = None,
+    sangrado_mm: float = 0.0,
+    marcas_corte: bool = False,
+) -> bytes:
     """
     Función fachada retrocompatible.
     Si se suministra una definición JSON (o se recurre a la plantilla por defecto),
@@ -904,7 +982,7 @@ def generar_carnet_pdf(datos: DatosCarnetPdf, definicion: dict[str, Any] | None 
     el renderizado de compatibilidad previa.
     """
     if definicion is not None:
-        return generar_carnet_pdf_fiel(definicion, datos)
+        return generar_carnet_pdf_fiel(definicion, datos, sangrado_mm, marcas_corte)
 
     # Si hay una imagen fija legada explícita y no hay definición nueva, usar el layout previo
     if datos.plantilla_path and not definicion:
@@ -935,4 +1013,4 @@ def generar_carnet_pdf(datos: DatosCarnetPdf, definicion: dict[str, Any] | None 
 
     # Por defecto en GATH: motor canónico de dos caras de alta fidelidad
     def_canonica = plantilla_defecto_trabajador()
-    return generar_carnet_pdf_fiel(def_canonica, datos)
+    return generar_carnet_pdf_fiel(def_canonica, datos, sangrado_mm, marcas_corte)

@@ -70,6 +70,7 @@ def emitir_carnet_y_pdf(
     nombre_override: str | None = None,
     motivo_reemision: str | None = None,
     detalle: str | None = None,
+    imprenta: bool = False,
 ) -> EmisionCarnet:
     """Emite el carnet del empleado y devuelve el PDF binario generado."""
     reemision = normalizar_reemision(motivo_reemision, detalle)
@@ -94,7 +95,10 @@ def emitir_carnet_y_pdf(
         observaciones=_observaciones_con_reemision(reemision, observaciones),
         plantilla_id=plantilla_id,
     )
-    pdf = repo.generar_pdf(carnet_id=carnet.id, nombre_override=nombre_override)
+    if imprenta:
+        pdf = repo.generar_pdf(carnet_id=carnet.id, nombre_override=nombre_override, imprenta=True)
+    else:
+        pdf = repo.generar_pdf(carnet_id=carnet.id, nombre_override=nombre_override)
     return EmisionCarnet(
         carnet=carnet,
         pdf=pdf,

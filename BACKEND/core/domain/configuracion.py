@@ -52,6 +52,7 @@ CLAVE_CARNETIZACION_VIGENCIA_PASIVO_MESES = 'carnetizacion.vigencia_pasivo_meses
 CLAVE_CARNETIZACION_VIGENCIA_EXTERNO_DIAS = 'carnetizacion.vigencia_externo_dias'
 # Tamaño mínimo (mm) del QR de una plantilla publicada para que SILOG lo lea con un teléfono.
 CLAVE_CARNETIZACION_QR_TAMANO_MINIMO_MM = 'carnetizacion.qr_tamano_minimo_mm'
+CLAVE_CARNETIZACION_SANGRADO_MM = 'carnetizacion.sangrado_mm'
 
 ALCANCE_CARNET_NADIE = 'nadie'
 ALCANCE_CARNET_TODOS = 'todos'
