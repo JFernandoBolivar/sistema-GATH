@@ -24,6 +24,8 @@ class RepoPortalMemoria:
         self.activo = previo if activo is None else activo
         self.vista_previa = vista_previa
         self.emitidos = []
+        self.solicitudes = []
+        self.canceladas = []
 
     def puede_ver_carnet(self, cedula):
         return self.puede_ver
@@ -44,8 +46,20 @@ class RepoPortalMemoria:
         return self.previo
 
     def emitir_carnet(self, cedula, motivo_id, observaciones):
+        # El portal ya no emite: si se llamara, la prueba lo detecta.
         self.emitidos.append((cedula, motivo_id, observaciones))
         return MagicMock(id=99)
+
+    def crear_solicitud_carnet(self, cedula, motivo_id, observaciones):
+        self.solicitudes.append((cedula, motivo_id, observaciones))
+        return {"id": "s-1", "cedula": cedula, "estado": "PENDIENTE", "motivo_id": motivo_id}
+
+    def ultima_solicitud_carnet(self, cedula):
+        return self.solicitudes and {"id": "s-1", "cedula": cedula, "estado": "PENDIENTE"} or None
+
+    def cancelar_solicitud_carnet(self, cedula, solicitud_id):
+        self.canceladas.append((cedula, solicitud_id))
+        return {"id": solicitud_id, "cedula": cedula, "estado": "CANCELADA"}
 
     def obtener_datos_complementarios(self, cedula):
         return None
@@ -173,9 +187,21 @@ def test_solicitar_mi_carnet_sin_motivo_es_primera_emision_si_no_hay_previo():
     from apps.autogestion.application.use_cases.obtener_mi_expediente import solicitar_mi_carnet
 
     repo = RepoPortalMemoria(previo=False)
-    solicitar_mi_carnet(repo, "V-1")
-    assert repo.emitidos[0][:2] == ("V-1", 1)
-    assert "Autogestión" in repo.emitidos[0][2]
+    solicitud = solicitar_mi_carnet(repo, "V-1", observaciones="  Perdí el anterior  ")
+    assert repo.solicitudes == [("V-1", 1, "Perdí el anterior")]
+    assert solicitud["estado"] == "PENDIENTE"
+    # Decisión 2026-11-20: el trabajador solicita; RRHH emite desde la bandeja.
+    assert repo.emitidos == []
+
+
+def test_cancelar_mi_solicitud_de_carnet():
+    from apps.autogestion.application.use_cases.obtener_mi_expediente import (
+        cancelar_mi_solicitud_carnet,
+    )
+
+    repo = RepoPortalMemoria()
+    assert cancelar_mi_solicitud_carnet(repo, "V-1", "s-1")["estado"] == "CANCELADA"
+    assert repo.canceladas == [("V-1", "s-1")]
 
 
 def test_solicitar_mi_carnet_sin_motivo_es_reposicion_si_hay_previo():
@@ -183,7 +209,7 @@ def test_solicitar_mi_carnet_sin_motivo_es_reposicion_si_hay_previo():
 
     repo = RepoPortalMemoria(previo=True)
     solicitar_mi_carnet(repo, "V-1")
-    assert repo.emitidos[0][:2] == ("V-1", 2)
+    assert repo.solicitudes[0][:2] == ("V-1", 2)
 
 
 def test_solicitar_mi_carnet_motivo_no_numerico_es_error_de_validacion_no_500():

@@ -42,76 +42,14 @@ import { BarraFiltros, type FiltroActivoChip } from "@/shared/ui/components/barr
 import {
   generarCarnetPdfAction,
   getMotivosCarnetAction,
+  listarSolicitudesCarnetAction,
+  rechazarSolicitudCarnetAction,
 } from "../../infrastructure/actions/carnetizacion-actions";
 import type { MotivoOption } from "../../domain/entities/carnet";
+import { solicitudDesdeApi, type SolicitudCarnetItem } from "../../domain/entities/solicitud-carnet";
 
-export type EstadoSolicitudCarnet = "PENDIENTE" | "APROBADA" | "RECHAZADA";
-
-export interface SolicitudCarnetItem {
-  id: string | number;
-  cedula: string;
-  nombres: string;
-  apellidos: string;
-  nombreCompleto: string;
-  cargo: string;
-  departamento: string;
-  poblacion: "ACTIVO" | "PASIVO";
-  motivoSolicitud: string;
-  justificacion: string;
-  fechaSolicitud: string;
-  estado: EstadoSolicitudCarnet;
-  motivoRechazo?: string;
-  carnetAnteriorEstado?: "ACTIVO" | "VENCIDO" | "NINGUNO";
-}
-
-// Datos iniciales de contingencia mientras el backend expone el endpoint canónico
-const SOLICITUDES_INICIALES: SolicitudCarnetItem[] = [
-  {
-    id: "SOL-2026-0042",
-    cedula: "18456789",
-    nombres: "JOSÉ FERNANDO",
-    apellidos: "BOLÍVAR HERNÁNDEZ",
-    nombreCompleto: "BOLÍVAR HERNÁNDEZ, JOSÉ FERNANDO",
-    cargo: "Especialista en Seguridad de Telecomunicaciones",
-    departamento: "Gerencia de Operaciones y Redes",
-    poblacion: "ACTIVO",
-    motivoSolicitud: "RENOVACIÓN POR VENCIMIENTO",
-    justificacion: "Mi carnet institucional venció el mes pasado y requiero credencial vigente para acceso a salas técnicas.",
-    fechaSolicitud: "2026-11-09T08:15:00Z",
-    estado: "PENDIENTE",
-    carnetAnteriorEstado: "VENCIDO",
-  },
-  {
-    id: "SOL-2026-0041",
-    cedula: "10510831",
-    nombres: "ODALIS",
-    apellidos: "RAMÍREZ",
-    nombreCompleto: "RAMÍREZ, ODALIS",
-    cargo: "Personal Jubilado",
-    departamento: "Gestión de Personal Pasivo",
-    poblacion: "PASIVO",
-    motivoSolicitud: "DETERIORO O DAÑO FÍSICO",
-    justificacion: "La credencial de jubilada presenta desgaste en la banda magnética y el código QR está ilegible.",
-    fechaSolicitud: "2026-11-09T07:45:00Z",
-    estado: "PENDIENTE",
-    carnetAnteriorEstado: "ACTIVO",
-  },
-  {
-    id: "SOL-2026-0039",
-    cedula: "3403630",
-    nombres: "WALTER",
-    apellidos: "LANDAETA",
-    nombreCompleto: "LANDAETA, WALTER",
-    cargo: "Jubilado Especial",
-    departamento: "Gestión de Personal Pasivo",
-    poblacion: "PASIVO",
-    motivoSolicitud: "EXTRAVÍO O PÉRDIDA",
-    justificacion: "Extravío de billetera con documentación personal y carnet de jubilado.",
-    fechaSolicitud: "2026-11-08T16:20:00Z",
-    estado: "APROBADA",
-    carnetAnteriorEstado: "NINGUNO",
-  },
-];
+// Tipos de la bandeja en el dominio; se re-exportan para quien los importaba desde aquí.
+export type { EstadoSolicitudCarnet, SolicitudCarnetItem } from "../../domain/entities/solicitud-carnet";
 
 function downloadPdfBase64(base64: string, filename: string) {
   const byteCharacters = atob(base64);
@@ -171,7 +109,19 @@ export function resolverMotivoDeclarado(
 export function SolicitudesCarnetView() {
   const router = useRouter();
 
-  const [solicitudes, setSolicitudes] = useState<SolicitudCarnetItem[]>(SOLICITUDES_INICIALES);
+  // Solicitudes reales hechas por los trabajadores desde Autogestión (antes: datos de ejemplo).
+  const {
+    data: solicitudesApi,
+    isLoading: cargandoSolicitudes,
+    error: errorSolicitudes,
+    mutate: recargarSolicitudes,
+  } = useSWR("solicitudes-carnet-bandeja", () => listarSolicitudesCarnetAction(), {
+    revalidateOnFocus: true,
+  });
+  const solicitudes = useMemo<SolicitudCarnetItem[]>(
+    () => (solicitudesApi ?? []).map(solicitudDesdeApi),
+    [solicitudesApi],
+  );
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState<string>("TODOS");
   const [filtroPoblacion, setFiltroPoblacion] = useState<string>("TODAS");
@@ -272,6 +222,7 @@ export function SolicitudesCarnetView() {
         PENDIENTE: "Pendientes",
         APROBADA: "Aprobadas",
         RECHAZADA: "Rechazadas",
+        CANCELADA: "Retiradas",
       };
       chips.push({
         id: "estado",
@@ -306,7 +257,7 @@ export function SolicitudesCarnetView() {
     setSolicitudEnDictamen(item);
     setObservacionesDictamen("");
     setEditandoMotivo(false);
-    setMotivoDictamenId(resolverMotivoDeclarado(item.motivoSolicitud, listaMotivos));
+    setMotivoDictamenId(item.motivoId || resolverMotivoDeclarado(item.motivoSolicitud, listaMotivos));
   };
 
   const handleAprobarYEmitir = () => {
@@ -323,27 +274,25 @@ export function SolicitudesCarnetView() {
         const nombre = solicitudEnDictamen.nombreCompleto;
         const motivo = motivoDictamenId;
 
-        // Intentar generar el PDF directamente si la API responde
-        const result = await generarCarnetPdfAction(cedula, motivo, nombre);
+        // Aprobar = emitir el carnet; el backend cierra la solicitud en la misma transacción
+        // y avisa al trabajador.
+        const result = await generarCarnetPdfAction(cedula, motivo, nombre, undefined, {
+          solicitudId: solicitudEnDictamen.id,
+          observaciones: observacionesDictamen.trim() || undefined,
+        });
         if (!result.success || !result.data) {
           toast.error(
-            result.message ||
-              "No fue posible emitir el carnet. Use la consola de emisión e indique el motivo de la reemisión.",
+            result.status === 409 && !result.message?.includes("atendida")
+              ? "El titular tiene un carnet vigente: emita la reposición desde la Consola de Emisión indicando el motivo de la reemisión."
+              : result.message || "No fue posible emitir el carnet.",
           );
+          await recargarSolicitudes();
           return;
         }
         downloadPdfBase64(result.data, `carnet_aprobado_${cedula}.pdf`);
+        await recargarSolicitudes();
 
-        // Actualizar estado de la solicitud en la bandeja
-        setSolicitudes((prev) =>
-          prev.map((s) =>
-            s.id === solicitudEnDictamen.id
-              ? { ...s, estado: "APROBADA" }
-              : s,
-          ),
-        );
-
-        toast.success(`Solicitud ${solicitudEnDictamen.id} aprobada. Credencial emitida exitosamente.`);
+        toast.success(`Solicitud de ${nombre} aprobada. Credencial emitida y trabajador notificado.`);
         setSolicitudEnDictamen(null);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Error al procesar dictamen";
@@ -360,15 +309,16 @@ export function SolicitudesCarnetView() {
     }
 
     startTransitionDictamen(async () => {
-      setSolicitudes((prev) =>
-        prev.map((s) =>
-          s.id === solicitudEnDictamen.id
-            ? { ...s, estado: "RECHAZADA", motivoRechazo: observacionesDictamen.trim() }
-            : s,
-        ),
+      const res = await rechazarSolicitudCarnetAction(
+        solicitudEnDictamen.id,
+        observacionesDictamen.trim(),
       );
-
-      toast.info(`Solicitud ${solicitudEnDictamen.id} rechazada con motivo documentado.`);
+      await recargarSolicitudes();
+      if (!res.success) {
+        toast.error(res.message);
+        return;
+      }
+      toast.info(`Solicitud de ${solicitudEnDictamen.nombreCompleto} rechazada; se notificó al trabajador.`);
       setSolicitudEnDictamen(null);
     });
   };
@@ -434,6 +384,7 @@ export function SolicitudesCarnetView() {
                 <SelectItem value="PENDIENTE">Pendientes de revisión</SelectItem>
                 <SelectItem value="APROBADA">Aprobadas y emitidas</SelectItem>
                 <SelectItem value="RECHAZADA">Rechazadas</SelectItem>
+                <SelectItem value="CANCELADA">Retiradas por el trabajador</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -477,10 +428,28 @@ export function SolicitudesCarnetView() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40">
-                {solicitudesPaginadas.length === 0 ? (
+                {cargandoSolicitudes ? (
                   <tr>
                     <td colSpan={7} className="p-8 text-center text-muted-foreground">
-                      No hay solicitudes registradas que coincidan con los filtros aplicados.
+                      <Loader2 className="inline size-4 animate-spin mr-2" />
+                      Cargando solicitudes…
+                    </td>
+                  </tr>
+                ) : errorSolicitudes ? (
+                  <tr>
+                    <td colSpan={7} className="p-8 text-center text-destructive">
+                      No se pudieron cargar las solicitudes.{" "}
+                      <button type="button" className="underline" onClick={() => void recargarSolicitudes()}>
+                        Reintentar
+                      </button>
+                    </td>
+                  </tr>
+                ) : solicitudesPaginadas.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="p-8 text-center text-muted-foreground">
+                      {solicitudes.length === 0
+                        ? "No hay solicitudes de carnet. Las envían los trabajadores desde Autogestión › Mi carnet."
+                        : "No hay solicitudes que coincidan con los filtros aplicados."}
                     </td>
                   </tr>
                 ) : (
@@ -555,6 +524,11 @@ export function SolicitudesCarnetView() {
                         {item.estado === "RECHAZADA" && (
                           <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-[10px] font-semibold">
                             Rechazada
+                          </Badge>
+                        )}
+                        {item.estado === "CANCELADA" && (
+                          <Badge variant="outline" className="text-muted-foreground text-[10px] font-semibold">
+                            Retirada
                           </Badge>
                         )}
                       </td>
@@ -772,9 +746,12 @@ export function SolicitudesCarnetView() {
                         <Input
                           disabled
                           value={
-                            solicitudEnDictamen.poblacion === POBLACION_ACTIVO
-                              ? "Plantilla Oficial Activos (Azul Marino)"
-                              : "Plantilla Oficial Pasivos (Verde Institucional)"
+                            // La elige el backend al emitir: la vigente y publicada del tipo.
+                            solicitudEnDictamen.poblacion === "SIN_ASIGNACION"
+                              ? "Ninguna: el titular no tiene asignación vigente"
+                              : solicitudEnDictamen.poblacion === POBLACION_ACTIVO
+                                ? "La vigente de personal activo"
+                                : "La vigente de personal pasivo"
                           }
                           className="h-10 mt-1 text-xs bg-muted/50"
                         />
@@ -841,7 +818,7 @@ export function SolicitudesCarnetView() {
                       variant="default"
                       size="sm"
                       onClick={handleAprobarYEmitir}
-                      disabled={isPendingDictamen}
+                      disabled={isPendingDictamen || solicitudEnDictamen.poblacion === "SIN_ASIGNACION"}
                       className="text-xs font-semibold min-h-11 px-4"
                     >
                       {isPendingDictamen ? (

@@ -13,6 +13,7 @@ from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
     MotivosEmisionModel,
     PlantillaCarnetModel,
     PreferenciaPrivacidadCarnetModel,
+    SolicitudCarnetModel,
     TipoCredencialModel,
 )
 from apps.carnetizacion.infrastructure.models.credencial_externa_model import (
@@ -35,4 +36,5 @@ __all__ = [
     'EventoZonaModel',
     'EventoInvitadoModel',
     'EventoRegistroAccesoModel',
+    'SolicitudCarnetModel',
 ]

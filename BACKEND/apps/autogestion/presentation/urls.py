@@ -12,6 +12,7 @@ from apps.autogestion.presentation.views.autogestion_views import (
     PreguntasCensoListView,
     ReporteCensoDependenciasView,
     SolicitarCarnetView,
+    CancelarSolicitudCarnetView,
 )
 
 from apps.autogestion.presentation.views.catalogos_views import (
@@ -76,6 +77,11 @@ urlpatterns = [
     # Mi expediente integral (datos de empleado y cargas familiares)
     path('mi-expediente/', MiExpedienteView.as_view(), name='mi-expediente'),
     path('solicitar-carnet/', SolicitarCarnetView.as_view(), name='solicitar-carnet'),
+    path(
+        'solicitud-carnet/<str:solicitud_id>/cancelar/',
+        CancelarSolicitudCarnetView.as_view(),
+        name='cancelar-solicitud-carnet',
+    ),
     path('mi-carnet/acceso/', MiCarnetAccesoView.as_view(), name='mi-carnet-acceso'),
     path('mi-carnet/vista-previa/', MiCarnetVistaPreviaView.as_view(), name='mi-carnet-vista-previa'),
     path('mi-carnet/pdf/', MiCarnetPdfView.as_view(), name='mi-carnet-pdf'),

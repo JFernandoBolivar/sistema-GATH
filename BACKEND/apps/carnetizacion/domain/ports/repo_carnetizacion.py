@@ -307,3 +307,29 @@ class RepoCarnetizacion(Protocol):
     ) -> int:
         """Anula automáticamente cualquier carnet activo tras el egreso de un trabajador."""
         ...
+
+    # --- Solicitudes de carnet (Autogestión → bandeja de RRHH) ---
+
+    def crear_solicitud_carnet(self, cedula: str, motivo_id: int, justificacion: str = '') -> dict:
+        """Registra la solicitud del trabajador (una pendiente a la vez)."""
+        ...
+
+    def ultima_solicitud_carnet(self, cedula: str) -> dict | None:
+        ...
+
+    def cancelar_solicitud_carnet(self, cedula: str, solicitud_id: str) -> dict:
+        ...
+
+    def listar_solicitudes_carnet(self, estado: str | None = None) -> list[dict]:
+        ...
+
+    def exigir_solicitud_pendiente(self, solicitud_id: str, cedula: str) -> None:
+        ...
+
+    def aprobar_solicitud_carnet(
+        self, solicitud_id: str, cedula: str, carnet_id: int, resuelta_por: str,
+    ) -> dict:
+        ...
+
+    def rechazar_solicitud_carnet(self, solicitud_id: str, motivo: str, resuelta_por: str) -> dict:
+        ...

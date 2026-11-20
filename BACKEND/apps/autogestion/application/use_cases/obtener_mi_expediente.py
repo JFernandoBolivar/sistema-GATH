@@ -13,7 +13,6 @@ from core.domain.exceptions import NotFoundError, PermissionDeniedError, Validat
 
 MOTIVO_PRIMERA_EMISION = 1
 MOTIVO_REPOSICION = 2
-OBSERVACION_SOLICITUD_PORTAL = 'Solicitud desde Portal de Autogestión CONATEL'
 
 
 
@@ -32,6 +31,8 @@ class MiExpedienteDTO:
     motivos_carnet: list[dict] = field(default_factory=list)
     datos_complementarios: Any = None
     puede_ver_carnet: bool = False
+    # Última solicitud de carnet (estado PENDIENTE / APROBADA / RECHAZADA / CANCELADA) o None.
+    solicitud_carnet: dict | None = None
 
     @property
     def carnet_activo(self):
@@ -63,13 +64,19 @@ def obtener_mi_expediente(repo: RepoPortalTrabajador, cedula: str) -> MiExpedien
         motivos_carnet=motivos,
         datos_complementarios=repo.obtener_datos_complementarios(cedula),
         puede_ver_carnet=puede_carnet,
+        solicitud_carnet=(
+            repo.ultima_solicitud_carnet(cedula)
+            if puede_carnet and hasattr(repo, 'ultima_solicitud_carnet') else None
+        ),
     )
 
 
 def solicitar_mi_carnet(
     repo: RepoPortalTrabajador, cedula: str, motivo_id: Any = None, observaciones: str | None = None
 ):
-    """Emite el carnet del propio trabajador; sin motivo, 1ª emisión o reposición según su historial."""
+    """Registra la SOLICITUD de carnet del propio trabajador (sin motivo: 1ª emisión o reposición
+    según su historial). Recursos Humanos revisa foto y datos y emite o rechaza desde la bandeja de
+    Carnetización (decisión del 2026-11-20); antes este paso emitía el carnet al instante."""
     cedula = _cedula_limpia(cedula)
     if hasattr(repo, 'puede_ver_carnet') and not repo.puede_ver_carnet(cedula):
         raise PermissionDeniedError("El módulo de carnet institucional no está habilitado para su usuario.")
@@ -83,7 +90,14 @@ def solicitar_mi_carnet(
         raise ValidationError(
             "Usted ya posee un carnet institucional. Seleccione renovación, reposición o actualización."
         )
-    return repo.emitir_carnet(cedula, motivo_id, observaciones or OBSERVACION_SOLICITUD_PORTAL)
+    return repo.crear_solicitud_carnet(cedula, motivo_id, (observaciones or '').strip())
+
+
+def cancelar_mi_solicitud_carnet(repo: RepoPortalTrabajador, cedula: str, solicitud_id: str) -> dict:
+    cedula = _cedula_limpia(cedula)
+    if not str(solicitud_id or '').strip():
+        raise ValidationError("Indique la solicitud a retirar.")
+    return repo.cancelar_solicitud_carnet(cedula, str(solicitud_id).strip())
 
 
 def obtener_mi_carnet_pdf(repo: RepoPortalTrabajador, cedula: str) -> bytes:

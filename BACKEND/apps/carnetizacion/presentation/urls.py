@@ -35,6 +35,8 @@ from apps.carnetizacion.presentation.views.carnetizacion_views import (
     CampoPersonalizadoDetailView,
     CarnetActualizarVistaPreviaView,
     CarnetBuscarPersonalView,
+    SolicitudCarnetRechazarView,
+    SolicitudesCarnetListView,
     CarnetGenerarView,
     CarnetPdfView,
     CarnetsListView,
@@ -81,6 +83,12 @@ urlpatterns = [
     # Carnets
     path('', CarnetsListView.as_view(), name='carnets-list'),
     path('buscar/', CarnetBuscarPersonalView.as_view(), name='carnet-buscar'),
+    path('solicitudes/', SolicitudesCarnetListView.as_view(), name='carnet-solicitudes'),
+    path(
+        'solicitudes/<str:solicitud_id>/rechazar/',
+        SolicitudCarnetRechazarView.as_view(),
+        name='carnet-solicitud-rechazar',
+    ),
     path('motivos/', MotivosEmisionListView.as_view(), name='motivos-list'),
     path('actualizar-vista-previa/<str:cedula>/', CarnetActualizarVistaPreviaView.as_view(), name='carnet-actualizar-vista-previa'),
     path('subir-foto/<str:cedula>/', CarnetSubirFotoView.as_view(), name='carnet-subir-foto'),

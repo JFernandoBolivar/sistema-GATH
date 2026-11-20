@@ -32,6 +32,11 @@ from apps.carnetizacion.application.use_cases.emitir_carnet import (
     listar_motivos_emision,
 )
 from apps.carnetizacion.application.use_cases.generar_pdf_carnet import generar_pdf_carnet
+from apps.carnetizacion.application.use_cases.solicitudes_carnet import (
+    listar_solicitudes_carnet_uc,
+    rechazar_solicitud_carnet_uc,
+)
+from apps.carnetizacion.infrastructure.notificaciones_solicitudes import notificar_solicitud_resuelta
 from apps.carnetizacion.application.use_cases.gestionar_campos import (
     actualizar_campo_personalizado_uc,
     crear_campo_personalizado_uc,
@@ -681,6 +686,59 @@ class CarnetSubirFotoView(APIView):
         return ok({"vista_previa": html, "filename": archivo.name, "message": "Foto subida exitosamente"})
 
 
+def _auditar_solicitud(request, accion: str, solicitud: dict) -> None:
+    try:
+        registrar_auditoria(
+            trace_id=getattr(request, 'trace_id', None) or uuid.uuid4().hex,
+            actor_id=getattr(request.user, 'pk', None),
+            actor_cedula=str(getattr(request.user, 'cedula_id', '') or ''),
+            accion=accion,
+            modulo='carnetizacion',
+            recurso_tipo='SolicitudCarnet',
+            recurso_id=solicitud['id'],
+            estado_nuevo={
+                'cedula': solicitud['cedula'],
+                'estado': solicitud['estado'],
+                'carnet_id': solicitud.get('carnet_id'),
+                'motivo_rechazo': solicitud.get('motivo_rechazo') or '',
+            },
+            **origen_de_peticion(request),
+        )
+    except Exception:  # noqa: BLE001 - la auditoría no debe tumbar la operación
+        logging.getLogger('security_backend').exception(
+            'No se pudo auditar la solicitud de carnet %s', solicitud.get('id'),
+        )
+
+
+class SolicitudesCarnetListView(APIView):
+    """Bandeja de RRHH: solicitudes de carnet hechas por los trabajadores desde Autogestión."""
+
+    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.ver')]
+
+    @extend_schema(tags=['Carnetización'], summary='Listar solicitudes de carnet (bandeja de RRHH)')
+    def get(self, request):
+        return ok(listar_solicitudes_carnet_uc(
+            RepoCarnetizacionORM(), request.query_params.get('estado'),
+        ))
+
+
+class SolicitudCarnetRechazarView(APIView):
+    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.emitir')]
+
+    @extend_schema(tags=['Carnetización'], summary='Rechazar una solicitud de carnet con motivo')
+    def post(self, request, solicitud_id: str):
+        with transaction.atomic():
+            solicitud = rechazar_solicitud_carnet_uc(
+                RepoCarnetizacionORM(),
+                solicitud_id,
+                request.data.get('motivo'),
+                str(getattr(request.user, 'cedula_id', '') or ''),
+            )
+            notificar_solicitud_resuelta(solicitud)
+        _auditar_solicitud(request, 'carnetizacion.solicitud_rechazada', solicitud)
+        return ok(solicitud, message='Solicitud rechazada; se notificó al trabajador.')
+
+
 class CarnetGenerarView(APIView):
     permission_classes = [IsAuthenticated, HasPermission('carnetizacion.emitir')]
 
@@ -697,6 +755,12 @@ class CarnetGenerarView(APIView):
         nombre_override = datos_editados.get('nombre') if isinstance(datos_editados, dict) else None
         motivo_reemision = request.data.get('motivo_reemision')
         detalle = request.data.get('detalle')
+        # Aprobación desde la bandeja: la emisión cierra la solicitud del trabajador.
+        solicitud_id = str(request.data.get('solicitud_id') or '').strip() or None
+        repo = RepoCarnetizacionORM()
+        if solicitud_id:
+            repo.exigir_solicitud_pendiente(solicitud_id, cedula)
+        solicitud_aprobada = None
 
         try:
             motivo = int(motivo_id) if motivo_id else 1
@@ -710,7 +774,7 @@ class CarnetGenerarView(APIView):
         try:
             with transaction.atomic():
                 emision = emitir_carnet_y_pdf(
-                    RepoCarnetizacionORM(),
+                    repo,
                     empleado_cedula=cedula,
                     motivo_id=motivo,
                     observaciones=observaciones,
@@ -719,6 +783,12 @@ class CarnetGenerarView(APIView):
                     motivo_reemision=motivo_reemision,
                     detalle=detalle,
                 )
+                if solicitud_id:
+                    solicitud_aprobada = repo.aprobar_solicitud_carnet(
+                        solicitud_id, cedula, emision.carnet.id,
+                        str(getattr(request.user, 'cedula_id', '') or ''),
+                    )
+                    notificar_solicitud_resuelta(solicitud_aprobada)
         except ReemisionSinMotivoError as exc:
             # T2: 409 con el resumen del carnet vigente para que la consola
             # muestre la fecha y exija el motivo.
@@ -749,6 +819,9 @@ class CarnetGenerarView(APIView):
                 logging.getLogger('security_backend').exception(
                     'No se pudo auditar la reemisión del carnet %s', emision.carnet.id,
                 )
+
+        if solicitud_aprobada:
+            _auditar_solicitud(request, 'carnetizacion.solicitud_aprobada', solicitud_aprobada)
 
         # O46-A: el endpoint debe devolver el PDF binario, no un sobre JSON en base64.
         response = HttpResponse(emision.pdf, content_type='application/pdf')

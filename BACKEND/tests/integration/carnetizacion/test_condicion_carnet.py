@@ -96,7 +96,7 @@ def test_sin_asignacion_no_se_emite_ni_se_previsualiza(escenario):
         repo.emitir_carnet('7700001', 1)
     with pytest.raises(ValidationError, match='asignación vigente'):
         repo.generar_vista_previa('7700001')
-    assert not CarnetEmitidoModel.objects.filter(employee_id='7700001').exists()
+    assert not CarnetEmitidoModel.objects.filter(employee__cedulaidentidad='7700001').exists()
 
 
 def test_egresado_por_abandono_no_recibe_carnet_de_jubilado(escenario):

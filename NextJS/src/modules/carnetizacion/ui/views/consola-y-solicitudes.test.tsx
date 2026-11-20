@@ -56,6 +56,46 @@ vi.mock("../../infrastructure/actions/carnetizacion-actions", () => ({
     data: "JVBERi0xLjQKJcTl8uXr...mock",
     message: "Generado",
   }),
+  // Bandeja: solicitudes reales del backend (aquí, de ejemplo con nombres ficticios).
+  listarSolicitudesCarnetAction: vi.fn().mockResolvedValue([
+    {
+      id: "sol-1",
+      cedula: "11111111",
+      estado: "PENDIENTE",
+      motivo_id: 2,
+      motivo: "RENOVACIÓN POR VENCIMIENTO",
+      justificacion: "Mi carnet venció el mes pasado.",
+      motivo_rechazo: "",
+      carnet_id: null,
+      fecha_solicitud: "2026-11-09T08:15:00Z",
+      fecha_resolucion: null,
+      nombres: "ANA",
+      apellidos: "PRUEBA UNO",
+      cargo: "ANALISTA",
+      departamento: "OFICINA DE PRUEBA",
+      condicion: "ACTIVO",
+      carnet_anterior_estado: "VENCIDO",
+    },
+    {
+      id: "sol-2",
+      cedula: "22222222",
+      estado: "PENDIENTE",
+      motivo_id: 3,
+      motivo: "EXTRAVÍO O PÉRDIDA",
+      justificacion: "Extravío de la billetera.",
+      motivo_rechazo: "",
+      carnet_id: null,
+      fecha_solicitud: "2026-11-08T16:20:00Z",
+      fecha_resolucion: null,
+      nombres: "LUIS",
+      apellidos: "EJEMPLO DOS",
+      cargo: "JUBILADO",
+      departamento: "",
+      condicion: "PASIVO",
+      carnet_anterior_estado: "NINGUNO",
+    },
+  ]),
+  rechazarSolicitudCarnetAction: vi.fn().mockResolvedValue({ success: true, data: null, message: "ok" }),
 }));
 
 describe("Consola de Emisión Unificada (O51 - 2.1)", () => {
@@ -100,19 +140,19 @@ describe("Bandeja Centralizada de Solicitudes de Carnet (O51 - 2.2)", () => {
     vi.clearAllMocks();
   });
 
-  it("renderiza la bandeja con BarraFiltros, contador y tabla de solicitudes", () => {
+  it("renderiza la bandeja con las solicitudes reales del backend", async () => {
     render(<SolicitudesCarnetView />);
 
     expect(screen.getByText("Bandeja de Solicitudes de Carnet")).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Buscar por cédula o nombre del solicitante/i)).toBeInTheDocument();
-    expect(screen.getByText(/BOLÍVAR HERNÁNDEZ, JOSÉ FERNANDO/i)).toBeInTheDocument();
-    expect(screen.getByText(/RAMÍREZ, ODALIS/i)).toBeInTheDocument();
+    expect(await screen.findByText(/PRUEBA UNO, ANA/i)).toBeInTheDocument();
+    expect(screen.getByText(/EJEMPLO DOS, LUIS/i)).toBeInTheDocument();
   });
 
   it("abre el modal de dictamen al pulsar Dictaminar", async () => {
     render(<SolicitudesCarnetView />);
 
-    const btnsDictaminar = screen.getAllByRole("button", { name: /Dictaminar/i });
+    const btnsDictaminar = await screen.findAllByRole("button", { name: /Dictaminar/i });
     expect(btnsDictaminar.length).toBeGreaterThan(0);
 
     fireEvent.click(btnsDictaminar[0]);
@@ -124,14 +164,55 @@ describe("Bandeja Centralizada de Solicitudes de Carnet (O51 - 2.2)", () => {
     });
   });
 
-  it("filtra las solicitudes según el texto ingresado en BarraFiltros", () => {
+  it("filtra las solicitudes según el texto ingresado en BarraFiltros", async () => {
     render(<SolicitudesCarnetView />);
+    await screen.findByText(/PRUEBA UNO, ANA/i);
 
     const input = screen.getByPlaceholderText(/Buscar por cédula o nombre del solicitante/i);
-    fireEvent.change(input, { target: { value: "Odalis" } });
+    fireEvent.change(input, { target: { value: "Luis" } });
 
-    expect(screen.getByText(/RAMÍREZ, ODALIS/i)).toBeInTheDocument();
-    expect(screen.queryByText(/BOLÍVAR HERNÁNDEZ, JOSÉ FERNANDO/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/EJEMPLO DOS, LUIS/i)).toBeInTheDocument();
+    expect(screen.queryByText(/PRUEBA UNO, ANA/i)).not.toBeInTheDocument();
+  });
+
+  it("aprobar emite el carnet enlazando la solicitud", async () => {
+    const acciones = await import("../../infrastructure/actions/carnetizacion-actions");
+    render(<SolicitudesCarnetView />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: /Dictaminar/i }))[0]);
+    fireEvent.click(await screen.findByRole("button", { name: /Aprobar y Emitir Carnet/i }));
+
+    await waitFor(() => {
+      expect(acciones.generarCarnetPdfAction).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Number),
+        expect.any(String),
+        undefined,
+        expect.objectContaining({ solicitudId: expect.stringMatching(/^sol-/) }),
+      );
+    });
+  });
+
+  it("rechazar exige el motivo y llama al backend", async () => {
+    const acciones = await import("../../infrastructure/actions/carnetizacion-actions");
+    render(<SolicitudesCarnetView />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: /Dictaminar/i }))[0]);
+    const rechazar = await screen.findByRole("button", { name: /Rechazar Solicitud/i });
+    fireEvent.click(rechazar);
+    // Sin motivo no se llama al backend.
+    expect(acciones.rechazarSolicitudCarnetAction).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByPlaceholderText(/motivo obligatorio en caso de rechazo/i), {
+      target: { value: "La foto no cumple el formato" },
+    });
+    fireEvent.click(rechazar);
+    await waitFor(() => {
+      expect(acciones.rechazarSolicitudCarnetAction).toHaveBeenCalledWith(
+        expect.stringMatching(/^sol-/),
+        "La foto no cumple el formato",
+      );
+    });
   });
 });
 

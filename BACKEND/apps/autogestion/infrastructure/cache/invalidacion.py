@@ -11,7 +11,10 @@ from django.dispatch import receiver
 
 from apps.cargos.domain.events import cargo_movimiento_ejecutado
 from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
-from apps.carnetizacion.infrastructure.models.carnetizacion_models import CarnetEmitidoModel
+from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
+    CarnetEmitidoModel,
+    SolicitudCarnetModel,
+)
 from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 
@@ -35,8 +38,15 @@ def _cedula_de(instance) -> str | None:
         return instance.cedulaidentidad
     if isinstance(instance, EmployeefamilyModel):
         return instance.employeecedula_id
-    if isinstance(instance, (AsigTrabajoModel, CarnetEmitidoModel)):
+    if isinstance(instance, AsigTrabajoModel):
+        # AsigTrabajo enlaza al empleado por la cédula (to_field).
         return str(instance.employee_id) if instance.employee_id else None
+    if isinstance(instance, CarnetEmitidoModel):
+        # CarnetEmitido enlaza por el id interno: antes se invalidaba con ese id como si
+        # fuera la cédula y el trabajador seguía viendo «sin carnet» hasta 5 minutos.
+        return _cedula_desde_empleado_id(instance.employee_id)
+    if isinstance(instance, SolicitudCarnetModel):
+        return instance.cedula
     return _cedula_desde_empleado_id(getattr(instance, 'empleado_id', None))
 
 

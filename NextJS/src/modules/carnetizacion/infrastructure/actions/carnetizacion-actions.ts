@@ -303,6 +303,42 @@ export async function buscarPersonalCarnetAction(query: string) {
   }
 }
 
+export async function listarSolicitudesCarnetAction(estado?: string) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const { carnetizacionApi } = await import("../http/carnetizacion-api");
+    const result = await carnetizacionApi.listarSolicitudes(estado);
+    await logAudit({ traceId, action: "listarSolicitudesCarnetAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    unstable_rethrow(error);
+    await logAudit({ traceId, action: "listarSolicitudesCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function rechazarSolicitudCarnetAction(solicitudId: string, motivo: string) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const { carnetizacionApi } = await import("../http/carnetizacion-api");
+    const data = await carnetizacionApi.rechazarSolicitud(solicitudId, motivo);
+    await logAudit({ traceId, action: "rechazarSolicitudCarnetAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const, data, message: "Solicitud rechazada; se notificó al trabajador." };
+  } catch (error) {
+    unstable_rethrow(error);
+    await logAudit({ traceId, action: "rechazarSolicitudCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return {
+      success: false as const,
+      data: null,
+      message: error instanceof ApiHttpError ? error.message : "No se pudo rechazar la solicitud.",
+    };
+  }
+}
+
 export async function getMotivosCarnetAction() {
   const traceId = generateTraceId();
   const startedAt = Date.now();
@@ -356,7 +392,7 @@ export async function generarCarnetPdfAction(
   motivoId: number,
   nombre: string,
   plantillaId?: string,
-  opciones?: { motivoReemision?: string; detalle?: string; observaciones?: string },
+  opciones?: { motivoReemision?: string; detalle?: string; observaciones?: string; solicitudId?: string },
 ) {
   const traceId = generateTraceId();
   const startedAt = Date.now();

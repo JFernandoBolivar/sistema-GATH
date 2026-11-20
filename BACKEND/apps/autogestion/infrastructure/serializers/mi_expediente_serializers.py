@@ -27,6 +27,7 @@ def serializar_mi_expediente(dto) -> dict:
         'motivos_carnet': dto.motivos_carnet if puede_ver else [],
         'datos_complementarios': _complementarios(dto.datos_complementarios),
         'puede_ver_carnet': puede_ver,
+        'solicitud_carnet': getattr(dto, 'solicitud_carnet', None) if puede_ver else None,
     }
 
 

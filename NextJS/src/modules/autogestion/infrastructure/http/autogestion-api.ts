@@ -229,6 +229,13 @@ export const autogestionApi = {
     );
   },
 
+  cancelarSolicitudCarnet: async (solicitudId: string): Promise<ApiResponse<null>> => {
+    return apiClient.post<ApiResponse<null>>(
+      `/api/v1/autogestion/solicitud-carnet/${encodeURIComponent(solicitudId)}/cancelar/`,
+      {},
+    );
+  },
+
   descargarMiCarnetPdf: async (): Promise<Blob> => {
     return apiClient.getBlob("/api/v1/autogestion/mi-carnet/pdf/");
   },

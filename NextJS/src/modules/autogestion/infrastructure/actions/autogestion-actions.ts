@@ -409,7 +409,7 @@ export const solicitarCarnetAction = async (payload: {
     });
     return {
       success: true,
-      message: res.message || "Carnet institucional solicitado exitosamente.",
+      message: res.message || "Solicitud de carnet enviada. Recursos Humanos la revisará.",
       data: res.data,
     };
   } catch (error: unknown) {
@@ -426,6 +426,21 @@ export const solicitarCarnetAction = async (payload: {
       message: err.error,
       errores: err.errores,
     };
+  }
+};
+
+export const cancelarSolicitudCarnetAction = async (solicitudId: string) => {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const res = await autogestionApi.cancelarSolicitudCarnet(solicitudId);
+    await logAudit({ traceId, action: "cancelarSolicitudCarnetAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true, message: res.message || "Solicitud de carnet retirada." };
+  } catch (error: unknown) {
+    await logAudit({ traceId, action: "cancelarSolicitudCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const err = errorDeAccion(error, "No se pudo retirar la solicitud de carnet.");
+    return { success: false, message: err.error };
   }
 };
 

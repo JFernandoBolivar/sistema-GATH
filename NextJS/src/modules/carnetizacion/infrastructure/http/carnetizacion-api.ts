@@ -3,6 +3,7 @@
  * (verificado contra `BACKEND/apps/carnetizacion/presentation/urls.py` +
  * `carnetizacion_serializers.py` — Fase 1 y O44 - E3).
  */
+import type { SolicitudCarnetApi } from "../../domain/entities/solicitud-carnet";
 import { apiClient } from "@/shared/infrastructure/http/fetcher-api";
 import type { ApiResponse } from "@/shared/types/api-response";
 
@@ -385,6 +386,23 @@ export const carnetizacionApi = {
     return envelope.data ?? [];
   },
 
+  // --- Solicitudes de carnet hechas desde Autogestión (bandeja de RRHH) ---
+  listarSolicitudes: async (estado?: string) => {
+    const envelope = await apiClient.get<ApiResponse<SolicitudCarnetApi[]>>(
+      "/api/v1/carnetizacion/solicitudes/",
+      { params: { estado: estado || undefined } },
+    );
+    return envelope.data ?? [];
+  },
+
+  rechazarSolicitud: async (solicitudId: string, motivo: string) => {
+    const envelope = await apiClient.post<ApiResponse<SolicitudCarnetApi>>(
+      `/api/v1/carnetizacion/solicitudes/${encodeURIComponent(solicitudId)}/rechazar/`,
+      { motivo },
+    );
+    return envelope.data;
+  },
+
   getMotivos: async () => {
     const envelope = await apiClient.get<ApiResponse<{ id: number; nombre: string }[]>>("/api/v1/carnetizacion/motivos/");
     return envelope.data ?? [];
@@ -423,10 +441,17 @@ export const carnetizacionApi = {
     motivoId: number,
     nombre: string,
     plantillaId?: string,
-    opciones?: { motivoReemision?: string; detalle?: string; observaciones?: string },
+    opciones?: {
+      motivoReemision?: string;
+      detalle?: string;
+      observaciones?: string;
+      /** Aprobación desde la bandeja: la emisión cierra esta solicitud del trabajador. */
+      solicitudId?: string;
+    },
   ) => {
     return apiClient.postBlob(`/api/v1/carnetizacion/generar/${cedula}/`, {
       motivo_id: motivoId,
+      solicitud_id: opciones?.solicitudId ?? undefined,
       motivo_reemision: opciones?.motivoReemision ?? undefined,
       detalle: opciones?.detalle ?? undefined,
       observaciones: opciones?.observaciones ?? "",

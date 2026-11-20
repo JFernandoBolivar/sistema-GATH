@@ -105,6 +105,41 @@ class PlantillaCarnetModel(BaseModel):
         return f"{self.nombre} v{self.version} ({self.tipo_credencial_id}) {'[ACTIVA]' if self.activa else ''}"
 
 
+class SolicitudCarnetModel(BaseModel):
+    """Solicitud de carnet del trabajador (Autogestión) que Recursos Humanos aprueba o rechaza.
+
+    Guarda la cédula y los ids como valores, no como FK a las tablas heredadas (mismo
+    patrón que `fe_de_vida`): la solicitud es el registro de lo que se pidió y quién decidió.
+    """
+
+    cedula = models.CharField(max_length=15, db_index=True)
+    motivo_id = models.PositiveIntegerField(db_column='motivoId')
+    justificacion = models.TextField(blank=True, default='')
+    estado = models.CharField(max_length=12, default='PENDIENTE', db_index=True)
+    motivo_rechazo = models.TextField(blank=True, default='')
+    # Carnet emitido al aprobar (CarnetEmitido es una tabla heredada: se guarda el id).
+    carnet_id = models.PositiveIntegerField(null=True, blank=True, db_column='carnetId')
+    resuelta_por_cedula = models.CharField(max_length=15, blank=True, default='')
+    fecha_resolucion = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'CarnetSolicitud'
+        ordering = ['-created_at']
+        verbose_name = 'solicitud de carnet'
+        verbose_name_plural = 'solicitudes de carnet'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['cedula'],
+                condition=models.Q(estado='PENDIENTE'),
+                name='una_solicitud_carnet_pendiente_por_cedula',
+            ),
+        ]
+        indexes = [models.Index(fields=['estado', 'created_at'], name='solcarnet_estado_fecha')]
+
+    def __str__(self) -> str:
+        return f"Solicitud de carnet {self.cedula} ({self.estado})"
+
+
 class CarnetEmitidoModel(models.Model):
     employee = models.ForeignKey(
         'personal.EmployeeModel',

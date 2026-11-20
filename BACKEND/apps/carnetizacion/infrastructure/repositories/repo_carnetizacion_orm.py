@@ -17,6 +17,7 @@ from .repo_carnetizacion_comun import (  # noqa: F401 - re-exportadas
 from .repo_carnetizacion_pdf import RepoCarnetsPdfMixin
 from .repo_carnetizacion_privacidad import RepoPrivacidadMixin
 from .repo_carnetizacion_qr import RepoQrPrivacidadMixin
+from .repo_carnetizacion_solicitudes import RepoSolicitudesCarnetMixin
 from .repo_carnetizacion_sugerencias import RepoSugerenciasColorMixin
 from .repo_carnetizacion_tipos import RepoTiposCredencialMixin
 from .repo_carnetizacion_tipos_plantillas import RepoPlantillasMixin
@@ -26,6 +27,7 @@ class RepoCarnetizacionORM(
     RepoTiposCredencialMixin,
     RepoPlantillasMixin,
     RepoCarnetsEmitidosMixin,
+    RepoSolicitudesCarnetMixin,
     RepoCarnetsPdfMixin,
     RepoBibliotecaMixin,
     RepoCamposCredencialMixin,

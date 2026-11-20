@@ -47,10 +47,28 @@ class RepoPortalTrabajadorORM:
             employee__cedulaidentidad=cedula, activo=True,
         ).exists()
 
-    def emitir_carnet(self, cedula: str, motivo_id: int, observaciones: str):
-        return RepoCarnetizacionORM().emitir_carnet(
-            empleado_cedula=cedula, motivo_id=motivo_id, observaciones=observaciones,
+    def crear_solicitud_carnet(self, cedula: str, motivo_id: int, observaciones: str) -> dict:
+        from django.db import transaction
+
+        from apps.carnetizacion.infrastructure.notificaciones_solicitudes import (
+            notificar_solicitud_recibida,
         )
+
+        with transaction.atomic():
+            solicitud = RepoCarnetizacionORM().crear_solicitud_carnet(cedula, motivo_id, observaciones)
+            empleado = self.obtener_empleado(cedula)
+            nombre = ' '.join(
+                str(getattr(empleado, campo, '') or '') for campo in ('nombres', 'apellidos')
+            ).strip()
+            # Aviso a quienes emiten carnets (bandeja de Carnetización), al confirmar.
+            notificar_solicitud_recibida(solicitud, nombre)
+        return solicitud
+
+    def ultima_solicitud_carnet(self, cedula: str) -> dict | None:
+        return RepoCarnetizacionORM().ultima_solicitud_carnet(cedula)
+
+    def cancelar_solicitud_carnet(self, cedula: str, solicitud_id: str) -> dict:
+        return RepoCarnetizacionORM().cancelar_solicitud_carnet(cedula, solicitud_id)
 
     def obtener_datos_complementarios(self, cedula: str):
         return RepoDatosComplementariosORM().obtener(cedula)

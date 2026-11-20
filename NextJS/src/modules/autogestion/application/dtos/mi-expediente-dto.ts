@@ -159,6 +159,15 @@ export interface PerfilFisicoDTO {
  * DTO para la visualización del expediente integral del trabajador en Autogestión.
  * Incluye ficha de empleado completa, lista de cargas familiares registradas y carnetización.
  */
+export interface SolicitudCarnetPortal {
+  id: string;
+  estado: "PENDIENTE" | "APROBADA" | "RECHAZADA" | "CANCELADA";
+  motivo: string;
+  motivo_rechazo: string;
+  fecha_solicitud: string | null;
+  fecha_resolucion: string | null;
+}
+
 export interface MiExpedienteDTO {
   empleado: {
     id: number;
@@ -217,6 +226,8 @@ export interface MiExpedienteDTO {
   carnets?: CarnetItem[];
   motivos_carnet?: MotivoCarnetItem[];
   puede_ver_carnet?: boolean;
+  /** Última solicitud de carnet: RRHH la aprueba (emite) o la rechaza con motivo. */
+  solicitud_carnet?: SolicitudCarnetPortal | null;
   /** Correo alternativo y «¿tiene hijos?» (tabla complementaria, B13); nulos si no se han declarado. */
   datos_complementarios?: {
     correo_alternativo: string | null;

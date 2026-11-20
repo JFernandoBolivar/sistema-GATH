@@ -15,6 +15,7 @@ from core.domain.paginacion import Paginacion
 from core.presentation.envelope import ok, fail
 from core.presentation.permissions import EsPropiaCedulaOTienePermiso, HasPermission
 from apps.autogestion.application.use_cases.obtener_mi_expediente import (
+    cancelar_mi_solicitud_carnet,
     obtener_mi_carnet_pdf,
     obtener_mi_carnet_vista_previa,
     obtener_mi_expediente,
@@ -35,7 +36,6 @@ from apps.autogestion.infrastructure.repositories.repo_portal_trabajador_orm imp
     RepoPortalTrabajadorORM,
 )
 from apps.autogestion.infrastructure.serializers.mi_expediente_serializers import (
-    serializar_carnet,
     serializar_mi_expediente,
 )
 
@@ -282,12 +282,13 @@ class MiExpedienteView(APIView):
 class SolicitarCarnetView(APIView):
     """
     POST /api/v1/autogestion/solicitar-carnet/
-    Permite al trabajador autenticado solicitar / emitir su carnet institucional.
+    El trabajador autenticado SOLICITA su carnet: queda en la bandeja de Carnetización y
+    Recursos Humanos lo emite o lo rechaza (antes se emitía al instante, sin revisión).
     Estricta protección Zero-IDOR: se genera exclusivamente para request.user.cedula_id.
     """
     permission_classes = [IsAuthenticated]
 
-    @extend_schema(tags=['Autogestión'], summary='Solicitar o emitir carnet institucional del trabajador')
+    @extend_schema(tags=['Autogestión'], summary='Solicitar el carnet institucional (lo revisa RRHH)')
     def post(self, request):
         cedula = getattr(request.user, 'cedula_id', None)
         if not cedula:
@@ -304,17 +305,37 @@ class SolicitarCarnetView(APIView):
             )
 
         datos = validar_entrada(SolicitarCarnetSerializer, request.data)
-        carnet = solicitar_mi_carnet(
+        solicitud = solicitar_mi_carnet(
             repo,
             str(cedula),
             motivo_id=datos.get('motivo_id'),
             observaciones=datos.get('observaciones'),
         )
         return ok(
-            serializar_carnet(carnet),
-            message="Carnet institucional generado exitosamente",
+            solicitud,
+            message="Solicitud de carnet enviada. Recursos Humanos la revisará.",
             status=status.HTTP_201_CREATED,
         )
+
+
+class CancelarSolicitudCarnetView(APIView):
+    """
+    POST /api/v1/autogestion/solicitud-carnet/<id>/cancelar/
+    El trabajador retira su propia solicitud mientras sigue pendiente (Zero-IDOR).
+    """
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(tags=['Autogestión'], summary='Retirar mi solicitud de carnet pendiente')
+    def post(self, request, solicitud_id: str):
+        cedula = getattr(request.user, 'cedula_id', None)
+        if not cedula:
+            return fail("El usuario autenticado no tiene un expediente de trabajador asociado.", status=404)
+
+        from apps.autogestion.infrastructure.repositories.repo_portal_trabajador_orm import (
+            RepoPortalTrabajadorORM,
+        )
+        solicitud = cancelar_mi_solicitud_carnet(RepoPortalTrabajadorORM(), str(cedula), solicitud_id)
+        return ok(solicitud, message="Solicitud de carnet retirada.")
 
 
 class MiCarnetVistaPreviaView(APIView):

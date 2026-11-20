@@ -44,9 +44,11 @@ import { CarnetReal } from "./components/carnet-real";
 import { PrivacidadCarnetDialog } from "@/modules/carnetizacion/ui/components/privacidad-carnet-dialog";
 
 import {
+  cancelarSolicitudCarnetAction,
   getMiExpedienteAction,
   solicitarCarnetAction,
 } from "../infrastructure/actions/autogestion-actions";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export function MiCarnetView() {
   const { data, isLoading, mutate } = useSWR("mi-expediente-portal", () =>
@@ -58,6 +60,7 @@ export function MiCarnetView() {
   const [motivoSeleccionado, setMotivoSeleccionado] = useState<number>(1);
   const [observaciones, setObservaciones] = useState("");
   const [solicitando, setSolicitando] = useState(false);
+  const [retirando, setRetirando] = useState(false);
   const [descargandoPdf, setDescargandoPdf] = useState(false);
 
   if (isLoading) {
@@ -126,6 +129,27 @@ export function MiCarnetView() {
   }
 
   const tieneCarnetActivo = Boolean(carnet_activo && carnet_activo.activo);
+  // Recursos Humanos revisa cada solicitud: mientras hay una pendiente no se envía otra.
+  const solicitud = data.solicitud_carnet ?? null;
+  const solicitudPendiente = solicitud?.estado === "PENDIENTE";
+  const fechaCorta = (iso: string | null | undefined) =>
+    iso ? new Date(iso).toLocaleDateString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric" }) : "";
+
+  const handleRetirarSolicitud = async () => {
+    if (!solicitud) return;
+    try {
+      setRetirando(true);
+      const res = await cancelarSolicitudCarnetAction(solicitud.id);
+      if (res.success) {
+        toast.success(res.message);
+        await mutate();
+      } else {
+        toast.error(res.message);
+      }
+    } finally {
+      setRetirando(false);
+    }
+  };
   const listaCarnets = carnets ?? [];
   const listaMotivos = motivos_carnet ?? [];
   const yaTieneCredencial = listaCarnets.length > 0 || Boolean(carnet_activo);
@@ -232,6 +256,40 @@ export function MiCarnetView() {
           </div>
         </div>
 
+        {/* Estado de la última solicitud de carnet */}
+        {solicitudPendiente && solicitud && (
+          <Alert>
+            <Clock className="size-4" aria-hidden="true" />
+            <AlertTitle>Solicitud en revisión por Recursos Humanos</AlertTitle>
+            <AlertDescription>
+              <span>
+                Enviada el {fechaCorta(solicitud.fecha_solicitud)}
+                {solicitud.motivo ? ` · ${solicitud.motivo}` : ""}. Le avisaremos por notificación
+                cuando sea aprobada o si requiere correcciones.
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 w-fit"
+                onClick={handleRetirarSolicitud}
+                disabled={retirando}
+              >
+                {retirando ? "Retirando…" : "Retirar solicitud"}
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+        {solicitud?.estado === "RECHAZADA" && (
+          <Alert variant="destructive">
+            <AlertCircle className="size-4" aria-hidden="true" />
+            <AlertTitle>Su última solicitud de carnet fue rechazada</AlertTitle>
+            <AlertDescription>
+              {fechaCorta(solicitud.fecha_resolucion)} · Motivo: {solicitud.motivo_rechazo || "—"}. Corrija lo
+              indicado y vuelva a solicitar.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Contenido principal: 2 columnas si está activo, o tarjeta centrada si no */}
         {tieneCarnetActivo ? (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -276,6 +334,8 @@ export function MiCarnetView() {
                   onClick={() => setModalAbierto(true)}
                   variant="outline"
                   className="h-11 text-sm font-medium gap-2"
+                  disabled={solicitudPendiente}
+                  title={solicitudPendiente ? "Ya tiene una solicitud en revisión" : undefined}
                 >
                   <PlusCircle className="size-4" />
                   Solicitar reposición
@@ -398,9 +458,10 @@ export function MiCarnetView() {
                 onClick={() => setModalAbierto(true)}
                 size="lg"
                 className="gap-2 font-semibold shadow-md"
+                disabled={solicitudPendiente}
               >
                 <PlusCircle className="size-4" aria-hidden="true" />
-                Solicitar mi carnet
+                {solicitudPendiente ? "Solicitud en revisión" : "Solicitar mi carnet"}
               </Button>
             </CardContent>
           </Card>

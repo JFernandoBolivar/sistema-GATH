@@ -29,7 +29,15 @@ class RepoPortalTrabajador(Protocol):
         """True si el trabajador ya posee un carnet institucional activo."""
         ...
 
-    def emitir_carnet(self, cedula: str, motivo_id: int, observaciones: str) -> Any:
+    def crear_solicitud_carnet(self, cedula: str, motivo_id: int, observaciones: str) -> dict:
+        """Registra la solicitud de carnet; Recursos Humanos la aprueba (emite) o la rechaza."""
+        ...
+
+    def ultima_solicitud_carnet(self, cedula: str) -> dict | None:
+        """La solicitud de carnet más reciente del trabajador (para mostrar su estado)."""
+        ...
+
+    def cancelar_solicitud_carnet(self, cedula: str, solicitud_id: str) -> dict:
         ...
 
     def obtener_datos_complementarios(self, cedula: str) -> Any | None:
