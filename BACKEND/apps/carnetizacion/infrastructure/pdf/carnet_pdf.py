@@ -34,6 +34,7 @@ from apps.carnetizacion.domain.services.plantilla_defecto import (
 from apps.carnetizacion.domain.services.resolver_color import (
     resolver_color_carnet,
 )
+from apps.carnetizacion.domain.services.validador_multimedia import detectar_mime
 
 logger = logging.getLogger('gath.carnetizacion')
 
@@ -177,6 +178,12 @@ def _bytes_de_biblioteca(medio_id: str | None, prefijo_cache: str) -> bytes | No
     try:
         guardado = cache.get(clave)
         if guardado:
+            if detectar_mime(guardado) == 'image/svg+xml':
+                logger.warning(
+                    "El medio %s de la biblioteca es SVG y ReportLab no lo dibuja; se ignora.",
+                    medio_id,
+                )
+                return None
             return guardado
     except Exception:
         logger.warning("Caché no disponible al leer el medio %s de la biblioteca.", medio_id, exc_info=True)
@@ -188,6 +195,15 @@ def _bytes_de_biblioteca(medio_id: str | None, prefijo_cache: str) -> bytes | No
         datos, _mime, _nombre = RepoCarnetizacionORM().obtener_archivo_biblioteca(medio_id)
     except Exception:
         logger.warning("No se pudo leer el medio %s de la biblioteca.", medio_id)
+        return None
+    # B-8: los SVG históricos siguen descargándose desde la API, pero no se
+    # intentan incrustar en el PDF (ReportLab no los soporta); así se usa el
+    # asset de respaldo o el marcador, sin un recuadro silencioso.
+    if detectar_mime(datos) == 'image/svg+xml':
+        logger.warning(
+            "El medio %s de la biblioteca es SVG y ReportLab no lo dibuja; se ignora.",
+            medio_id,
+        )
         return None
     try:
         cache.set(clave, datos, _TTL_QR_SEGUNDOS)

@@ -7,6 +7,7 @@ import uuid
 
 from django.db import transaction
 from django.http import HttpResponse
+from django.utils.http import content_disposition_header
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
@@ -20,6 +21,8 @@ from core.infrastructure.storage.validacion_archivo import MAX_BYTES_IMAGEN, TIP
 from core.presentation.audit import origen_de_peticion, registrar_auditoria
 from core.presentation.envelope import fail, ok
 from apps.carnetizacion.domain.exceptions import ReemisionSinMotivoError
+from apps.carnetizacion.domain.services.svg_seguro import sanear_svg
+from apps.carnetizacion.domain.services.validador_multimedia import detectar_mime
 from apps.carnetizacion.domain.value_objects.paginacion import Paginacion
 from core.presentation.permissions import HasAnyPermission, HasPermission
 from apps.carnetizacion.application.use_cases.consultar_qr import (
@@ -570,17 +573,54 @@ class ElementoBibliotecaDetailView(APIView):
         return ok(None, 'Recurso eliminado de la biblioteca.')
 
 
+MIMES_BIBLIOTECA_SERVIBLES = {
+    'image/png',
+    'image/jpeg',
+    'image/webp',
+    'image/gif',
+    'application/pdf',
+    'image/svg+xml',
+}
+
+
+def _tipo_servicio_biblioteca(data: bytes, mime_guardado: str | None) -> str:
+    """Content-Type real del medio; cae al guardado solo si el contenido es desconocido."""
+    detectado = detectar_mime(data)
+    if detectado:
+        return detectado
+    guardado = (mime_guardado or '').lower()
+    return guardado if guardado in MIMES_BIBLIOTECA_SERVIBLES else 'application/octet-stream'
+
+
 class ElementoBibliotecaArchivoView(APIView):
-    """Descarga/visualización autenticada de recurso de biblioteca (O44 - E4)."""
+    """Descarga/visualización autenticada de recurso de biblioteca (O44 - E4).
+
+    B-8: siempre se entrega como adjunto con ``nosniff``. El ``Content-Type`` se
+    deriva del contenido real, no del MIME guardado. Un SVG solo se sirve como
+    ``image/svg+xml`` después de sanearlo con lista blanca; si no se puede
+    sanear se entrega como ``application/octet-stream``.
+    """
     permission_classes = [IsAuthenticated, HasPermission('carnetizacion.ver')]
 
     @extend_schema(tags=['Carnetización'], summary='Descargar/ver archivo de biblioteca')
     def get(self, request, elemento_id: str):
         repo = RepoCarnetizacionORM()
         data, mime_type, filename = repo.obtener_archivo_biblioteca(elemento_id)
-        response = HttpResponse(data, content_type=mime_type)
-        response['Content-Disposition'] = f'inline; filename="{filename}"'
+
+        content_type = _tipo_servicio_biblioteca(data, mime_type)
+        if content_type == 'image/svg+xml':
+            saneado = sanear_svg(data)
+            if saneado is None:
+                content_type = 'application/octet-stream'
+            else:
+                data = saneado
+
+        response = HttpResponse(data, content_type=content_type)
+        response['Content-Disposition'] = content_disposition_header(True, filename or 'archivo')
+        response['X-Content-Type-Options'] = 'nosniff'
         response['Cache-Control'] = 'private, max-age=86400'
+        if content_type == 'image/svg+xml':
+            response['Content-Security-Policy'] = "default-src 'none'; style-src 'unsafe-inline'; sandbox"
         return response
 
 

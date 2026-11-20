@@ -29,7 +29,13 @@ describe("proxy /api/v1 (archivos autenticados)", () => {
     fetchMock.mockResolvedValue(
       new Response("imgdata", {
         status: 200,
-        headers: { "content-type": "image/png", "content-length": "7", "set-cookie": "x=1" },
+        headers: {
+          "content-type": "image/png",
+          "content-length": "7",
+          "set-cookie": "x=1",
+          "x-content-type-options": "nosniff",
+          "content-disposition": 'attachment; filename="logo.png"',
+        },
       }),
     );
     const res = await pedir("personal/123/foto/?v=abc", "tok");
@@ -38,6 +44,9 @@ describe("proxy /api/v1 (archivos autenticados)", () => {
     expect(res.headers.get("content-length")).toBe("7");
     expect(res.headers.get("set-cookie")).toBeNull();
     expect(res.headers.get("cache-control")).toBe("private, no-store");
+    // B-8: la descarga de biblioteca conserva el adjunto y el no-sniffing.
+    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(res.headers.get("content-disposition")).toContain("attachment");
     expect(await res.text()).toBe("imgdata");
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toMatch(/api\/v1\/personal\/123\/foto\/\?v=abc$/);

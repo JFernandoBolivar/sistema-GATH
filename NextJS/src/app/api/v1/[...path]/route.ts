@@ -36,6 +36,10 @@ const CABECERAS_RESPUESTA = [
   "cache-control",
   "etag",
   "last-modified",
+  // B-8: el navegador recibe el archivo a través de este proxy; sin estas
+  // cabeceras se perderían el no-sniffing y el CSP del SVG saneado.
+  "x-content-type-options",
+  "content-security-policy",
 ] as const;
 
 export async function GET(

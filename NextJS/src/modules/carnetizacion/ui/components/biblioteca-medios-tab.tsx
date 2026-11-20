@@ -105,10 +105,11 @@ export function BibliotecaMediosTab() {
   };
 
   const handleArchivoSeleccionado = (file: File) => {
-    // Validar tipo permitido
-    const tiposPermitidos = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
+    // Validar tipo permitido (SVG no: el PDF del carnet no lo incrusta y puede
+    // contener código activo; el backend también lo rechaza).
+    const tiposPermitidos = ["image/png", "image/jpeg", "image/webp"];
     if (!tiposPermitidos.includes(file.type)) {
-      toast.error("Formato no permitido. Solo se aceptan PNG, JPEG, WebP o SVG.");
+      toast.error("Formato no permitido. Solo se aceptan PNG, JPEG o WebP.");
       return;
     }
 
@@ -148,7 +149,7 @@ export function BibliotecaMediosTab() {
       return;
     }
     if (!subirArchivo) {
-      toast.error("Seleccione un archivo de imagen o gráfico vectorial.");
+      toast.error("Seleccione un archivo de imagen (PNG, JPEG o WebP).");
       return;
     }
 
@@ -416,7 +417,7 @@ export function BibliotecaMediosTab() {
                   <input
                     id={fileInputId}
                     type="file"
-                    accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                    accept="image/png,image/jpeg,image/webp"
                     className="hidden"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
@@ -462,7 +463,7 @@ export function BibliotecaMediosTab() {
                         Haz clic para seleccionar archivo
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        PNG, JPEG, WebP o SVG (Firmas máx 2MB, otros máx 5MB)
+                        PNG, JPEG o WebP (Firmas máx 2MB, otros máx 5MB)
                       </span>
                     </label>
                   )}

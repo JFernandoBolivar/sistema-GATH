@@ -1,7 +1,12 @@
 import pytest
+
+from apps.carnetizacion.domain.services.validador_multimedia import (
+    validar_archivo_biblioteca,
+)
+from apps.carnetizacion.infrastructure.repositories.repo_carnetizacion_orm import (
+    RepoCarnetizacionORM,
+)
 from core.domain.exceptions import ValidationError
-from apps.carnetizacion.domain.services.validador_multimedia import validar_archivo_biblioteca
-from apps.carnetizacion.infrastructure.repositories.repo_carnetizacion_orm import RepoCarnetizacionORM
 
 # PNG mínimo válido de 1x1 pixel
 PNG_VALIDO = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\rIDATx\x9cc\xf8\xff\xff?\x00\x05\xfe\x02\xfe\xa74d\xaa\x00\x00\x00\x00IEND\xaeB`\x82"
@@ -27,18 +32,17 @@ def test_validador_png_valido():
     assert tamano == len(PNG_VALIDO)
 
 
-def test_validador_svg_valido():
-    mime, tamano = validar_archivo_biblioteca(
-        contenido=SVG_VALIDO,
-        nombre_archivo="sello.svg",
-        categoria="imagen",
-    )
-    assert mime == "image/svg+xml"
-    assert tamano > 0
+def test_validador_rechaza_svg_con_mensaje_claro():
+    with pytest.raises(ValidationError, match="SVG no se aceptan"):
+        validar_archivo_biblioteca(
+            contenido=SVG_VALIDO,
+            nombre_archivo="sello.svg",
+            categoria="imagen",
+        )
 
 
 def test_validador_rechaza_svg_malicioso():
-    with pytest.raises(ValidationError, match="scripts o atributos dinámicos"):
+    with pytest.raises(ValidationError, match="SVG no se aceptan"):
         validar_archivo_biblioteca(
             contenido=SVG_MALICIOSO,
             nombre_archivo="firma.svg",
