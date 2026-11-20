@@ -59,13 +59,75 @@ describe("DialogoProrrogas", () => {
     expect(await screen.findByText("Vigente")).toBeInTheDocument();
     expect(screen.getByText("Reemplazada")).toBeInTheDocument();
     expect(screen.getByText(/Reemplazada por una prórroga posterior/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Extender$/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Extender prórroga general/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Conceder nueva prórroga/i })).toBeInTheDocument();
+  });
+
+  it("abre el formulario de extensión en su propia vista y oculta el historial", async () => {
+    renderDialogo();
+    await userEvent.click(await screen.findByRole("button", { name: /^Extender prórroga general/i }));
+
+    expect(screen.getByLabelText(/Nueva fecha límite/i, { selector: "#ext-fecha" })).toBeInTheDocument();
+    expect(screen.queryByText("Historial")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Conceder nueva prórroga/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Volver al historial/i })).toBeInTheDocument();
+  });
+
+  it("vuelve al historial sin cerrar el diálogo", async () => {
+    renderDialogo();
+    await userEvent.click(await screen.findByRole("button", { name: /^Extender prórroga general/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Volver al historial/i }));
+
+    expect(await screen.findByText("Historial")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Extender prórroga general/i })).toBeInTheDocument();
+  });
+
+  it("no envía la extensión cuando la fecha no es posterior a la vigente", async () => {
+    renderDialogo();
+    await userEvent.click(await screen.findByRole("button", { name: /^Extender prórroga general/i }));
+    fireEvent.change(screen.getByLabelText(/Nueva fecha límite/i, { selector: "#ext-fecha" }), {
+      target: { value: "2026-11-20T10:00" },
+    });
+    await userEvent.type(
+      screen.getByLabelText(/Motivo de la extensión/i),
+      "Se intenta ampliar el plazo sin superar la fecha vigente.",
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Extender prórroga/i }));
+
+    expect(await screen.findByText(/debe ser posterior al/i)).toBeInTheDocument();
+    expect(extender).not.toHaveBeenCalled();
+    // Sigue en el formulario para corregir la fecha sin perder lo escrito.
+    expect(screen.queryByText("Historial")).not.toBeInTheDocument();
+  });
+
+  it("concede una nueva prórroga desde su propia vista y vuelve al historial", async () => {
+    conceder.mockResolvedValue({ ok: true, mensaje: "Prórroga concedida.", datos: vigente });
+    renderDialogo();
+    await userEvent.click(await screen.findByRole("button", { name: /Conceder nueva prórroga/i }));
+
+    expect(screen.getByLabelText(/Cédula/i)).toBeInTheDocument();
+    expect(screen.queryByText("Historial")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/Nueva fecha límite/i, { selector: "#pr-fecha" }), {
+      target: { value: "2026-12-15T10:00" },
+    });
+    await userEvent.type(screen.getByLabelText(/Motivo$/i), "Prórroga general solicitada por Bienestar.");
+    await userEvent.click(screen.getByRole("button", { name: /Conceder prórroga/i }));
+
+    await waitFor(() =>
+      expect(conceder).toHaveBeenCalledWith("p1", {
+        nuevaFechaLimite: "2026-12-15T10:00",
+        motivo: "Prórroga general solicitada por Bienestar.",
+        cedula: undefined,
+      }),
+    );
+    expect(await screen.findByText("Historial")).toBeInTheDocument();
   });
 
   it("extiende la prórroga vigente con nueva fecha y motivo", async () => {
     renderDialogo();
-    await userEvent.click(await screen.findByRole("button", { name: /^Extender$/ }));
-    expect(screen.getByText(/La anterior quedará en el historial/i)).toBeInTheDocument();
+    await userEvent.click(await screen.findByRole("button", { name: /^Extender prórroga general/i }));
+    expect(screen.getByText(/Al extenderla, la anterior quedará en el historial/i)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText(/Nueva fecha límite/i, { selector: "#ext-fecha" }), {
       target: { value: "2026-12-01T10:00" },
     });
