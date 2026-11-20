@@ -209,6 +209,27 @@ def test_api_convierte_la_primera_pagina_del_pdf_en_un_png_de_fondo(api, monkeyp
         assert png.getpixel((3, 3)) == (255, 0, 0)
 
 
+def test_api_reutiliza_el_png_si_se_elige_dos_veces_el_mismo_pdf(api, monkeypatch):
+    contenido = _pdf_rojo()
+    medio = ElementoBibliotecaModel.objects.create(
+        nombre='Fondo PDF repetido', categoria='imagen', archivo_clave='prueba/repetido.pdf',
+        nombre_archivo='repetido.pdf', tamano_bytes=len(contenido), mime_type='application/pdf',
+    )
+    monkeypatch.setattr(SeaweedFSStorage, 'descargar', lambda self, _clave: contenido)
+    monkeypatch.setattr(
+        SeaweedFSStorage, 'subir',
+        lambda self, clave, datos, mime='application/octet-stream': None,
+    )
+
+    primera = api.post(f'{BASE}/biblioteca/{medio.pk}/rasterizar-fondo/', {}, format='json')
+    segunda = api.post(f'{BASE}/biblioteca/{medio.pk}/rasterizar-fondo/', {}, format='json')
+
+    assert primera.status_code == 201, primera.content
+    assert segunda.status_code == 200, segunda.content
+    assert segunda.json()['data']['id'] == primera.json()['data']['id']
+    assert ElementoBibliotecaModel.objects.filter(nombre__endswith='(fondo)').count() == 1
+
+
 def test_api_rechaza_el_pdf_sin_rasterizador_con_mensaje_claro(api, monkeypatch):
     contenido = _pdf_rojo()
     medio = ElementoBibliotecaModel.objects.create(

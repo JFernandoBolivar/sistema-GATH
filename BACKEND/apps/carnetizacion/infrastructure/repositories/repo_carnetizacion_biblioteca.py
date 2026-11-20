@@ -102,15 +102,41 @@ class RepoBibliotecaMixin:
         )
         return elemento_biblioteca_a_entidad(obj)
 
+    def buscar_elemento_biblioteca_por_contenido(
+        self, contenido: bytes
+    ) -> ElementoBiblioteca | None:
+        """Reutiliza un medio idéntico ya guardado (misma huella SHA-256).
+
+        La clave incluye el hash del contenido, así que basta buscar por su prefijo.
+        Evita duplicar, por ejemplo, el PNG que se genera al elegir dos veces el mismo
+        PDF como fondo.
+        """
+        prefijo = f"carnet_biblioteca/{hashlib.sha256(contenido).hexdigest()[:16]}_"
+        obj = ElementoBibliotecaModel.objects.filter(archivo_clave__startswith=prefijo).first()
+        return elemento_biblioteca_a_entidad(obj) if obj else None
+
     def eliminar_elemento_biblioteca(self, elemento_id: str | int) -> bool:
         obj = ElementoBibliotecaModel.objects.filter(pk=elemento_id).first()
         if not obj:
             raise NotFoundError(f"Elemento de biblioteca con id {elemento_id} no encontrado")
         if obj.archivo_clave:
-            try:
-                self._almacen.eliminar(obj.archivo_clave)
-            except Exception as e:
-                logger.warning("No se pudo borrar el archivo del storage para biblioteca %s: %s", elemento_id, e)
+            # Varias filas pueden compartir la misma clave (mismo contenido). El objeto
+            # del storage solo se borra cuando ya no queda ninguna otra fila que lo use.
+            compartido = (
+                ElementoBibliotecaModel.objects.filter(archivo_clave=obj.archivo_clave)
+                .exclude(pk=obj.pk)
+                .exists()
+            )
+            if compartido:
+                logger.info(
+                    "Se conserva el objeto %s: otra fila de biblioteca lo comparte.",
+                    obj.archivo_clave,
+                )
+            else:
+                try:
+                    self._almacen.eliminar(obj.archivo_clave)
+                except Exception as e:
+                    logger.warning("No se pudo borrar el archivo del storage para biblioteca %s: %s", elemento_id, e)
         obj.delete()
         return True
 

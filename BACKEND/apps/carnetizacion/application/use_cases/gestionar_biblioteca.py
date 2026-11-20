@@ -124,6 +124,10 @@ def rasterizar_fondo_biblioteca_uc(
         raise ValidationError(MENSAJE_FONDO_NO_SOPORTADO)
 
     base = (nombre_archivo or 'fondo').rsplit('.', 1)[0][:80] or 'fondo'
+    # Reutiliza el PNG si ese mismo PDF ya se convirtió antes (evita copias idénticas).
+    existente = repo.buscar_elemento_biblioteca_por_contenido(png)
+    if existente:
+        return existente, False
     guardado = repo.guardar_elemento_biblioteca(
         nombre=f"{base} (fondo)"[:150],
         categoria='imagen',

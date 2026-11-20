@@ -3,6 +3,7 @@ import pytest
 from apps.carnetizacion.domain.services.validador_multimedia import (
     validar_archivo_biblioteca,
 )
+from apps.carnetizacion.infrastructure.models.carnetizacion_models import ElementoBibliotecaModel
 from apps.carnetizacion.infrastructure.repositories.repo_carnetizacion_orm import (
     RepoCarnetizacionORM,
 )
@@ -112,3 +113,27 @@ def test_repo_guardar_listar_y_eliminar_recurso_biblioteca():
     # Eliminar
     eliminado = repo.eliminar_elemento_biblioteca(logo.id)
     assert eliminado is True
+
+
+@pytest.mark.django_db
+def test_eliminar_un_medio_no_borra_el_archivo_si_otra_fila_lo_comparte():
+    clave = "carnet_biblioteca/abc123_compartido.png"
+    almacen = AlmacenEnMemoria()
+    almacen.archivos[clave] = PNG_VALIDO
+    base = {
+        "categoria": "imagen",
+        "archivo_clave": clave,
+        "nombre_archivo": "compartido.png",
+        "tamano_bytes": len(PNG_VALIDO),
+        "mime_type": "image/png",
+    }
+    primera = ElementoBibliotecaModel.objects.create(nombre="Copia A", **base)
+    segunda = ElementoBibliotecaModel.objects.create(nombre="Copia B", **base)
+    repo = RepoCarnetizacionORM(almacen=almacen)
+
+    assert repo.eliminar_elemento_biblioteca(primera.id) is True
+    assert clave in almacen.archivos
+    assert ElementoBibliotecaModel.objects.filter(pk=segunda.id).exists()
+
+    assert repo.eliminar_elemento_biblioteca(segunda.id) is True
+    assert clave not in almacen.archivos

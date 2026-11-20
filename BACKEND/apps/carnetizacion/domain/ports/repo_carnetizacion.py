@@ -187,6 +187,12 @@ class RepoCarnetizacion(Protocol):
         """Obtiene un recurso de la biblioteca por su identificador."""
         ...
 
+    def buscar_elemento_biblioteca_por_contenido(
+        self, contenido: bytes
+    ) -> ElementoBiblioteca | None:
+        """Busca un recurso ya guardado cuyo archivo tenga exactamente ese contenido."""
+        ...
+
     def guardar_elemento_biblioteca(
         self,
         nombre: str,
