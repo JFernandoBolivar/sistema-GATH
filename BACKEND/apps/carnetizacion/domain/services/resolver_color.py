@@ -22,6 +22,26 @@ def normalizar_clave(texto: str) -> str:
     return cadena.strip().upper().replace(' ', '_').replace('-', '_')
 
 
+def valor_segun_criterio(criterio: str, persona: dict[str, Any], campo_criterio: str = 'otro') -> str:
+    """Valor del titular que corresponde a un criterio de regla (nómina, cargo, oficina, nivel u
+    otro). Lo usan las reglas de color y la elección de plantilla al emitir, así que ambas
+    deciden con el mismo dato."""
+    criterio = str(criterio or '').lower().strip()
+    if criterio in ('nomina', 'tipo_personal', 'tipo_nomina'):
+        valor = persona.get('nomina') or persona.get('tipo_personal') or persona.get('tipo_trabajador')
+    elif criterio in ('cargo', 'puesto'):
+        valor = persona.get('cargo')
+    elif criterio in ('oficina', 'departamento', 'unidad'):
+        valor = persona.get('oficina') or persona.get('departamento')
+    elif criterio == 'nivel':
+        valor = persona.get('nivel')
+    elif criterio == 'otro':
+        valor = persona.get(campo_criterio) or persona.get('otro')
+    else:
+        valor = None
+    return str(valor or '')
+
+
 def resolver_color_carnet(definicion: dict[str, Any], persona: dict[str, Any] | None = None) -> dict[str, str]:
     """
     Resuelve los colores dinámicos (primario, acento, texto) para una persona y plantilla.
@@ -58,18 +78,7 @@ def resolver_color_carnet(definicion: dict[str, Any], persona: dict[str, Any] | 
         }
 
     # Extraer valor de la persona según el criterio
-    valor_persona: str | None = None
-    if criterio in ('nomina', 'tipo_personal', 'tipo_nomina'):
-        valor_persona = persona.get('nomina') or persona.get('tipo_personal') or persona.get('tipo_trabajador')
-    elif criterio in ('cargo', 'puesto'):
-        valor_persona = persona.get('cargo')
-    elif criterio in ('oficina', 'departamento', 'unidad'):
-        valor_persona = persona.get('oficina') or persona.get('departamento')
-    elif criterio == 'nivel':
-        valor_persona = persona.get('nivel')
-    elif criterio == 'otro':
-        campo_extra = reglas.get('campo_criterio', 'otro')
-        valor_persona = persona.get(campo_extra) or persona.get('otro')
+    valor_persona = valor_segun_criterio(criterio, persona, reglas.get('campo_criterio', 'otro'))
 
     if not valor_persona:
         return {

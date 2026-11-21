@@ -154,6 +154,7 @@ class DatosCarnetPdf:
     security_hash: str
     nomina: str = "Funcionario"
     foto_bytes: bytes | None = None
+    nivel: str = ''  # dependencia de la asignación (criterio «nivel» de las reglas)
     vence: str = ''
     # Valores de los campos personalizados ya resueltos por su origen: {codigo_del_campo: valor}.
     campos_extra: dict[str, str] = field(default_factory=dict)
@@ -503,6 +504,7 @@ def _extraer_valor_campo(campo: str, datos: DatosCarnetPdf | dict[str, Any]) -> 
             'oficina': datos.departamento,
             'nomina': datos.nomina,
             'tipo_personal': datos.nomina,
+            'nivel': datos.nivel,
             'vence': datos.vence,
         }
         return mapa.get(campo, '')
@@ -738,6 +740,8 @@ def _normalizar_datos(datos: DatosCarnetPdf | dict[str, Any]) -> tuple[dict[str,
             'departamento': datos.departamento,
             'oficina': datos.departamento,
             'nomina': datos.nomina,
+            'tipo_personal': datos.nomina,
+            'nivel': datos.nivel,
             'security_hash': datos.security_hash,
             'vence': datos.vence,
         }

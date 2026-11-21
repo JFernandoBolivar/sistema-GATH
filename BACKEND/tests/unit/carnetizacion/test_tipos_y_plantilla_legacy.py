@@ -13,17 +13,19 @@ from apps.carnetizacion.infrastructure.repositories.repo_carnetizacion_orm impor
 pytestmark = pytest.mark.django_db
 
 
-def test_tipos_contratado_pasante_y_autoridad_disponibles():
+def test_contratado_y_pasante_son_credenciales_externas_y_no_hay_autoridad():
+    """K-11: los trabajadores toman el color por tipo de nómina; contratado y pasante quedan
+    solo para personas sin expediente, y «autoridad» se retiró (Alto Nivel = Funcionario)."""
     repo = RepoCarnetizacionORM()
     tipos = {t.codigo: t for t in repo.listar_tipos_credencial()}
-    for codigo in ('contratado', 'pasante', 'autoridad'):
-        assert codigo in tipos
+    for codigo in ('contratado', 'pasante'):
         assert tipos[codigo].activo is True
-        assert tipos[codigo].grupo == 'trabajador'
+        assert tipos[codigo].grupo == 'externo'
         assert tipos[codigo].ancho_mm == 54.0
         assert tipos[codigo].alto_mm == 85.6
         assert tipos[codigo].orientacion == 'vertical'
-    assert tipos['contratado'].orden < tipos['pasante'].orden < tipos['autoridad'].orden
+    assert 'autoridad' not in tipos
+    assert tipos['contratado'].orden < tipos['pasante'].orden
 
 
 def test_plantilla_legacy_sembrada_en_v1_sin_activarse():
@@ -56,4 +58,4 @@ def test_los_tipos_se_siembran_sin_duplicar():
             codigo__in=('contratado', 'pasante', 'autoridad')
         ).values_list('codigo', flat=True)
     )
-    assert sorted(codigos) == ['autoridad', 'contratado', 'pasante']
+    assert sorted(codigos) == ['contratado', 'pasante']

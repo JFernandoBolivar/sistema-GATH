@@ -5,6 +5,10 @@ from typing import Any
 # Import entre módulos en infrastructure (apps.cargos y apps.personal): mismo patrón ya
 # establecido en `apps.reportes`/`apps.autogestion`/`apps.pasivos`.
 from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
+from apps.carnetizacion.domain.services.resolver_color import (
+    normalizar_clave,
+    valor_segun_criterio,
+)
 from apps.carnetizacion.domain.services.vigencia_carnet import (
     TIPO_VIGENCIA_EXTERNO,
     TIPO_VIGENCIA_PASIVO,
@@ -134,24 +138,70 @@ def definicion_plantilla_legacy() -> dict[str, Any] | None:
     return definicion if isinstance(definicion, dict) and definicion else None
 
 
-def plantilla_vigente(codigo_tipo: str) -> Any:
-    """Plantilla con la que se emite un tipo de credencial: activa y publicada. Mismo orden
-    que `obtener_plantilla_activa` (la regla genérica «todos/*» primero, después la activa más
-    reciente), así la emisión, la vista previa y la pantalla de plantillas coinciden. Un
-    borrador nunca se usa para emitir aunque esté marcado como activo."""
-    activas = PlantillaCarnetModel.objects.filter(
-        tipo_credencial_id=codigo_tipo, activa=True, estado='publicada',
-    )
+def asignacion_vigente(empleado: Any) -> Any:
+    """Asignación más reciente del titular, con lo que usan el PDF y las reglas."""
+    if empleado is None:
+        return None
     return (
-        activas.filter(regla_criterio='todos', regla_valor='*').first()
-        or activas.order_by('-created_at', '-version').first()
+        AsigTrabajoModel.objects.select_related(
+            'denominacioncargoid', 'DireccionGeneral', 'tiponominaid', 'Dependencia',
+        )
+        .filter(employee=empleado)
+        .order_by('-fecha_actualizacion')
+        .first()
     )
 
 
-def plantilla_elegida_para_emitir(plantilla_id: str | None, codigo_tipo: str) -> Any:
-    """La plantilla indicada (debe estar publicada) o, si no se indica, la vigente del tipo."""
+def nomina_y_nivel(asignacion: Any) -> tuple[str, str]:
+    """Tipo de nómina (p. ej. CONTRATADO, OBRERO FIJO, JUBILADO) y nivel (dependencia) de la
+    asignación. Antes el PDF no recibía la nómina y todos salían con el color de Funcionario."""
+    nomina = asignacion.tiponominaid.nomina if asignacion and asignacion.tiponominaid_id else ''
+    nivel = asignacion.Dependencia.dependencia if asignacion and asignacion.Dependencia_id else ''
+    return str(nomina or ''), str(nivel or '')
+
+
+def datos_para_reglas(asignacion: Any) -> dict[str, str]:
+    """Datos del titular con los que se evalúan las reglas (de color y de plantilla)."""
+    cargo, departamento = cargo_y_departamento(asignacion)
+    nomina, nivel = nomina_y_nivel(asignacion)
+    return {
+        'nomina': nomina, 'cargo': cargo, 'oficina': departamento,
+        'departamento': departamento, 'nivel': nivel,
+    }
+
+
+def _es_regla_generica(plantilla: Any) -> bool:
+    return (plantilla.regla_criterio or 'todos') in ('todos', 'unico', '') or (plantilla.regla_valor or '*') == '*'
+
+
+def plantilla_vigente(codigo_tipo: str, persona: dict[str, Any] | None = None) -> Any:
+    """Plantilla con la que se emite: activa y publicada del tipo. Si alguna tiene una regla
+    de uso que coincide con el titular (p. ej. nómina = CONTRATADO), gana esa; si no, la
+    genérica (valor «*» o criterio «todos»); por último, la activa más reciente. Un borrador
+    nunca se usa para emitir aunque esté marcado como activo."""
+    activas = list(
+        PlantillaCarnetModel.objects.filter(
+            tipo_credencial_id=codigo_tipo, activa=True, estado='publicada',
+        ).order_by('-created_at', '-version')
+    )
+    if persona:
+        for plantilla in activas:
+            if _es_regla_generica(plantilla):
+                continue
+            valor = valor_segun_criterio(plantilla.regla_criterio, persona)
+            if valor and normalizar_clave(valor) == normalizar_clave(plantilla.regla_valor):
+                return plantilla
+    genericas = [p for p in activas if _es_regla_generica(p)]
+    return (genericas or activas or [None])[0]
+
+
+def plantilla_elegida_para_emitir(
+    plantilla_id: str | None, codigo_tipo: str, persona: dict[str, Any] | None = None,
+) -> Any:
+    """La plantilla indicada (debe estar publicada) o, si no se indica, la vigente del tipo
+    para ese titular (según las reglas de uso)."""
     if not plantilla_id:
-        return plantilla_vigente(codigo_tipo)
+        return plantilla_vigente(codigo_tipo, persona)
     plantilla = PlantillaCarnetModel.objects.filter(pk=plantilla_id).first()
     if plantilla is None:
         raise ValidationError('La plantilla indicada no existe.', campo='plantilla_id')

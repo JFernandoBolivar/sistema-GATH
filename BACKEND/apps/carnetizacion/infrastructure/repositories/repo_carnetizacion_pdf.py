@@ -13,7 +13,6 @@ from pdf2image import convert_from_bytes
 
 # Import entre módulos en infrastructure (apps.cargos y apps.personal): mismo patrón ya
 # establecido en `apps.reportes`/`apps.autogestion`/`apps.pasivos`.
-from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
 from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
     CarnetEmitidoArchivoModel,
     CarnetEmitidoModel,
@@ -38,6 +37,9 @@ from .repo_carnetizacion_comun import (
     definicion_plantilla_legacy,
     exigir_condicion_para_carnet,
     logger,
+    asignacion_vigente,
+    datos_para_reglas,
+    nomina_y_nivel,
     plantilla_vigente,
     sangrado_imprenta_mm,
     tipo_credencial_para,
@@ -175,13 +177,9 @@ class RepoCarnetsPdfMixin:
     ) -> tuple[DatosCarnetPdf, dict[str, Any] | None]:
         """Datos del titular y diseño (copia congelada al emitir) de un carnet emitido."""
         empleado = fila.employee
-        asignacion = (
-            AsigTrabajoModel.objects.select_related('denominacioncargoid', 'DireccionGeneral')
-            .filter(employee=empleado)
-            .order_by('-fecha_actualizacion')
-            .first()
-        )
+        asignacion = asignacion_vigente(empleado)
         cargo, departamento = cargo_y_departamento(asignacion)
+        nomina, nivel = nomina_y_nivel(asignacion)
 
         foto_bytes = self._foto_carnet(empleado.profile) if empleado and empleado.profile else None
 
@@ -194,6 +192,8 @@ class RepoCarnetsPdfMixin:
             cedula=str(empleado.cedulaidentidad if empleado else fila.employee_id),
             cargo=cargo,
             departamento=departamento,
+            nomina=nomina,
+            nivel=nivel,
             security_hash=fila.security_hash,
             foto_bytes=foto_bytes,
             vence=vence.strftime('%d/%m/%Y') if vence else '',
@@ -259,7 +259,9 @@ class RepoCarnetsPdfMixin:
         # vigente no hay vista previa. Sin plantilla por capas se usa la maqueta LEGACY,
         # que es el respaldo de los carnets anteriores al versionado.
         condicion = exigir_condicion_para_carnet(empleado)
-        plantilla_motor = plantilla_vigente(tipo_credencial_para(condicion))
+        plantilla_motor = plantilla_vigente(
+            tipo_credencial_para(condicion), datos_para_reglas(asignacion_vigente(empleado)),
+        )
         definicion = (
             plantilla_motor.definicion
             if plantilla_motor and isinstance(plantilla_motor.definicion, dict) and plantilla_motor.definicion
@@ -303,13 +305,9 @@ class RepoCarnetsPdfMixin:
     def _datos_titular_vista_previa(
         self, empleado: Any, nombre_override: str | None = None, foto_bytes: bytes | None = None,
     ) -> DatosCarnetPdf:
-        asignacion = (
-            AsigTrabajoModel.objects.select_related('denominacioncargoid', 'DireccionGeneral')
-            .filter(employee=empleado)
-            .order_by('-fecha_actualizacion')
-            .first()
-        )
+        asignacion = asignacion_vigente(empleado)
         cargo, departamento = cargo_y_departamento(asignacion)
+        nomina, nivel = nomina_y_nivel(asignacion)
         if foto_bytes is None and empleado.profile:
             foto_bytes = self._foto_carnet(empleado.profile)
         nombre = nombre_override or f"{empleado.nombres} {empleado.apellidos}".strip()
@@ -319,6 +317,8 @@ class RepoCarnetsPdfMixin:
             cedula=cedula,
             cargo=cargo,
             departamento=departamento,
+            nomina=nomina,
+            nivel=nivel,
             security_hash=hashlib.sha256(f"PREVIEW|{cedula}|{timezone.now().date()}".encode()).hexdigest(),
             foto_bytes=foto_bytes,
             campos_extra=valores_campos_personalizados(empleado, asignacion),

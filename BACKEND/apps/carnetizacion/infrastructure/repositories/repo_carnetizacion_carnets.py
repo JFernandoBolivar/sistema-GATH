@@ -31,6 +31,8 @@ from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from .repo_carnetizacion_comun import (
     condicion_titular,
     exigir_condicion_para_carnet,
+    asignacion_vigente,
+    datos_para_reglas,
     plantilla_elegida_para_emitir,
     tipo_credencial_para,
     vencimiento_segun_parametros,
@@ -118,6 +120,7 @@ class RepoCarnetsEmitidosMixin:
         # del tipo que corresponde a la condición del titular.
         plantilla_obj = plantilla_elegida_para_emitir(
             str(plantilla_id) if plantilla_id else None, tipo_credencial_para(condicion),
+            datos_para_reglas(asignacion_vigente(empleado)),
         )
 
         p_id = str(plantilla_obj.id) if plantilla_obj else None
