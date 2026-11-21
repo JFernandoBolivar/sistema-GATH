@@ -66,6 +66,9 @@ test.describe("Diseñador de carnet: imagen de biblioteca, rotación y opacidad"
 
       // 1. Insertar la imagen desde la biblioteca, bajar la opacidad y girarla.
       await page.goto(`/carnetizacion/disenador?plantilla=${plantillaId}`);
+      // El botón «Elegir de biblioteca de medios» vive en el panel «Agregar» y el panel
+      // izquierdo por defecto es «Capas»: primero se abre «Agregar» desde la barra de íconos.
+      await page.getByRole("button", { name: /panel de herramientas para agregar elementos/i }).click();
       await page.getByRole("button", { name: /elegir de biblioteca de medios/i }).click();
       await page.getByRole("dialog").getByText(nombreMedio).click();
 

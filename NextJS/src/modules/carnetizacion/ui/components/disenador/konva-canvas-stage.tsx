@@ -31,6 +31,8 @@ interface Props {
   onSeleccionarPunto?: (indice: number | null) => void;
   onMoverPunto?: (indice: number, x: number, y: number) => void;
   onAgregarPunto?: (x: number, y: number) => void;
+  /** Tamaño de los tiradores del Transformer en px (más grande en táctil). */
+  anchorSize?: number;
 }
 
 interface RecorteImagen {
@@ -82,6 +84,7 @@ export function KonvaCanvasStage({
   onSeleccionarPunto,
   onMoverPunto,
   onAgregarPunto,
+  anchorSize = 8,
 }: Props) {
   const stageRef = useRef<Konva.Stage>(null);
   const qrSolicitados = useRef<Set<string>>(new Set());
@@ -319,7 +322,7 @@ export function KonvaCanvasStage({
             }
             return newBox;
           }}
-          anchorSize={8}
+          anchorSize={anchorSize}
           anchorStroke="#2563eb"
           anchorFill="#ffffff"
           borderStroke="#2563eb"
