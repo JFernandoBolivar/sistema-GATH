@@ -45,6 +45,7 @@ from apps.personal.infrastructure.models.personal_models import EmployeeModel
 pytestmark = pytest.mark.django_db
 
 m0021 = importlib.import_module('apps.carnetizacion.migrations.0021_retirar_tipo_autoridad')
+m0022 = importlib.import_module('apps.carnetizacion.migrations.0022_retirar_tipos_contratado_pasante')
 
 AMARILLO_CONTRATADO = '#f2b705'
 ROJO_OBRERO = '#b3122b'
@@ -194,3 +195,18 @@ def test_0021_solo_desactiva_autoridad_si_ya_tiene_plantillas():
     m0021.aplicar(apps_vivas, None)
     assert TipoCredencialModel.objects.get(codigo='autoridad').activo is False
     assert CredencialExternaModel.objects.filter(tipo_credencial_id='autoridad').count() == 0
+
+
+def test_0022_retira_contratado_y_pasante_y_desactiva_si_tienen_uso():
+    _tipo('contratado', 'externo')
+    _tipo('pasante', 'externo')
+    PlantillaCarnetModel.objects.create(
+        nombre='Pasantes', tipo_credencial_id='pasante', estado='borrador', definicion={},
+    )
+    m0022.aplicar(apps_vivas, None)
+    assert not TipoCredencialModel.objects.filter(codigo='contratado').exists()
+    assert TipoCredencialModel.objects.get(codigo='pasante').activo is False
+
+    m0022.revertir(apps_vivas, None)
+    assert TipoCredencialModel.objects.get(codigo='contratado').activo is True
+    assert TipoCredencialModel.objects.get(codigo='pasante').activo is True

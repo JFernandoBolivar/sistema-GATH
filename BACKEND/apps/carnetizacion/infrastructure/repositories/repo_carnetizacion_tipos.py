@@ -14,10 +14,9 @@ from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
 
 
 
-# Catálogo base. Los trabajadores (incluidos contratados y pasantes con expediente) usan el
-# tipo «trabajador»: su color sale de la regla por tipo de nómina de la plantilla (K-11).
-# «contratado» y «pasante» quedan solo como credenciales externas (sin expediente);
-# «autoridad» se retiró (Alto Nivel = nómina FUNCIONARIO).
+# Catálogo base. Todo trabajador usa el tipo «trabajador» (o «pasivo»): el diseño de un
+# contratado, pasante, obrero, etc. sale de la regla por tipo de nómina de la plantilla
+# (K-11). Por eso no hay tipos de credencial «contratado», «pasante» ni «autoridad».
 TIPOS_CREDENCIAL_BASE = (
     {
         'codigo': 'trabajador',
@@ -32,20 +31,6 @@ TIPOS_CREDENCIAL_BASE = (
         'descripcion': 'Credencial oficial para personal jubilado, pensionado o sobreviviente',
         'grupo': 'pasivo',
         'orden': 2,
-    },
-    {
-        'codigo': 'contratado',
-        'nombre': 'Contratado',
-        'descripcion': 'Credencial externa para personal contratado sin expediente en el sistema',
-        'grupo': 'externo',
-        'orden': 3,
-    },
-    {
-        'codigo': 'pasante',
-        'nombre': 'Pasante',
-        'descripcion': 'Credencial externa para pasantes sin expediente en el sistema',
-        'grupo': 'externo',
-        'orden': 4,
     },
 )
 
