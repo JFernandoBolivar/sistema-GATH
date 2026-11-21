@@ -6,7 +6,7 @@
  * imágenes por módulo.
  *
  * Solo se muestran los módulos de primer nivel: Administración del sistema,
- * Gestión de Trabajadores, Carnetización y Autogestión. El personal pasivo se
+ * Gestión de Trabajadores, Carnetización, Captación de Personal y Autogestión. El personal pasivo se
  * gestiona dentro de Gestión de Trabajadores con el selector
  * «Gestión Personal Activo/Pasivo» de la cabecera (no es una tarjeta aparte).
  * Cargos, Familiares, Organización, Movimientos, Reportes y Catálogos viven
@@ -61,6 +61,14 @@ const MODULOS: Modulo[] = [
     href: "/carnetizacion",
     alt: "Sistema de carnetización",
     permiso: "carnetizacion.ver",
+  },
+  {
+    id: "Captacion",
+    name: "Captación de Personal",
+    imageSrc: "/images/departments/beneficios.png",
+    href: "/captacion",
+    alt: "Captación de personal: expedientes de postulantes",
+    permiso: "postulacion.ver_bandeja",
   },
   {
     id: "AUTOGESTION",

@@ -21,6 +21,7 @@ const MODULO_POR_RUTA: Record<string, ModuloNotificaciones> = {
   "/carnetizacion/notificaciones": "carnetizacion",
   "/usuarios/notificaciones": "seguridad",
   "/autogestion/notificaciones": "autogestion",
+  "/captacion/notificaciones": "postulacion",
 };
 
 export function moduloDeRutaNotificaciones(ruta: string): ModuloNotificaciones | null {

@@ -17,6 +17,7 @@ const SECCIONES = [
   { href: "/movimientos", label: "Movimientos" },
   { href: "/pasivos", label: "Pasivos" },
   { href: "/carnetizacion", label: "Carnetización" },
+  { href: "/captacion", label: "Captación" },
   { href: "/autogestion", label: "Autogestión" },
   { href: "/reportes", label: "Reportes" },
   { href: "/catalogos", label: "Catálogos" },

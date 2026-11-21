@@ -37,4 +37,4 @@ export function enlaceInterno(enlace: string | null | undefined): string | null 
 
 /** Bandeja a la que pertenece una notificación; cada módulo solo muestra las suyas. */
 export type ModuloNotificaciones =
-  "autogestion" | "personal" | "pasivos" | "carnetizacion" | "seguridad";
+  "autogestion" | "personal" | "pasivos" | "carnetizacion" | "seguridad" | "postulacion";

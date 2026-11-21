@@ -42,6 +42,11 @@ export const TIPOS_POR_MODULO: Record<ModuloNotificaciones, TipoNotificacion[]> 
   carnetizacion: [{ codigo: "autogestion.foto_aprobada", etiqueta: "Reemisión de carnet" }],
   pasivos: [],
   seguridad: [],
+  postulacion: [
+    { codigo: "EXPEDIENTE_RECIBIDO", etiqueta: "Expediente recibido" },
+    { codigo: "EXPEDIENTE_REVISION_FINAL", etiqueta: "Expediente en revisión final" },
+    { codigo: "EXPEDIENTE_EN_PRESUPUESTO", etiqueta: "Expediente en Presupuesto" },
+  ],
 };
 
 /** Unión sin duplicados de todos los tipos, para la bandeja única del usuario. */
