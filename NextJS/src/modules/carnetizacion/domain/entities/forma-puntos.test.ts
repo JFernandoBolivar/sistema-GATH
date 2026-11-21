@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { ElementoKonva } from "./disenador";
 import {
   agregarPuntoCercano,
+  cambiosFormaLibre,
   cornerRadiusParaRect,
   eliminarPunto,
   generarPathDesdePuntos,
@@ -142,5 +143,28 @@ describe("Formas institucionales", () => {
     expect(por("banda-tenue").elemento.fill).toBe("#f2f3f5");
     expect(COLOR_PRIMARIO_INSTITUCIONAL).toBe("#14284b");
     expect(COLOR_ACENTO_INSTITUCIONAL).toBe("#c8102e");
+  });
+});
+
+describe("conversión a forma libre", () => {
+  const base = { w: 20, h: 10, rad: 0 };
+  it("un rectángulo con radios conserva sus esquinas", () => {
+    const c = cambiosFormaLibre({ t: "rect", ...base, radios: [1, 2, 3, 4] })!;
+    expect(c.puntos).toEqual([
+      { x: 0, y: 0, r: 1 },
+      { x: 100, y: 0, r: 2 },
+      { x: 100, y: 100, r: 3 },
+      { x: 0, y: 100, r: 4 },
+    ]);
+    expect(c.extra).toEqual({ rad: 0, radios: undefined });
+    expect(generarPathDesdePuntos(c.puntos, 20, 10)).toMatch(/^M .* Z$/);
+  });
+  it("un círculo se aproxima con 8 puntos con radio", () => {
+    const c = cambiosFormaLibre({ t: "circle", w: 10, h: 10, rad: 0 })!;
+    expect(c.puntos).toHaveLength(8);
+    expect(c.puntos.every((p) => p.r > 0)).toBe(true);
+  });
+  it("otros tipos no se convierten", () => {
+    expect(cambiosFormaLibre({ t: "text", ...base })).toBeNull();
   });
 });

@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useTransition, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import useSWR from "swr";
 import { toast } from "sonner";
 import {
   ArrowLeft,
+  Check,
   Eye,
   Image as ImageIcon,
   Layers,
@@ -19,6 +21,16 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Tooltip,
@@ -95,6 +107,8 @@ interface Props {
 export function DisenadorView({ plantillaId }: Props) {
   const isMobile = useIsMobile();
 
+  const router = useRouter();
+  const [confirmarSalida, setConfirmarSalida] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [modalBibliotecaOpen, setModalBibliotecaOpen] = useState(false);
   const [vistaPreviaAbierta, setVistaPreviaAbierta] = useState(false);
@@ -115,7 +129,9 @@ export function DisenadorView({ plantillaId }: Props) {
   // ── Consultas SWR ───────────────────────────────────────────────────────────
   const { data: respuestaPlantilla, mutate: mutatePlantilla } = useSWR(
     ["plantilla-motor", plantillaId],
-    () => getPlantillaMotorAction(plantillaId)
+    () => getPlantillaMotorAction(plantillaId),
+    // Sin revalidar solo por foco o reconexión: el editor no debe recargarse mientras se trabaja.
+    { revalidateOnFocus: false, revalidateOnReconnect: false, revalidateIfStale: false },
   );
 
   const plantilla: PlantillaMotor | null =
@@ -285,6 +301,7 @@ export function DisenadorView({ plantillaId }: Props) {
 
       if (res.success) {
         toast.success("Definición de plantilla guardada exitosamente.");
+        editor.marcarGuardado();
         mutatePlantilla();
       } else {
         toast.error(res.error || "No se pudo guardar la plantilla.");
@@ -361,6 +378,7 @@ export function DisenadorView({ plantillaId }: Props) {
           onCambiarRadioPunto: editor.cambiarRadioPuntoEditado,
           onEliminarPunto: editor.eliminarPuntoEditado,
           onConvertirAPathLibre: editor.convertirAPathLibre,
+          onConvertirEnFormaLibre: editor.convertirEnFormaLibre,
         }}
       />
     );
@@ -449,6 +467,22 @@ export function DisenadorView({ plantillaId }: Props) {
         </div>
       </div>
 
+      {/* Pista y salida del modo «Editar puntos» */}
+      {editor.edicionPuntos && (
+        <div className="absolute bottom-2 left-1/2 z-10 flex max-w-[calc(100%-1rem)] -translate-x-1/2 items-center gap-2 rounded-full border border-primary/40 bg-background/95 py-1 pl-3 pr-1 text-xs shadow-md">
+          <span className="truncate">Arrastra los puntos para cambiar la forma</span>
+          <Button
+            type="button"
+            size="sm"
+            className="h-7 shrink-0 gap-1 rounded-full px-3 text-xs"
+            onClick={editor.terminarEdicionPuntos}
+          >
+            <Check className="size-3.5" aria-hidden />
+            Listo
+          </Button>
+        </div>
+      )}
+
       {/* Medidas y cara (no interactivo) */}
       <span className="pointer-events-none absolute left-2 top-2 rounded bg-background/80 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:text-[11px]">
         {isMobile ? editor.caraActual : `${anchoMm} × ${altoMm} mm · ${editor.caraActual}`}
@@ -475,7 +509,16 @@ export function DisenadorView({ plantillaId }: Props) {
         <Tooltip>
           <TooltipTrigger asChild>
             <Button variant="ghost" size="icon" className="size-9 shrink-0" asChild>
-              <Link href="/carnetizacion/plantillas" aria-label="Volver a Plantillas">
+              <Link
+                href="/carnetizacion/plantillas"
+                aria-label="Volver a Plantillas"
+                onClick={(e) => {
+                  if (editor.sinGuardar) {
+                    e.preventDefault();
+                    setConfirmarSalida(true);
+                  }
+                }}
+              >
                 <ArrowLeft className="size-4" aria-hidden />
               </Link>
             </Button>
@@ -538,6 +581,19 @@ export function DisenadorView({ plantillaId }: Props) {
           Vista previa PDF
         </Button>
 
+        {/* Indicador de cambios pendientes (escritorio y móvil) */}
+        {editor.sinGuardar && (
+          <span
+            role="status"
+            data-testid="indicador-sin-guardar"
+            className="flex shrink-0 items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+          >
+            <span className="size-2 rounded-full bg-amber-500" aria-hidden />
+            <span className="hidden sm:inline">Cambios sin guardar</span>
+            <span className="sr-only sm:hidden">Cambios sin guardar</span>
+          </span>
+        )}
+
         {/* Guardar Borrador: siempre visible */}
         <Button
           size="sm"
@@ -580,6 +636,23 @@ export function DisenadorView({ plantillaId }: Props) {
         caras={carasVistaPrevia}
         cargando={isPendingVistaPrevia}
       />
+
+      <AlertDialog open={confirmarSalida} onOpenChange={setConfirmarSalida}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Salir sin guardar?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tienes cambios sin guardar en el diseño. Si sales ahora se perderán.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Seguir editando</AlertDialogCancel>
+            <AlertDialogAction onClick={() => router.push("/carnetizacion/plantillas")}>
+              Salir sin guardar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <DisenadorBibliotecaDialog
         open={modalBibliotecaOpen}

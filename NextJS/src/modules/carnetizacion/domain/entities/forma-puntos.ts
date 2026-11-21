@@ -261,3 +261,55 @@ export function cornerRadiusParaRect(
   const px = mm.map((r) => r * escala);
   return px.every((r) => r === px[0]) ? px[0] : px;
 }
+
+/** Las 4 esquinas de un rectángulo como puntos, con el radio (mm) de cada esquina. */
+export function puntosDesdeRect(el: {
+  w: number;
+  h: number;
+  rad: number;
+  radios?: readonly number[];
+}): PuntoForma[] {
+  const [a, b, c, d] = radiosEsquinasMm(el);
+  return [
+    { x: 0, y: 0, r: a },
+    { x: 100, y: 0, r: b },
+    { x: 100, y: 100, r: c },
+    { x: 0, y: 100, r: d },
+  ];
+}
+
+/**
+ * Aproximación de un círculo o elipse: un octógono con el radio máximo en cada vértice
+ * (curvas Q que el PDF ya dibuja). Pocos puntos, fáciles de mover.
+ */
+export function puntosDesdeElipse(w: number, h: number): PuntoForma[] {
+  const k = 50 * Math.SQRT1_2; // seno/coseno de 45° sobre el radio de la caja
+  const base: Array<[number, number]> = [
+    [50, 0],
+    [50 + k, 50 - k],
+    [100, 50],
+    [50 + k, 50 + k],
+    [50, 100],
+    [50 - k, 50 + k],
+    [0, 50],
+    [50 - k, 50 - k],
+  ];
+  const sinRadio = base.map(([x, y]) => ({ x: redondear(x), y: redondear(y), r: 0 }));
+  return sinRadio.map((p, i) => ({ ...p, r: radioMaximoMm(sinRadio, i, w, h) }));
+}
+
+/**
+ * Cambios que convierten un rectángulo o círculo en forma libre editable por puntos,
+ * conservando posición, tamaño, color, borde, opacidad y rotación (no se tocan).
+ */
+export function cambiosFormaLibre(el: {
+  t: string;
+  w: number;
+  h: number;
+  rad: number;
+  radios?: readonly number[];
+}): { puntos: PuntoForma[]; extra: { rad: number; radios: undefined } } | null {
+  if (el.t === "rect") return { puntos: puntosDesdeRect(el), extra: { rad: 0, radios: undefined } };
+  if (el.t === "circle") return { puntos: puntosDesdeElipse(el.w, el.h), extra: { rad: 0, radios: undefined } };
+  return null;
+}

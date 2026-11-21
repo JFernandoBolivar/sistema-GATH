@@ -60,6 +60,7 @@ describe("DisenadorPropiedadesForma", () => {
           onCambiarRadioPunto: vi.fn(),
           onEliminarPunto: vi.fn(),
           onConvertirAPathLibre: vi.fn(),
+          onConvertirEnFormaLibre: vi.fn(),
         }}
       />,
     );
@@ -75,5 +76,41 @@ describe("DisenadorPropiedadesForma", () => {
     // Orden: sup. izquierda, sup. derecha, inf. derecha, inf. izquierda
     fireEvent.change(screen.getAllByRole("spinbutton")[1], { target: { value: "6" } });
     expect(onActualizar).toHaveBeenLastCalledWith("f1", { radios: [2, 6, 2, 2], rad: 2 });
+  });
+});
+
+describe("Convertir en forma libre", () => {
+  const control = {
+    edicionPuntos: null,
+    onEditarPuntos: vi.fn(),
+    onTerminarEdicion: vi.fn(),
+    onCambiarRadioPunto: vi.fn(),
+    onEliminarPunto: vi.fn(),
+    onConvertirAPathLibre: vi.fn(),
+    onConvertirEnFormaLibre: vi.fn(),
+  };
+  it.each(["rect", "circle"] as const)("el botón aparece y funciona en %s", (t) => {
+    const onConv = vi.fn();
+    const el: ElementoKonva = { ...forma, t, path: undefined };
+    render(
+      <DisenadorPropiedadesForma
+        elemento={el}
+        onActualizarElemento={vi.fn()}
+        control={{ ...control, onConvertirEnFormaLibre: onConv }}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Convertir en forma libre/ }));
+    expect(onConv).toHaveBeenCalledWith("f1");
+  });
+  it("los valores rápidos fijan el radio del rectángulo", () => {
+    const onActualizar = vi.fn();
+    render(
+      <DisenadorPropiedadesForma
+        elemento={{ ...forma, t: "rect", path: undefined }}
+        onActualizarElemento={onActualizar}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Radio de 4 milímetros/ }));
+    expect(onActualizar).toHaveBeenCalledWith("f1", { radios: [4, 4, 4, 4], rad: 4 });
   });
 });

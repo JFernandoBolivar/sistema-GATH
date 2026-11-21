@@ -168,3 +168,43 @@ describe("Selección múltiple", () => {
     input.remove();
   });
 });
+
+describe("Cambios sin guardar y revalidación", () => {
+  const clonar = (id: string) =>
+    ({ ...plantilla, id, definicion: { ...plantilla.definicion } }) as unknown as PlantillaMotor;
+
+  it("una revalidación (objeto nuevo, mismo id) no reinicia lo editado; cambiar de id sí", () => {
+    const { result, rerender } = renderHook(
+      ({ p }) => useDisenadorEditor({ plantilla: p, anchoMm: 54, altoMm: 85.6 }),
+      { initialProps: { p: clonar("p1") } },
+    );
+    act(() => result.current.handleActualizarElemento("a1", { x: 7 }));
+    rerender({ p: clonar("p1") });
+    expect(result.current.elementos.find((e) => e.id === "a1")?.x).toBe(7);
+    expect(result.current.sinGuardar).toBe(true);
+    rerender({ p: clonar("p2") });
+    expect(result.current.elementos.find((e) => e.id === "a1")?.x).toBe(0);
+    expect(result.current.sinGuardar).toBe(false);
+  });
+
+  it("el indicador aparece al editar y desaparece al guardar", () => {
+    const { result } = montar();
+    expect(result.current.sinGuardar).toBe(false);
+    act(() => result.current.handleActualizarElemento("a1", { x: 3 }));
+    expect(result.current.sinGuardar).toBe(true);
+    act(() => result.current.marcarGuardado());
+    expect(result.current.sinGuardar).toBe(false);
+    act(() => result.current.handleDeshacer());
+    expect(result.current.sinGuardar).toBe(true);
+  });
+
+  it("convertir un rectángulo con radios en forma libre entra a editar puntos", () => {
+    const { result } = montar();
+    act(() => result.current.handleActualizarElemento("a1", { radios: [1, 2, 3, 1], rad: 1 }));
+    act(() => result.current.convertirEnFormaLibre("a1"));
+    const el = result.current.elementos.find((e) => e.id === "a1")!;
+    expect(el.t).toBe("path");
+    expect(el.puntos?.map((p) => p.r)).toEqual([1, 2, 3, 1]);
+    expect(result.current.edicionPuntos).toEqual({ id: "a1", indice: null });
+  });
+});

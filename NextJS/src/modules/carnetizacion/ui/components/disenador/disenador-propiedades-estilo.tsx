@@ -259,22 +259,6 @@ export function DisenadorPropiedadesEstilo({
               onValueChange={([val]) => onActualizarElemento(el.id, { shadow: val })}
             />
           </div>
-
-          {["rect", "photo", "qr"].includes(el.t) && (
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-xs font-medium">
-                <span>Radio de Esquinas</span>
-                <span className="font-mono text-muted-foreground">{el.rad || 0} mm</span>
-              </div>
-              <Slider
-                value={[el.rad || 0]}
-                min={0}
-                max={10}
-                step={0.5}
-                onValueChange={([val]) => onActualizarElemento(el.id, { rad: val })}
-              />
-            </div>
-          )}
         </div>
       </SeccionPropiedades>
     </>

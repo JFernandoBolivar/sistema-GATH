@@ -29,6 +29,7 @@ import {
 } from "../../domain/entities/disenador";
 import {
   agregarPuntoCercano,
+  cambiosFormaLibre,
   cambiarRadioPunto,
   eliminarPunto,
   generarPathDesdePuntos,
@@ -114,18 +115,54 @@ export function useDisenadorEditor({
     setHistorialIndex(0);
   }, []);
 
-  // Inicializar elementos desde la definición guardada (anverso/reverso del motor)
+  // Última versión guardada o cargada: referencia a la instantánea y a las reglas de color.
+  // «Sin guardar» = la instantánea actual ya no es esa (deshacer hasta ella lo limpia).
+  const [base, setBase] = useState<{ snap: InstantaneaEditor | null; reglas: ReglasColorConfig | null }>({
+    snap: null,
+    reglas: null,
+  });
+  const reglasRef = useRef(reglasColor);
+  reglasRef.current = reglasColor;
+  const idCargadoRef = useRef<string | null>(null);
+
+  // Inicializar elementos desde la definición guardada (anverso/reverso del motor).
+  // Solo cuando cambia la plantilla (id): una revalidación de SWR devuelve un objeto nuevo
+  // con el mismo id y NO debe borrar los cambios sin guardar.
   useEffect(() => {
     if (!plantilla) return;
+    if (idCargadoRef.current === plantilla.id) return;
+    idCargadoRef.current = plantilla.id;
     const adaptada = adaptarDefinicionAEditor(plantilla.definicion);
     if (adaptada.elementos.length > 0) {
       reiniciarHistorial(adaptada.elementos, adaptada.fondos);
-      if (adaptada.reglasColor) setReglasColor(adaptada.reglasColor);
     } else {
       const iniciales = crearElementosInicialesDefecto(anchoMm);
       reiniciarHistorial(iniciales, adaptada.fondos);
     }
+    const reglasIniciales =
+      adaptada.elementos.length > 0 && adaptada.reglasColor ? adaptada.reglasColor : reglasRef.current;
+    if (reglasIniciales !== reglasRef.current) setReglasColor(reglasIniciales);
+    setBase({ snap: historialRef.current[0], reglas: reglasIniciales });
   }, [plantilla, anchoMm, reiniciarHistorial]);
+
+  const sinGuardar =
+    base.snap !== null &&
+    (historialRef.current[indiceRef.current] !== base.snap || reglasColor !== base.reglas);
+  // Tras guardar con éxito: lo actual pasa a ser la referencia.
+  const marcarGuardado = useCallback(() => {
+    setBase({ snap: historialRef.current[indiceRef.current] ?? null, reglas: reglasRef.current });
+  }, []);
+
+  // Aviso nativo al recargar o cerrar la pestaña con cambios pendientes
+  useEffect(() => {
+    if (!sinGuardar) return;
+    const alSalir = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", alSalir);
+    return () => window.removeEventListener("beforeunload", alSalir);
+  }, [sinGuardar]);
 
   // Actualizar historial para Deshacer / Rehacer
   // Cada instantánea guarda elementos y fondos por cara, para deshacer también los fondos.
@@ -240,6 +277,15 @@ export function useDisenadorEditor({
       }
       aplicarPuntos(id, inicial);
     }
+    setSeleccionIds([id]);
+    setEdicionPuntos({ id, indice: null });
+  };
+  /** Rectángulo o círculo → forma libre por puntos, y entra directo en «Editar puntos». */
+  const convertirEnFormaLibre = (id: string) => {
+    const el = elementosRef.current.find((e) => e.id === id);
+    const cambios = el && cambiosFormaLibre(el);
+    if (!cambios) return;
+    aplicarPuntos(id, cambios.puntos, cambios.extra);
     setSeleccionIds([id]);
     setEdicionPuntos({ id, indice: null });
   };
@@ -432,6 +478,9 @@ export function useDisenadorEditor({
     eliminarPuntoEditado,
     cambiarRadioPuntoEditado,
     convertirAPathLibre,
+    convertirEnFormaLibre,
+    sinGuardar,
+    marcarGuardado,
     seleccionIds,
     seleccionarElemento,
     seleccionarVarios,
