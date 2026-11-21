@@ -16,6 +16,9 @@ import Credentials from "next-auth/providers/credentials";
 import { CredentialsSignin } from "next-auth";
 import { DJANGO_API_SERVER } from "@/shared/commons/api";
 import { authCookieSecure } from "@/shared/commons/auth-cookies";
+import { credencialesPostulanteSchema } from "@/modules/postulacion/domain/credenciales";
+import { codigoNextAuthDeAcceso } from "@/modules/postulacion/domain/errores-acceso";
+import { ROL_POSTULANTE } from "@/modules/postulacion/domain/acceso-ruta";
 
 const BACKEND = DJANGO_API_SERVER;
 
@@ -30,6 +33,24 @@ class PasswordInicialVencida extends CredentialsSignin {
  */
 class CuentaBloqueada extends CredentialsSignin {
   code = "cuenta_bloqueada";
+}
+
+/**
+ * D-5: fallo del acceso del postulante. El `code` (CREDENCIALES_INVALIDAS, CREDENCIAL_BLOQUEADA|<hora>,
+ * CREDENCIAL_VENCIDA...) llega a la pantalla de acceso, que lo traduce a un mensaje claro.
+ */
+class FalloAccesoPostulante extends CredentialsSignin {
+  constructor(codigo: string) {
+    super();
+    this.code = codigo;
+  }
+}
+
+interface AccesoPostulanteData {
+  token: string;
+  expira_el: string;
+  debe_cambiar_clave: boolean;
+  expediente: { numero: string; estado: string };
 }
 
 interface BackendEnvelope<T> {
@@ -165,6 +186,71 @@ export default {
           djRefresh: tokens.refresh,
           permisos,
           condicionTrabajador,
+        };
+      },
+    }),
+    /**
+     * Sesión de invitado del postulante (D-5): proveedor SEPARADO del de empleados. Llama a
+     * `postulacion/acceso/` y guarda el Bearer de Django SOLO en el JWT cifrado de NextAuth; no
+     * fija las cookies `dj_access`/`dj_refresh` del personal y el rol no existe en la tabla `Rol`.
+     */
+    Credentials({
+      id: "postulante",
+      name: "Postulante",
+      credentials: { cedula: {}, password: {} },
+      authorize: async (credentials) => {
+        const parsed = credencialesPostulanteSchema.safeParse(credentials);
+        if (!parsed.success) throw new FalloAccesoPostulante("CREDENCIALES_INVALIDAS");
+
+        let res: Response;
+        try {
+          res = await fetch(`${BACKEND}api/v1/postulacion/acceso/`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(parsed.data),
+            cache: "no-store",
+          });
+        } catch {
+          throw new FalloAccesoPostulante("SERVICIO_NO_DISPONIBLE");
+        }
+
+        if (!res.ok) {
+          const cuerpo = (await res.json().catch(() => null)) as {
+            data?: { codigo?: string; bloqueada_hasta?: string };
+          } | null;
+          throw new FalloAccesoPostulante(
+            codigoNextAuthDeAcceso(res.status, cuerpo?.data?.codigo, cuerpo?.data?.bloqueada_hasta),
+          );
+        }
+
+        const { data } = (await res.json()) as BackendEnvelope<AccesoPostulanteData>;
+        const expiraEl = Math.floor(new Date(data.expira_el).getTime() / 1000);
+        if (!data.token || Number.isNaN(expiraEl)) throw new FalloAccesoPostulante("SERVICIO_NO_DISPONIBLE");
+
+        return {
+          id: `postulante:${parsed.data.cedula}`,
+          name: "Postulante",
+          // Rol sintético: solo existe en la sesión, nunca como fila de `Rol`.
+          role: { id: 0, nombre_rol: ROL_POSTULANTE, nombre_visible: "Postulante" },
+          cedula: parsed.data.cedula,
+          phone: "",
+          email: "",
+          directionGeneral: { id: "", nombre: "" },
+          direccionLine: null,
+          coordination: null,
+          dependency: { id: "", nombre: "" },
+          debeCambiarPassword: false,
+          djAccess: "",
+          djRefresh: "",
+          permisos: [],
+          condicionTrabajador: "SIN_ASIGNACION",
+          postulante: {
+            tokenDjango: data.token,
+            expiraEl,
+            expedienteNumero: data.expediente?.numero ?? "",
+            expedienteEstado: data.expediente?.estado ?? "",
+            debeCambiarClave: data.debe_cambiar_clave === true,
+          },
         };
       },
     }),

@@ -1,5 +1,9 @@
 import { DefaultSession } from "next-auth";
 import "next-auth/jwt";
+import type {
+  SesionPostulanteJwt,
+  SesionPostulantePublica,
+} from "@/modules/postulacion/domain/sesion";
 
 declare module "next-auth" {
   interface Session {
@@ -31,6 +35,8 @@ declare module "next-auth" {
       permisos: string[];
       /** ACTIVO | PASIVO | SIN_ASIGNACION: dato derivado en servidor, no un rol. */
       condicionTrabajador: string;
+      /** Solo rol POSTULANTE; sin el token de Django. */
+      sesionPostulante?: SesionPostulantePublica;
     } & DefaultSession["user"];
   }
   interface User {
@@ -62,6 +68,7 @@ declare module "next-auth" {
     djRefresh: string;
     permisos?: string[];
     condicionTrabajador?: string;
+    postulante?: SesionPostulanteJwt;
   }
 }
 
@@ -93,5 +100,6 @@ declare module "next-auth/jwt" {
     debeCambiarPassword?: boolean;
     permisos?: string[];
     condicionTrabajador?: string;
+    postulante?: SesionPostulanteJwt;
   }
 }

@@ -138,6 +138,14 @@ export default function LoginForm() {
           <Button type="submit" disabled={isPending} className="w-full min-h-11 text-base">
             {isPending ? "Iniciando sesión..." : "Iniciar Sesión"}
           </Button>
+          <p className="text-center text-sm">
+            <Link
+              href="/postulacion/acceso"
+              className="inline-flex min-h-[40px] items-center text-sky-200 underline-offset-4 hover:text-white hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 rounded-sm"
+            >
+              ¿Eres postulante? Ingresa aquí
+            </Link>
+          </p>
         </div>
       </form>
     </Form>

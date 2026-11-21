@@ -2,6 +2,7 @@ import { auth as proxy } from "../auth";
 import { NextResponse } from "next/server";
 import { puedeVerRuta } from "@/shared/lib/evaluador-iam";
 import { urlDePeticion } from "@/shared/lib/origen-peticion";
+import { decidirRutaPostulacion } from "@/modules/postulacion/domain/acceso-ruta";
 
 /**
  * Destino de una redirección con el origen REAL de la petición
@@ -55,6 +56,24 @@ export default proxy((req) => {
   // Con sesión, la propia ficha eleva el nivel de detalle; sin sesión muestra
   // solo lo que el titular autorizó como público.
   if (nextUrl.pathname.startsWith(PREFIJO_VERIFICACION_CARNET)) {
+    return NextResponse.next();
+  }
+
+  // Área del postulante (D-6): rol sintético POSTULANTE, sesión de invitado. Decide si la ruta es
+  // suya (`/postulacion/*`), si un postulante intenta salirse de ella o si un empleado intenta entrar.
+  const decisionPostulante = decidirRutaPostulacion(
+    nextUrl.pathname,
+    isLoggedIn
+      ? {
+          rol: auth?.user?.role?.nombre_rol,
+          debeCambiarClave: auth?.user?.sesionPostulante?.debeCambiarClave ?? false,
+        }
+      : null,
+  );
+  if (decisionPostulante.tipo === "redirigir") {
+    return NextResponse.redirect(destino(req, decisionPostulante.destino));
+  }
+  if (decisionPostulante.tipo === "continuar") {
     return NextResponse.next();
   }
 
