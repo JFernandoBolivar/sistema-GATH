@@ -34,6 +34,8 @@ class ExpedientePostulacion:
     ventana_vence_el: datetime | None = None
     # Vencimiento de la reserva del puesto (C-4); lo fija la entrada a EN_DIRECCION_GENERAL.
     reserva_vence_el: datetime | None = None
+    # Fin de la espera del diferido (C-10); lo fija la entrada a DIFERIDO_PRESUPUESTO.
+    diferido_vence_el: datetime | None = None
     observaciones: str = ''
     fecha_apertura: datetime | None = None
     fecha_cierre: datetime | None = None

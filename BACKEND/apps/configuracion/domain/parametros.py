@@ -21,6 +21,7 @@ from core.domain.configuracion import (
     CLAVE_AUTOGESTION_ESPERA_FORMACION,
     CLAVE_AUTOGESTION_ESPERA_IDENTIDAD,
     CLAVE_AVISAR_CUENTA_CREADA_POR_CORREO,
+    CLAVE_CAPTACION_ESPERA_DIFERIDO_DIAS,
     CLAVE_CAPTACION_PSICOFISICO_OBLIGATORIO,
     CLAVE_CAPTACION_RETENCION_RECHAZADOS_MESES,
     CLAVE_CAPTACION_VIGENCIA_RESERVA_PUESTO_DIAS,
@@ -582,6 +583,19 @@ DEFINICIONES = (
         defecto='24',
         minimo=1,
         maximo=120,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_CAPTACION_ESPERA_DIFERIDO_DIAS,
+        etiqueta='Espera máxima de un expediente diferido (días)',
+        descripcion=(
+            'Días que un expediente diferido por Presupuesto espera a que se libere la partida, '
+            'contados desde que se difiere. Al vencer, el sistema lo da por desistido.'
+        ),
+        grupo=GRUPO_CAPTACION,
+        tipo=TIPO_ENTERO,
+        defecto='90',
+        minimo=1,
+        maximo=365,
     ),
 )
 

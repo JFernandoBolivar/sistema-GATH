@@ -72,6 +72,7 @@ def aplicar_transicion_expediente(
             exp = replace(exp, **propuesta)
         hechos = Hechos(
             ahora=ahora, ventana_vence_el=exp.ventana_vence_el, reserva_vence_el=exp.reserva_vence_el,
+            diferido_vence_el=exp.diferido_vence_el,
             cargo_definido=exp.cargo_definido, oficina_definida=exp.oficina_definida,
             psicofisico_obligatorio=psicofisico_obligatorio,
             psicofisico_registrado=externos.psicofisico_registrado,

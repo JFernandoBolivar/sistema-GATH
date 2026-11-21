@@ -32,7 +32,19 @@ PARAMETROS_ESPERADOS = {
     'captacion.vigencia_reserva_puesto_dias': ('30', 1, 180, 'entero'),
     'captacion.psicofisico_obligatorio': ('true', None, None, 'booleano'),
     'captacion.retencion_rechazados_meses': ('24', 1, 120, 'entero'),
+    'captacion.espera_diferido_dias': ('90', 1, 365, 'entero'),
 }
+
+
+MIGRACIONES_CAPTACION = (
+    'apps.configuracion.migrations.0014_sembrar_parametros_captacion',
+    'apps.configuracion.migrations.0015_sembrar_espera_diferido',
+)
+
+
+def _sembrar_captacion(registro):
+    for nombre in MIGRACIONES_CAPTACION:
+        importlib.import_module(nombre).sembrar(registro, None)
 
 
 def _seed():
@@ -119,10 +131,9 @@ def test_migracion_de_roles_es_idempotente():
 
 
 def test_parametros_de_captacion_se_siembran_con_valores_y_limites():
-    migracion = importlib.import_module('apps.configuracion.migrations.0014_sembrar_parametros_captacion')
     from django.apps import apps as registro
 
-    migracion.sembrar(registro, None)
+    _sembrar_captacion(registro)
     filas = {p.clave: p for p in ParametroSistemaModel.objects.filter(grupo=GRUPO_CAPTACION)}
     assert set(filas) == set(PARAMETROS_ESPERADOS)
     for clave, (valor, minimo, maximo, tipo) in PARAMETROS_ESPERADOS.items():
@@ -136,16 +147,28 @@ def test_parametros_de_captacion_se_siembran_con_valores_y_limites():
 
 
 def test_migracion_de_parametros_es_idempotente_reversible_y_no_pisa_valores():
-    migracion = importlib.import_module('apps.configuracion.migrations.0014_sembrar_parametros_captacion')
     from django.apps import apps as registro
 
-    migracion.sembrar(registro, None)
+    _sembrar_captacion(registro)
     ParametroSistemaModel.objects.filter(clave='captacion.vigencia_ventana1_dias').update(valor='20')
-    migracion.sembrar(registro, None)
-    assert ParametroSistemaModel.objects.filter(grupo=GRUPO_CAPTACION).count() == 5
+    _sembrar_captacion(registro)
+    assert ParametroSistemaModel.objects.filter(grupo=GRUPO_CAPTACION).count() == 6
     assert ParametroSistemaModel.objects.get(clave='captacion.vigencia_ventana1_dias').valor == '20'
 
-    migracion.retirar(registro, None)
+    for nombre in MIGRACIONES_CAPTACION:
+        importlib.import_module(nombre).retirar(registro, None)
     assert not ParametroSistemaModel.objects.filter(grupo=GRUPO_CAPTACION).exists()
+    _sembrar_captacion(registro)
+    assert ParametroSistemaModel.objects.filter(grupo=GRUPO_CAPTACION).count() == 6
+
+
+def test_migracion_0015_es_idempotente_reversible_y_no_pisa_el_valor_editado():
+    from django.apps import apps as registro
+
+    migracion = importlib.import_module('apps.configuracion.migrations.0015_sembrar_espera_diferido')
     migracion.sembrar(registro, None)
-    assert ParametroSistemaModel.objects.filter(grupo=GRUPO_CAPTACION).count() == 5
+    ParametroSistemaModel.objects.filter(clave='captacion.espera_diferido_dias').update(valor='120')
+    migracion.sembrar(registro, None)
+    assert ParametroSistemaModel.objects.get(clave='captacion.espera_diferido_dias').valor == '120'
+    migracion.retirar(registro, None)
+    assert not ParametroSistemaModel.objects.filter(clave='captacion.espera_diferido_dias').exists()

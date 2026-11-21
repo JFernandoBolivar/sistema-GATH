@@ -23,7 +23,7 @@ from core.domain.exceptions import ConflictError, DomainError, PermissionDeniedE
 
 E = EstadoExpediente
 AHORA = datetime(2026, 11, 20, 12, 0, tzinfo=timezone.utc)
-VIG = Vigencias(ventana1_dias=15, ventana2_dias=10, reserva_puesto_dias=30)
+VIG = Vigencias(ventana1_dias=15, ventana2_dias=10, reserva_puesto_dias=30, espera_diferido_dias=90)
 
 
 def _id(t: Transicion) -> str:
@@ -39,6 +39,8 @@ def _hechos_para(t: Transicion, **cambios) -> Hechos:
     )
     if Guarda.VENTANA_VENCIDA in t.guardas:
         base['ventana_vence_el'] = AHORA - timedelta(days=1)
+    if Guarda.ESPERA_DIFERIDO_VENCIDA in t.guardas:
+        base['diferido_vence_el'] = AHORA - timedelta(days=1)
     if Guarda.PUESTO_PERDIDO in t.guardas:
         base['reserva_vence_el'] = AHORA - timedelta(days=1)
     base.update(cambios)
@@ -255,3 +257,29 @@ def test_autotransicion_consolidando_no_extiende_la_ventana():
     t = buscar_transicion(E.CONSOLIDANDO, E.CONSOLIDANDO)
     venc = AHORA + timedelta(days=2)
     assert aplicar_transicion(_exp(E.CONSOLIDANDO, ventana=2, ventana_vence_el=venc), t, AHORA, VIG).ventana_vence_el == venc
+
+
+# --- espera del diferido (C-10) ---
+
+def test_desistir_un_diferido_antes_del_plazo_se_rechaza_en_espanol():
+    t = buscar_transicion(E.DIFERIDO_PRESUPUESTO, E.DESISTIDO)
+    for vence in (AHORA + timedelta(days=1), AHORA, None):
+        with pytest.raises(ConflictError, match='plazo de espera'):
+            _ejecutar(t, diferido_vence_el=vence)
+
+
+def test_desistir_un_diferido_vencido_el_plazo_se_permite_solo_al_sistema():
+    t = buscar_transicion(E.DIFERIDO_PRESUPUESTO, E.DESISTIDO)
+    assert _ejecutar(t, diferido_vence_el=AHORA - timedelta(seconds=1)) is t
+    with pytest.raises(PermissionDeniedError):
+        _ejecutar(t, actor=Actor(cedula='1', permisos=frozenset({'postulacion.declarar_disponibilidad'})))
+
+
+def test_efecto_diferir_fija_el_vencimiento_y_volver_a_presupuesto_lo_limpia():
+    t = buscar_transicion(E.EN_PRESUPUESTO, E.DIFERIDO_PRESUPUESTO)
+    diferido = aplicar_transicion(_exp(E.EN_PRESUPUESTO), t, AHORA, VIG)
+    assert diferido.diferido_vence_el == AHORA + timedelta(days=90)
+    t2 = buscar_transicion(E.DIFERIDO_PRESUPUESTO, E.EN_PRESUPUESTO)
+    assert aplicar_transicion(diferido, t2, AHORA, VIG).diferido_vence_el is None
+    t3 = buscar_transicion(E.DIFERIDO_PRESUPUESTO, E.DESISTIDO)
+    assert aplicar_transicion(diferido, t3, AHORA, VIG).diferido_vence_el is None

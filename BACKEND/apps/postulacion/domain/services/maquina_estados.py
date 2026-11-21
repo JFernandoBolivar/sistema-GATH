@@ -24,8 +24,10 @@ Decisiones donde §4.2, §7.2 y el catálogo de permisos sembrado no coinciden o
 6. Observar/devolver reabre la ventana del postulante (EN_CORRECCION_DATOS: V1; EN_REVISION_FINAL ->
    CONSOLIDANDO: V2) para que pueda corregir; §4.2 no dibuja expiración desde EN_CORRECCION_DATOS, así que
    la ventana reabierta vence por la regla del punto 5 solo mientras el expediente siga en estados de ventana.
-7. DIFERIDO_PRESUPUESTO -> DESISTIDO («caduca la espera»): no existe parámetro de espera; la ejecuta el
-   SISTEMA sin guarda temporal y el plazo se decidirá en la tarea que lo programe.
+7. DIFERIDO_PRESUPUESTO -> DESISTIDO («caduca la espera», C-10): la ejecuta el SISTEMA y solo cuando venció el
+   plazo `captacion.espera_diferido_dias` (90 por defecto). Al entrar en DIFERIDO_PRESUPUESTO se fija
+   `diferido_vence_el` (ahora + días del parámetro) y se limpia al salir; la guarda ESPERA_DIFERIDO_VENCIDA
+   exige `ahora > diferido_vence_el`, igual que la ventana vencida con `ventana_vence_el`.
 8. LISTO_PARA_ASIGNAR -> EN_PRESUPUESTO («el puesto se perdió»): lo ejecuta el SISTEMA o Captación
    (revision_final) y solo si la reserva venció o el puesto ya no se revalida.
 9. Autotransiciones (EN_CAPTURA y CONSOLIDANDO guardan borrador): son legales con el postulante y la ventana
@@ -67,6 +69,7 @@ class Guarda(str, Enum):
     PUESTO_RESERVADO_Y_DISPONIBLE = 'PUESTO_RESERVADO_Y_DISPONIBLE'
     RESERVA_VIGENTE_Y_REVALIDADA = 'RESERVA_VIGENTE_Y_REVALIDADA'
     PUESTO_PERDIDO = 'PUESTO_PERDIDO'
+    ESPERA_DIFERIDO_VENCIDA = 'ESPERA_DIFERIDO_VENCIDA'
 
 
 @dataclass(frozen=True)
@@ -94,6 +97,7 @@ class Hechos:
     ahora: datetime
     ventana_vence_el: datetime | None = None
     reserva_vence_el: datetime | None = None
+    diferido_vence_el: datetime | None = None
     cargo_definido: bool = False
     oficina_definida: bool = False
     psicofisico_obligatorio: bool = True
@@ -142,7 +146,7 @@ TRANSICIONES: tuple[Transicion, ...] = (
     _t(E.EN_CORRECCION_CARGO, E.EN_PRESUPUESTO, permisos=[P_ABRIR_EXPEDIENTE], guardas=[G.CARGO_Y_OFICINA]),
     _t(E.EN_PRESUPUESTO, E.DIFERIDO_PRESUPUESTO, permisos=[P_DEVOLVER_SOLICITUD], guardas=[G.MOTIVO_OBLIGATORIO]),
     _t(E.DIFERIDO_PRESUPUESTO, E.EN_PRESUPUESTO, permisos=[P_DECLARAR_DISPONIBILIDAD]),
-    _t(E.DIFERIDO_PRESUPUESTO, E.DESISTIDO, sistema=True),
+    _t(E.DIFERIDO_PRESUPUESTO, E.DESISTIDO, sistema=True, guardas=[G.ESPERA_DIFERIDO_VENCIDA]),
     _t(E.EN_PRESUPUESTO, E.EN_DIRECCION_GENERAL, permisos=[P_EMITIR_PUNTO_CUENTA],
        guardas=[G.PUESTO_RESERVADO_Y_DISPONIBLE]),
     # Dirección General
@@ -202,6 +206,8 @@ def _evaluar_guarda(g: Guarda, h: Hechos, motivo: str) -> None:
         raise ConflictError("La ventana de acceso del postulante venció o no está vigente.")
     if g is Guarda.VENTANA_VENCIDA and (h.ventana_vence_el is None or h.ahora <= h.ventana_vence_el):
         raise ConflictError("El expediente no puede expirar: su ventana todavía está vigente.")
+    if g is Guarda.ESPERA_DIFERIDO_VENCIDA and (h.diferido_vence_el is None or h.ahora <= h.diferido_vence_el):
+        raise ConflictError("El expediente no puede desistirse: el plazo de espera del diferido todavía no vence.")
     if g is Guarda.MOTIVO_OBLIGATORIO and not (motivo or '').strip():
         raise ValidationError("Indique el motivo: es obligatorio para esta transición.", campo='motivo')
     if g is Guarda.PSICOFISICO and h.psicofisico_obligatorio and not h.psicofisico_registrado:

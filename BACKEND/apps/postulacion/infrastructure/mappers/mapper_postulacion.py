@@ -6,7 +6,7 @@ from apps.postulacion.domain.value_objects.estados import EstadoExpediente
 CAMPOS_EXPEDIENTE = (
     'cargo_propuesto_id', 'cargo_especifico_propuesto_id', 'tipo_nomina_propuesto_id', 'direccion_general_id',
     'direccion_linea_id', 'coordinacion_id', 'dependencia_id', 'cargo_propuesto_texto', 'oficina_propuesta_texto',
-    'ventana', 'ventana_vence_el', 'reserva_vence_el', 'observaciones', 'fecha_cierre', 'creado_por',
+    'ventana', 'ventana_vence_el', 'reserva_vence_el', 'diferido_vence_el', 'observaciones', 'fecha_cierre', 'creado_por',
 )
 
 

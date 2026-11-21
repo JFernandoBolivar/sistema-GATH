@@ -16,6 +16,7 @@ class Vigencias:
     ventana1_dias: int
     ventana2_dias: int
     reserva_puesto_dias: int
+    espera_diferido_dias: int  # C-10: `captacion.espera_diferido_dias`
 
 
 def vencimiento_ventana1(ahora: datetime, v: Vigencias) -> datetime:
@@ -35,6 +36,10 @@ def aplicar_transicion(
         cambios.update(reserva_vence_el=ahora + timedelta(days=vig.reserva_puesto_dias))
     elif t.destino in (E.RECHAZADO_DIRECCION, E.EN_PRESUPUESTO, E.CONTRATADO):
         cambios.update(reserva_vence_el=None)
+    if t.destino == E.DIFERIDO_PRESUPUESTO:
+        cambios.update(diferido_vence_el=ahora + timedelta(days=vig.espera_diferido_dias))
+    elif t.origen == E.DIFERIDO_PRESUPUESTO:
+        cambios.update(diferido_vence_el=None)
     if t.destino in ESTADOS_TERMINALES:
         cambios.update(fecha_cierre=ahora)
     return replace(exp, **cambios)

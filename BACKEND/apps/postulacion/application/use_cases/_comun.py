@@ -5,6 +5,7 @@ from apps.postulacion.domain.entities.expediente import ExpedientePostulacion
 from apps.postulacion.domain.ports.repos import RepoPostulacion
 from apps.postulacion.domain.services.efectos import Vigencias
 from core.domain.configuracion import (
+    CLAVE_CAPTACION_ESPERA_DIFERIDO_DIAS,
     CLAVE_CAPTACION_PSICOFISICO_OBLIGATORIO,
     CLAVE_CAPTACION_VIGENCIA_RESERVA_PUESTO_DIAS,
     CLAVE_CAPTACION_VIGENCIA_VENTANA1_DIAS,
@@ -24,6 +25,7 @@ def leer_vigencias(config: LectorConfiguracion) -> Vigencias:
         ventana1_dias=config.obtener_entero(CLAVE_CAPTACION_VIGENCIA_VENTANA1_DIAS),
         ventana2_dias=config.obtener_entero(CLAVE_CAPTACION_VIGENCIA_VENTANA2_DIAS),
         reserva_puesto_dias=config.obtener_entero(CLAVE_CAPTACION_VIGENCIA_RESERVA_PUESTO_DIAS),
+        espera_diferido_dias=config.obtener_entero(CLAVE_CAPTACION_ESPERA_DIFERIDO_DIAS),
     )
 
 

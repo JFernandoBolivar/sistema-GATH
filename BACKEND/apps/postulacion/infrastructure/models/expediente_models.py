@@ -48,6 +48,7 @@ class ExpedientePostulacionModel(BaseModel):
     ventana = models.PositiveSmallIntegerField(null=True, blank=True)
     ventana_vence_el = models.DateTimeField(null=True, blank=True, db_index=True)
     reserva_vence_el = models.DateTimeField(null=True, blank=True)
+    diferido_vence_el = models.DateTimeField(null=True, blank=True)
     observaciones = models.TextField(blank=True, default='')
     fecha_apertura = models.DateTimeField(default=timezone.now)
     fecha_cierre = models.DateTimeField(null=True, blank=True)
