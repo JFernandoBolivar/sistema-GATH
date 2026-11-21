@@ -1,0 +1,40 @@
+"""Efectos de una transición sobre el expediente (ventanas y reserva). Puro: no persiste nada."""
+from dataclasses import dataclass, replace
+from datetime import datetime, timedelta
+
+from apps.postulacion.domain.entities.expediente import ExpedientePostulacion
+from apps.postulacion.domain.services.maquina_estados import Transicion
+from apps.postulacion.domain.value_objects.estados import ESTADOS_TERMINALES, EstadoExpediente
+
+E = EstadoExpediente
+
+
+@dataclass(frozen=True)
+class Vigencias:
+    """Días de vigencia leídos de los parámetros `captacion.vigencia_*` (C-3, C-4); nunca constantes."""
+
+    ventana1_dias: int
+    ventana2_dias: int
+    reserva_puesto_dias: int
+
+
+def vencimiento_ventana1(ahora: datetime, v: Vigencias) -> datetime:
+    return ahora + timedelta(days=v.ventana1_dias)
+
+
+def aplicar_transicion(
+    exp: ExpedientePostulacion, t: Transicion, ahora: datetime, vig: Vigencias,
+) -> ExpedientePostulacion:
+    """Nuevo expediente con el estado destino y los vencimientos que ese paso fija o limpia."""
+    cambios: dict = {'estado': t.destino}
+    if t.destino == E.EN_CORRECCION_DATOS:
+        cambios.update(ventana=1, ventana_vence_el=ahora + timedelta(days=vig.ventana1_dias))
+    elif t.destino == E.CONSOLIDANDO and not t.es_autotransicion:
+        cambios.update(ventana=2, ventana_vence_el=ahora + timedelta(days=vig.ventana2_dias))
+    elif t.destino == E.EN_DIRECCION_GENERAL:
+        cambios.update(reserva_vence_el=ahora + timedelta(days=vig.reserva_puesto_dias))
+    elif t.destino in (E.RECHAZADO_DIRECCION, E.EN_PRESUPUESTO, E.CONTRATADO):
+        cambios.update(reserva_vence_el=None)
+    if t.destino in ESTADOS_TERMINALES:
+        cambios.update(fecha_cierre=ahora)
+    return replace(exp, **cambios)

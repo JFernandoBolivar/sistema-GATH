@@ -1,0 +1,38 @@
+"""Piezas compartidas por los casos de uso de postulación. Sin Django."""
+from datetime import datetime, timezone
+
+from apps.postulacion.domain.entities.expediente import ExpedientePostulacion
+from apps.postulacion.domain.ports.repos import RepoPostulacion
+from apps.postulacion.domain.services.efectos import Vigencias
+from core.domain.configuracion import (
+    CLAVE_CAPTACION_PSICOFISICO_OBLIGATORIO,
+    CLAVE_CAPTACION_VIGENCIA_RESERVA_PUESTO_DIAS,
+    CLAVE_CAPTACION_VIGENCIA_VENTANA1_DIAS,
+    CLAVE_CAPTACION_VIGENCIA_VENTANA2_DIAS,
+)
+from core.domain.exceptions import NotFoundError
+from core.domain.ports import LectorConfiguracion
+
+
+def ahora_utc() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def leer_vigencias(config: LectorConfiguracion) -> Vigencias:
+    """Los días salen de los parámetros del sistema (C-3, C-4) por el puerto del kernel."""
+    return Vigencias(
+        ventana1_dias=config.obtener_entero(CLAVE_CAPTACION_VIGENCIA_VENTANA1_DIAS),
+        ventana2_dias=config.obtener_entero(CLAVE_CAPTACION_VIGENCIA_VENTANA2_DIAS),
+        reserva_puesto_dias=config.obtener_entero(CLAVE_CAPTACION_VIGENCIA_RESERVA_PUESTO_DIAS),
+    )
+
+
+def leer_psicofisico_obligatorio(config: LectorConfiguracion) -> bool:
+    return config.obtener_booleano(CLAVE_CAPTACION_PSICOFISICO_OBLIGATORIO)
+
+
+def obtener_expediente(repo: RepoPostulacion, expediente_id: str, bloquear: bool = False) -> ExpedientePostulacion:
+    exp = repo.obtener_expediente(expediente_id, bloquear=bloquear)
+    if exp is None:
+        raise NotFoundError("El expediente de postulación no existe.")
+    return exp
