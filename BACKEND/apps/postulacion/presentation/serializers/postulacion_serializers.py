@@ -93,3 +93,63 @@ class AltaPostulanteRespuestaSerializer(serializers.Serializer):
     expediente = ExpedienteResumenSerializer()
     es_reingreso = serializers.BooleanField()
     credencial = CredencialEmitidaSerializer()
+
+
+# --- Bandeja y flujo de Captación (D-7, D-8) ---
+class FiltrosBandejaSerializer(serializers.Serializer):
+    """Query: `estado` repetible o separado por comas, `q`, `desde`, `hasta` (fecha del último cambio)."""
+
+    estado = serializers.ListField(child=serializers.CharField(max_length=30), required=False)
+    q = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    desde = serializers.DateField(required=False)
+    hasta = serializers.DateField(required=False)
+
+
+class TransicionSerializer(serializers.Serializer):
+    destino = serializers.CharField(max_length=30)
+    motivo = serializers.CharField(max_length=2000, required=False, allow_blank=True, default='')
+    datos = serializers.DictField(
+        required=False, default=dict,
+        help_text=(
+            "Solo al abrir hacia Presupuesto: cargo_id, cargo_especifico_id, tipo_nomina_id, direccion_general_id, "
+            "direccion_linea_id, coordinacion_id, dependencia_id (ids de catálogo, la oficina es la jerarquía "
+            "organizativa), cargo_texto, oficina_texto, observaciones. Se exige un cargo y una oficina (id o texto)."
+        ),
+    )
+
+
+class PsicofisicoSerializer(serializers.Serializer):
+    """Multipart: `resultado` (APTO|NO_APTO), `fecha_aplicacion` (AAAA-MM-DD), `observaciones?`, `informe?` (PDF ≤ 10 MB)."""
+
+    resultado = serializers.ChoiceField(choices=['APTO', 'NO_APTO'])
+    fecha_aplicacion = serializers.DateField()
+    observaciones = serializers.CharField(max_length=2000, required=False, allow_blank=True, default='')
+    informe = serializers.FileField(required=False, allow_empty_file=False)
+
+
+class ExpedienteDetalleSerializer(serializers.Serializer):
+    expediente = serializers.JSONField()
+    postulante = serializers.JSONField()
+    datos_ventana1 = serializers.JSONField()
+    historial = serializers.ListField(child=serializers.JSONField())
+    psicofisico = serializers.JSONField(allow_null=True)
+    acciones = serializers.ListField(child=serializers.JSONField())
+
+
+class BandejaRespuestaSerializer(serializers.Serializer):
+    resultados = serializers.ListField(child=serializers.JSONField())
+    total = serializers.IntegerField()
+    pagina = serializers.IntegerField()
+    tamano = serializers.IntegerField()
+    total_paginas = serializers.IntegerField()
+
+
+class PsicofisicoRespuestaSerializer(serializers.Serializer):
+    resultado = serializers.CharField()
+    fecha_aplicacion = serializers.DateField()
+    observaciones = serializers.CharField(allow_blank=True)
+    tiene_informe = serializers.BooleanField()
+    informe_tamano = serializers.IntegerField()
+    registrado_por = serializers.CharField(allow_blank=True)
+    registrado_el = serializers.DateTimeField()
+    sugiere_rechazo = serializers.BooleanField()

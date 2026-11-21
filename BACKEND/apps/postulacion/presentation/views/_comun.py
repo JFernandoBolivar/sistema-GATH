@@ -11,9 +11,20 @@ from apps.postulacion.domain.entities.expediente import ExpedientePostulacion
 from apps.postulacion.domain.errores import CredencialBloqueada, ErrorAccesoPostulante
 from apps.postulacion.presentation.authentication import PostulanteJWTAuthentication
 from apps.postulacion.presentation.permissions.postulante_permissions import ClaveAlDia, EsPostulante
-from core.domain.exceptions import ConflictError
+from apps.postulacion.application.use_cases.bandeja import DetalleCaptacion
+from apps.postulacion.domain.entities.bandeja import FilaBandeja
+from apps.postulacion.domain.entities.psicofisico import ResultadoPsicofisico
+from apps.postulacion.domain.services.maquina_estados import (
+    P_ABRIR_EXPEDIENTE,
+    P_RECHAZAR,
+    P_REVISION_FINAL,
+    P_VERIFICAR,
+    Actor,
+)
+from core.domain.exceptions import ConflictError, DomainError
 from core.infrastructure.models.auditoria import AuditoriaLog
 from core.infrastructure.providers import obtener_lector_configuracion
+from core.presentation.permissions import usuario_tiene_permiso
 from core.presentation.audit import origen_de_peticion, registrar_auditoria
 from core.presentation.envelope import fail
 from core.presentation.ip_cliente import ip_del_cliente
@@ -149,4 +160,83 @@ def a_dict_credencial(emision: EmisionCredencial) -> dict:
     return {
         'usuario': c.usuario, 'clave_temporal': emision.clave_temporal, 'ventana': c.ventana, 'vence_el': c.vence_el,
         'debe_cambiar_clave': c.debe_cambiar_clave,
+    }
+
+
+# --- Captación: actor, errores con código y serialización de la bandeja y el detalle (D-7, D-8) ---
+PERMISOS_DE_CAPTACION = (P_VERIFICAR, P_RECHAZAR, P_ABRIR_EXPEDIENTE, P_REVISION_FINAL)
+CODIGO_POR_ERROR = {'NotFoundError': 'NO_ENCONTRADO', 'ValidationError': 'DATOS_INVALIDOS',
+                    'PermissionDeniedError': 'SIN_PERMISO', 'ConflictError': 'CONFLICTO'}
+
+
+def actor_de_captacion(request) -> Actor:
+    """El usuario autenticado con SUS permisos de Captación; la máquina de estados decide lo demás."""
+    user = request.user
+    permisos = frozenset(p for p in PERMISOS_DE_CAPTACION if usuario_tiene_permiso(user, p))
+    return Actor(cedula=str(getattr(user, 'cedula_id', '') or ''), permisos=permisos)
+
+
+class ErroresConCodigoMixin:
+    """Agrega `data.codigo` (estable, en mayúsculas) a los errores de dominio; el texto sigue en `message`."""
+
+    def handle_exception(self, exc):
+        respuesta = super().handle_exception(exc)
+        if isinstance(exc, DomainError) and isinstance(getattr(respuesta, 'data', None), dict):
+            codigo = getattr(exc, 'codigo', None) or CODIGO_POR_ERROR.get(type(exc).__name__, 'ERROR')
+            respuesta.data['data'] = {**(respuesta.data.get('data') or {}), 'codigo': codigo}
+        return respuesta
+
+
+def a_dict_fila_bandeja(f: FilaBandeja) -> dict:
+    exp, p = f.expediente, f.postulante
+    return {
+        'id': exp.id, 'numero': exp.numero, 'estado': exp.estado.value, 'ventana': exp.ventana,
+        'vence_el': exp.ventana_vence_el, 'ultimo_cambio': f.ultimo_cambio, 'es_reingreso': f.es_reingreso,
+        'pendiente_de_captacion': f.pendiente_de_captacion,
+        'postulante': {'cedula': p.cedula, 'nombres': p.nombres, 'apellidos': p.apellidos},
+    }
+
+
+def a_dict_psicofisico(r: ResultadoPsicofisico | None) -> dict | None:
+    if r is None:
+        return None
+    return {
+        'resultado': r.resultado, 'fecha_aplicacion': r.fecha_aplicacion, 'observaciones': r.observaciones,
+        'tiene_informe': r.tiene_informe, 'informe_tamano': r.informe_tamano, 'registrado_por': r.registrado_por,
+        'registrado_el': r.registrado_el, 'sugiere_rechazo': r.sugiere_rechazo,
+    }
+
+
+def a_dict_detalle_captacion(d: DetalleCaptacion) -> dict:
+    exp, p = d.base.expediente, d.base.postulante
+    return {
+        'expediente': {
+            **a_dict_expediente_resumen(exp), 'fecha_apertura': exp.fecha_apertura, 'fecha_cierre': exp.fecha_cierre,
+            'observaciones': exp.observaciones, 'es_reingreso': p.es_reingreso,
+            'propuesta': {
+                'cargo_id': exp.cargo_propuesto_id, 'cargo_especifico_id': exp.cargo_especifico_propuesto_id,
+                'tipo_nomina_id': exp.tipo_nomina_propuesto_id, 'direccion_general_id': exp.direccion_general_id,
+                'direccion_linea_id': exp.direccion_linea_id, 'coordinacion_id': exp.coordinacion_id,
+                'dependencia_id': exp.dependencia_id, 'cargo_texto': exp.cargo_propuesto_texto,
+                'oficina_texto': exp.oficina_propuesta_texto,
+            },
+        },
+        'postulante': {
+            'id': p.id, 'cedula': p.cedula, 'nombres': p.nombres, 'apellidos': p.apellidos, 'correo': p.correo,
+            'telefono_movil': p.telefono_movil, 'es_reingreso': p.es_reingreso,
+        },
+        'datos_ventana1': exp.datos_ventana1,
+        'historial': [
+            {'estado_origen': t.estado_origen, 'estado_destino': t.estado_destino, 'fecha': t.fecha,
+             'actor_cedula': t.actor_cedula, 'actor_tipo': t.actor_tipo, 'motivo': t.motivo}
+            for t in d.base.transiciones
+        ],
+        'psicofisico': {**(a_dict_psicofisico(d.psicofisico) or {}), 'obligatorio': d.psicofisico_obligatorio}
+        if d.psicofisico else {'obligatorio': d.psicofisico_obligatorio, 'resultado': None},
+        'acciones': [
+            {'destino': a.destino, 'etiqueta': a.etiqueta, 'requiere_motivo': a.requiere_motivo,
+             'requiere_propuesta': a.requiere_propuesta, 'bloqueada': a.bloqueada,
+             'motivo_bloqueo': a.motivo_bloqueo, 'sugerida': a.sugerida}
+            for a in d.acciones
+        ],
     }

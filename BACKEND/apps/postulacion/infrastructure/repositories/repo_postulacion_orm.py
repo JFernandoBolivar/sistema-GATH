@@ -1,22 +1,38 @@
 """Repositorio ORM de postulantes, expedientes e historial; y el buscador de empleados previos (C-1)."""
-from datetime import date
+import re
+import unicodedata
+from datetime import date, datetime, time, timedelta, timezone as tz_utc
 
 from django.db import IntegrityError, transaction
+from django.db.models import Case, IntegerField, Max, Q, Value, When
 from django.utils import timezone
 
+from apps.cargos.infrastructure.models.cargo_models import DenominacionCargoEspecificoModel, DenominacionCargoModel
+from apps.catalogos.infrastructure.models.catalogo_models import TipoNominaModel
+from apps.organizacion.infrastructure.models.organizacion_models import (
+    CoordinacionModel,
+    DependenciaModel,
+    DireccionGeneralModel,
+    DireccionLineaModel,
+)
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
+from apps.postulacion.domain.entities.bandeja import ESTADOS_PENDIENTES_CAPTACION, FilaBandeja, FiltrosBandeja, PropuestaCatalogo
 from apps.postulacion.domain.entities.credencial import CredencialPostulante
 from apps.postulacion.domain.entities.expediente import ExpedientePostulacion
 from apps.postulacion.domain.entities.postulante import EmpleadoPrevio, Postulante, TransicionRegistrada
+from apps.postulacion.domain.entities.psicofisico import ResultadoPsicofisico
 from apps.postulacion.infrastructure.mappers.mapper_postulacion import (
     CAMPOS_CREDENCIAL,
+    CAMPOS_PSICOFISICO,
     campos_de_expediente,
     credencial_a_entidad,
     expediente_a_entidad,
     postulante_a_entidad,
+    psicofisico_a_entidad,
     transicion_a_entidad,
 )
 from apps.postulacion.infrastructure.models.credencial_models import CredencialPostulanteModel
+from apps.postulacion.infrastructure.models.psicofisico_models import ResultadoPsicofisicoModel
 from apps.postulacion.infrastructure.models.expediente_models import (
     ExpedientePostulacionModel,
     PostulanteModel,
@@ -25,8 +41,16 @@ from apps.postulacion.infrastructure.models.expediente_models import (
 from core.infrastructure.providers import obtener_resolutor_condicion
 from apps.postulacion.domain.value_objects.estados import VALORES_TERMINALES
 from core.domain.exceptions import ConflictError, NotFoundError
+from core.domain.paginacion import Paginacion
 
 _REINTENTOS_NUMERO = 5
+_VOCALES = {'a': 'aáàäâÁÀÄÂ', 'e': 'eéèëêÉÈËÊ', 'i': 'iíìïîÍÌÏÎ', 'o': 'oóòöôÓÒÖÔ', 'u': 'uúùüûÚÙÜÛ', 'n': 'nñÑ'}
+
+
+def _patron_sin_acentos(texto: str) -> str:
+    """Regex para `iregex` que ignora mayúsculas y acentos (Postgres no trae `unaccent` en este proyecto)."""
+    base = ''.join(c for c in unicodedata.normalize('NFD', texto) if not unicodedata.combining(c))
+    return ''.join(f'[{_VOCALES[c.lower()]}]' if c.lower() in _VOCALES else re.escape(c) for c in base)
 
 
 def _uuid_valido(valor: str):
@@ -40,6 +64,9 @@ def _uuid_valido(valor: str):
 class RepoPostulacionORM:
     def transaccion(self):
         return transaction.atomic()
+
+    def al_confirmar(self, accion) -> None:
+        transaction.on_commit(accion)
 
     # --- postulantes ---
     def obtener_postulante_por_cedula(self, cedula: str, bloquear: bool = False) -> Postulante | None:
@@ -131,6 +158,53 @@ class RepoPostulacionORM:
     def listar_transiciones(self, expediente_id: str) -> list[TransicionRegistrada]:
         return [transicion_a_entidad(m) for m in TransicionExpedienteModel.objects.filter(expediente_id=expediente_id)]
 
+    def listar_bandeja(self, filtros: FiltrosBandeja, paginacion: Paginacion) -> tuple[list[FilaBandeja], int]:
+        # Fecha del último cambio de estado = el asiento más reciente (`guardar_expediente` no toca `updated_at`);
+        # sin asiento (no ocurre: el alta lo crea) se cae a la fecha de apertura.
+        qs = ExpedientePostulacionModel.objects.select_related('postulante').annotate(
+            _cambio=Max('transiciones__fecha'),
+            _pendiente=Case(
+                When(estado__in=[e.value for e in ESTADOS_PENDIENTES_CAPTACION], then=Value(0)),
+                default=Value(1), output_field=IntegerField(),
+            ),
+        )
+        if filtros.estados:
+            qs = qs.filter(estado__in=[e.value for e in filtros.estados])
+        for palabra in filtros.texto.split():
+            patron = _patron_sin_acentos(palabra)
+            qs = qs.filter(
+                Q(numero__icontains=palabra) | Q(postulante__cedula__icontains=palabra)
+                | Q(postulante__nombres__iregex=patron) | Q(postulante__apellidos__iregex=patron)
+            )
+        if filtros.desde:
+            qs = qs.filter(_cambio__gte=datetime.combine(filtros.desde, time.min, tzinfo=tz_utc.utc))
+        if filtros.hasta:
+            qs = qs.filter(_cambio__lt=datetime.combine(filtros.hasta, time.min, tzinfo=tz_utc.utc) + timedelta(days=1))
+        total = qs.count()
+        pagina = qs.order_by('_pendiente', '_cambio', 'numero')[paginacion.offset:paginacion.offset + paginacion.tamano]
+        filas = [
+            FilaBandeja(
+                expediente=expediente_a_entidad(m), postulante=postulante_a_entidad(m.postulante),
+                ultimo_cambio=m._cambio or m.fecha_apertura,
+            )
+            for m in pagina
+        ]
+        return filas, total
+
+    # --- test psicofísico ---
+    def obtener_psicofisico(self, expediente_id: str, bloquear: bool = False) -> ResultadoPsicofisico | None:
+        pk = _uuid_valido(expediente_id)
+        if pk is None:
+            return None
+        qs = ResultadoPsicofisicoModel.objects.select_for_update() if bloquear else ResultadoPsicofisicoModel.objects
+        m = qs.filter(expediente_id=pk).first()
+        return psicofisico_a_entidad(m) if m else None
+
+    def guardar_psicofisico(self, r: ResultadoPsicofisico) -> ResultadoPsicofisico:
+        campos = {c: getattr(r, c) for c in CAMPOS_PSICOFISICO}
+        m, _ = ResultadoPsicofisicoModel.objects.update_or_create(expediente_id=r.expediente_id, defaults=campos)
+        return psicofisico_a_entidad(m)
+
     # --- credencial del postulante ---
     def obtener_credencial_por_usuario(self, usuario: str) -> CredencialPostulante | None:
         m = (
@@ -166,3 +240,35 @@ class BuscadorEmpleadosORM:
         resolutor = obtener_resolutor_condicion()
         condicion = str(resolutor.condicion_de(e.cedulaidentidad) or '') if resolutor else ''
         return EmpleadoPrevio(cedula=e.cedulaidentidad, nombres=e.nombres, apellidos=e.apellidos, condicion=condicion)
+
+
+class CatalogoPropuestaORM:
+    """Comprueba que los ids de la propuesta existan en los catálogos heredados y que la jerarquía de la oficina encaje."""
+
+    def errores_de_propuesta(self, ids: PropuestaCatalogo) -> dict[str, str]:
+        errores: dict[str, str] = {}
+
+        def existe(campo: str, modelo, etiqueta: str):
+            valor = getattr(ids, campo)
+            if valor is None:
+                return None
+            fila = modelo.objects.filter(pk=valor).first()
+            if fila is None:
+                errores[campo] = f"{etiqueta} indicado no existe."
+            return fila
+
+        existe('cargo_propuesto_id', DenominacionCargoModel, 'El cargo')
+        existe('cargo_especifico_propuesto_id', DenominacionCargoEspecificoModel, 'El cargo específico')
+        existe('tipo_nomina_propuesto_id', TipoNominaModel, 'El tipo de nómina')
+        dependencia = existe('dependencia_id', DependenciaModel, 'La dependencia')
+        general = existe('direccion_general_id', DireccionGeneralModel, 'La dirección general')
+        linea = existe('direccion_linea_id', DireccionLineaModel, 'La dirección de línea')
+        coordinacion = existe('coordinacion_id', CoordinacionModel, 'La coordinación')
+        # Jerarquía: coordinación -> línea -> general -> dependencia (solo se compara lo que llegó completo).
+        if coordinacion and linea and coordinacion.direccionLinea_id != linea.pk:
+            errores.setdefault('coordinacion_id', 'La coordinación no pertenece a la dirección de línea indicada.')
+        if linea and general and linea.direccionGeneral_id != general.pk:
+            errores.setdefault('direccion_linea_id', 'La dirección de línea no pertenece a la dirección general indicada.')
+        if general and dependencia and general.dependenciaId_id != dependencia.pk:
+            errores.setdefault('direccion_general_id', 'La dirección general no pertenece a la dependencia indicada.')
+        return errores

@@ -11,7 +11,7 @@ from core.domain.exceptions import ValidationError
 
 # Ámbitos con los que se etiqueta una notificación. La campana del usuario las muestra todas
 # (bandeja única por usuario) y el filtro por módulo queda como opción del API.
-MODULOS_NOTIFICACION = ('autogestion', 'personal', 'pasivos', 'carnetizacion', 'seguridad')
+MODULOS_NOTIFICACION = ('autogestion', 'personal', 'pasivos', 'carnetizacion', 'seguridad', 'postulacion')
 MODULO_POR_DEFECTO = 'autogestion'
 
 

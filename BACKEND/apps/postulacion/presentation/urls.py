@@ -1,7 +1,15 @@
 """Rutas de postulación bajo `/api/v1/postulacion/` (B12: minúsculas y barra final)."""
 from django.urls import path
 
-from apps.postulacion.presentation.views.captacion_views import AltaPostulanteView, ReponerCredencialView
+from apps.postulacion.presentation.views.captacion_views import (
+    AltaPostulanteView,
+    BandejaView,
+    ExpedienteDetalleView,
+    InformePsicofisicoView,
+    PsicofisicoView,
+    ReponerCredencialView,
+    TransicionView,
+)
 from apps.postulacion.presentation.views.postulante_views import (
     AccesoView,
     BorradorView,
@@ -22,5 +30,17 @@ urlpatterns = [
     path(
         'expedientes/<uuid:expediente_id>/reponer-credencial/', ReponerCredencialView.as_view(),
         name='postulacion_reponer_credencial',
+    ),
+    path('expedientes/', BandejaView.as_view(), name='postulacion_bandeja'),
+    path('expedientes/<uuid:expediente_id>/', ExpedienteDetalleView.as_view(), name='postulacion_expediente_detalle'),
+    path(
+        'expedientes/<uuid:expediente_id>/transicion/', TransicionView.as_view(), name='postulacion_transicion',
+    ),
+    path(
+        'expedientes/<uuid:expediente_id>/psicofisico/', PsicofisicoView.as_view(), name='postulacion_psicofisico',
+    ),
+    path(
+        'expedientes/<uuid:expediente_id>/psicofisico/informe/', InformePsicofisicoView.as_view(),
+        name='postulacion_psicofisico_informe',
     ),
 ]

@@ -6,7 +6,7 @@ HTTP lo decide la capa de presentación a partir del código (el dominio no cono
 """
 from datetime import datetime
 
-from core.domain.exceptions import DomainError
+from core.domain.exceptions import ConflictError, DomainError, PermissionDeniedError, ValidationError
 
 
 class ErrorAccesoPostulante(DomainError):
@@ -54,3 +54,28 @@ class SesionInvalida(ErrorAccesoPostulante):
     """Token ausente, mal firmado, vencido, de otra clase o ya revocado."""
 
     codigo = 'SESION_INVALIDA'
+
+
+# --- Errores de las transiciones del expediente (D-7): cada uno lleva un `codigo` estable para el cliente ---
+class ConflictoConCodigo(ConflictError):
+    """409 con código: transición ilegal, expediente final, guarda incumplida (psicofísico, ventana vencida...)."""
+
+    def __init__(self, *args, codigo: str, campo: str | None = None):
+        super().__init__(*args, campo=campo)
+        self.codigo = codigo
+
+
+class ValidacionConCodigo(ValidationError):
+    """400 con código: dato faltante o inválido de una transición (motivo, cargo y oficina, propuesta)."""
+
+    def __init__(self, *args, codigo: str, campo: str | None = None):
+        super().__init__(*args, campo=campo)
+        self.codigo = codigo
+
+
+class SinPermisoConCodigo(PermissionDeniedError):
+    """403 con código: el actor no puede ejecutar esa transición."""
+
+    def __init__(self, *args, codigo: str = 'SIN_PERMISO', campo: str | None = None):
+        super().__init__(*args, campo=campo)
+        self.codigo = codigo

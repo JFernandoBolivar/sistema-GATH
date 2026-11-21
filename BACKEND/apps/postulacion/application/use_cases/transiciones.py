@@ -6,12 +6,10 @@ Todo ocurre en UNA transacción con el expediente bloqueado (`select_for_update`
 
 Credencial (D-3): en la misma transacción se alinea la credencial del postulante con el nuevo estado.
 
-Notificaciones (D-9, NO se emiten aún). Tras confirmar la transacción, aquí mismo se llamarán:
-  - `core.infrastructure.providers.obtener_notificador().notificar(...)` con el tipo de §5.6 del destino
-    (p. ej. ENVIADO_CAPTACION -> EXPEDIENTE_RECIBIDO, EN_PRESUPUESTO -> EXPEDIENTE_EN_PRESUPUESTO), y
-  - `obtener_notificador().resolver_avisos(ref_tipo='expediente', ref_id=expediente.id, por_cedula=actor.cedula,
-    tipo=<aviso que el origen dejó pendiente>)` para cerrar los avisos de bandeja compartida que esta acción atiende.
-La application no importa infraestructura: D-9 inyectará un puerto o lo invocará la presentación.
+Psicofísico (D-8): si quien invoca no declara el hecho, se lee del resultado registrado del expediente.
+
+Notificaciones (D-9): con `notificador`, los avisos del §5.6 salen DESPUÉS del commit (ver `avisos.py`). Sin él
+(tareas programadas, pruebas), no se avisa.
 """
 from dataclasses import dataclass, replace
 from datetime import datetime
@@ -22,6 +20,7 @@ from apps.postulacion.application.use_cases._comun import (
     leer_vigencias,
     obtener_expediente,
 )
+from apps.postulacion.application.use_cases.avisos import programar_avisos
 from apps.postulacion.domain.entities.expediente import CAMPOS_PROPUESTA, ExpedientePostulacion
 from apps.postulacion.domain.entities.postulante import TransicionRegistrada
 from apps.postulacion.domain.ports.repos import RepoPostulacion
@@ -30,7 +29,7 @@ from apps.postulacion.domain.services.efectos import aplicar_transicion
 from apps.postulacion.domain.services.maquina_estados import Actor, Hechos, validar_transicion
 from apps.postulacion.domain.value_objects.estados import EstadoExpediente
 from core.domain.exceptions import ValidationError
-from core.domain.ports import LectorConfiguracion
+from core.domain.ports import LectorConfiguracion, Notificador
 
 
 @dataclass(frozen=True)
@@ -47,7 +46,7 @@ def aplicar_transicion_expediente(
     repo: RepoPostulacion, config: LectorConfiguracion, *, expediente_id: str,
     destino: EstadoExpediente | str, actor: Actor, motivo: str = '',
     externos: HechosExternos | None = None, propuesta: dict | None = None, datos_extra: dict | None = None,
-    ahora: datetime | None = None,
+    ahora: datetime | None = None, notificador: Notificador | None = None,
 ) -> tuple[ExpedientePostulacion, TransicionRegistrada | None]:
     """
     Devuelve `(expediente, asiento)`; `asiento` es None en las autotransiciones (guardar borrador), que no
@@ -78,7 +77,7 @@ def aplicar_transicion_expediente(
             diferido_vence_el=exp.diferido_vence_el,
             cargo_definido=exp.cargo_definido, oficina_definida=exp.oficina_definida,
             psicofisico_obligatorio=psicofisico_obligatorio,
-            psicofisico_registrado=externos.psicofisico_registrado,
+            psicofisico_registrado=externos.psicofisico_registrado or repo.obtener_psicofisico(exp.id) is not None,
             disponibilidad_declarada=externos.disponibilidad_declarada,
             puesto_reservado=externos.puesto_reservado, puesto_revalidado=externos.puesto_revalidado,
         )
@@ -100,4 +99,10 @@ def aplicar_transicion_expediente(
             actor_cedula=actor.cedula, actor_tipo=actor.tipo, fecha=ahora, motivo=motivo,
             datos_extra=dict(datos_extra or {}),
         ))
+        postulante = repo.obtener_postulante(guardado.postulante_id) if notificador is not None else None
+        if postulante is not None:
+            programar_avisos(
+                repo, notificador, exp=guardado, postulante=postulante, origen=origen, destino=destino, actor=actor,
+                asiento_id=asiento.id,
+            )
     return guardado, asiento

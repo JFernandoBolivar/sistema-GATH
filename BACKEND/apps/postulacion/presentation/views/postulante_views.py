@@ -36,6 +36,7 @@ from apps.postulacion.presentation.views._comun import (
     sin_cache,
     validar_entrada,
 )
+from core.infrastructure.providers import obtener_notificador
 from core.presentation.envelope import ok
 from core.presentation.schema import MensajeRespuestaSerializer
 
@@ -168,6 +169,7 @@ class EnviarView(VistaPostulante):
         repo = RepoPostulacionORM()
         enviar_expediente(
             repo, configuracion(), expediente_id=sesion.expediente_id, cedula=sesion.cedula, ahora=ahora(),
+            notificador=obtener_notificador(),
         )
         vista = consultar_mi_expediente(repo, expediente_id=sesion.expediente_id, cedula=sesion.cedula)
         auditar_postulante(

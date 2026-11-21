@@ -6,6 +6,8 @@ from apps.postulacion.presentation.authentication import SesionPostulante
 from core.presentation.permissions import HasPermission
 
 CREAR_POSTULANTE = 'postulacion.crear_postulante'
+VER_BANDEJA = 'postulacion.ver_bandeja'
+REGISTRAR_PSICOFISICO = 'postulacion.registrar_psicofisico'
 
 
 class EsPostulante(BasePermission):

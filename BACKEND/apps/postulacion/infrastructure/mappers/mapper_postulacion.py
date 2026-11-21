@@ -2,6 +2,7 @@
 from apps.postulacion.domain.entities.credencial import CredencialPostulante
 from apps.postulacion.domain.entities.expediente import ExpedientePostulacion
 from apps.postulacion.domain.entities.postulante import Postulante, TransicionRegistrada
+from apps.postulacion.domain.entities.psicofisico import ResultadoPsicofisico
 from apps.postulacion.domain.value_objects.estados import EstadoExpediente
 
 CAMPOS_EXPEDIENTE = (
@@ -48,4 +49,16 @@ CAMPOS_CREDENCIAL = (
 def credencial_a_entidad(m) -> CredencialPostulante:
     return CredencialPostulante(
         id=str(m.pk), expediente_id=str(m.expediente_id), **{c: getattr(m, c) for c in CAMPOS_CREDENCIAL},
+    )
+
+
+CAMPOS_PSICOFISICO = (
+    'resultado', 'fecha_aplicacion', 'observaciones', 'informe_clave', 'informe_sha256', 'informe_tamano',
+    'registrado_por', 'registrado_el',
+)
+
+
+def psicofisico_a_entidad(m) -> ResultadoPsicofisico:
+    return ResultadoPsicofisico(
+        expediente_id=str(m.expediente_id), **{c: getattr(m, c) for c in CAMPOS_PSICOFISICO},
     )

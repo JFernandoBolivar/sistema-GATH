@@ -45,7 +45,8 @@ from apps.postulacion.domain.value_objects.estados import (
     ESTADOS_TERMINALES,
     EstadoExpediente,
 )
-from core.domain.exceptions import ConflictError, PermissionDeniedError, ValidationError
+from apps.postulacion.domain.errores import ConflictoConCodigo, SinPermisoConCodigo, ValidacionConCodigo
+from core.domain.exceptions import DomainError
 
 E = EstadoExpediente
 
@@ -184,11 +185,11 @@ def _exigir_autorizado(t: Transicion, actor: Actor) -> None:
         autorizado = any(p in actor.permisos for p in t.permisos)
     if not autorizado:
         if t.permisos and actor.tipo == ACTOR_USUARIO:
-            raise PermissionDeniedError(
+            raise SinPermisoConCodigo(
                 f"No tiene permiso para pasar el expediente de {t.origen.value} a {t.destino.value} "
                 f"(se requiere {' o '.join(t.permisos)})."
             )
-        raise PermissionDeniedError(
+        raise SinPermisoConCodigo(
             f"Este actor no puede pasar el expediente de {t.origen.value} a {t.destino.value}."
         )
 
@@ -203,25 +204,26 @@ def _reserva_vigente(h: Hechos) -> bool:
 
 def _evaluar_guarda(g: Guarda, h: Hechos, motivo: str) -> None:
     if g is Guarda.VENTANA_VIGENTE and not _ventana_vigente(h):
-        raise ConflictError("La ventana de acceso del postulante venció o no está vigente.")
+        raise ConflictoConCodigo("La ventana de acceso del postulante venció o no está vigente.", codigo="VENTANA_VENCIDA")
     if g is Guarda.VENTANA_VENCIDA and (h.ventana_vence_el is None or h.ahora <= h.ventana_vence_el):
-        raise ConflictError("El expediente no puede expirar: su ventana todavía está vigente.")
+        raise ConflictoConCodigo("El expediente no puede expirar: su ventana todavía está vigente.", codigo="VENTANA_VIGENTE")
     if g is Guarda.ESPERA_DIFERIDO_VENCIDA and (h.diferido_vence_el is None or h.ahora <= h.diferido_vence_el):
-        raise ConflictError("El expediente no puede desistirse: el plazo de espera del diferido todavía no vence.")
+        raise ConflictoConCodigo("El expediente no puede desistirse: el plazo de espera del diferido todavía no vence.", codigo="ESPERA_DIFERIDO_VIGENTE")
     if g is Guarda.MOTIVO_OBLIGATORIO and not (motivo or '').strip():
-        raise ValidationError("Indique el motivo: es obligatorio para esta transición.", campo='motivo')
+        raise ValidacionConCodigo("Indique el motivo: es obligatorio para esta transición.", campo='motivo', codigo="MOTIVO_OBLIGATORIO")
     if g is Guarda.PSICOFISICO and h.psicofisico_obligatorio and not h.psicofisico_registrado:
-        raise ConflictError("El resultado del test psicofísico es obligatorio y todavía no está registrado.")
+        raise ConflictoConCodigo("El resultado del test psicofísico es obligatorio y todavía no está registrado.", codigo="PSICOFISICO_OBLIGATORIO")
     if g is Guarda.CARGO_Y_OFICINA and not (h.cargo_definido and h.oficina_definida):
-        raise ValidationError("Defina el cargo y la oficina propuestos antes de continuar.")
+        raise ValidacionConCodigo("Defina el cargo y la oficina propuestos antes de continuar.", codigo="CARGO_Y_OFICINA_REQUERIDOS")
     if g is Guarda.PUESTO_RESERVADO_Y_DISPONIBLE and not (h.puesto_reservado and h.disponibilidad_declarada):
-        raise ConflictError(
-            "Para emitir el Punto de Cuenta se requiere el puesto reservado y la disponibilidad presupuestaria declarada."
+        raise ConflictoConCodigo(
+            "Para emitir el Punto de Cuenta se requiere el puesto reservado y la disponibilidad presupuestaria declarada.",
+            codigo="PUESTO_Y_DISPONIBILIDAD_REQUERIDOS",
         )
     if g is Guarda.RESERVA_VIGENTE_Y_REVALIDADA and not (_reserva_vigente(h) and h.puesto_revalidado):
-        raise ConflictError("No se puede asignar el cargo: la reserva del puesto venció o el puesto no fue revalidado.")
+        raise ConflictoConCodigo("No se puede asignar el cargo: la reserva del puesto venció o el puesto no fue revalidado.", codigo="RESERVA_NO_VIGENTE")
     if g is Guarda.PUESTO_PERDIDO and _reserva_vigente(h) and h.puesto_revalidado:
-        raise ConflictError("El puesto reservado sigue vigente: no corresponde volver a Presupuesto.")
+        raise ConflictoConCodigo("El puesto reservado sigue vigente: no corresponde volver a Presupuesto.", codigo="PUESTO_VIGENTE")
 
 
 def validar_transicion(
@@ -229,14 +231,25 @@ def validar_transicion(
 ) -> Transicion:
     """Devuelve la transición legal o lanza un `DomainError` en español."""
     if origen in ESTADOS_TERMINALES:
-        raise ConflictError(
+        raise ConflictoConCodigo(
             f"El expediente está en un estado final ({origen.value}) y no admite cambios; "
-            "para corregirlo abra uno nuevo."
+            "para corregirlo abra uno nuevo.", codigo="EXPEDIENTE_FINAL",
         )
     t = buscar_transicion(origen, destino)
     if t is None:
-        raise ConflictError(f"Transición no permitida: de {origen.value} a {destino.value}.")
+        raise ConflictoConCodigo(
+            f"Transición no permitida: de {origen.value} a {destino.value}.", codigo="TRANSICION_NO_PERMITIDA",
+        )
     _exigir_autorizado(t, actor)
     for guarda in t.guardas:
         _evaluar_guarda(guarda, hechos, motivo)
     return t
+
+
+def guarda_incumplida(g: Guarda, h: Hechos) -> str | None:
+    """Mensaje de por qué la guarda no se cumple con estos hechos, o None si se cumple (sin motivo: ver `acciones`)."""
+    try:
+        _evaluar_guarda(g, h, 'x')
+    except DomainError as e:
+        return str(e)
+    return None

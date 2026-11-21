@@ -17,7 +17,7 @@ from apps.postulacion.domain.services.datos_ventana import campos_obligatorios_f
 from apps.postulacion.domain.services.maquina_estados import Actor
 from apps.postulacion.domain.value_objects.estados import EstadoExpediente
 from core.domain.exceptions import ConflictError, NotFoundError, ValidationError
-from core.domain.ports import LectorConfiguracion
+from core.domain.ports import LectorConfiguracion, Notificador
 from core.domain.validacion_personas import validar_nombre, validar_telefono
 
 E = EstadoExpediente
@@ -109,7 +109,7 @@ def guardar_borrador(
 
 def enviar_expediente(
     repo: RepoPostulacion, config: LectorConfiguracion, *, expediente_id: str, cedula: str,
-    ahora: datetime | None = None,
+    ahora: datetime | None = None, notificador: Notificador | None = None,
 ) -> ExpedientePostulacion:
     """EN_CAPTURA|EN_CORRECCION_DATOS -> ENVIADO_CAPTACION o CONSOLIDANDO -> EN_REVISION_FINAL, con historial."""
     ahora = ahora or ahora_utc()
@@ -127,6 +127,6 @@ def enviar_expediente(
                 )
         guardado, _ = aplicar_transicion_expediente(
             repo, config, expediente_id=exp.id, destino=destino, actor=Actor.postulante(cedula),
-            datos_extra={'origen': 'postulante'}, ahora=ahora,
+            datos_extra={'origen': 'postulante'}, ahora=ahora, notificador=notificador,
         )
     return guardado
