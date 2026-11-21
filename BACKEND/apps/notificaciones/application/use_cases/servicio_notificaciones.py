@@ -17,7 +17,7 @@ from apps.notificaciones.domain.entities.notificacion import Notificacion
 from apps.notificaciones.domain.ports.repo_notificaciones import RepoNotificaciones
 from apps.notificaciones.domain.ports.repo_outbox import RepoOutbox
 from apps.notificaciones.domain.ports.servicios import CacheConteo, PlanificadorEnvio, ResolutorDestinatarios
-from core.domain.notificaciones import SolicitudNotificacion
+from core.domain.notificaciones import SolicitudCorreoDirecto, SolicitudNotificacion
 
 logger = logging.getLogger('gath.notificaciones')
 
@@ -79,6 +79,19 @@ class ServicioNotificaciones:
         for c in dict.fromkeys(cedulas):
             self._cache.invalidar(c)
         return len(cedulas)
+
+    def enviar_correo_directo(self, s: SolicitudCorreoDirecto) -> bool:
+        """Correo a una dirección sin cuenta: solo outbox (sin campana), asíncrono y deduplicado por hecho."""
+        adjuntos = tuple(
+            AdjuntoOutbox(a.nombre, a.mime, clave_almacen=a.clave_almacen,
+                          contenido_b64=_b64(a.contenido) if a.contenido else '')
+            for a in s.adjuntos
+        )
+        return encolar_correo(
+            self._outbox, self._planificador,
+            tipo=s.tipo, destinatario=s.destinatario_correo, destinatario_cedula='', asunto=s.asunto,
+            titulo=s.titulo, mensaje=s.mensaje, enlace=s.enlace, ref_id=s.ref_id, clave=s.clave, adjuntos=adjuntos,
+        )
 
     def _correo(self, s: SolicitudNotificacion, cedula: str) -> None:
         direccion = self._resolutor.correo_de(cedula)

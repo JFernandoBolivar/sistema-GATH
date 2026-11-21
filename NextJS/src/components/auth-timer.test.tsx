@@ -290,3 +290,74 @@ describe("AuthController (temporizador de inactividad de 15 minutos)", () => {
     consola.mockRestore();
   });
 });
+
+describe("AuthController: a dónde manda el cierre de sesión según el rol", () => {
+  let destino = "";
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.clearAllMocks();
+    destino = "";
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: {
+        set href(valor: string) {
+          destino = valor;
+        },
+        get href() {
+          return destino;
+        },
+      },
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function sesionConRol(rol: string) {
+    vi.mocked(useSession).mockReturnValue({
+      data: {
+        user: { id: "1", name: "Test", role: { nombre_rol: rol } } as never,
+        expires: "2099-01-01",
+      },
+      status: "authenticated",
+      update: vi.fn(),
+    });
+  }
+
+  async function dejarPasarLaInactividad() {
+    render(<AuthController />);
+    act(() => {
+      vi.advanceTimersByTime(14 * 60 * 1000);
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(60 * 1000);
+    });
+  }
+
+  it("un postulante inactivo vuelve a su acceso con el aviso «Tu sesión terminó»", async () => {
+    sesionConRol("POSTULANTE");
+    await dejarPasarLaInactividad();
+    expect(mockCerrarSesionAction).toHaveBeenCalled();
+    expect(destino).toBe("/postulacion/acceso?motivo=sesion");
+  });
+
+  it("un empleado inactivo sigue yendo a /login (nunca al acceso del postulante)", async () => {
+    sesionConRol("ADMINISTRADOR");
+    await dejarPasarLaInactividad();
+    expect(destino).toBe("/login");
+  });
+
+  it("si el postulante cierra la sesión por su cuenta no se le dice que «terminó»", async () => {
+    sesionConRol("POSTULANTE");
+    render(<AuthController />);
+    act(() => {
+      vi.advanceTimersByTime(14 * 60 * 1000);
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Cerrar sesión/i }));
+    });
+    expect(destino).toBe("/postulacion/acceso");
+  });
+});

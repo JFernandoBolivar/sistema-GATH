@@ -118,7 +118,7 @@ describe("auth-actions (Ciclo de vida de sesión y extensión de tokens)", () =>
 
     const res = await limpiarCookiesAuthAction();
 
-    expect(res).toEqual({ success: true });
+    expect(res).toEqual({ success: true, destino: "/login" });
     expect(mockSignOut).not.toHaveBeenCalled();
     expect(mockCookieStore.set).toHaveBeenCalledWith(
       "dj_access",

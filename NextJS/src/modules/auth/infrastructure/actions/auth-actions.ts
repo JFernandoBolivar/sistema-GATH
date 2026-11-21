@@ -23,6 +23,7 @@ import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import { ensureValidAccessToken } from "@/lib/api-client";
+import { rutaTrasSesionTerminada } from "@/modules/postulacion/domain/acceso-ruta";
 import { auth, signIn, signOut } from "#/auth";
 import { AuthError } from "next-auth";
 import { loginFormSchema, type LoginFormType } from "../../ui/schema/schema-login";
@@ -194,9 +195,16 @@ export async function cerrarSesionAction(): Promise<{ success: true }> {
  * `global-error.tsx`): la app ya está en un estado inconsistente, así que se
  * evita cualquier llamada de red adicional.
  */
-export async function limpiarCookiesAuthAction(): Promise<{ success: true }> {
+export async function limpiarCookiesAuthAction(): Promise<{ success: true; destino: string }> {
+  // El rol se lee antes de borrar las cookies: un postulante vuelve a su acceso y un empleado, al login.
+  let rol: string | undefined;
+  try {
+    rol = (await auth())?.user?.role?.nombre_rol;
+  } catch {
+    rol = undefined;
+  }
   await limpiarCookiesSesion();
-  return { success: true };
+  return { success: true, destino: rutaTrasSesionTerminada(rol) };
 }
 
 /**

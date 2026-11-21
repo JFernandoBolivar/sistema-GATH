@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { AuthSessionExpiredError } from "@/lib/auth-errors";
+import { rutaTrasSesionTerminada } from "@/modules/postulacion/domain/acceso-ruta";
 
 /**
  * Alias canónico de F2.11. Extiende el error legado (`@/lib/auth-errors`) en vez de
@@ -49,6 +50,6 @@ export function errorDeAccion(e: unknown, porDefecto: string): ErrorDeAccion {
  */
 export function handleSessionExpired(error: unknown): void {
   if (error instanceof AuthSessionExpiredError) {
-    redirect("/login");
+    redirect(rutaTrasSesionTerminada(error.rol));
   }
 }

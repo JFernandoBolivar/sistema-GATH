@@ -16,6 +16,18 @@ export const RUTA_ACCESO_POSTULANTE = "/postulacion/acceso";
 export const RUTA_CAMBIAR_CLAVE = "/postulacion/cambiar-clave";
 export const RUTA_RECIBIDO = "/postulacion/recibido";
 
+/** Acceso del personal (empleados): destino de su cierre de sesión. */
+export const RUTA_LOGIN_PERSONAL = "/login";
+
+/**
+ * A dónde manda una sesión que terminó (inactividad, token vencido): el postulante vuelve a SU acceso
+ * (con el aviso «Tu sesión terminó») y el empleado, al login del personal. Nunca se cruzan: sin rol conocido
+ * (sesión ya anónima) se va al login del personal, que es el comportamiento de siempre.
+ */
+export function rutaTrasSesionTerminada(rol: string | undefined | null): string {
+  return rol === ROL_POSTULANTE ? `${RUTA_ACCESO_POSTULANTE}?motivo=sesion` : RUTA_LOGIN_PERSONAL;
+}
+
 /** Rutas del personal a las que el empleado va cuando intenta entrar al área del postulante. */
 const RUTA_INICIO_PERSONAL = "/dashboard";
 

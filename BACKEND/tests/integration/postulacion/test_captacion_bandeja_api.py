@@ -94,6 +94,11 @@ class Notificador:
 
     emitidas: list = []
     resueltas: list = []
+    correos: list = []
+
+    def enviar_correo_directo(self, solicitud):
+        self.correos.append(solicitud)
+        return True
 
     def notificar(self, solicitud):
         self.emitidas.append(solicitud)
@@ -107,6 +112,7 @@ class Notificador:
 @pytest.fixture(autouse=True)
 def entorno(monkeypatch):
     Almacen.objetos, Notificador.emitidas, Notificador.resueltas = {}, [], []
+    Notificador.correos = []
     config = {'valor': Config(psicofisico=True)}
     monkeypatch.setattr(f'{VISTAS}.captacion_views.configuracion', lambda: config['valor'])
     monkeypatch.setattr(f'{VISTAS}.postulante_views.configuracion', lambda: config['valor'])
@@ -560,3 +566,29 @@ def test_la_clave_del_aviso_es_el_asiento_de_la_transicion_para_no_deduplicar_re
         c.post('/api/v1/postulacion/enviar/')
     primera = Notificador.emitidas[0].clave
     assert primera and TransicionExpedienteModel.objects.filter(pk=primera).exists()
+
+
+# ------------------------------------------------------------------------------------------------ correo al postulante
+def test_devolver_encola_correo_al_postulante_solo_tras_el_commit(captacion, django_capture_on_commit_callbacks):
+    exp = crear()
+    PostulanteModel.objects.update(correo='ana@correo.com')
+    with django_capture_on_commit_callbacks(execute=False) as callbacks:
+        assert transicion(captacion, exp, 'EN_CORRECCION_DATOS', motivo='Corrija el domicilio').status_code == 200
+    assert Notificador.correos == []  # aún no hubo commit
+    for cb in callbacks:
+        cb()
+    (c,) = Notificador.correos
+    assert c.destinatario_correo == 'ana@correo.com' and c.asunto == 'Tu postulación necesita correcciones'
+    assert 'Corrija el domicilio' in c.mensaje and '12345678' not in c.mensaje and c.enlace == '/postulacion/acceso'
+    assert c.ref_id == exp and c.clave
+
+
+def test_no_hay_correo_si_el_postulante_no_tiene_o_si_la_transicion_falla(captacion, django_capture_on_commit_callbacks):
+    exp = crear()
+    with django_capture_on_commit_callbacks(execute=True):
+        assert transicion(captacion, exp, 'EN_CORRECCION_DATOS').status_code == 400  # sin motivo
+    assert Notificador.correos == []
+    with django_capture_on_commit_callbacks(execute=True):
+        assert transicion(captacion, exp, 'EN_CORRECCION_DATOS', motivo='Corrija el domicilio').status_code == 200
+    assert Notificador.correos == []  # el postulante no tiene correo
+

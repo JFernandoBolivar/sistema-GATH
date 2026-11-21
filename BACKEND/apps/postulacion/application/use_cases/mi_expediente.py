@@ -62,11 +62,13 @@ def consultar_mi_expediente(repo: RepoPostulacion, *, expediente_id: str, cedula
 
 def guardar_borrador(
     repo: RepoPostulacion, config: LectorConfiguracion, *, expediente_id: str, cedula: str, nombres: str,
-    apellidos: str, correo: str = '', telefono_movil: str = '', datos_ventana1: dict | None = None,
+    apellidos: str, correo: str | None = None, telefono_movil: str | None = None, datos_ventana1: dict | None = None,
     ahora: datetime | None = None,
 ) -> tuple[Postulante, ExpedientePostulacion]:
     """
     Guarda los datos básicos del postulante y, si se envían, REEMPLAZA `datos_ventana1` (omitido = sin cambios).
+    `correo` y `telefono_movil` omitidos (None) conservan lo guardado: antes un borrador sin esos campos borraba
+    el correo que Captación registró al dar de alta, y el postulante dejaba de recibir los avisos por correo.
     En EN_CAPTURA y CONSOLIDANDO pasa por la autotransición de la máquina (valida la ventana vigente; sin asiento
     de historial). EN_CORRECCION_DATOS no tiene autotransición en §4.2: allí se exige la ventana vigente aquí mismo.
     """
@@ -76,10 +78,13 @@ def guardar_borrador(
         apellidos = validar_nombre(
             texto_normalizado(apellidos, "Los apellidos", maximo=150), edicion=True, etiqueta="Los apellidos",
         )
-        telefono = validar_telefono(telefono_movil, tipo='movil', etiqueta="El teléfono") or ''
+        telefono = (
+            None if telefono_movil is None
+            else validar_telefono(telefono_movil, tipo='movil', etiqueta="El teléfono") or ''
+        )
     except ValueError as e:
         raise ValidationError(str(e)) from e
-    correo = texto_normalizado(correo, "El correo", maximo=254, obligatorio=False)
+    correo = None if correo is None else texto_normalizado(correo, "El correo", maximo=254, obligatorio=False)
     datos = validar_datos_ventana1(datos_ventana1, ahora.date()) if datos_ventana1 is not None else None
 
     with repo.transaccion():
@@ -102,7 +107,9 @@ def guardar_borrador(
         if datos is not None:
             exp = repo.guardar_expediente(replace(exp, datos_ventana1=datos))
         postulante = repo.guardar_postulante(replace(
-            postulante, nombres=nombres, apellidos=apellidos, correo=correo, telefono_movil=telefono,
+            postulante, nombres=nombres, apellidos=apellidos,
+            correo=postulante.correo if correo is None else correo,
+            telefono_movil=postulante.telefono_movil if telefono is None else telefono,
         ))
     return postulante, exp
 

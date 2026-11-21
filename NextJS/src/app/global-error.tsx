@@ -20,15 +20,15 @@ export default function GlobalError({
       error.name === "AuthSessionExpiredError" ||
       error.message?.includes("Sesión expirada")
     ) {
-      limpiarCookiesAuthAction().then(() => {
-        window.location.href = "/login";
+      limpiarCookiesAuthAction().then(({ destino }) => {
+        window.location.href = destino;
       });
     }
   }, [error]);
 
   const handleClearAndReload = async () => {
-    await limpiarCookiesAuthAction();
-    window.location.href = "/login";
+    const { destino } = await limpiarCookiesAuthAction();
+    window.location.href = destino;
   };
 
   return (

@@ -2,6 +2,7 @@
 import { cookies } from "next/headers";
 import { auth } from "#/auth";
 import { AuthSessionExpiredError } from "./auth-errors";
+import { recordarRolSesion, rolSesionRecordado } from "./sesion-rol";
 import { cache } from "react";
 import { DJANGO_API_SERVER } from "@/shared/commons/api";
 import { authCookieSecure } from "@/shared/commons/auth-cookies";
@@ -51,8 +52,17 @@ function deleteAuthCookies(cookieStore: Awaited<ReturnType<typeof cookies>>) {
 
 async function throwAuthExpired(): Promise<never> {
   const cookieStore = await cookies();
+  // El rol se lee antes de borrar las cookies (después ya no hay sesión que consultar).
+  let rol = rolSesionRecordado();
+  if (!rol) {
+    try {
+      rol = (await auth())?.user?.role?.nombre_rol;
+    } catch {
+      rol = undefined;
+    }
+  }
   deleteAuthCookies(cookieStore);
-  throw new AuthSessionExpiredError();
+  throw new AuthSessionExpiredError(rol);
 }
 
 const executeRefresh = cache(async (refreshToken: string): Promise<string | null> => {
@@ -126,6 +136,7 @@ export const refreshAccessToken = refreshTokens;
 async function getAuthHeaders(): Promise<Record<string, string> | null> {
   const session = await auth();
   if (!session?.user) return null;
+  recordarRolSesion(session.user.role?.nombre_rol);
 
   const accessToken = await getValidAccessToken();
   if (!accessToken) return null;

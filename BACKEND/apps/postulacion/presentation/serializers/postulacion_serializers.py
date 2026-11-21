@@ -17,8 +17,8 @@ class CambiarClaveSerializer(serializers.Serializer):
 class BorradorSerializer(serializers.Serializer):
     nombres = serializers.CharField(max_length=150)
     apellidos = serializers.CharField(max_length=150)
-    correo = serializers.EmailField(max_length=254, required=False, allow_blank=True, default='')
-    telefono_movil = serializers.CharField(max_length=30, required=False, allow_blank=True, default='')
+    correo = serializers.EmailField(max_length=254, required=False, allow_blank=True)
+    telefono_movil = serializers.CharField(max_length=30, required=False, allow_blank=True)
     datos_ventana1 = serializers.DictField(
         required=False,
         help_text=(

@@ -8,6 +8,11 @@ import {
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import {
+  RUTA_ACCESO_POSTULANTE,
+  ROL_POSTULANTE,
+  rutaTrasSesionTerminada,
+} from "@/modules/postulacion/domain/acceso-ruta";
 
 export const IDLE_TIMEOUT = 15 * 60 * 1000;
 export const GRACE_PERIOD = 60 * 1000;
@@ -19,6 +24,7 @@ export function AuthController() {
   // el error boundary de la app lo captura; no se traga el error aquí.
   const { data: session } = useSession();
   const sessionUserId = session?.user?.id ?? null;
+  const rolSesion = session?.user?.role?.nombre_rol;
 
   const [showAlert, setShowAlert] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(GRACE_PERIOD / 1000);
@@ -38,19 +44,25 @@ export function AuthController() {
   // el listener de actividad se registre UNA sola vez por sesión activa,
   // sin depender de que `session` cambie identidad entre renders (evita
   // reiniciar timers a mitad de cuenta regresiva).
-  const handleLogoutRef = useRef<() => Promise<void>>(async () => {});
+  const handleLogoutRef = useRef<(porInactividad?: boolean) => Promise<void>>(async () => {});
   const startIdleTimerRef = useRef<() => void>(() => {});
   const handleActivityRef = useRef<() => void>(() => {});
 
   // Las refs se actualizan en un efecto (no durante el render) en cada commit,
   // antes del efecto de montaje que las consume.
   useEffect(() => {
-    handleLogoutRef.current = async () => {
+    handleLogoutRef.current = async (porInactividad = false) => {
+      // El destino se decide con el rol de la sesión ANTES de cerrarla: un postulante vuelve a su acceso
+      // (con «Tu sesión terminó» si fue por inactividad) y un empleado, al login del personal.
+      const destino =
+        rolSesion === ROL_POSTULANTE && !porInactividad
+          ? RUTA_ACCESO_POSTULANTE
+          : rutaTrasSesionTerminada(rolSesion);
       clearAllTimers();
       modalOpenRef.current = false;
       setShowAlert(false);
       await cerrarSesionAction();
-      window.location.href = "/login";
+      window.location.href = destino;
     };
 
     startIdleTimerRef.current = () => {
@@ -65,7 +77,7 @@ export function AuthController() {
         }, 1000);
         if (graceTimerRef.current) clearTimeout(graceTimerRef.current);
         graceTimerRef.current = setTimeout(() => {
-          handleLogoutRef.current();
+          handleLogoutRef.current(true);
         }, GRACE_PERIOD);
         // El aviso aparece GRACE_PERIOD antes de cumplirse IDLE_TIMEOUT, para
         // que el cierre de sesión real ocurra exactamente a los 15 minutos

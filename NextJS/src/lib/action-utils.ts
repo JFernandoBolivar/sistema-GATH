@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { AuthSessionExpiredError } from "./auth-errors";
+import { rutaTrasSesionTerminada } from "@/modules/postulacion/domain/acceso-ruta";
 
 function isNextRedirectError(error: unknown): boolean {
   return (
@@ -17,7 +18,7 @@ export function safeAction<T extends (...args: unknown[]) => Promise<Record<stri
       return await action(...args);
     } catch (error) {
       if (error instanceof AuthSessionExpiredError) {
-        redirect("/login");
+        redirect(rutaTrasSesionTerminada(error.rol));
       }
       if (isNextRedirectError(error)) {
         throw error;

@@ -478,3 +478,27 @@ def test_enviar_y_borrador_con_la_ventana_vencida_se_rechazan(anonimo, captacion
     CredencialPostulanteModel.objects.update(vence_el=pasado)
     assert cliente.put(f'{BASE}/borrador/', {'nombres': 'A', 'apellidos': 'B'}, format='json').status_code == 403
     assert cliente.post(f'{BASE}/enviar/').status_code == 403
+
+
+def test_un_borrador_sin_correo_ni_telefono_conserva_los_que_registro_captacion(anonimo, captacion):
+    """Omitir correo/teléfono en el borrador no los borra (si no, el postulante deja de recibir avisos por correo);
+    enviarlos vacíos sí los limpia a propósito."""
+    from apps.postulacion.infrastructure.models.expediente_models import PostulanteModel
+
+    datos = alta(captacion, '15999001', correo='ana@ejemplo.invalid', telefono_movil='04141234567')
+    r = acceso(anonimo, '15999001', datos['credencial']['clave_temporal'])
+    token = r.json()['data']['token']
+    r = anonimo.post(f'{BASE}/cambiar-clave/', {
+        'clave_actual': datos['credencial']['clave_temporal'], 'clave_nueva': CLAVE_NUEVA},
+        format='json', HTTP_AUTHORIZATION=f'Bearer {token}')
+    cliente = APIClient()
+    cliente.credentials(HTTP_AUTHORIZATION=f"Bearer {r.json()['data']['token']}")
+
+    r = cliente.put(f'{BASE}/borrador/', {'nombres': 'Ana María', 'apellidos': 'Pérez'}, format='json')
+    assert r.status_code == 200, r.content
+    p = PostulanteModel.objects.get(cedula='15999001')
+    assert p.correo == 'ana@ejemplo.invalid' and p.telefono_movil
+
+    r = cliente.put(f'{BASE}/borrador/', {'nombres': 'Ana María', 'apellidos': 'Pérez', 'correo': ''}, format='json')
+    assert r.status_code == 200, r.content
+    assert PostulanteModel.objects.get(cedula='15999001').correo == ''

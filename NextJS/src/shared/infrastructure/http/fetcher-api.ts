@@ -5,6 +5,7 @@ import { DJANGO_API_SERVER } from "@/shared/commons/api";
 import { ipDelCliente } from "@/shared/infrastructure/http/ip-cliente";
 import { userAgentDelCliente } from "@/shared/infrastructure/http/user-agent";
 import { SessionExpiredError, ApiHttpError } from "./errors";
+import { recordarRolSesion, rolSesionRecordado } from "@/lib/sesion-rol";
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 
 /**
@@ -62,6 +63,7 @@ function construirRuta(path: string, params?: RequestOptions["params"]): string 
 async function getAccessToken(sinRefresco = false): Promise<string | null> {
   const session = await auth();
   if (!session?.user) return null;
+  recordarRolSesion(session.user.role?.nombre_rol);
 
   const cookieStore = await cookies();
   const existing = cookieStore.get("dj_access")?.value;
@@ -96,7 +98,7 @@ async function buildHeaders(
 
   if (!skipAuth) {
     const token = await getAccessToken(sinRefresco);
-    if (!token && !authOpcional) throw new SessionExpiredError();
+    if (!token && !authOpcional) throw new SessionExpiredError(rolSesionRecordado());
     if (token) headersSalida["Authorization"] = `Bearer ${token}`;
   }
 
@@ -155,10 +157,10 @@ async function request<T>(
       response = await doFetch(path, init, sinAuth);
     } else if (options.sinRefresco) {
       // Sin refresco permitido (render de página): que el llamador decida.
-      throw new SessionExpiredError();
+      throw new SessionExpiredError(rolSesionRecordado());
     } else {
       const newToken = await refreshTokens();
-      if (!newToken) throw new SessionExpiredError();
+      if (!newToken) throw new SessionExpiredError(rolSesionRecordado());
       headers = { ...headers, Authorization: `Bearer ${newToken}` };
       response = await doFetch(path, init, headers);
     }
@@ -209,10 +211,10 @@ async function requestBlobConRespuesta(
       const { Authorization: _autorizacion, ...sinAuth } = headers;
       response = await doFetch(path, init, sinAuth);
     } else if (options.sinRefresco) {
-      throw new SessionExpiredError();
+      throw new SessionExpiredError(rolSesionRecordado());
     } else {
       const newToken = await refreshTokens();
-      if (!newToken) throw new SessionExpiredError();
+      if (!newToken) throw new SessionExpiredError(rolSesionRecordado());
       response = await doFetch(path, init, { ...headers, Authorization: `Bearer ${newToken}` });
     }
   }

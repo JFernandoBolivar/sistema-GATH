@@ -103,6 +103,6 @@ def aplicar_transicion_expediente(
         if postulante is not None:
             programar_avisos(
                 repo, notificador, exp=guardado, postulante=postulante, origen=origen, destino=destino, actor=actor,
-                asiento_id=asiento.id,
+                asiento_id=asiento.id, motivo=motivo,
             )
     return guardado, asiento

@@ -12,7 +12,7 @@ diferido a la Fase B5).
 """
 from typing import Any, Iterator, Protocol, TypeVar
 
-from core.domain.notificaciones import SolicitudNotificacion
+from core.domain.notificaciones import SolicitudCorreoDirecto, SolicitudNotificacion
 
 T = TypeVar('T')
 ID = TypeVar('ID')
@@ -72,6 +72,13 @@ class Notificador(Protocol):
         Bandeja compartida: cuando alguien actúa sobre el expediente (ref_tipo, ref_id), marca como atendidas
         por él todas las copias pendientes del aviso (de todos los que tienen el permiso). Idempotente.
         Devuelve cuántas copias marcó.
+        """
+        ...
+
+    def enviar_correo_directo(self, solicitud: 'SolicitudCorreoDirecto') -> bool:
+        """
+        Correo a una dirección sin cuenta (el postulante): lo escribe en el outbox de la transacción vigente y
+        programa el envío tras el commit. Devuelve False si ya estaba encolado (deduplicado).
         """
         ...
 

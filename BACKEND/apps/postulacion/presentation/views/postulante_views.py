@@ -147,8 +147,8 @@ class BorradorView(VistaPostulante):
         repo = RepoPostulacionORM()
         guardar_borrador(
             repo, configuracion(), expediente_id=sesion.expediente_id, cedula=sesion.cedula,
-            nombres=datos['nombres'], apellidos=datos['apellidos'], correo=datos.get('correo', ''),
-            telefono_movil=datos.get('telefono_movil', ''), datos_ventana1=datos.get('datos_ventana1'),
+            nombres=datos['nombres'], apellidos=datos['apellidos'], correo=datos.get('correo'),
+            telefono_movil=datos.get('telefono_movil'), datos_ventana1=datos.get('datos_ventana1'),
             ahora=ahora(),
         )
         vista = consultar_mi_expediente(repo, expediente_id=sesion.expediente_id, cedula=sesion.cedula)
