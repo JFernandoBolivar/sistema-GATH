@@ -4,6 +4,8 @@ Aplicar una transición al expediente (D-2). Sin Django.
 Todo ocurre en UNA transacción con el expediente bloqueado (`select_for_update`): se valida la transición
 (legal, autorizada, con sus guardas), se guarda el nuevo estado y se registra el asiento inmutable.
 
+Credencial (D-3): en la misma transacción se alinea la credencial del postulante con el nuevo estado.
+
 Notificaciones (D-9, NO se emiten aún). Tras confirmar la transacción, aquí mismo se llamarán:
   - `core.infrastructure.providers.obtener_notificador().notificar(...)` con el tipo de §5.6 del destino
     (p. ej. ENVIADO_CAPTACION -> EXPEDIENTE_RECIBIDO, EN_PRESUPUESTO -> EXPEDIENTE_EN_PRESUPUESTO), y
@@ -23,6 +25,7 @@ from apps.postulacion.application.use_cases._comun import (
 from apps.postulacion.domain.entities.expediente import CAMPOS_PROPUESTA, ExpedientePostulacion
 from apps.postulacion.domain.entities.postulante import TransicionRegistrada
 from apps.postulacion.domain.ports.repos import RepoPostulacion
+from apps.postulacion.domain.services.credencial import credencial_tras_transicion
 from apps.postulacion.domain.services.efectos import aplicar_transicion
 from apps.postulacion.domain.services.maquina_estados import Actor, Hechos, validar_transicion
 from apps.postulacion.domain.value_objects.estados import EstadoExpediente
@@ -82,6 +85,14 @@ def aplicar_transicion_expediente(
         transicion = validar_transicion(origen, destino, actor, hechos, motivo)
         nuevo = aplicar_transicion(exp, transicion, ahora, vigencias)
         guardado = repo.guardar_expediente(nuevo)
+        if not transicion.es_autotransicion:
+            # La credencial sigue al expediente: reabrir una ventana la extiende; pasar a revisión la suspende y
+            # cierra las sesiones abiertas; un estado final la revoca (D-3).
+            credencial = repo.obtener_credencial_de_expediente(guardado.id, bloquear=True)
+            if credencial is not None:
+                actualizada = credencial_tras_transicion(credencial, origen, guardado)
+                if actualizada != credencial:
+                    repo.guardar_credencial(actualizada)
         if not transicion.registra_historial:
             return guardado, None
         asiento = repo.registrar_transicion(TransicionRegistrada(

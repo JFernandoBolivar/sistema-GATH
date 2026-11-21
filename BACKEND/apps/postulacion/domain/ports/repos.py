@@ -2,6 +2,7 @@
 from contextlib import AbstractContextManager
 from typing import Protocol
 
+from apps.postulacion.domain.entities.credencial import CredencialPostulante
 from apps.postulacion.domain.entities.expediente import ExpedientePostulacion
 from apps.postulacion.domain.entities.postulante import EmpleadoPrevio, Postulante, TransicionRegistrada
 
@@ -14,6 +15,10 @@ class RepoPostulacion(Protocol):
     def obtener_postulante_por_cedula(self, cedula: str, bloquear: bool = False) -> Postulante | None: ...
 
     def crear_postulante(self, postulante: Postulante) -> Postulante: ...
+
+    def guardar_postulante(self, postulante: Postulante) -> Postulante:
+        """Actualiza nombres, apellidos, correo y teléfono (la cédula no cambia)."""
+        ...
 
     def vincular_empleado(self, postulante_id: str, employee_cedula: str) -> Postulante: ...
 
@@ -32,6 +37,31 @@ class RepoPostulacion(Protocol):
     def registrar_transicion(self, transicion: TransicionRegistrada) -> TransicionRegistrada: ...
 
     def listar_transiciones(self, expediente_id: str) -> list[TransicionRegistrada]: ...
+
+    # --- credencial del postulante (una por expediente) ---
+    def obtener_credencial_por_usuario(self, usuario: str) -> CredencialPostulante | None:
+        """La credencial no revocada del expediente ABIERTO de esa cédula, o None."""
+        ...
+
+    def obtener_credencial_de_expediente(
+        self, expediente_id: str, bloquear: bool = False,
+    ) -> CredencialPostulante | None: ...
+
+    def guardar_credencial(self, credencial: CredencialPostulante) -> CredencialPostulante:
+        """Crea o reemplaza la credencial del expediente (una sola por expediente)."""
+        ...
+
+
+class HasheadorClaves(Protocol):
+    """Hash de contraseñas con el hasher del framework; la contraseña jamás se guarda ni se registra en claro."""
+
+    def hashear(self, clave: str) -> str: ...
+
+    def verificar(self, clave: str, clave_hash: str) -> bool: ...
+
+    def verificar_ficticio(self, clave: str) -> None:
+        """Gasta lo mismo que `verificar` cuando la cédula no existe (tiempo constante, sin enumeración)."""
+        ...
 
 
 class BuscadorEmpleados(Protocol):

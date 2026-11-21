@@ -11,7 +11,7 @@ from core.domain.configuracion import (
     CLAVE_CAPTACION_VIGENCIA_VENTANA1_DIAS,
     CLAVE_CAPTACION_VIGENCIA_VENTANA2_DIAS,
 )
-from core.domain.exceptions import NotFoundError
+from core.domain.exceptions import NotFoundError, ValidationError
 from core.domain.ports import LectorConfiguracion
 
 
@@ -38,3 +38,13 @@ def obtener_expediente(repo: RepoPostulacion, expediente_id: str, bloquear: bool
     if exp is None:
         raise NotFoundError("El expediente de postulación no existe.")
     return exp
+
+
+def texto_normalizado(valor: str | None, etiqueta: str, *, maximo: int, obligatorio: bool = True) -> str:
+    """Colapsa espacios y valida obligatoriedad y largo máximo."""
+    valor = ' '.join((valor or '').split())
+    if obligatorio and not valor:
+        raise ValidationError(f"{etiqueta} es obligatorio.")
+    if len(valor) > maximo:
+        raise ValidationError(f"{etiqueta} admite como máximo {maximo} caracteres.")
+    return valor

@@ -1,5 +1,5 @@
 """Expediente de Postulación: entidad pura e inmutable (se reemplaza con `dataclasses.replace`)."""
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
 from apps.postulacion.domain.value_objects.estados import ESTADOS_TERMINALES, EstadoExpediente
@@ -37,6 +37,8 @@ class ExpedientePostulacion:
     # Fin de la espera del diferido (C-10); lo fija la entrada a DIFERIDO_PRESUPUESTO.
     diferido_vence_el: datetime | None = None
     observaciones: str = ''
+    # Formulario de la Ventana 1 que llena el postulante (esquema en `services/datos_ventana.py`).
+    datos_ventana1: dict = field(default_factory=dict)
     fecha_apertura: datetime | None = None
     fecha_cierre: datetime | None = None
 

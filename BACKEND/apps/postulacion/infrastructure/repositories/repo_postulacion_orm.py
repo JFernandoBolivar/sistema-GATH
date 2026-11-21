@@ -5,14 +5,18 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
+from apps.postulacion.domain.entities.credencial import CredencialPostulante
 from apps.postulacion.domain.entities.expediente import ExpedientePostulacion
 from apps.postulacion.domain.entities.postulante import EmpleadoPrevio, Postulante, TransicionRegistrada
 from apps.postulacion.infrastructure.mappers.mapper_postulacion import (
+    CAMPOS_CREDENCIAL,
     campos_de_expediente,
+    credencial_a_entidad,
     expediente_a_entidad,
     postulante_a_entidad,
     transicion_a_entidad,
 )
+from apps.postulacion.infrastructure.models.credencial_models import CredencialPostulanteModel
 from apps.postulacion.infrastructure.models.expediente_models import (
     ExpedientePostulacionModel,
     PostulanteModel,
@@ -54,6 +58,15 @@ class RepoPostulacionORM:
             telefono_movil=p.telefono_movil, employee_cedula=p.employee_cedula, creado_por=p.creado_por,
         )
         return postulante_a_entidad(m)
+
+    def guardar_postulante(self, p: Postulante) -> Postulante:
+        actualizadas = PostulanteModel.objects.filter(pk=p.id).update(
+            nombres=p.nombres, apellidos=p.apellidos, correo=p.correo, telefono_movil=p.telefono_movil,
+            updated_at=timezone.now(),
+        )
+        if not actualizadas:
+            raise NotFoundError("El postulante no existe.")
+        return self.obtener_postulante(p.id)
 
     def vincular_empleado(self, postulante_id: str, employee_cedula: str) -> Postulante:
         actualizadas = PostulanteModel.objects.filter(pk=postulante_id).update(employee_cedula=employee_cedula)
@@ -117,6 +130,29 @@ class RepoPostulacionORM:
 
     def listar_transiciones(self, expediente_id: str) -> list[TransicionRegistrada]:
         return [transicion_a_entidad(m) for m in TransicionExpedienteModel.objects.filter(expediente_id=expediente_id)]
+
+    # --- credencial del postulante ---
+    def obtener_credencial_por_usuario(self, usuario: str) -> CredencialPostulante | None:
+        m = (
+            CredencialPostulanteModel.objects.filter(usuario=usuario, revocada=False)
+            .exclude(expediente__estado__in=VALORES_TERMINALES).order_by('-emitida_el').first()
+        )
+        return credencial_a_entidad(m) if m else None
+
+    def obtener_credencial_de_expediente(self, expediente_id: str, bloquear: bool = False) -> CredencialPostulante | None:
+        pk = _uuid_valido(expediente_id)
+        if pk is None:
+            return None
+        qs = CredencialPostulanteModel.objects.select_for_update() if bloquear else CredencialPostulanteModel.objects
+        m = qs.filter(expediente_id=pk).first()
+        return credencial_a_entidad(m) if m else None
+
+    def guardar_credencial(self, c: CredencialPostulante) -> CredencialPostulante:
+        campos = {campo: getattr(c, campo) for campo in CAMPOS_CREDENCIAL}
+        if campos['emitida_el'] is None:
+            campos['emitida_el'] = timezone.now()
+        m, _ = CredencialPostulanteModel.objects.update_or_create(expediente_id=c.expediente_id, defaults=campos)
+        return credencial_a_entidad(m)
 
 
 class BuscadorEmpleadosORM:

@@ -1,4 +1,5 @@
 """Mappers ORM <-> entidades de postulación."""
+from apps.postulacion.domain.entities.credencial import CredencialPostulante
 from apps.postulacion.domain.entities.expediente import ExpedientePostulacion
 from apps.postulacion.domain.entities.postulante import Postulante, TransicionRegistrada
 from apps.postulacion.domain.value_objects.estados import EstadoExpediente
@@ -6,7 +7,8 @@ from apps.postulacion.domain.value_objects.estados import EstadoExpediente
 CAMPOS_EXPEDIENTE = (
     'cargo_propuesto_id', 'cargo_especifico_propuesto_id', 'tipo_nomina_propuesto_id', 'direccion_general_id',
     'direccion_linea_id', 'coordinacion_id', 'dependencia_id', 'cargo_propuesto_texto', 'oficina_propuesta_texto',
-    'ventana', 'ventana_vence_el', 'reserva_vence_el', 'diferido_vence_el', 'observaciones', 'fecha_cierre', 'creado_por',
+    'ventana', 'ventana_vence_el', 'reserva_vence_el', 'diferido_vence_el', 'observaciones', 'datos_ventana1', 'fecha_cierre',
+    'creado_por',
 )
 
 
@@ -34,4 +36,16 @@ def transicion_a_entidad(m) -> TransicionRegistrada:
         id=str(m.pk), expediente_id=str(m.expediente_id), estado_origen=m.estado_origen,
         estado_destino=m.estado_destino, actor_cedula=m.actor_cedula, actor_tipo=m.actor_tipo, fecha=m.fecha,
         motivo=m.motivo, datos_extra=dict(m.datos_extra or {}),
+    )
+
+
+CAMPOS_CREDENCIAL = (
+    'usuario', 'clave_hash', 'ventana', 'vence_el', 'debe_cambiar_clave', 'intentos_fallidos', 'bloqueada_hasta',
+    'ultimo_acceso', 'emitida_por', 'emitida_el', 'version_sesion', 'revocada',
+)
+
+
+def credencial_a_entidad(m) -> CredencialPostulante:
+    return CredencialPostulante(
+        id=str(m.pk), expediente_id=str(m.expediente_id), **{c: getattr(m, c) for c in CAMPOS_CREDENCIAL},
     )

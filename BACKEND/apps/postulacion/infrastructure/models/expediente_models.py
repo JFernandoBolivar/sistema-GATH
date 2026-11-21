@@ -50,6 +50,7 @@ class ExpedientePostulacionModel(BaseModel):
     reserva_vence_el = models.DateTimeField(null=True, blank=True)
     diferido_vence_el = models.DateTimeField(null=True, blank=True)
     observaciones = models.TextField(blank=True, default='')
+    datos_ventana1 = models.JSONField(default=dict, blank=True)  # formulario de la Ventana 1 (esquema en el dominio)
     fecha_apertura = models.DateTimeField(default=timezone.now)
     fecha_cierre = models.DateTimeField(null=True, blank=True)
 

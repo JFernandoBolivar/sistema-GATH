@@ -10,6 +10,7 @@ Notificaciones: la emisión de `CREDENCIAL_GENERADA` y demás avisos de §5.6 pe
 from datetime import datetime
 
 from apps.postulacion.application.use_cases._comun import ahora_utc, leer_vigencias
+from apps.postulacion.application.use_cases._comun import texto_normalizado as _texto
 from apps.postulacion.domain.entities.expediente import ExpedientePostulacion
 from apps.postulacion.domain.entities.postulante import Postulante, TransicionRegistrada
 from apps.postulacion.domain.ports.repos import BuscadorEmpleados, RepoPostulacion
@@ -19,15 +20,6 @@ from core.domain.catalogos import CONDICION_ACTIVO
 from core.domain.exceptions import ConflictError, ValidationError
 from core.domain.ports import LectorConfiguracion
 from core.domain.validacion_personas import validar_cedula
-
-
-def _texto(valor: str | None, etiqueta: str, *, maximo: int, obligatorio: bool = True) -> str:
-    valor = ' '.join((valor or '').split())
-    if obligatorio and not valor:
-        raise ValidationError(f"{etiqueta} es obligatorio.")
-    if len(valor) > maximo:
-        raise ValidationError(f"{etiqueta} admite como máximo {maximo} caracteres.")
-    return valor
 
 
 def crear_postulante_con_expediente(
