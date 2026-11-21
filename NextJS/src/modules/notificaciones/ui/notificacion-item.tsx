@@ -93,6 +93,14 @@ export function NotificacionItem({
 
   const modulo = (n.tipo.split(".")[0] || "").trim();
   const meta = ICONOS_MODULO[modulo] ?? ICONO_POR_DEFECTO;
+  const textoAtendida = n.atendida
+    ? `Atendido por ${n.atendidaPorNombre || "otro usuario"}${
+        n.fechaAtendida ? ` el ${formatearFechaNotificacion(n.fechaAtendida)}` : ""
+      }`
+    : null;
+  const estado = n.atendida
+    ? { texto: "Atendida", tono: "neutral" as const }
+    : { texto: n.leida ? "Leída" : "Nueva", tono: n.leida ? ("neutral" as const) : ("info" as const) };
   const enlaceVisible = n.enlace && (puedeAbrirEnlace?.(n.enlace) ?? true);
 
   const acciones = (
@@ -130,10 +138,11 @@ export function NotificacionItem({
         className={cn(
           "flex flex-col gap-1.5 rounded-lg border p-2.5",
           n.leida ? "bg-card" : "border-info/40 bg-info-soft/40",
+          n.atendida && "opacity-70",
         )}
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <StatusBadge texto={n.leida ? "Leída" : "Nueva"} tono={n.leida ? "neutral" : "info"} />
+          <StatusBadge texto={estado.texto} tono={estado.tono} />
           <time dateTime={n.creadaEn} className="text-xs text-muted-foreground">
             {formatearFechaNotificacion(n.creadaEn)}
           </time>
@@ -146,6 +155,7 @@ export function NotificacionItem({
         >
           {n.titulo}
         </p>
+        {textoAtendida ? <p className="text-xs text-muted-foreground">{textoAtendida}</p> : null}
         <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto pt-0.5">
           {acciones}
         </div>
@@ -160,6 +170,7 @@ export function NotificacionItem({
         n.leida
           ? "border-border bg-card"
           : "border-border border-l-4 border-l-primary bg-info-soft/40",
+        n.atendida && "opacity-70",
       )}
     >
       <span
@@ -182,7 +193,7 @@ export function NotificacionItem({
             >
               {n.titulo}
             </p>
-            <StatusBadge texto={n.leida ? "Leída" : "Nueva"} tono={n.leida ? "neutral" : "info"} />
+            <StatusBadge texto={estado.texto} tono={estado.tono} />
           </div>
           <time
             dateTime={n.creadaEn}
@@ -201,6 +212,10 @@ export function NotificacionItem({
           >
             {n.mensaje}
           </p>
+        ) : null}
+
+        {textoAtendida ? (
+          <p className="text-sm font-medium text-muted-foreground">{textoAtendida}</p>
         ) : null}
 
         <div className="flex flex-wrap items-center gap-2 pt-1">{acciones}</div>

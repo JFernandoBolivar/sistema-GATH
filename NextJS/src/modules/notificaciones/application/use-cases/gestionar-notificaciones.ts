@@ -24,6 +24,9 @@ function aDTO(n: NotificacionEntity): NotificacionDTO {
     leida: n.leida,
     fechaLectura: n.fechaLectura,
     creadaEn: n.creadaEn,
+    atendida: n.atendida ?? false,
+    atendidaPorNombre: n.atendidaPorNombre ?? "",
+    fechaAtendida: n.fechaAtendida ?? null,
   };
 }
 

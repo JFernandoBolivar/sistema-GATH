@@ -17,9 +17,9 @@ from tests.unit.notificaciones.memoria import CacheMem, PlanificadorMem, RepoNot
 AHORA = datetime(2026, 10, 29, 12, 0, tzinfo=timezone.utc)
 
 
-def montar(por_permiso=None, correos=None):
+def montar(por_permiso=None, correos=None, nombres=None):
     repo, outbox, cache, plan = RepoNotifMem(), RepoOutboxMem(), CacheMem(), PlanificadorMem()
-    servicio = ServicioNotificaciones(repo, outbox, ResolutorMem(por_permiso, correos), cache, plan)
+    servicio = ServicioNotificaciones(repo, outbox, ResolutorMem(por_permiso, correos, nombres), cache, plan)
     return servicio, repo, outbox, cache, plan
 
 
@@ -180,3 +180,55 @@ def test_el_modulo_es_opcional_pero_si_viene_debe_ser_conocido():
             conteo_no_leidas(repo, cache, '9', malo)
     with pytest.raises(ValidationError):
         SolicitudNotificacion(tipo='t', titulo='T', mensaje='M', cedula_destino='9', modulo='inventado')
+
+
+def test_bandeja_compartida_resolver_desde_una_cuenta_atiende_las_tres_copias():
+    servicio, repo, _, cache, _ = montar({'captacion.gestionar': ['1', '2', '3']}, nombres={'2': 'Ana Pérez'})
+    servicio.notificar(SolicitudNotificacion(
+        tipo='carnetizacion.solicitud_nueva', titulo='T', mensaje='M', permiso_destino='captacion.gestionar',
+        ref_tipo='solicitud', ref_id='77',
+    ))
+    assert len({n.grupo for n in repo.filas}) == 1 and repo.filas[0].grupo  # copias agrupadas
+    assert all(conteo_no_leidas(repo, cache, c, 'autogestion') == 1 for c in '123')
+
+    assert servicio.resolver_avisos('solicitud', '77', por_cedula='2') == 3
+    assert all(n.atendida and n.atendida_por_cedula == '2' and n.atendida_por_nombre == 'Ana Pérez' and n.leida for n in repo.filas)
+    assert all(n.fecha_atendida is not None for n in repo.filas)
+    assert all(conteo_no_leidas(repo, cache, c, 'autogestion') == 0 for c in '123')  # caché invalidada
+
+
+def test_resolver_dos_veces_es_idempotente_y_no_pisa_al_primero():
+    servicio, repo, *_ = montar({'p.q': ['1', '2']}, nombres={'1': 'Uno', '2': 'Dos'})
+    servicio.notificar(SolicitudNotificacion(tipo='x', titulo='T', mensaje='M', permiso_destino='p.q', ref_tipo='r', ref_id='1'))
+    assert servicio.resolver_avisos('r', '1', por_cedula='1') == 2
+    primera = [n.fecha_atendida for n in repo.filas]
+    assert servicio.resolver_avisos('r', '1', por_cedula='2') == 0
+    assert {n.atendida_por_cedula for n in repo.filas} == {'1'}
+    assert [n.fecha_atendida for n in repo.filas] == primera
+
+
+def test_un_aviso_a_una_sola_cedula_tambien_se_resuelve_y_filtra_por_tipo():
+    servicio, repo, *_ = montar()
+    servicio.notificar(SolicitudNotificacion(tipo='a', titulo='T', mensaje='M', cedula_destino='9', ref_tipo='r', ref_id='5'))
+    servicio.notificar(SolicitudNotificacion(tipo='b', titulo='T', mensaje='M', cedula_destino='9', ref_tipo='r', ref_id='5'))
+    assert repo.filas[0].grupo == ''
+    assert servicio.resolver_avisos('r', '5', por_cedula='8', tipo='a') == 1
+    assert [n.atendida for n in repo.filas] == [True, False]
+    assert repo.filas[0].atendida_por_nombre == '8'  # sin nombre conocido, queda la cédula
+
+
+def test_sin_tipo_no_se_resuelven_los_avisos_personales_del_mismo_caso():
+    servicio, repo, *_ = montar(por_permiso={'p.revisar': ['1', '2']})
+    servicio.notificar(SolicitudNotificacion(tipo='recibida', titulo='T', mensaje='M', cedula_destino='9', ref_tipo='r', ref_id='7'))
+    servicio.notificar(SolicitudNotificacion(tipo='nueva', titulo='T', mensaje='M', permiso_destino='p.revisar', ref_tipo='r', ref_id='7'))
+    servicio.resolver_avisos('r', '7', por_cedula='1')
+    personal = next(n for n in repo.filas if n.destinatario_cedula == '9')
+    assert personal.atendida is False
+    assert all(n.atendida for n in repo.filas if n.grupo)
+
+
+def test_resolver_sin_referencia_no_toca_nada():
+    servicio, repo, *_ = montar()
+    servicio.notificar(SolicitudNotificacion(tipo='a', titulo='T', mensaje='M', cedula_destino='9'))
+    assert servicio.resolver_avisos('', '', por_cedula='8') == 0
+    assert not repo.filas[0].atendida

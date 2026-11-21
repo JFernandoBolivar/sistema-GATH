@@ -8,6 +8,8 @@ del commit (lo hace el `PlanificadorEnvio`). Sin ORM, sin Celery.
 """
 import base64
 import logging
+from datetime import datetime, timezone
+from uuid import uuid4
 
 from apps.notificaciones.application.use_cases.correo_outbox import encolar_correo
 from apps.notificaciones.domain.entities.mensaje_outbox import AdjuntoOutbox
@@ -46,10 +48,11 @@ class ServicioNotificaciones:
             logger.warning('notificación %s sin destinatarios (permiso=%s)', s.tipo, s.permiso_destino or '-')
             return 0
         clave = _clave_unica(s)
+        grupo = uuid4().hex if s.permiso_destino else ''  # las copias de un aviso por permiso se agrupan
         creadas = self._repo.crear_muchas([
             Notificacion(
                 id='', destinatario_cedula=c, tipo=s.tipo, titulo=s.titulo, mensaje=s.mensaje,
-                enlace=s.enlace, ref_tipo=s.ref_tipo, ref_id=s.ref_id, clave_unica=clave, modulo=s.modulo,
+                enlace=s.enlace, ref_tipo=s.ref_tipo, ref_id=s.ref_id, clave_unica=clave, modulo=s.modulo, grupo=grupo,
             )
             for c in destinatarios
         ])
@@ -59,6 +62,23 @@ class ServicioNotificaciones:
             for c in destinatarios:  # una persona o cada cuenta con el permiso; el outbox deduplica por destinatario
                 self._correo(s, c)
         return creadas
+
+    def resolver_avisos(self, ref_tipo: str, ref_id: str, por_cedula: str, tipo: str | None = None) -> int:
+        """
+        Bandeja compartida: quien actúa primero sobre el expediente (ref_tipo, ref_id) resuelve el aviso
+        para todos. Marca como atendidas y leídas las copias pendientes (de cualquier destinatario, el
+        propio actor incluido) e invalida el contador de cada uno. Idempotente. Devuelve cuántas copias marcó.
+        Sin `tipo` solo se resuelven los avisos enviados por permiso (con grupo); un aviso personal del
+        mismo caso solo se resuelve si se indica su `tipo`.
+        """
+        if not (ref_tipo and ref_id and por_cedula):
+            logger.warning('resolver_avisos sin referencia o sin actor (%s/%s)', ref_tipo, ref_id)
+            return 0
+        nombre = self._resolutor.nombre_de(por_cedula) or por_cedula
+        cedulas = self._repo.resolver_avisos(ref_tipo, ref_id, tipo, por_cedula, nombre, datetime.now(timezone.utc))
+        for c in dict.fromkeys(cedulas):
+            self._cache.invalidar(c)
+        return len(cedulas)
 
     def _correo(self, s: SolicitudNotificacion, cedula: str) -> None:
         direccion = self._resolutor.correo_de(cedula)

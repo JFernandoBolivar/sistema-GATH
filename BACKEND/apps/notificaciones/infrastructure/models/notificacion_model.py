@@ -23,6 +23,14 @@ class NotificacionModel(BaseModel):
     # Dedupe por destinatario: el mismo hecho no genera dos avisos (nulo = sin dedupe).
     clave_unica = models.CharField(max_length=160, null=True, blank=True)
 
+    # Bandeja compartida (H-4): `grupo` agrupa las copias de un aviso enviado por permiso; al actuar
+    # alguien sobre el expediente, todas las copias quedan atendidas por esa persona.
+    grupo = models.CharField(max_length=32, blank=True, default='')
+    atendida = models.BooleanField(default=False)
+    atendida_por_cedula = models.CharField(max_length=20, blank=True, default='')
+    atendida_por_nombre = models.CharField(max_length=200, blank=True, default='')
+    fecha_atendida = models.DateTimeField(null=True, blank=True)
+
     class Meta:
         db_table = 'notificaciones_notificacion'
         ordering = ['-created_at']
@@ -30,6 +38,8 @@ class NotificacionModel(BaseModel):
             models.Index(fields=['destinatario_cedula', 'leida', '-created_at'], name='notif_dest_leida_idx'),
             models.Index(fields=['destinatario_cedula', 'modulo', 'leida', '-created_at'], name='notif_dest_mod_leida_idx'),
             models.Index(fields=['ref_tipo', 'ref_id'], name='notif_ref_idx'),
+            models.Index(fields=['ref_tipo', 'ref_id', 'atendida'], name='notif_ref_atendida_idx'),
+            models.Index(fields=['grupo'], name='notif_grupo_idx'),
         ]
         constraints = [
             models.UniqueConstraint(fields=['destinatario_cedula', 'clave_unica'], name='notif_dest_clave_unica'),

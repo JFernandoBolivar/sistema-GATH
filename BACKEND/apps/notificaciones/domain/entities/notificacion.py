@@ -19,3 +19,9 @@ class Notificacion:
     creada_en: datetime | None = None
     clave_unica: str = ''
     modulo: str = 'autogestion'
+    # Bandeja compartida: las copias de un aviso por permiso comparten `grupo`; quien actúa primero lo "atiende".
+    grupo: str = ''
+    atendida: bool = False
+    atendida_por_cedula: str = ''
+    atendida_por_nombre: str = ''
+    fecha_atendida: datetime | None = None

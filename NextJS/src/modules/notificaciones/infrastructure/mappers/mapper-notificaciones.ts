@@ -16,6 +16,9 @@ export function mapperNotificacion(api: NotificacionApi): NotificacionEntity {
     leida: Boolean(api.leida),
     fechaLectura: api.fecha_lectura ?? null,
     creadaEn: api.creada_en,
+    atendida: Boolean(api.atendida),
+    atendidaPorNombre: api.atendida_por_nombre ?? "",
+    fechaAtendida: api.fecha_atendida ?? null,
   };
 }
 

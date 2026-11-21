@@ -82,6 +82,9 @@ class NotificadorMem:
     def notificar(self, notificacion):
         self.notificaciones.append(notificacion)
 
+    def resolver_avisos(self, ref_tipo, ref_id, por_cedula, tipo=None):
+        return 0
+
 
 def test_enmascarar_correo():
     assert enmascarar_correo('juan.perez@gmail.com') == 'j***z@gmail.com'

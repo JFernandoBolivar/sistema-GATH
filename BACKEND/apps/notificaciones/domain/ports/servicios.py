@@ -7,6 +7,10 @@ class ResolutorDestinatarios(Protocol):
         """Cédulas de las cuentas ACTIVAS que tienen el permiso (rol + ajustes individuales)."""
         ...
 
+    def nombre_de(self, cedula: str) -> str:
+        """Nombre completo de la persona ('' si no se conoce)."""
+        ...
+
     def correo_de(self, cedula: str) -> str:
         """Correo principal de la persona ('' si no tiene)."""
         ...

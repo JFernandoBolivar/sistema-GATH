@@ -41,6 +41,17 @@ class RepoNotifMem:
                 return True
         return False
 
+    def resolver_avisos(self, ref_tipo, ref_id, tipo, por_cedula, por_nombre, ahora):
+        afectadas = []
+        for i, n in enumerate(self.filas):
+            if n.ref_tipo == ref_tipo and n.ref_id == ref_id and not n.atendida and (n.tipo == tipo if tipo else bool(n.grupo)):
+                self.filas[i] = replace(
+                    n, atendida=True, atendida_por_cedula=por_cedula, atendida_por_nombre=por_nombre,
+                    fecha_atendida=ahora, leida=True, fecha_lectura=n.fecha_lectura or ahora,
+                )
+                afectadas.append(n.destinatario_cedula)
+        return afectadas
+
     def marcar_todas_leidas(self, cedula, modulo, ahora):
         marcadas = 0
         for i, n in enumerate(self.filas):
@@ -79,8 +90,11 @@ class RepoOutboxMem:
 
 
 class ResolutorMem:
-    def __init__(self, por_permiso=None, correos=None):
-        self.por_permiso, self.correos = por_permiso or {}, correos or {}
+    def __init__(self, por_permiso=None, correos=None, nombres=None):
+        self.por_permiso, self.correos, self.nombres = por_permiso or {}, correos or {}, nombres or {}
+
+    def nombre_de(self, cedula):
+        return self.nombres.get(cedula, '')
 
     def cedulas_con_permiso(self, codigo):
         return list(self.por_permiso.get(codigo, []))

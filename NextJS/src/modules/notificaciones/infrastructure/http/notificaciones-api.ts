@@ -21,6 +21,9 @@ export interface NotificacionApi {
   leida: boolean;
   fecha_lectura: string | null;
   creada_en: string;
+  atendida?: boolean;
+  atendida_por_nombre?: string | null;
+  fecha_atendida?: string | null;
 }
 
 export interface PaginaNotificacionesApi {

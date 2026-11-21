@@ -32,4 +32,10 @@ class RepoNotificaciones(Protocol):
         """True si la notificación existe y es del destinatario (aunque ya estuviera leída); False si no."""
         ...
 
+    def resolver_avisos(
+        self, ref_tipo: str, ref_id: str, tipo: str | None, por_cedula: str, por_nombre: str, ahora,
+    ) -> list[str]:
+        """Marca atendidas (y leídas) las copias PENDIENTES del caso. Devuelve la cédula destinataria de cada copia marcada (idempotente: vacío si ya estaban atendidas)."""
+        ...
+
     def marcar_todas_leidas(self, cedula: str, modulo: str | None, ahora) -> int: ...

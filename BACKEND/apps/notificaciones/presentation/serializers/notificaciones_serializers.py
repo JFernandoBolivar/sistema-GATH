@@ -13,6 +13,9 @@ class NotificacionSerializer(serializers.Serializer):
     leida = serializers.BooleanField()
     fecha_lectura = serializers.DateTimeField(allow_null=True)
     creada_en = serializers.DateTimeField()
+    atendida = serializers.BooleanField(help_text='Otra persona con el mismo permiso ya actuó sobre el caso')
+    atendida_por_nombre = serializers.CharField(allow_blank=True)
+    fecha_atendida = serializers.DateTimeField(allow_null=True)
 
 
 class ListaNotificacionesSerializer(serializers.Serializer):
@@ -40,4 +43,6 @@ def a_dict_notificacion(n) -> dict:
         'id': n.id, 'tipo': n.tipo, 'modulo': n.modulo, 'titulo': n.titulo, 'mensaje': n.mensaje, 'enlace': n.enlace,
         'ref_tipo': n.ref_tipo, 'ref_id': n.ref_id, 'leida': n.leida,
         'fecha_lectura': n.fecha_lectura, 'creada_en': n.creada_en,
+        'atendida': bool(getattr(n, 'atendida', False)), 'atendida_por_nombre': getattr(n, 'atendida_por_nombre', '') or '',
+        'fecha_atendida': getattr(n, 'fecha_atendida', None),
     }

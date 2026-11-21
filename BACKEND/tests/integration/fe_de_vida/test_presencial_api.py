@@ -72,6 +72,9 @@ class NotificadorFalso:
         self.enviadas.append(solicitud)
         return 1
 
+    def resolver_avisos(self, ref_tipo, ref_id, por_cedula, tipo=None):
+        return 0
+
 
 class ResolutorCondicion:
     def condicion_de(self, cedula):

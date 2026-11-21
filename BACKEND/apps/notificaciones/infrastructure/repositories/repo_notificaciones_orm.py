@@ -1,4 +1,5 @@
-from django.db.models import Q
+from django.db.models import Q, Value
+from django.db.models.functions import Coalesce
 
 from apps.notificaciones.domain.entities.notificacion import Notificacion
 from apps.notificaciones.domain.ports.repo_notificaciones import FiltroNotificaciones
@@ -29,7 +30,7 @@ class RepoNotificacionesORM:
         nuevas = [
             NotificacionModel(
                 destinatario_cedula=n.destinatario_cedula, tipo=n.tipo, titulo=n.titulo, mensaje=n.mensaje,
-                enlace=n.enlace, ref_tipo=n.ref_tipo, ref_id=n.ref_id, clave_unica=n.clave_unica or None, modulo=n.modulo,
+                enlace=n.enlace, ref_tipo=n.ref_tipo, ref_id=n.ref_id, clave_unica=n.clave_unica or None, modulo=n.modulo, grupo=n.grupo,
             )
             for n in notificaciones
             if (n.destinatario_cedula, n.clave_unica) not in existentes
@@ -67,6 +68,24 @@ class RepoNotificacionesORM:
             return False
         qs.filter(leida=False).update(leida=True, fecha_lectura=ahora)
         return True
+
+    def resolver_avisos(self, ref_tipo, ref_id, tipo, por_cedula, por_nombre, ahora) -> list[str]:
+        pendientes = NotificacionModel.objects.filter(ref_tipo=ref_tipo, ref_id=ref_id, atendida=False)
+        if tipo:
+            pendientes = pendientes.filter(tipo=tipo)
+        else:
+            # Sin tipo, solo los avisos enviados a varias cuentas (bandeja compartida). Un aviso
+            # personal del mismo caso (p. ej. «su solicitud fue recibida» al trabajador) no debe
+            # quedar «atendido por» el analista que actuó.
+            pendientes = pendientes.exclude(grupo='')
+        filas = list(pendientes.values_list('pk', 'destinatario_cedula'))
+        if not filas:
+            return []
+        NotificacionModel.objects.filter(pk__in=[pk for pk, _ in filas], atendida=False).update(
+            atendida=True, atendida_por_cedula=por_cedula, atendida_por_nombre=por_nombre, fecha_atendida=ahora,
+            leida=True, fecha_lectura=Coalesce('fecha_lectura', Value(ahora)),
+        )
+        return [c for _, c in filas]
 
     def marcar_todas_leidas(self, cedula, modulo: str | None, ahora) -> int:
         qs = NotificacionModel.objects.filter(destinatario_cedula=cedula, leida=False)

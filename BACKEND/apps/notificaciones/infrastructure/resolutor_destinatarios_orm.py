@@ -34,6 +34,10 @@ class ResolutorDestinatariosORM:
             elegibles.append(str(cedula))
         return elegibles
 
+    def nombre_de(self, cedula: str) -> str:
+        fila = EmployeeModel.objects.filter(cedulaidentidad=cedula).values_list('nombres', 'apellidos').first()
+        return ' '.join(p.strip() for p in (fila or ()) if p and p.strip())
+
     def correo_de(self, cedula: str) -> str:
         correo = EmployeeModel.objects.filter(cedulaidentidad=cedula).values_list('correo', flat=True).first()
         return (correo or '').strip()

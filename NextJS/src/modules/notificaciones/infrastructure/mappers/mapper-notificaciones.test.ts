@@ -28,7 +28,24 @@ describe("mapperNotificacion", () => {
       leida: false,
       fechaLectura: null,
       creadaEn: "2026-10-29T15:00:00Z",
+      atendida: false,
+      atendidaPorNombre: "",
+      fechaAtendida: null,
     });
+  });
+  it("mapea «atendida por» y tolera su ausencia en avisos antiguos", () => {
+    const e = mapperNotificacion({
+      ...api,
+      atendida: true,
+      atendida_por_nombre: "Ana Pérez",
+      fecha_atendida: "2026-10-30T10:00:00Z",
+    });
+    expect(e.atendida).toBe(true);
+    expect(e.atendidaPorNombre).toBe("Ana Pérez");
+    expect(e.fechaAtendida).toBe("2026-10-30T10:00:00Z");
+    const antiguo = mapperNotificacion({ ...api, atendida: null, atendida_por_nombre: null } as never);
+    expect(antiguo.atendida).toBe(false);
+    expect(antiguo.atendidaPorNombre).toBe("");
   });
   it("tolera campos vacíos o nulos", () => {
     const e = mapperNotificacion({

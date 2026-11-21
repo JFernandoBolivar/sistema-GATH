@@ -140,6 +140,28 @@ describe("Claves compartidas de notificaciones", () => {
   });
 });
 
+describe("Aviso atendido (bandeja compartida)", () => {
+  it("muestra «Atendido por <nombre> el <fecha>» y no ofrece marcar como leída", async () => {
+    acciones.listarNotificacionesAction.mockResolvedValue(
+      pagina([
+        n({
+          id: ID(1),
+          titulo: "Solicitud nueva",
+          leida: true,
+          atendida: true,
+          atendidaPorNombre: "Ana Pérez",
+          fechaAtendida: "2026-10-30T15:00:00Z",
+        }),
+        n({ id: ID(2), titulo: "Aviso antiguo", leida: true, atendida: undefined }),
+      ]),
+    );
+    render(<BandejaNotificacionesPage modulo="autogestion" />, { wrapper: Envoltorio });
+    expect(await screen.findByText(/Atendido por Ana Pérez el 30\/10\/2026/)).toBeDefined();
+    expect(screen.getByText("Atendida")).toBeDefined();
+    expect(screen.getAllByText(/Atendido por/)).toHaveLength(1); // el antiguo (nulos) no da error ni texto
+  });
+});
+
 describe("CampanaNotificaciones", () => {
   it("muestra el conteo del módulo en el nombre accesible del botón", async () => {
     render(campana({ modulo: "personal", ruta: "/personal/notificaciones" }), {

@@ -67,6 +67,14 @@ class Notificador(Protocol):
         """Crea las notificaciones (y el correo, si se pidió) en la transacción vigente. Devuelve cuántas creó."""
         ...
 
+    def resolver_avisos(self, ref_tipo: str, ref_id: str, por_cedula: str, tipo: str | None = None) -> int:
+        """
+        Bandeja compartida: cuando alguien actúa sobre el expediente (ref_tipo, ref_id), marca como atendidas
+        por él todas las copias pendientes del aviso (de todos los que tienen el permiso). Idempotente.
+        Devuelve cuántas copias marcó.
+        """
+        ...
+
 
 class TaskQueue(Protocol):
     """

@@ -12,6 +12,10 @@ export interface NotificacionEntity {
   readonly leida: boolean;
   readonly fechaLectura: string | null;
   readonly creadaEn: string;
+  /** Bandeja compartida: otra persona con el mismo permiso ya actuó sobre el caso (ausente en avisos antiguos). */
+  readonly atendida?: boolean;
+  readonly atendidaPorNombre?: string;
+  readonly fechaAtendida?: string | null;
 }
 
 export interface PaginaNotificacionesEntity {

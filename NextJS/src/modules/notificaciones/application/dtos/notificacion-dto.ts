@@ -8,6 +8,9 @@ export interface NotificacionDTO {
   leida: boolean;
   fechaLectura: string | null;
   creadaEn: string;
+  atendida?: boolean;
+  atendidaPorNombre?: string;
+  fechaAtendida?: string | null;
 }
 
 export interface PaginaNotificacionesDTO {
