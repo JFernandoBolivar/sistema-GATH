@@ -37,6 +37,8 @@ ROLES_ESPERADOS = (
     "ADMIN_BIENESTAR",
     "AUDITOR",
     "JEFE_RRHH",
+    "CAPTACION",
+    "DIRECCION_GENERAL",
 )
 
 OK = "OK"

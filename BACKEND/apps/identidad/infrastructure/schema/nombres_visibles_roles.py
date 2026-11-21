@@ -32,6 +32,8 @@ NOMBRES_VISIBLES_ROLES: dict[str, str] = {
     'AUDITOR': 'Auditor',
     'JEFE_RRHH': 'Jefe de RRHH',
     'RECEPCIONISTA': 'Recepcionista',
+    'CAPTACION': 'Captación',
+    'DIRECCION_GENERAL': 'Dirección General',
 }
 
 

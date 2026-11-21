@@ -78,7 +78,7 @@ def test_llena_los_diez_nombres_visibles_incluida_la_errata_de_bienestar():
         RolModel.objects.get(nombre_rol=c).nombre_visible for c in CODIGOS_REALES
     )
     assert visibles == VISIBLES_ESPERADOS
-    assert len(NOMBRES_VISIBLES_ROLES) == 10
+    assert len(NOMBRES_VISIBLES_ROLES) == 12
 
 
 def test_el_llenado_es_idempotente_y_no_pisa_un_nombre_editado():

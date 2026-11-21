@@ -54,6 +54,13 @@ CLAVE_CARNETIZACION_VIGENCIA_EXTERNO_DIAS = 'carnetizacion.vigencia_externo_dias
 CLAVE_CARNETIZACION_QR_TAMANO_MINIMO_MM = 'carnetizacion.qr_tamano_minimo_mm'
 CLAVE_CARNETIZACION_SANGRADO_MM = 'carnetizacion.sangrado_mm'
 
+# Fase 2, Captación (C-3, C-4, C-6, C-7).
+CLAVE_CAPTACION_VIGENCIA_VENTANA1_DIAS = 'captacion.vigencia_ventana1_dias'
+CLAVE_CAPTACION_VIGENCIA_VENTANA2_DIAS = 'captacion.vigencia_ventana2_dias'
+CLAVE_CAPTACION_VIGENCIA_RESERVA_PUESTO_DIAS = 'captacion.vigencia_reserva_puesto_dias'
+CLAVE_CAPTACION_PSICOFISICO_OBLIGATORIO = 'captacion.psicofisico_obligatorio'
+CLAVE_CAPTACION_RETENCION_RECHAZADOS_MESES = 'captacion.retencion_rechazados_meses'
+
 ALCANCE_CARNET_NADIE = 'nadie'
 ALCANCE_CARNET_TODOS = 'todos'
 ALCANCE_CARNET_ACTIVOS = 'activos'

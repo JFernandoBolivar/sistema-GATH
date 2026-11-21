@@ -194,6 +194,26 @@ PERMISOS_CATALOGO = [
 
     # ─── 12b. AUDITORÍA (ampliación) ───
     ("auditoria.exportar", "Exportar la bitácora de auditoría"),
+
+    # ─── 19. POSTULACIÓN / CAPTACIÓN (Fase 2, C-8) ───
+    # Captación
+    ("postulacion.ver_bandeja", "Ver la bandeja de expedientes de postulación de Captación"),
+    ("postulacion.crear_postulante", "Crear un postulante y emitir o reponer su credencial de acceso"),
+    ("postulacion.verificar", "Verificar los datos de un expediente o devolverlo al postulante con observaciones"),
+    ("postulacion.rechazar", "Rechazar un expediente de postulación en la etapa de Captación"),
+    ("postulacion.registrar_psicofisico", "Registrar el resultado y el informe del test psicofísico de un postulante"),
+    ("postulacion.abrir_expediente", "Abrir el expediente hacia Presupuesto con el cargo y la oficina definidos"),
+    ("postulacion.revision_final", "Hacer la revisión final del expediente, reabrir la Ventana 2 y asignar el cargo"),
+    ("postulacion.ver_auditoria", "Consultar el historial de transiciones de un expediente de postulación"),
+    # Presupuesto
+    ("postulacion.ver_solicitudes", "Ver las solicitudes de personal y las vacantes de los expedientes en Presupuesto"),
+    ("postulacion.reservar_puesto", "Reservar el puesto de un expediente en Presupuesto"),
+    ("postulacion.declarar_disponibilidad", "Declarar la disponibilidad presupuestaria de un expediente (queda registrada con el nombre de quien la declara)"),
+    ("postulacion.devolver_solicitud", "Devolver un expediente a Captación por cargo u oficina, o diferirlo por falta de disponibilidad"),
+    ("postulacion.emitir_punto_cuenta", "Emitir el Punto de Cuenta de un expediente con disponibilidad presupuestaria"),
+    # Dirección General
+    ("postulacion.ver_ingresos", "Ver los ingresos pendientes de decisión de la Dirección General"),
+    ("postulacion.aprobar_ingreso", "Aprobar o rechazar el ingreso de un postulante (firma del Punto de Cuenta)"),
 ]
 
 # Permisos del catálogo que el rol ADMINISTRADOR NO recibe (G12): los avisos de
@@ -448,6 +468,45 @@ ROL_ASIGNACIONES[ROL_BIENESTAR_SOCIAL_ID] += ["fe_de_vida.verificar_constancia",
 for _rol_id in (2, 3, 4, ROL_BIENESTAR_SOCIAL_ID, 9):
     ROL_ASIGNACIONES[_rol_id].append(NOTIFICACIONES_PROPIAS)
 
+# ─── Roles de Captación (Fase 2, C-8) ───────────────────────────────────────
+# CAPTACION y DIRECCION_GENERAL son roles nuevos; PRESUPUESTO ya existía (rol 4) y recibe
+# sus permisos de postulación de forma aditiva. Ningún rol se asigna a personas aquí.
+PERMISOS_POSTULACION_CAPTACION = [
+    "postulacion.ver_bandeja",
+    "postulacion.crear_postulante",
+    "postulacion.verificar",
+    "postulacion.rechazar",
+    "postulacion.registrar_psicofisico",
+    "postulacion.abrir_expediente",
+    "postulacion.revision_final",
+    "postulacion.ver_auditoria",
+]
+PERMISOS_POSTULACION_PRESUPUESTO = [
+    "postulacion.ver_solicitudes",
+    "postulacion.reservar_puesto",
+    "postulacion.declarar_disponibilidad",
+    "postulacion.devolver_solicitud",
+    "postulacion.emitir_punto_cuenta",
+]
+PERMISOS_POSTULACION_DIRECCION_GENERAL = [
+    "postulacion.ver_ingresos",
+    "postulacion.aprobar_ingreso",
+]
+# Apoyo común: ver sus notificaciones y su propia ficha. Captación además consulta cargos,
+# organización y catálogos para definir el cargo y la oficina al abrir el expediente.
+PERMISOS_BASE_CAPTACION = [
+    "notificaciones.ver_propias",
+    "autogestion.ver_propio",
+    "cargos.ver",
+    "organizacion.ver",
+    "catalogos.ver",
+]
+PERMISOS_BASE_DIRECCION_GENERAL = [
+    "notificaciones.ver_propias",
+    "autogestion.ver_propio",
+]
+ROL_ASIGNACIONES[4] += PERMISOS_POSTULACION_PRESUPUESTO
+
 ROLES_NUEVOS = {
     "ANALISTA_BIENESTAR": (
         "Analista de Bienestar: revisa actualizaciones y fe de vida (check de la Analista). Nunca aprueba directo.",
@@ -500,6 +559,14 @@ ROLES_NUEVOS = {
             "autogestion.ver_propio",
             "notificaciones.ver_propias",
         ],
+    ),
+    "CAPTACION": (
+        "Captación: conduce el expediente de postulación, de la credencial del postulante a la asignación del cargo.",
+        PERMISOS_BASE_CAPTACION + PERMISOS_POSTULACION_CAPTACION,
+    ),
+    "DIRECCION_GENERAL": (
+        "Dirección General: ve los ingresos pendientes y aprueba o rechaza el ingreso del postulante.",
+        PERMISOS_BASE_DIRECCION_GENERAL + PERMISOS_POSTULACION_DIRECCION_GENERAL,
     ),
     "RECEPCIONISTA": (
         "Consulta de familiares de trabajadores activos y pasivos. Sin registrar, actualizar ni exportar.",

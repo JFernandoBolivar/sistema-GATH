@@ -21,6 +21,11 @@ from core.domain.configuracion import (
     CLAVE_AUTOGESTION_ESPERA_FORMACION,
     CLAVE_AUTOGESTION_ESPERA_IDENTIDAD,
     CLAVE_AVISAR_CUENTA_CREADA_POR_CORREO,
+    CLAVE_CAPTACION_PSICOFISICO_OBLIGATORIO,
+    CLAVE_CAPTACION_RETENCION_RECHAZADOS_MESES,
+    CLAVE_CAPTACION_VIGENCIA_RESERVA_PUESTO_DIAS,
+    CLAVE_CAPTACION_VIGENCIA_VENTANA1_DIAS,
+    CLAVE_CAPTACION_VIGENCIA_VENTANA2_DIAS,
     CLAVE_CARGA_MASIVA_APROBACION,
     CLAVE_CARNETIZACION_MI_CARNET_ALCANCE,
     CLAVE_CARNETIZACION_MI_CARNET_USUARIOS,
@@ -56,12 +61,14 @@ GRUPO_RETENCION = 'retencion'
 GRUPO_PUNTOS_CUENTA = 'puntocuenta'
 GRUPO_AUTOGESTION = 'autogestion'
 GRUPO_CARNETIZACION = 'carnetizacion'
+GRUPO_CAPTACION = 'captacion'
 
 GRUPOS = (
     (GRUPO_NOTIFICACIONES, 'Notificaciones'),
     (GRUPO_PLAZOS, 'Plazos'),
     (GRUPO_FE_DE_VIDA, 'Fe de vida'),
     (GRUPO_CARNETIZACION, 'Carnetización'),
+    (GRUPO_CAPTACION, 'Captación'),
     (GRUPO_AUTOGESTION, 'Autogestión'),
     (GRUPO_RETENCION, 'Retención de datos'),
     (GRUPO_PUNTOS_CUENTA, 'Puntos de cuenta'),
@@ -511,6 +518,70 @@ DEFINICIONES = (
         defecto='2',
         minimo=0,
         maximo=5,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_CAPTACION_VIGENCIA_VENTANA1_DIAS,
+        etiqueta='Vigencia de la Ventana 1 del postulante (días)',
+        descripcion=(
+            'Días que el postulante tiene para completar y enviar sus datos (Ventana 1), '
+            'contados desde que Captación le emite la credencial.'
+        ),
+        grupo=GRUPO_CAPTACION,
+        tipo=TIPO_ENTERO,
+        defecto='15',
+        minimo=1,
+        maximo=90,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_CAPTACION_VIGENCIA_VENTANA2_DIAS,
+        etiqueta='Vigencia de la Ventana 2 del postulante (días)',
+        descripcion=(
+            'Días que el postulante tiene para consolidar su expediente (Ventana 2), '
+            'contados desde que Captación la reabre tras la aprobación de la Dirección General.'
+        ),
+        grupo=GRUPO_CAPTACION,
+        tipo=TIPO_ENTERO,
+        defecto='15',
+        minimo=1,
+        maximo=90,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_CAPTACION_VIGENCIA_RESERVA_PUESTO_DIAS,
+        etiqueta='Vigencia de la reserva de puesto (días)',
+        descripcion=(
+            'Días que dura la reserva de un puesto para un postulante, contados desde que '
+            'Presupuesto la hace. Al vencer sin asignarse, el puesto vuelve a estar vacante.'
+        ),
+        grupo=GRUPO_CAPTACION,
+        tipo=TIPO_ENTERO,
+        defecto='30',
+        minimo=1,
+        maximo=180,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_CAPTACION_PSICOFISICO_OBLIGATORIO,
+        etiqueta='Test psicofísico obligatorio',
+        descripcion=(
+            'Si está activo, Captación no puede continuar con un expediente sin haber '
+            'registrado el resultado y el informe del test psicofísico. El sistema solo '
+            'guarda el resultado y el informe; no aplica el test.'
+        ),
+        grupo=GRUPO_CAPTACION,
+        tipo=TIPO_BOOLEANO,
+        defecto='true',
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_CAPTACION_RETENCION_RECHAZADOS_MESES,
+        etiqueta='Retención de expedientes rechazados (meses)',
+        descripcion=(
+            'Meses que se conserva el expediente de un postulante rechazado antes de poder '
+            'depurarlo. El valor definitivo lo fija Consultoría Jurídica; por defecto, 24 meses.'
+        ),
+        grupo=GRUPO_CAPTACION,
+        tipo=TIPO_ENTERO,
+        defecto='24',
+        minimo=1,
+        maximo=120,
     ),
 )
 
