@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<title>Sistema GATH · Propuesta Técnica y Funcional Fase 2</title>
+<style>
+  :root{
+    --paper:#F4F6F3;
+    --surface:#FFFFFF;
+    --surface-2:#EAEDE9;
+    --ink:#13231F;
+    --muted:#55655D;
+    --line:#D7DED8;
+    --accent:#B5651D;
+    --accent-soft:#EDD9C4;
+    --good:#2E7D5B;
+    --good-soft:#DEEEE4;
+    --warn:#B8862B;
+    --warn-soft:#F3E7CC;
+    --critical:#B23A34;
+    --critical-soft:#F6DFDD;
+    --info:#3B6EA5;
+    --info-soft:#DCE7F2;
+    --shadow: 0 1px 2px rgba(19,35,31,0.06), 0 8px 24px -12px rgba(19,35,31,0.18);
+    --font-display:"Source Serif 4", Georgia, "Times New Roman", serif;
+    --font-body:"IBM Plex Sans", "Segoe UI", Arial, sans-serif;
+    --font-mono:"IBM Plex Mono", "SF Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#0E1613;
+      --surface:#16211D;
+      --surface-2:#1D2A25;
+      --ink:#EAF1EC;
+      --muted:#9FB0A7;
+      --line:#2B3A34;
+      --accent:#E08A45;
+      --accent-soft:#3A2A1C;
+      --good:#4FAF82;
+      --good-soft:#173328;
+      --warn:#D9A83D;
+      --warn-soft:#362A12;
+      --critical:#E06A63;
+      --critical-soft:#3A1E1C;
+      --info:#6FA0D6;
+      --info-soft:#1B2C3C;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0E1613;
+    --surface:#16211D;
+    --surface-2:#1D2A25;
+    --ink:#EAF1EC;
+    --muted:#9FB0A7;
+    --line:#2B3A34;
+    --accent:#E08A45;
+    --accent-soft:#3A2A1C;
+    --good:#4FAF82;
+    --good-soft:#173328;
+    --warn:#D9A83D;
+    --warn-soft:#362A12;
+    --critical:#E06A63;
+    --critical-soft:#3A1E1C;
+    --info:#6FA0D6;
+    --info-soft:#1B2C3C;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--font-body);
+    font-size:16px;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--accent); text-decoration:none;}
+  a:hover{text-decoration:underline;}
+  a:focus-visible, button:focus-visible, summary:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+
+  h1,h2,h3,h4{font-family:var(--font-display); color:var(--ink); text-wrap:balance; margin:0;}
+  p{margin:0 0 1em 0; max-width:44em;}
+  .mono{font-family:var(--font-mono);}
+
+  .shell{
+    display:grid;
+    grid-template-columns: 270px 1fr;
+    min-height:100vh;
+  }
+  .toc{
+    position:sticky; top:0; align-self:start;
+    height:100vh; overflow-y:auto;
+    padding:2rem 1.25rem 2rem 1.75rem;
+    border-right:1px solid var(--line);
+    background:var(--surface);
+  }
+  .toc-brand{
+    display:flex; align-items:baseline; gap:.5rem;
+    margin-bottom:1.75rem;
+  }
+  .toc-brand .mark{
+    font-family:var(--font-mono); font-size:.7rem; letter-spacing:.08em;
+    color:var(--accent); border:1px solid var(--accent-soft); border-radius:4px;
+    padding:.15rem .4rem; background:var(--accent-soft);
+  }
+  .toc-brand strong{font-family:var(--font-display); font-size:1.08rem;}
+  .toc nav{display:flex; flex-direction:column; gap:.15rem;}
+  .toc nav a{
+    color:var(--muted); text-decoration:none; font-size:.86rem;
+    padding:.36rem .55rem; border-radius:6px; border-left:2px solid transparent;
+  }
+  .toc nav a:hover{color:var(--ink); background:var(--surface-2);}
+  .toc nav a.section-divider{
+    margin-top:.9rem; font-family:var(--font-mono); font-size:.68rem;
+    letter-spacing:.08em; text-transform:uppercase; color:var(--muted);
+    pointer-events:none; padding-left:.55rem;
+  }
+  .toc-foot{margin-top:2rem; font-size:.75rem; color:var(--muted); padding-left:.55rem; line-height:1.4;}
+
+  main{padding:3.5rem 2.8rem 6rem; max-width:1200px;}
+  .masthead{margin-bottom:3.2rem; max-width:58em;}
+  .masthead .eyebrow{
+    font-family:var(--font-mono); font-size:.78rem; letter-spacing:.09em; text-transform:uppercase;
+    color:var(--accent); margin-bottom:.9rem; display:block;
+  }
+  .masthead h1{font-size:2.5rem; font-weight:600; line-height:1.12; margin-bottom:.9rem;}
+  .masthead .lede{font-size:1.1rem; color:var(--muted); max-width:46em;}
+
+  .statrow{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:1px; background:var(--line); border:1px solid var(--line); border-radius:12px;
+    overflow:hidden; margin-top:2.2rem;
+  }
+  .stat{background:var(--surface); padding:1rem 1.1rem;}
+  .stat .n{font-family:var(--font-mono); font-size:1.6rem; font-weight:600; font-variant-numeric:tabular-nums; color:var(--ink);}
+  .stat .l{font-size:.78rem; color:var(--muted); margin-top:.15rem;}
+
+  section{margin-bottom:4rem; max-width:100%;}
+  section > .section-head{margin-bottom:1.6rem; max-width:48em;}
+  section > .section-head .kicker{
+    font-family:var(--font-mono); font-size:.72rem; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--muted); display:block; margin-bottom:.5rem;
+  }
+  section > .section-head h2{font-size:1.65rem; margin-bottom:.5rem;}
+  section > .section-head p{color:var(--muted); margin-bottom:0;}
+
+  .card{
+    background:var(--surface); border:1px solid var(--line); border-radius:12px;
+    padding:1.3rem 1.4rem; box-shadow:var(--shadow); margin-bottom:1rem;
+  }
+  .grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:1rem;}
+  .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:1rem;}
+  @media (max-width: 900px){ .grid-3{grid-template-columns:1fr;} .grid-2{grid-template-columns:1fr;} }
+
+  .pill{
+    display:inline-flex; align-items:center; gap:.35rem;
+    font-family:var(--font-mono); font-size:.7rem; letter-spacing:.03em;
+    padding:.2rem .55rem; border-radius:99px; font-weight:500;
+  }
+  .pill-gap{background:var(--critical-soft); color:var(--critical);}
+  .pill-partial{background:var(--warn-soft); color:var(--warn);}
+  .pill-ok{background:var(--good-soft); color:var(--good);}
+  .pill-info{background:var(--info-soft); color:var(--info);}
+
+  table{width:100%; border-collapse:collapse; font-size:.88rem;}
+  th,td{text-align:left; padding:.65rem .8rem; border-bottom:1px solid var(--line); vertical-align:top;}
+  th{font-family:var(--font-mono); font-size:.72rem; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); font-weight:500; background:var(--surface-2);}
+  td.num, th.num{font-family:var(--font-mono); font-variant-numeric:tabular-nums; text-align:right;}
+  tbody tr:hover{background:var(--surface-2);}
+  .table-wrap{overflow-x:auto; border:1px solid var(--line); border-radius:12px; background:var(--surface); box-shadow:var(--shadow); margin:1.2rem 0;}
+  .table-wrap table{min-width:650px;}
+
+  .diagram-wrap{
+    background:var(--surface); border:1px solid var(--line); border-radius:12px;
+    padding:1.4rem; overflow-x:auto; box-shadow:var(--shadow); margin:1.4rem 0;
+  }
+  .diagram-wrap .cap{font-size:.8rem; color:var(--muted); margin-top:.9rem; margin-bottom:0; line-height:1.45;}
+  .diagram-wrap .mermaid{display:flex; justify-content:center;}
+
+  .quote{
+    border-left:3px solid var(--accent); padding:.2rem 0 .2rem 1.1rem; margin:1.1rem 0;
+    font-style:italic; color:var(--muted); max-width:44em;
+  }
+
+  .rule-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:1rem;}
+  .rule{
+    background:var(--surface); border:1px solid var(--line); border-radius:12px;
+    padding:1.2rem 1.3rem; box-shadow:var(--shadow);
+  }
+  .rule .icon{
+    width:34px; height:34px; border-radius:9px; background:var(--accent-soft); color:var(--accent);
+    display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-size:.95rem;
+    margin-bottom:.8rem;
+  }
+  .rule h4{font-size:.98rem; margin-bottom:.35rem;}
+  .rule p{font-size:.87rem; color:var(--muted); margin:0;}
+
+  pre.code-block{
+    background:var(--surface-2); border:1px solid var(--line); border-radius:8px;
+    padding:1rem; font-family:var(--font-mono); font-size:.82rem; overflow-x:auto;
+    color:var(--ink); line-height:1.5; margin:1rem 0;
+  }
+
+  footer{
+    border-top:1px solid var(--line); padding-top:1.5rem; margin-top:3rem;
+    font-size:.8rem; color:var(--muted); max-width:46em;
+  }
+
+  @media (max-width: 860px){
+    .shell{grid-template-columns:1fr;}
+    .toc{position:relative; height:auto; border-right:none; border-bottom:1px solid var(--line);}
+    main{padding:2.2rem 1.2rem 4rem;}
+    .masthead h1{font-size:1.9rem;}
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <aside class="toc">
+    <div class="toc-brand"><span class="mark">GATH</span><strong>Fase 2</strong></div>
+    <nav>
+      <a href="#objeto">01 · Qué se busca con la Fase 2</a>
+      <a href="#diagnostico">02 · Diagnóstico del proceso actual</a>
+      <a href="#hallazgos">03 · Decisiones estructurales</a>
+      <a class="section-divider">Diagramas de flujo y lógica</a>
+      <a href="#flujo-onboarding">Flujo macro del onboarding digital</a>
+      <a href="#estados">Ciclo de vida del expediente (16)</a>
+      <a href="#credenciales">Credenciales y dos ventanas</a>
+      <a href="#vacantes">Vacantes y asignación de cargo</a>
+      <a href="#autogestion">Autogestión y aprobación</a>
+      <a href="#carnetizacion">Carnet de dos caras</a>
+      <a href="#sincronizacion">Sincronización GATH ➔ SIGESP</a>
+      <a class="section-divider">Estructura funcional y gobernanza</a>
+      <a href="#modelo-datos">Estructura de información del sistema</a>
+      <a href="#autorizacion">Roles y matriz de permisos</a>
+      <a href="#documentos">Documentos y planillas digitales</a>
+      <a href="#infraestructura">Arquitectura e infraestructura</a>
+      <a href="#gobernanza">Gobernanza y criterios de operación</a>
+      <a href="#modulos">Los 4 módulos principales</a>
+    </nav>
+    <div class="toc-foot">Propuesta basada en el levantamiento operativo de Captación, Presupuesto, Bienestar Social y la arquitectura del Sistema GATH.</div>
+  </aside>
+
+  <main>
+    <div class="masthead">
+      <span class="eyebrow">Conatel en línea — Sistema GATH</span>
+      <h1>Propuesta Técnica y Funcional · Fase 2</h1>
+      <p class="lede">Hoy el ingreso de personal ocurre en papel, los datos se transcriben cuatro veces a mano y el expediente envejece porque el trabajador no puede proponer sus propios cambios. Esta guía detalla la transformación de GATH para conducir el proceso completo: desde la postulación digital y la ruta de aprobación, hasta la asignación atómica del cargo, la autogestión y la sincronización con nómina.</p>
+      <div class="statrow">
+        <div class="stat"><div class="n">4</div><div class="l">módulos principales integrados</div></div>
+        <div class="stat"><div class="n">16</div><div class="l">estados en el ciclo del expediente</div></div>
+        <div class="stat"><div class="n">2</div><div class="l">ventanas de acceso para el postulante</div></div>
+        <div class="stat"><div class="n">0</div><div class="l">transcripciones manuales en planillas</div></div>
+        <div class="stat"><div class="n">6</div><div class="l">formatos oficiales prellenados</div></div>
+      </div>
+    </div>
+
+    <!-- ============ QUE SE BUSCA ============ -->
+    <section id="objeto">
+      <div class="section-head">
+        <span class="kicker">01 · La idea en simple</span>
+        <h2>Qué se busca con la Segunda Fase</h2>
+        <p>Que el sistema deje de ser únicamente un receptor tardío de trabajadores ya contratados y pase a <strong>conducir los procesos administrativos</strong> en tiempo real, eliminando el papel y garantizando la trazabilidad.</p>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <span class="pill pill-gap">Hoy (Fase 1)</span>
+          <p style="margin-top:.8rem; font-size:.9rem;">El sistema recibe al trabajador cuando ya está contratado en físico tras circular carpetas, oficios y firmas en papel. El trabajador no puede interactuar con sus datos y cualquier actualización requiere transcripción manual por analistas de RRHH.</p>
+        </div>
+        <div class="card">
+          <span class="pill pill-ok">Con la Fase 2</span>
+          <p style="margin-top:.8rem; font-size:.9rem;">El sistema gestiona todo el ciclo: da de alta la postulación, habilita el llenado digital de planillas precargadas, enruta aprobaciones entre Captación, Presupuesto y Dirección General, asigna el cargo atómicamente y sincroniza con Nómina.</p>
+        </div>
+      </div>
+
+      <div class="rule-grid" style="margin-top:1.6rem;">
+        <div class="rule">
+          <div class="icon">👤</div>
+          <h4>Onboarding Digital</h4>
+          <p>Credencial temporal por cédula y contraseña para que el postulante cargue sus datos y realice la evaluación psicofísica sin usar papel.</p>
+        </div>
+        <div class="rule">
+          <div class="icon">🏢</div>
+          <h4>Ruta de Aprobación</h4>
+          <p>Trazabilidad total entre Captación, Presupuesto (consulta de vacantes) y Dirección General (aprobación de Punto de Cuenta).</p>
+        </div>
+        <div class="rule">
+          <div class="icon">📝</div>
+          <h4>Planillas Precargadas</h4>
+          <p>Generación automática de HCM, Oferta de Servicios y Caja de Ahorro con los datos ya registrados en el expediente.</p>
+        </div>
+        <div class="rule">
+          <div class="icon">🔄</div>
+          <h4>Autogestión Viva</h4>
+          <p>El trabajador propone actualizaciones y Bienestar Social aprueba campo por campo con soporte documental.</p>
+        </div>
+        <div class="rule">
+          <div class="icon">🪪</div>
+          <h4>Carnet de Dos Caras</h4>
+          <p>Diseñador visual data-driven de anverso y reverso, versionable y compatible con plantillas institucionales cerradas.</p>
+        </div>
+        <div class="rule">
+          <div class="icon">🔒</div>
+          <h4>Gestión de Usuarios</h4>
+          <p>Administración centralizada de cuentas, perfiles por rol, credenciales temporales y control de acceso seguro en el servidor.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ DIAGNOSTICO ============ -->
+    <section id="diagnostico">
+      <div class="section-head">
+        <span class="kicker">02 · Diagnóstico del proceso actual</span>
+        <h2>Situación actual del proceso de ingreso</h2>
+        <p>En el esquema actual, los datos personales y familiares de un candidato se escriben a mano cuatro veces en documentos físicos que circulan entre dependencias.</p>
+      </div>
+
+      <div class="diagram-wrap">
+        <pre class="mermaid">
+flowchart TD
+  A["El candidato asiste a la Gerencia"] --> B["Llena planillas en físico<br/>y presenta recaudos"]
+  B --> C["Se aplica la evaluación psicofísica"]
+  C --> D["Captación revisa recaudos<br/>y arma expediente en carpeta"]
+  D --> E["Solicitud a Presupuesto<br/>circula en físico"]
+  E --> F["Presupuesto verifica vacante<br/>y disponibilidad presupuestaria"]
+  F --> G["Se elabora Punto de Cuenta<br/>y sube a Dirección General"]
+  G --> H["La Dirección General aprueba"]
+  H --> I["El candidato regresa a llenar<br/>más planillas en físico:<br/>Oferta, Caja de Ahorro, HCM"]
+  I --> J["Captación transcribe al sistema<br/>los datos ya escritos en papel"]
+  J --> K["Se asigna el cargo en GATH"]
+  K --> L["Se vuelven a cargar los datos<br/>en el sistema de nóminas"]
+  L --> M["Trabajador activo"]
+        </pre>
+        <p class="cap">Los puntos de llenado en físico y transcripción manual representan 4 momentos donde la misma información se copia de nuevo.</p>
+      </div>
+
+      <div class="table-wrap" style="margin-top:1.4rem;">
+        <table>
+          <thead><tr><th>Dificultad actual</th><th>Consecuencia práctica</th><th>Solución Fase 2</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Transcripción reiterada (4 veces)</strong></td><td>Tiempo del personal dedicado a copiar datos y riesgo de discrepancias tipográficas.</td><td><span class="pill pill-ok">Carga única en origen</span></td></tr>
+            <tr><td><strong>Expediente físico circulante</strong></td><td>No hay manera de saber en qué etapa está un caso sin preguntar oficina por oficina.</td><td><span class="pill pill-ok">Bandejas y trazabilidad</span></td></tr>
+            <tr><td><strong>Verificación manual de vacantes</strong></td><td>El sistema ya tiene el dato, pero la consulta se hace en hojas de cálculo externas.</td><td><span class="pill pill-ok">Consulta nativa y bloqueo</span></td></tr>
+            <tr><td><strong>Expediente desactualizado</strong></td><td>El trabajador no puede reportar cambios; los datos envejecen en el tiempo.</td><td><span class="pill pill-ok">Autogestión con aprobación</span></td></tr>
+            <tr><td><strong>Doble carga en Nómina</strong></td><td>Riesgo de pagos erróneos por retrasos en la carga manual de movimientos hacia nómina.</td><td><span class="pill pill-ok">Outbox transaccional</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ HALLAZGOS ============ -->
+    <section id="hallazgos">
+      <div class="section-head">
+        <span class="kicker">03 · Principios de diseño</span>
+        <h2>Tres decisiones estructurales de la arquitectura</h2>
+        <p>Fundamentos técnicos que garantizan la integridad de los datos, la seguridad de las transacciones y la separación de responsabilidades.</p>
+      </div>
+
+      <div class="grid-3">
+        <div class="card">
+          <span class="pill pill-info">1 · Postulación independiente</span>
+          <h4 style="margin-top:.8rem;">Registro de candidatos aislado</h4>
+          <p style="font-size:.88rem; margin-top:.4rem;">El postulante gestiona sus datos y evaluaciones en un registro temporal independiente, sin crearse como empleado activo ni ocupar puestos en la estructura de personal. La incorporación formal como trabajador activo de la institución se ejecuta únicamente al confirmarse la contratación.</p>
+        </div>
+        <div class="card">
+          <span class="pill pill-info">2 · Autogestión con validación</span>
+          <h4 style="margin-top:.8rem;">Actualización con aprobación selectiva</h4>
+          <p style="font-size:.88rem; margin-top:.4rem;">Las modificaciones solicitadas por los trabajadores se conservan como borradores acompañados de sus soportes digitales, permitiendo a Bienestar Social revisar y aprobar selectivamente los cambios antes de reflejarlos en la ficha activa del trabajador.</p>
+        </div>
+        <div class="card">
+          <span class="pill pill-info">3 · Control de acceso centralizado</span>
+          <h4 style="margin-top:.8rem;">Autorización formal en el sistema</h4>
+          <p style="font-size:.88rem; margin-top:.4rem;">Cada acción, visto bueno y avance de fase cuenta con validación estricta de perfiles y requisitos directamente en el servidor, garantizando la trazabilidad, la seguridad y la validez de todo el flujo administrativo.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ FLUJO ONBOARDING ============ -->
+    <section id="flujo-onboarding">
+      <div class="section-head">
+        <span class="kicker">04 · Diagramas de flujo</span>
+        <h2>Flujo del onboarding digital por carriles de responsabilidad</h2>
+        <p>Secuencia coordinada de principio a fin entre el Postulante, Captación, Presupuesto y Dirección General.</p>
+      </div>
+
+      <div class="diagram-wrap">
+        <pre class="mermaid">
+flowchart TD
+  START["Inicio: Captación pre-registra postulante"] --> INV["Captación valida cédula<br/>y entrega contraseña temporal (Ventana 1)"]
+  INV --> P1["Postulante accede con cédula y contraseña<br/>(cambio de clave obligatorio)"]
+  P1 --> P2["Postulante registra datos básicos<br/>y realiza evaluación psicofísica"]
+  P2 --> P3["Postulante envía expediente<br/>(estado: ENVIADO_CAPTACION)"]
+  P3 --> V1{"Captación: ¿Datos corroborados<br/>y test aprobado?"}
+  V1 -- No --> VR["RECHAZADO_CAPTACION<br/>(revoca credencial, conserva auditoría)"]
+  VR --> FINR["Fin: No contratado"]
+  V1 -- Sí --> VOK["Captación abre expediente<br/>propone cargo y oficina<br/>(genera Solicitud de Personal)"]
+  VOK --> PR1{"Presupuesto:<br/>¿Existe vacante en esa oficina?<br/>(lo resuelve el sistema)"}
+  PR1 -- No hay --> PRNEW{"¿Presupuesto autoriza<br/>crear código nuevo?"}
+  PRNEW -- Sí --> PRCOD["Presupuesto genera código de cargo"]
+  PRNEW -- No procede --> PRERR["EN_CORRECCION_CARGO<br/>(Notifica desaprobación y motivo a Captación)"]
+  PRERR --> VOK
+  PR1 -- Sí --> PR2
+  PRCOD --> PR2{"Presupuesto: ¿Hay disponibilidad<br/>presupuestaria o aprueba trámite?"}
+  PR2 -- No / Desaprobado --> PRDIF["DIFERIDO_PRESUPUESTO<br/>(Notifica a Captación de desaprobación<br/>con motivo y queda en cola de espera)"]
+  PRDIF -.->|"se libera partida"| PR2
+  PRDIF -->|"Captación reasigna o desiste"| VOK
+  PR2 -- Sí --> PROK["Presupuesto reserva puesto,<br/>registra constancia y emite Punto de Cuenta"]
+  PROK --> DG1{"Dirección General:<br/>¿Aprueba Punto de Cuenta?"}
+  DG1 -- No --> DGNO["RECHAZADO_DIRECCION<br/>(libera reserva del puesto)"]
+  DGNO --> FINR
+  DG1 -- Sí --> DGOK["Punto de Cuenta aprobado<br/>(estado: APROBADO)"]
+  DGOK --> RE["Captación reabre Ventana 2<br/>(genera nueva contraseña temporal y contacta)"]
+  RE --> P5["Postulante accede a Ventana 2:<br/>carga grupo familiar, salud, vivienda y tallas"]
+  P5 --> P6["Postulante revisa planillas prellenadas,<br/>conforma recaudos y sube foto de carnet"]
+  P6 --> P7["Postulante envía consolidación<br/>(estado: EN_REVISION_FINAL)"]
+  P7 --> C1{"Captación: ¿Expediente completo<br/>y planillas conformes?"}
+  C1 -- No --> P5
+  C1 -- Sí --> C2["Captación genera Contrato<br/>y ejecuta ASIGNACIÓN DE CARGO"]
+  C2 --> C3["Transacción atómica de asignación:<br/>1. Bloquea puesto vacante<br/>2. Crea registro de Empleado activo<br/>3. Asigna titularidad oficial del cargo<br/>4. Asienta movimiento de INGRESO<br/>5. Habilita acceso a Autogestión<br/>6. Encola sincronización con Nómina"]
+  C3 --> CARN["Carnetización emite carnet de 2 caras"]
+  C3 --> ETL["Worker despacha evento a SIGESP-Nómina"]
+  C3 --> AG["Ficha activa en portal de Autogestión"]
+  CARN --> FIN["Trabajador activo incorporado"]
+  ETL --> FIN
+  AG --> FIN
+        </pre>
+        <p class="cap">Ruta completa del onboarding con separación estricta de tareas y transacción atómica de asignación.</p>
+      </div>
+    </section>
+
+    <!-- ============ ESTADOS ============ -->
+    <section id="estados">
+      <div class="section-head">
+        <span class="kicker">04 · Diagramas de flujo</span>
+        <h2>Ciclo de vida del expediente de postulación</h2>
+        <p>16 estados rigurosamente controlados. Toda transición requiere rol autorizado, validación previa y registra un historial de auditoría permanente.</p>
+      </div>
+
+      <div class="diagram-wrap">
+        <pre class="mermaid">
+stateDiagram-v2
+    [*] --> PRE_REGISTRADO : Captación emite credencial
+
+    PRE_REGISTRADO --> EN_CAPTURA : Postulante ingresa (Ventana 1)
+    PRE_REGISTRADO --> EXPIRADO : Vence sin uso
+
+    EN_CAPTURA --> ENVIADO_CAPTACION : Postulante envía datos y test
+    EN_CAPTURA --> EXPIRADO : Vence ventana
+
+    ENVIADO_CAPTACION --> EN_CORRECCION_DATOS : Captación devuelve con observaciones
+    EN_CORRECCION_DATOS --> ENVIADO_CAPTACION : Postulante corrige
+    ENVIADO_CAPTACION --> RECHAZADO_CAPTACION : Test no aprobado o datos falsos
+    ENVIADO_CAPTACION --> EN_PRESUPUESTO : Captación abre expediente
+
+    EN_PRESUPUESTO --> EN_CORRECCION_CARGO : Sin vacante / No procede crear (notifica motivo a Captación)
+    EN_CORRECCION_CARGO --> EN_PRESUPUESTO : Captación cambia cargo u oficina
+    EN_PRESUPUESTO --> DIFERIDO_PRESUPUESTO : Sin disponibilidad o no aprobado (notifica motivo a Captación)
+    DIFERIDO_PRESUPUESTO --> EN_PRESUPUESTO : Se libera partida presupuestaria
+    DIFERIDO_PRESUPUESTO --> EN_CORRECCION_CARGO : Captación ajusta propuesta
+    DIFERIDO_PRESUPUESTO --> DESISTIDO : Caduca la espera
+    EN_PRESUPUESTO --> EN_DIRECCION_GENERAL : Puesto reservado y Punto de Cuenta emitido
+
+    EN_DIRECCION_GENERAL --> RECHAZADO_DIRECCION : No aprueba (libera reserva)
+    EN_DIRECCION_GENERAL --> APROBADO : Aprueba Punto de Cuenta
+
+    APROBADO --> CONSOLIDANDO : Captación reabre Ventana 2
+    CONSOLIDANDO --> EN_REVISION_FINAL : Postulante envía
+    EN_REVISION_FINAL --> CONSOLIDANDO : Captación observa faltantes
+    EN_REVISION_FINAL --> LISTO_PARA_ASIGNAR : Expediente conforme
+
+    LISTO_PARA_ASIGNAR --> CONTRATADO : Asignación atómica de cargo
+    LISTO_PARA_ASIGNAR --> EN_PRESUPUESTO : Reserva vencida (re-reservar)
+
+    CONTRATADO --> [*]
+    RECHAZADO_CAPTACION --> [*]
+    RECHAZADO_DIRECCION --> [*]
+    EXPIRADO --> [*]
+    DESISTIDO --> [*]
+        </pre>
+        <p class="cap"><strong>Estados terminales:</strong> CONTRATADO, RECHAZADO_CAPTACION, RECHAZADO_DIRECCION, EXPIRADO, DESISTIDO. Los expedientes que llegan a un estado final quedan cerrados y ya no se pueden modificar.</p>
+      </div>
+
+      <div class="table-wrap" style="margin-top:1.4rem;">
+        <table>
+          <thead><tr><th>Estado</th><th>Responsable</th><th>Descripción y salida</th></tr></thead>
+          <tbody>
+            <tr><td><span class="mono">PRE_REGISTRADO</span></td><td>Captación</td><td>Cédula registrada y credencial de Ventana 1 generada.</td></tr>
+            <tr><td><span class="mono">EN_CAPTURA</span></td><td>Postulante</td><td>Completando datos básicos y evaluación psicofísica.</td></tr>
+            <tr><td><span class="mono">ENVIADO_CAPTACION</span></td><td>Captación</td><td>Expediente enviado; Captación corrobora recaudos y test.</td></tr>
+            <tr><td><span class="mono">EN_PRESUPUESTO</span></td><td>Presupuesto</td><td>Verificación de vacante en sistema y disponibilidad presupuestaria.</td></tr>
+            <tr><td><span class="mono">EN_CORRECCION_CARGO</span></td><td>Captación</td><td>Sin vacante o código no autorizado. Presupuesto notifica desaprobación y motivo a Captación para reasignar.</td></tr>
+            <tr><td><span class="mono">DIFERIDO_PRESUPUESTO</span></td><td>Presupuesto / Captación</td><td>Sin disponibilidad o desaprobado por Presupuesto. Notifica motivo a Captación; en espera de partida o reajuste.</td></tr>
+            <tr><td><span class="mono">EN_DIRECCION_GENERAL</span></td><td>Dirección General</td><td>Punto de Cuenta formal en espera de aprobación de Máxima Autoridad.</td></tr>
+            <tr><td><span class="mono">APROBADO</span></td><td>Captación</td><td>Punto de Cuenta aprobado; habilita apertura de Ventana 2.</td></tr>
+            <tr><td><span class="mono">CONSOLIDANDO</span></td><td>Postulante</td><td>Carga de grupo familiar, planillas prellenadas y foto de carnet.</td></tr>
+            <tr><td><span class="mono">CONTRATADO</span></td><td>Sistema</td><td>Transacción completada y nuevo trabajador activo registrado en el sistema.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ CREDENCIALES ============ -->
+    <section id="credenciales">
+      <div class="section-head">
+        <span class="kicker">04 · Diagramas de flujo</span>
+        <h2>Credenciales temporales y las dos ventanas de acceso</h2>
+        <p>El postulante ingresa con cédula y una contraseña temporal generada por el sistema y entregada en persona por Captación.</p>
+      </div>
+
+      <div class="diagram-wrap">
+        <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor CAP as Analista Captación
+    participant API as GATH API
+    participant DB as Base de Datos
+    actor POS as Postulante
+
+    Note over CAP,POS: VENTANA 1 — Datos Básicos y Test Psicofísico
+    CAP->>API: Da de alta postulante (cédula, nombres, cargo)
+    API->>DB: Valida cédula libre y crea Postulante + Credencial
+    API-->>CAP: Contraseña temporal (única visualización)
+    CAP-->>POS: Entrega en persona: cédula + contraseña temporal
+    POS->>API: Inicia sesión (cédula + contraseña)
+    API-->>POS: Sesión de invitado (debe_cambiar_password = true)
+    POS->>API: Cambio obligatorio de contraseña
+    POS->>API: Guarda borradores de datos básicos
+    POS->>API: Responde evaluación psicofísica
+    POS->>API: Envía expediente a Captación
+    API->>API: Revoca sesión de Ventana 1
+
+    Note over CAP,POS: CREDENCIAL SUSPENDIDA (Revisiones de Presupuesto y Dirección General)
+
+    Note over CAP,POS: VENTANA 2 — Consolidación para Contratación
+    CAP->>API: Reabre Ventana 2 tras aprobación de Dirección General
+    API->>DB: Nueva contraseña temporal (vigencia acotada)
+    API-->>CAP: Contraseña temporal + Alerta "Contactar postulante"
+    CAP-->>POS: Contacta por teléfono y entrega nueva contraseña
+    POS->>API: Inicia sesión y cambia contraseña
+    POS->>API: Carga grupo familiar, vivienda, salud y tallas
+    POS->>API: Solicita planillas prellenadas con sus datos
+    API-->>POS: Planillas precargadas listas para conformación
+    POS->>API: Sube planillas conformadas y foto de carnet
+    POS->>API: Envía expediente consolidado
+    API->>API: Revocación definitiva de credencial de invitado
+        </pre>
+        <p class="cap">Secuencia de acceso del postulante. Como no posee correo institucional, la notificación de reapertura genera una tarea prioritaria para Captación.</p>
+      </div>
+    </section>
+
+    <!-- ============ VACANTES ============ -->
+    <section id="vacantes">
+      <div class="section-head">
+        <span class="kicker">04 · Diagramas de flujo</span>
+        <h2>Consulta de vacantes y asignación atómica del cargo</h2>
+        <p>El sistema valida la existencia de cargos vacantes de forma nativa y ejecuta la asignación en una única transacción protegida contra carreras.</p>
+      </div>
+
+      <div class="diagram-wrap">
+        <pre class="mermaid">
+flowchart TD
+  A["Expediente en revisión de Presupuesto<br/>(Cargo propuesto y Oficina)"] --> B["Consulta automática en el sistema:<br/>Verifica disponibilidad de puestos vacantes<br/>para la denominación y oficina solicitada"]
+  B --> C{"¿Existe puesto vacante?"}
+  C -- Sí --> D["Reserva temporal del puesto en el sistema<br/>(bloqueo preventivo de la vacante)"]
+  C -- No --> E{"¿Presupuesto autoriza<br/>crear código nuevo?"}
+  E -- Sí --> F["Presupuesto genera código de cargo<br/>(habilita puesto vacante en estructura)"]
+  F --> D
+  E -- No --> G["EN_CORRECCION_CARGO<br/>(Notifica desaprobación y motivo a Captación)"]
+  G --> VOK["Captación evalúa reasignar cargo/oficina"]
+  D --> H{"Presupuesto:<br/>¿Disponibilidad presupuestaria?"}
+  H -- Sí --> I["Registra Constancia Presupuestaria<br/>(declarado por, fecha, oficio de referencia)"]
+  H -- No / Desaprobado --> J["DIFERIDO_PRESUPUESTO<br/>(Libera reserva temporal)<br/>🔔 Notifica desaprobación y motivo a Captación"]
+  J -.->|"Se libera partida"| H
+  J --> VOK
+  I --> K["Emite Punto de Cuenta formal con correlativo<br/>(avanza a Dirección General)"]
+  K --> L["Aprobación de Dirección General y conformación de recaudos"]
+  L --> M["Transacción Atómica de Asignación:<br/>1. Revalida disponibilidad del puesto vacante<br/>2. Da de alta al nuevo Empleado activo<br/>3. Asigna titularidad oficial del cargo<br/>4. Registra movimiento administrativo de INGRESO<br/>5. Habilita acceso al portal de Autogestión<br/>6. Encola sincronización con sistema de nóminas<br/>7. Cierra expediente en estado CONTRATADO"]
+  M --> N["Trabajador activo en el sistema"]
+        </pre>
+        <p class="cap">La vacante es una consulta directa en el sistema; la disponibilidad presupuestaria es una validación externa. Si Presupuesto no cuenta con disponibilidad o no aprueba por cualquier motivo, el sistema genera automáticamente una notificación a la bandeja de Captación detallando la desaprobación y las observaciones correspondientes.</p>
+      </div>
+    </section>
+
+    <!-- ============ AUTOGESTION ============ -->
+    <section id="autogestion">
+      <div class="section-head">
+        <span class="kicker">04 · Diagramas de flujo</span>
+        <h2>Autogestión del trabajador y aprobación con diferencias</h2>
+        <p>El trabajador propone modificaciones en su ficha; Bienestar Social evalúa y aprueba campo por campo con soporte documental.</p>
+      </div>
+
+      <div class="diagram-wrap">
+        <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor T as Trabajador (Autogestión)
+    participant AG as Módulo Autogestión
+    participant DB as Base de Datos
+    participant NOT as Notificaciones
+    actor BS as Analista Bienestar Social
+
+    Note over T,DB: CONSULTA PERMANENTE
+    T->>AG: Consulta su ficha integral de personal
+    AG->>DB: Obtiene datos, familiares y formación
+    DB-->>AG: Retorna ficha completa (solo lectura)
+    AG-->>T: Visualización de ficha + Botón "Solicitar Actualización"
+
+    Note over T,BS: SOLICITUD Y HABILITACIÓN
+    T->>AG: Solicita actualización (indica secciones y motivo)
+    AG->>DB: Registra SolicitudActualizacion (SOLICITADA)
+    AG->>NOT: Notifica a Bienestar Social
+    BS->>AG: Habilita ventana (define secciones y plazo límite)
+    AG->>DB: Solicitud pasa a HABILITADA
+    AG->>NOT: Notifica al trabajador
+
+    Note over T,DB: CARGA DE CAMBIOS (Ficha activa permanece intacta)
+    T->>AG: Carga modificaciones y adjunta soportes digitales
+    AG->>DB: Guarda borrador de modificaciones propuestas y soportes
+    T->>AG: Envía la actualización
+    AG->>DB: Solicitud pasa a ENVIADA (cierra ventana)
+    AG->>NOT: Notifica a Bienestar Social
+
+    Note over BS,T: REVISIÓN SELECTIVA CAMPO POR CAMPO
+    BS->>AG: Consulta vista comparativa de diferencias y soportes
+    alt Aprobación Total o Parcial
+        BS->>AG: Aprueba lista de cambios seleccionados
+        AG->>DB: Aplica modificaciones aprobadas en la Ficha del Empleado
+        AG->>DB: Solicitud pasa a APROBADA o APROBADA_PARCIAL
+        AG->>NOT: Notifica al trabajador con el resultado
+    else Rechazo Total
+        BS->>AG: Rechaza solicitud con motivo
+        AG->>DB: Solicitud pasa a RECHAZADA (Ficha activa sin modificaciones)
+        AG->>NOT: Notifica al trabajador el motivo del rechazo
+    end
+        </pre>
+        <p class="cap">Mientras la solicitud no sea aprobada, los datos oficiales en la ficha activa del empleado permanecen intactos.</p>
+      </div>
+
+      <div class="table-wrap" style="margin-top:1.4rem;">
+        <table>
+          <thead><tr><th>Sección</th><th>¿Autogestionable?</th><th>Requisito</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Contacto</strong> (teléfonos, correo)</td><td><span class="pill pill-ok">Sí</span></td><td>Validación de formato y unicidad de correo.</td></tr>
+            <tr><td><strong>Vivienda y dirección</strong></td><td><span class="pill pill-ok">Sí</span></td><td>Actualización libre de datos residenciales.</td></tr>
+            <tr><td><strong>Formación académica</strong></td><td><span class="pill pill-ok">Sí</span></td><td><strong>Soporte obligatorio:</strong> copia de título o constancia.</td></tr>
+            <tr><td><strong>Grupo familiar</strong></td><td><span class="pill pill-ok">Sí</span></td><td><strong>Soporte obligatorio:</strong> partida de nacimiento o acta.</td></tr>
+            <tr><td><strong>Fotografía de carnet</strong></td><td><span class="pill pill-ok">Sí</span></td><td>Dispara alerta para reemisión física.</td></tr>
+            <tr><td><strong>Identidad</strong> (cédula, nombres, fecha nac.)</td><td><span class="pill pill-gap">No</span></td><td>Solo modificable por RRHH con soporte legal.</td></tr>
+            <tr><td><strong>Cargo, oficina y estatus</strong></td><td><span class="pill pill-gap">No</span></td><td>Corresponde a movimientos administrativos.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ CARNETIZACION ============ -->
+    <section id="carnetizacion">
+      <div class="section-head">
+        <span class="kicker">04 · Diagramas de flujo</span>
+        <h2>Carnetización de dos caras y diseñador visual</h2>
+        <p>Motor data-driven con diseñador web de arrastrar y soltar, versionado de formatos y soporte para maquetas institucionales cerradas.</p>
+      </div>
+
+      <div class="diagram-wrap">
+        <pre class="mermaid">
+flowchart LR
+  subgraph HOY["Estado Actual (Fase 1)"]
+    H1["Plantilla rígida única<br/>(Una sola imagen de fondo)"] --> H2["Generador estático<br/>(Posiciones fijas en el sistema)"] --> H3["PDF de una sola cara"]
+  end
+
+  subgraph PROP["Fase 2 (Propuesta)"]
+    P1["Catálogo de plantillas institucionales<br/>(Anverso y Reverso por tipo de personal)"]
+    P2["Configuración visual de campos<br/>(Posiciones, fuentes y colores administrables)"]
+    P3["Diseñador Web Visual<br/>(Arrastrar y soltar con vista previa)"]
+    P4["Motor de generación<br/>(Emisión del PDF listo para imprimir)"]
+    P5["PDF de Dos Caras<br/>(Con marcas de corte y sangrado)"]
+    P1 --> P2 --> P3
+    P2 --> P4 --> P5
+  end
+
+  subgraph DATOS["Fuentes de Datos Dinámicas"]
+    D1["Foto oficial del trabajador"]
+    D2["Datos personales y número de cédula"]
+    D3["Cargo, adscripción y tipo de personal"]
+    D4["Código QR con validación de autenticidad"]
+    D5["Texto normativo del reverso"]
+  end
+
+  DATOS --> P4
+        </pre>
+        <p class="cap">Permite diseñar desde cero en web o cargar un PDF base ya diseñado por Imagen Institucional posicionando los datos variables encima.</p>
+      </div>
+    </section>
+
+    <!-- ============ SINCRONIZACION ============ -->
+    <section id="sincronizacion">
+      <div class="section-head">
+        <span class="kicker">04 · Diagramas de flujo</span>
+        <h2>Sincronización directa desde GATH hacia SIGESP-Nómina</h2>
+        <p>Garantía de entrega automatizada. Cada movimiento administrativo se registra en la base de datos de GATH y viaja de forma directa hacia la base de datos de SIGESP (Nómina) con confirmación de entrega y conciliación diaria.</p>
+      </div>
+
+      <div class="diagram-wrap">
+        <pre class="mermaid">
+flowchart TD
+  subgraph ORIG["Movimientos de Personal en GATH"]
+    E1["Asignación de Cargo (Ingreso)"]
+    E2["Traslado Administrativo"]
+    E3["Cambio de Estatus (Suspensión / Reposo)"]
+    E4["Egreso o Jubilación"]
+    E5["Actualización de Datos Aprobada"]
+    E6["Alta o Baja de Familiar"]
+  end
+
+  ORIG --> HOOK["Registro del movimiento en la base de datos de GATH"]
+  HOOK --> OB["Bandeja transaccional de eventos de nómina<br/>(Garantía de registro seguro)"]
+  OB --> W["Servicio automatizado de sincronización<br/>(Despacho en segundo plano con reintentos)"]
+  W --> MAP["Homologación de catálogos y conceptos de nómina"]
+  MAP --> SIGESP["Transmisión directa a la Base de Datos de SIGESP-Nómina"]
+  SIGESP --> OK["Movimiento registrado en SIGESP con acuse de recibido"]
+  OK --> CONC["Conciliación Diaria Automatizada<br/>Compara el personal activo en GATH vs SIGESP"]
+  W -.->|"Si la conexión está ocupada o no disponible"| RETRY["Reintento automático programado<br/>(El movimiento permanece en cola hasta transmitirse)"]
+  RETRY --> W
+        </pre>
+        <p class="cap">La información viaja de forma directa y segura desde la base de datos de GATH hacia la base de datos de SIGESP, garantizando que todo movimiento aprobado se refleje en nómina sin requerir doble carga manual.</p>
+      </div>
+    </section>
+
+    <!-- ============ MODELO DE DATOS ============ -->
+    <section id="modelo-datos">
+      <div class="section-head">
+        <span class="kicker">05 · Estructura de información</span>
+        <h2>Módulos de información del sistema</h2>
+        <p>Organización funcional de los registros de talento humano, expedientes, documentos y sincronización institucional.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Área funcional</th><th>Componente de información</th><th>Datos gestionados</th><th>Propósito institucional</th></tr></thead>
+          <tbody>
+            <tr><td rowspan="3"><strong>Captación y Postulación</strong></td><td><strong>Registro del Postulante</strong></td><td>Identidad, datos de contacto, nivel académico y perfil laboral.</td><td>Registro independiente de candidatos sin afectar la lista de trabajadores activos.</td></tr>
+            <tr><td><strong>Expediente Digital de Ingreso</strong></td><td>Número de expediente, estado del trámite, cargo propuesto y trazabilidad.</td><td>Control integral de fases de selección y evaluación psicofísica.</td></tr>
+            <tr><td><strong>Credenciales de Acceso Temporal</strong></td><td>Contraseñas temporales, ventanas habilitadas y control de vigencia.</td><td>Acceso acotado para carga de recaudos sin cuenta permanente.</td></tr>
+            <tr><td rowspan="2"><strong>Documentación y Planillas</strong></td><td><strong>Catálogo de Plantillas Oficiales</strong></td><td>Formatos institucionales homologados (HCM, Oferta, Punto de Cuenta, Caja de Ahorro).</td><td>Generación estandarizada y versionada de documentos oficiales.</td></tr>
+            <tr><td><strong>Registro de Documentos Emitidos</strong></td><td>Correlativo oficial, copia fiel de los datos, archivo PDF y verificación de autenticidad.</td><td>Historial seguro de documentos conformados para fines de auditoría.</td></tr>
+            <tr><td rowspan="2"><strong>Portal de Autogestión</strong></td><td><strong>Solicitudes de Actualización</strong></td><td>Empleado solicitante, secciones solicitadas, estado y ventana de atención.</td><td>Gestión de ventanas de actualización habilitadas por Bienestar Social.</td></tr>
+            <tr><td><strong>Registro de Cambios Propuestos</strong></td><td>Campo modificado, valor anterior, valor propuesto y soporte probatorio digital.</td><td>Borrador comparativo para revisión y aprobación selectiva antes de impactar la ficha.</td></tr>
+            <tr><td rowspan="2"><strong>Integración con Nómina</strong></td><td><strong>Bandeja de Eventos de Nómina</strong></td><td>Tipo de movimiento (ingreso, traslado, suspensión), fecha y datos del funcionario.</td><td>Transmisión automática y asíncrona de movimientos a nómina.</td></tr>
+            <tr><td><strong>Homologación de Catálogos</strong></td><td>Equivalencias oficiales entre denominaciones de cargos, dependencias y conceptos.</td><td>Garantía de consistencia entre GATH y el sistema SIGESP-Nómina.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ AUTORIZACION ============ -->
+    <section id="autorizacion">
+      <div class="section-head">
+        <span class="kicker">05 · Estructura funcional</span>
+        <h2>Roles y matriz de permisos en el sistema</h2>
+        <p>Control de acceso basado en responsabilidades formales. Cada dependencia cuenta con permisos estrictos sobre su etapa del proceso.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Perfil institucional</th><th>Dependencia / Área</th><th>Atribuciones y acciones autorizadas</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Postulante</strong></td><td>Candidato externo</td><td>Acceso temporal a su propio expediente para carga de datos básicos, test psicofísico, familiares y planillas.</td></tr>
+            <tr><td><strong>Analista de Captación</strong></td><td>Gerencia de RRHH · Captación</td><td>Pre-registro de postulantes, entrega de credenciales, verificación de recaudos, propuesta de cargos y contratación formal.</td></tr>
+            <tr><td><strong>Analista de Presupuesto</strong></td><td>Gerencia de RRHH · Presupuesto</td><td>Verificación de vacantes, creación de códigos de cargo, reserva de puestos y emisión de Puntos de Cuenta.</td></tr>
+            <tr><td><strong>Dirección General</strong></td><td>Máxima Autoridad</td><td>Revisión y aprobación formal de Puntos de Cuenta para el ingreso de nuevo personal.</td></tr>
+            <tr><td><strong>Analista de Bienestar Social</strong></td><td>Gerencia de RRHH · Bienestar Social</td><td>Habilitación de ventanas de autogestión, revisión de diferencias y aprobación selectiva de cambios y recaudos.</td></tr>
+            <tr><td><strong>Trabajador Activo</strong></td><td>Todo el personal de CONATEL</td><td>Consulta permanente de su ficha integral de personal, solicitud de actualización y carga de recaudos.</td></tr>
+            <tr><td><strong>Analista de RRHH</strong></td><td>Gerencia de RRHH · Operaciones</td><td>Administración del personal activo y emisión de carnets institucionales de identificación.</td></tr>
+            <tr><td><strong>Administrador del Sistema</strong></td><td>Tecnología / Talento Humano</td><td>Configuración de plantillas oficiales, catálogo de cargos, supervisión de sincronización y conciliación con nómina.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ DOCUMENTOS ============ -->
+    <section id="documentos">
+      <div class="section-head">
+        <span class="kicker">05 · Estructura funcional</span>
+        <h2>Digitalización de documentos y planillas prellenadas</h2>
+        <p>Los formularios que hoy se llenan a mano se emiten automáticamente con los datos ya registrados en el expediente.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Documento institucional</th><th>Momento de emisión</th><th>Tipo de formato</th><th>Datos precargados automáticamente</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><strong>Punto de Cuenta</strong></td><td>Presupuesto → Dirección General</td><td>Documento oficial generado</td><td>Nombres, cédula, cargo, oficina, código de vacante, sueldo y referencia presupuestaria.</td></tr>
+            <tr><td>2</td><td><strong>Oferta de Servicios</strong></td><td>Ventana 2 (Postulante)</td><td>Formato oficial estampado</td><td>Identidad completa, dirección, teléfonos, nivel académico y cargo propuesto.</td></tr>
+            <tr><td>3</td><td><strong>Afiliación Caja de Ahorro</strong></td><td>Ventana 2 (Postulante)</td><td>Formato oficial estampado</td><td>Identidad, cargo, tipo de nómina y porcentaje de aporte seleccionado.</td></tr>
+            <tr><td>4</td><td><strong>Planilla HCM (Seguros Miranda)</strong></td><td>Ventana 2 (Postulante)</td><td>Formato oficial estampado</td><td>Titular + <strong>Grupo familiar completo</strong> (parentescos, cédulas, fechas de nacimiento).</td></tr>
+            <tr><td>5</td><td><strong>Notificación de Itinerancia</strong></td><td>Tras la Asignación del cargo</td><td>Documento oficial generado</td><td>Identidad, cargo, oficina de adscripción y fecha de inicio de actividades.</td></tr>
+            <tr><td>6</td><td><strong>Contrato de Trabajo</strong></td><td>Consolidación final</td><td>Documento oficial generado</td><td>Cláusulas legales, denominación del cargo, remuneración y período de vigencia.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="margin-top:1rem; font-size:.85rem; color:var(--muted);">El mayor ahorro operativo se logra en la planilla de HCM, que hoy obliga a transcribir a mano a todos los beneficiarios familiares; al estar registrados previamente en el sistema, la planilla se emite 100% prellenada y lista para su conformación.</p>
+    </section>
+
+    <!-- ============ INFRAESTRUCTURA ============ -->
+    <section id="infraestructura">
+      <div class="section-head">
+        <span class="kicker">05 · Especificaciones técnicas</span>
+        <h2>Arquitectura e infraestructura de servicios</h2>
+        <p>Topología de servicios desacoplados con almacenamiento seguro de archivos y procesamiento asíncrono para garantizar la estabilidad del sistema.</p>
+      </div>
+
+      <div class="diagram-wrap">
+        <pre class="mermaid">
+flowchart TB
+  BROWSER["Navegador del Usuario"] --> NGX["Punto de Entrada Seguro (HTTPS)<br/>Protección perimetral y cifrado"]
+  
+  subgraph REDAPP["Servidores de Aplicación"]
+    NGX --> APP["Plataforma Web y Portal de Usuarios"]
+    NGX --> CORE["Motor de Negocio y Servicios GATH"]
+    APP --> CORE
+  end
+
+  subgraph REDTASK["Gestor de Procesos en Segundo Plano"]
+    CORE --> MQ["Cola Centralizada de Mensajería y Tareas"]
+    MQ --> WD["Generador de Documentos y Carnets"]
+    MQ --> WS["Sincronizador con Sistema de Nómina"]
+    MQ --> WM["Servicio de Notificaciones y Avisos"]
+    BEAT["Programador de Tareas Periódicas"] --> MQ
+  end
+
+  subgraph REDSW["Almacenamiento Centralizado de Documentos"]
+    CORE --> S3G["Gestor de Archivos y Fotografías"]
+    WD --> S3G
+  end
+
+  subgraph REDDB["Base de Datos Institucional"]
+    CORE --> PG[("Base de Datos Principal GATH")]
+    WD --> PG
+    WS --> PG
+    WM --> PG
+  end
+
+  WS --> SIGESP["Sistema SIGESP-Nómina Externo"]
+        </pre>
+        <p class="cap">Topología de arquitectura en capas. El acceso de los usuarios interactúa exclusivamente con el punto de entrada protegido, manteniendo aislados los servicios de datos y almacenamiento.</p>
+      </div>
+    </section>
+
+    <!-- ============ FRONTEND ============ -->
+    <section id="frontend">
+      <div class="section-head">
+        <span class="kicker">05 · Estructura funcional</span>
+        <h2>Acceso seguro y portal de postulación</h2>
+        <p>Aislamiento de la sesión de los postulantes para que completen sus trámites sin acceder a las opciones internas del personal activo.</p>
+      </div>
+
+      <div class="diagram-wrap">
+        <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor POS as Postulante
+    participant MW as Control de Acceso Web
+    participant API as Servicios Backend GATH
+
+    POS->>MW: Ingresa con Cédula y Contraseña temporal
+    MW->>API: Valida credencial, ventana activa y vigencia
+    alt Credencial Válida
+        API-->>MW: Sesión temporal de invitado (vigencia acotada)
+        MW-->>POS: Acceso concedido al expediente
+        opt Requiere cambio de clave
+            MW-->>POS: Solicita cambio obligatorio de contraseña
+        end
+        POS->>API: Carga los formularios correspondientes a su etapa
+    else Credencial Inválida
+        API-->>MW: Acceso denegado (control de intentos fallidos)
+        MW-->>POS: Mensaje informativo "Cédula o contraseña incorrecta"
+    end
+        </pre>
+        <p class="cap">Autenticación segura y acotada del postulante, garantizando que solo visualice los formularios asignados a su fase.</p>
+      </div>
+    </section>
+
+    <!-- ============ GOBERNANZA ============ -->
+    <section id="gobernanza">
+      <div class="section-head">
+        <span class="kicker">06 · Gobernanza institucional</span>
+        <h2>Criterios y políticas de operación</h2>
+        <p>Definiciones normativas y directrices adoptadas para salvaguardar la operación y la integridad institucional.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Aspecto institucional</th><th>Criterio establecido</th><th>Beneficio operativo</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Integración con SIGESP-Nómina</strong></td><td>Sincronización asíncrona automatizada (ETL transaccional).</td><td><span class="pill pill-ok">Sin doble carga</span> Los movimientos aprobados en la base de datos de GATH viajan automáticamente a la base de datos de SIGESP sin duplicar trabajo manual.</td></tr>
+            <tr><td><strong>Retención de no contratados</strong></td><td>Parámetro configurable por el Administrador según dictamen de Consultoría Jurídica.</td><td><span class="pill pill-ok">Gestión administrable</span> Permite a la institución ajustar el tiempo de conservación y la purga programada de recaudos.</td></tr>
+            <tr><td><strong>Reingreso de personal egresado</strong></td><td>Reactivación del expediente de empleado conservando su histórico de servicios.</td><td><span class="pill pill-ok">Trazabilidad histórica</span> Mantiene la continuidad de antecedentes laborales y administrativos del funcionario.</td></tr>
+            <tr><td><strong>Diseño del carnet institucional</strong></td><td>Parametrización visual de anverso y reverso según las directrices de Imagen Institucional.</td><td><span class="pill pill-info">Flexibilidad de formato</span> Permite actualizar las plantillas vigentes sin alterar el motor de generación.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ MODULOS ============ -->
+    <section id="modulos">
+      <div class="section-head">
+        <span class="kicker">07 · Alcance del proyecto</span>
+        <h2>Los cuatro módulos principales de la Fase 2</h2>
+        <p>El proyecto consolida la plataforma en cuatro grandes módulos operativos que cubren todo el ciclo de vida del talento humano y la seguridad institucional.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Módulo principal</th><th>Capacidades y componentes incluidos</th><th>Áreas beneficiarias</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>1. Gestión del Trabajador</strong><br/><span style="font-size:.82rem; color:var(--muted);">(Ingreso y Onboarding Digital)</span></td>
+              <td>
+                • <strong>Portal de postulación en dos ventanas:</strong> Carga de datos básicos, test psicofísico, familiares, tallas y foto.<br/>
+                • <strong>Verificación de vacantes y presupuesto:</strong> Consulta automática de puestos, reserva temporal y constancia presupuestaria.<br/>
+                • <strong>Punto de Cuenta formal:</strong> Emisión digital y ruta de aprobación ante la Dirección General.<br/>
+                • <strong>Planillas oficiales prellenadas:</strong> Emisión automática de HCM, Oferta de Servicios y Caja de Ahorro.<br/>
+                • <strong>Asignación formal del cargo:</strong> Contratación atómica y alta oficial del trabajador.<br/>
+                • <strong>Sincronización con Nómina:</strong> Despacho automático de movimientos administrativos desde la base de datos de GATH hacia la base de datos de SIGESP-Nómina.
+              </td>
+              <td>Postulantes, Captación, Presupuesto, Dirección General y Nómina</td>
+            </tr>
+            <tr>
+              <td><strong>2. Autogestión</strong><br/><span style="font-size:.82rem; color:var(--muted);">(Portal del Empleado Activo)</span></td>
+              <td>
+                • <strong>Ficha integral en línea:</strong> Consulta permanente de datos personales, familiares, formación y adscripción.<br/>
+                • <strong>Solicitudes de actualización:</strong> Habilitación de ventanas de atención por Bienestar Social.<br/>
+                • <strong>Carga de soportes digitales:</strong> Adjunto obligatorio de títulos, actas y constancias en formato digital.<br/>
+                • <strong>Aprobación selectiva:</strong> Visor comparativo para que Bienestar Social revise y apruebe campo por campo antes de aplicar los cambios en la ficha activa.
+              </td>
+              <td>Todos los trabajadores de CONATEL y Bienestar Social</td>
+            </tr>
+            <tr>
+              <td><strong>3. Carnetización</strong><br/><span style="font-size:.82rem; color:var(--muted);">(Identificación Institucional)</span></td>
+              <td>
+                • <strong>Catálogo de plantillas institucionales:</strong> Formatos oficiales de anverso y reverso según el tipo de personal.<br/>
+                • <strong>Diseñador visual de credenciales:</strong> Herramienta web interactiva para ajustar posiciones, fotos y textos variables.<br/>
+                • <strong>Generación e impresión:</strong> Emisión de carnets listos para imprimir con marcas de corte y código QR de validación.
+              </td>
+              <td>Gerencia de RRHH e Identificación Institucional</td>
+            </tr>
+            <tr>
+              <td><strong>4. Seguridad y Gestión de Usuarios</strong><br/><span style="font-size:.82rem; color:var(--muted);">(Administración de Cuentas, Perfiles y Auditoría)</span></td>
+              <td>
+                • <strong>Gestión integral de cuentas de usuario:</strong> Creación, activación, suspensión y mantenimiento de cuentas institucionales para todas las dependencias.<br/>
+                • <strong>Control de acceso y asignación de roles:</strong> Matriz estricta de perfiles institucionales (Administrador, Captación, Presupuesto, Dirección General, Bienestar Social, Analista RRHH, Autogestión) con autorizaciones validadas en el servidor.<br/>
+                • <strong>Credenciales y sesiones temporales:</strong> Emisión de contraseñas de primer uso, control de intentos fallidos, vigencia acotada y revocación automática para postulantes.<br/>
+                • <strong>Historial de auditoría y trazabilidad:</strong> Registro inalterable de cada inicio de sesión, visto bueno, aprobación, fecha y usuario responsable.<br/>
+                • <strong>Políticas de protección y seguridad:</strong> Bloqueo preventivo de cuentas, restablecimiento seguro de claves y resguardo cifrado de recaudos institucionales.
+              </td>
+              <td>Administradores del sistema, Auditoría Interna, Tecnología y Gerencia de RRHH</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer>
+      Documento técnico y funcional de la Segunda Fase del Sistema GATH · Elaborado sobre el levantamiento de procesos de RRHH y el diseño arquitectural del sistema · Agosto de 2026.
+    </footer>
+  </main>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: prefersDark ? 'dark' : 'default',
+    securityLevel: 'loose',
+    flowchart: { htmlLabels: true, curve: 'basis' }
+  });
+</script>
+
+</body>
+</html>
