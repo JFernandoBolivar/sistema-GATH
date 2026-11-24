@@ -1,7 +1,7 @@
 /**
  * Reglas de ruta del postulante (D-6) para `proxy.ts`, sin dependencias de Next para poder probarlas.
  *
- * - `/postulacion/*` solo para el rol sintético POSTULANTE; `acceso` y `recibido` son públicas.
+ * - `/postulacion/*` solo para el rol sintético POSTULANTE; `acceso`, `activar` y `recibido` son públicas.
  * - Un empleado logueado no entra a `/postulacion/*` (va a su inicio).
  * - Con `debeCambiarClave`, todo el área redirige a `/postulacion/cambiar-clave`.
  * - Un POSTULANTE no pisa ninguna ruta del sistema de personal: vuelve a `/postulacion`.
@@ -15,6 +15,8 @@ export const RUTA_POSTULACION = "/postulacion";
 export const RUTA_ACCESO_POSTULANTE = "/postulacion/acceso";
 export const RUTA_CAMBIAR_CLAVE = "/postulacion/cambiar-clave";
 export const RUTA_RECIBIDO = "/postulacion/recibido";
+/** Enlace de activación del correo (D-10): pública, con o sin sesión. */
+export const RUTA_ACTIVAR = "/postulacion/activar";
 
 /** Acceso del personal (empleados): destino de su cierre de sesión. */
 export const RUTA_LOGIN_PERSONAL = "/login";
@@ -71,6 +73,10 @@ export function decidirRutaPostulacion(
 
   // Pantalla de «Recibido»: la sesión ya se cerró, por eso es pública.
   if (pathname === RUTA_RECIBIDO) return CONTINUAR;
+
+  // Activación con el enlace del correo: la abre cualquiera (la persona aún no tiene contraseña). Al activar,
+  // se inicia la sesión nueva con la cédula y la clave creadas.
+  if (pathname === RUTA_ACTIVAR) return CONTINUAR;
 
   if (!sesion) {
     return pathname === RUTA_ACCESO_POSTULANTE ? CONTINUAR : ir(RUTA_ACCESO_POSTULANTE);

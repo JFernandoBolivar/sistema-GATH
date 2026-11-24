@@ -97,6 +97,10 @@ export async function reponerCredencialAction(id: string): Promise<ResultadoAcci
   );
 }
 
+export async function enviarEnlaceActivacionAction(id: string): Promise<ResultadoAccion<CredencialEmitida>> {
+  return ejecutar("enviarEnlaceActivacionAction", "No fue posible enviar el enlace.", () => captacionApi.enviarEnlace(id));
+}
+
 export async function registrarPsicofisicoAction(
   id: string,
   formData: FormData,

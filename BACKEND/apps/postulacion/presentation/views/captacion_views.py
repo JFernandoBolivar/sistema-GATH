@@ -10,6 +10,7 @@ from apps.postulacion.application.use_cases.bandeja import (
     detalle_para_captacion,
     listar_bandeja,
 )
+from apps.postulacion.application.use_cases.enlace_activacion import enviar_enlace_activacion
 from apps.postulacion.application.use_cases.captacion import registrar_contacto, transicionar_captacion
 from apps.postulacion.application.use_cases.promocion import promover_postulante
 from apps.postulacion.application.use_cases.ventana2 import foto_de_expediente
@@ -43,6 +44,7 @@ from apps.postulacion.presentation.serializers.postulacion_serializers import (
     BandejaRespuestaSerializer,
     ContactadoSerializer,
     CredencialEmitidaSerializer,
+    EnlaceEnviadoSerializer,
     ExpedienteDetalleSerializer,
     FiltrosBandejaSerializer,
     PsicofisicoRespuestaSerializer,
@@ -55,6 +57,7 @@ from apps.postulacion.presentation.views._comun import (
     a_dict_contratacion,
     a_dict_credencial,
     a_dict_detalle_captacion,
+    a_dict_enlace_enviado,
     a_dict_expediente_resumen,
     a_dict_fila_bandeja,
     a_dict_psicofisico,
@@ -91,7 +94,7 @@ def _cedula_del_analista(request) -> str:
     return str(cedula)
 
 
-class AltaPostulanteView(APIView):
+class AltaPostulanteView(ErroresConCodigoMixin, APIView):
     """`postulacion.crear_postulante`: crea el postulante con su expediente y emite la credencial (clave UNA vez)."""
 
     permission_classes = permisos_captacion()
@@ -106,14 +109,17 @@ class AltaPostulanteView(APIView):
             RepoPostulacionORM(), BuscadorEmpleadosORM(), configuracion(), HasheadorDjango(),
             cedula=datos['cedula'], nombres=datos['nombres'], apellidos=datos['apellidos'],
             correo=datos.get('correo', ''), telefono_movil=datos.get('telefono_movil', ''),
-            creado_por=_cedula_del_analista(request), ahora=ahora(),
+            creado_por=_cedula_del_analista(request), ahora=ahora(), entrega=datos['entrega'],
+            notificador=obtener_notificador() if datos['entrega'] == 'correo' else None,
         )
         auditar_captacion(
             request, 'POSTULANTE_CREADO', alta.expediente.id,
             {'cedula': alta.postulante.cedula, 'numero': alta.expediente.numero, 'reingreso': alta.es_reingreso,
-             'ventana': alta.emision.credencial.ventana,
+             'ventana': alta.emision.credencial.ventana, 'entrega': datos['entrega'],
              'vence_el': alta.emision.credencial.vence_el.isoformat()},
         )
+        if alta.emision.enlace is not None:
+            _auditar_envio_enlace(request, alta.expediente.id, alta.emision.enlace, 'alta')
         p = alta.postulante
         return sin_cache(ok(
             {
@@ -124,8 +130,18 @@ class AltaPostulanteView(APIView):
                 'expediente': a_dict_expediente_resumen(alta.expediente), 'es_reingreso': alta.es_reingreso,
                 'credencial': a_dict_credencial(alta.emision),
             },
-            'Postulante creado. Entregue la contraseña temporal en persona: no se volverá a mostrar.', status=201,
+            (f'Postulante creado. Enviamos el enlace de acceso a {alta.emision.enlace.enviado_a}.'
+             if alta.emision.enlace is not None else
+             'Postulante creado. Entregue la contraseña temporal en persona: no se volverá a mostrar.'), status=201,
         ))
+
+
+def _auditar_envio_enlace(request, expediente_id: str, enlace, origen: str) -> None:
+    """Quién lo envió y a qué correo (enmascarado) y hasta cuándo sirve. NUNCA el token ni una contraseña."""
+    auditar_captacion(
+        request, 'ENLACE_ACTIVACION_ENVIADO', expediente_id,
+        {'enviado_a': enlace.enviado_a, 'vence_el': enlace.enlace.vence_el.isoformat(), 'origen': origen},
+    )
 
 
 ESTADOS_CON_VENTANA_ABIERTA = frozenset({
@@ -164,6 +180,28 @@ class ReponerCredencialView(APIView):
             a_dict_credencial(emision),
             'Credencial repuesta. Entregue la contraseña temporal en persona: no se volverá a mostrar.',
         ))
+
+
+class EnviarEnlaceView(ErroresConCodigoMixin, APIView):
+    """Mismo permiso que reponer la credencial: envía (o reenvía) al correo del postulante el enlace para crear su contraseña."""
+
+    permission_classes = permisos_captacion()
+
+    @extend_schema(
+        tags=TAG, summary='Enviar (o reenviar) el enlace de activación al correo del postulante', request=None,
+        description=(
+            "Anula el enlace anterior y la contraseña temporal previa (y las sesiones abiertas). El correo sale tras confirmar "
+            "y NUNCA lleva contraseña. Errores: 409 `SIN_VENTANA_ABIERTA` (estado sin ventana abierta) o `SIN_CORREO`."
+        ),
+        responses={200: EnlaceEnviadoSerializer, **ERRORES},
+    )
+    def post(self, request, expediente_id):
+        enlace = enviar_enlace_activacion(
+            RepoPostulacionORM(), HasheadorDjango(), configuracion(), obtener_notificador(),
+            expediente_id=str(expediente_id), enviado_por=_cedula_del_analista(request), ahora=ahora(),
+        )
+        _auditar_envio_enlace(request, str(expediente_id), enlace, 'reenvio')
+        return sin_cache(ok(a_dict_enlace_enviado(enlace), f'Enlace enviado a {enlace.enviado_a}.'))
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -264,6 +302,7 @@ class TransicionView(ErroresConCodigoMixin, APIView):
             RepoPostulacionORM(), configuracion(), CatalogoPropuestaORM(), obtener_notificador(),
             expediente_id=str(expediente_id), destino=datos['destino'], actor=actor_de_captacion(request),
             motivo=datos.get('motivo', ''), datos=datos.get('datos') or {}, ahora=ahora(), hasheador=HasheadorDjango(),
+            entrega=datos['entrega'],
         )
         auditar_captacion(
             request, 'EXPEDIENTE_TRANSICION', exp.id,
@@ -275,8 +314,15 @@ class TransicionView(ErroresConCodigoMixin, APIView):
         # Reabrir la Ventana 2: la contraseña temporal nueva viaja UNA vez, aquí (igual que el alta y la reposición).
         auditar_captacion(
             request, 'CREDENCIAL_REPUESTA', exp.id,
-            {'ventana': emision.credencial.ventana, 'vence_el': emision.credencial.vence_el.isoformat(), 'origen': 'reapertura'},
+            {'ventana': emision.credencial.ventana, 'vence_el': emision.credencial.vence_el.isoformat(), 'origen': 'reapertura',
+             'entrega': datos['entrega']},
         )
+        if emision.enlace is not None:
+            _auditar_envio_enlace(request, exp.id, emision.enlace, 'reapertura')
+            return sin_cache(ok(
+                {**detalle, 'credencial': a_dict_credencial(emision)},
+                f'Ventana 2 reabierta. Enviamos el enlace de acceso a {emision.enlace.enviado_a}.',
+            ))
         return sin_cache(ok(
             {**detalle, 'credencial': a_dict_credencial(emision)},
             'Ventana 2 reabierta. Contacte al postulante y entréguele la contraseña temporal: no se volverá a mostrar.',

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,9 @@ import {
   VALORES_INICIALES_POSTULANTE,
   type ValoresNuevoPostulante,
 } from "../../domain/postulante-schema";
+import { ENTREGA_CORREO, ENTREGA_PERSONA, entregaEfectiva, type TipoEntrega } from "../../domain/entrega";
 import { PanelCredencial } from "./panel-credencial";
+import { SelectorEntrega } from "./selector-entrega";
 
 interface Props {
   abierto: boolean;
@@ -37,6 +39,7 @@ interface Props {
     apellidos: string;
     correo?: string;
     telefonoMovil?: string;
+    entrega?: TipoEntrega;
   }) => Promise<ResultadoAccion<AltaPostulanteResultado>>;
 }
 
@@ -47,17 +50,20 @@ interface Props {
 export function DialogoNuevoPostulante({ abierto, onCerrar, onCreado, crear }: Props) {
   const [alta, setAlta] = useState<AltaPostulanteResultado | null>(null);
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null);
+  const [entrega, setEntrega] = useState<TipoEntrega>(ENTREGA_PERSONA);
   const [pendiente, iniciar] = useTransition();
 
   const form = useForm<ValoresNuevoPostulante>({
     resolver: zodResolver(esquemaNuevoPostulante),
     defaultValues: VALORES_INICIALES_POSTULANTE,
   });
+  const correoEscrito = useWatch({ control: form.control, name: "correo" });
 
   function cerrar() {
     // La credencial se descarta del estado: no hay forma de volver a verla.
     setAlta(null);
     setErrorGeneral(null);
+    setEntrega(ENTREGA_PERSONA);
     form.reset(VALORES_INICIALES_POSTULANTE);
     onCerrar();
   }
@@ -71,6 +77,7 @@ export function DialogoNuevoPostulante({ abierto, onCerrar, onCreado, crear }: P
         apellidos: valores.apellidos.trim(),
         correo: valores.correo.trim() || undefined,
         telefonoMovil: valores.telefonoMovil?.trim() || undefined,
+        entrega: entregaEfectiva(entrega, valores.correo),
       });
       if (!r.ok) {
         const sinUbicar = aplicarErroresServidor(form, r.errores);
@@ -97,7 +104,8 @@ export function DialogoNuevoPostulante({ abierto, onCerrar, onCreado, crear }: P
             <DialogHeader>
               <DialogTitle>Postulante creado</DialogTitle>
               <DialogDescription>
-                Expediente <strong>{alta.numero}</strong>. Entregue estos datos de acceso al postulante.
+                Expediente <strong>{alta.numero}</strong>.{" "}
+                {alta.credencial.enlace ? "Le enviamos el enlace para que cree su contraseña." : "Entregue estos datos de acceso al postulante."}
               </DialogDescription>
             </DialogHeader>
             <PanelCredencial credencial={alta.credencial} esReingreso={alta.esReingreso} onEntendido={cerrar} />
@@ -110,7 +118,7 @@ export function DialogoNuevoPostulante({ abierto, onCerrar, onCreado, crear }: P
                 Nuevo postulante
               </DialogTitle>
               <DialogDescription>
-                Registre a la persona y reciba su contraseña temporal para entregársela en persona.
+                Registre a la persona y elija cómo entregarle el acceso: en persona o con un enlace por correo.
               </DialogDescription>
             </DialogHeader>
             <Form {...form}>
@@ -188,6 +196,13 @@ export function DialogoNuevoPostulante({ abierto, onCerrar, onCreado, crear }: P
                     </FormItem>
                   )}
                 />
+                <SelectorEntrega
+                  valor={entregaEfectiva(entrega, correoEscrito)}
+                  onCambio={setEntrega}
+                  correo={correoEscrito}
+                  ayudaSinCorreo="Escriba un correo válido arriba para poder enviarle el enlace."
+                  disabled={pendiente}
+                />
                 {errorGeneral ? (
                   <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft p-3 text-sm text-danger">
                     {errorGeneral}
@@ -199,7 +214,7 @@ export function DialogoNuevoPostulante({ abierto, onCerrar, onCreado, crear }: P
                   </Button>
                   <Button type="submit" disabled={pendiente}>
                     {pendiente ? <Loader2 className="animate-spin" aria-hidden /> : null}
-                    Crear postulante
+                    {entregaEfectiva(entrega, correoEscrito) === ENTREGA_CORREO ? "Crear y enviar enlace" : "Crear postulante"}
                   </Button>
                 </DialogFooter>
               </form>

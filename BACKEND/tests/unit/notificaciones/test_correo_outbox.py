@@ -105,3 +105,21 @@ def test_plantilla_en_espanol_con_aviso_automatico_y_escapa_html():
     assert 'correo automático' in texto and 'correo automático' in html
     assert '<b>' not in html.split('<h2')[1].split('</h2>')[0] and '&amp;' in html
     assert 'https://x.test/a?b=1&amp;c=2' in html
+
+
+def test_boton_por_defecto_igual_que_siempre_y_personalizado_en_texto_y_html():
+    t0, h0 = render_correo('T', 'M', 'https://x/y')
+    assert 'Ingrese al sistema para ver el detalle: https://x/y' in t0 and 'Ver en GATH</a>' in h0
+    t1, h1 = render_correo('T', 'M', 'https://x/y', 'Crear mi contraseña')
+    assert 'Crear mi contraseña: https://x/y' in t1 and 'Ingrese al sistema' not in t1
+    assert 'Crear mi contraseña</a>' in h1 and 'Ver en GATH' not in h1
+
+
+def test_el_texto_del_boton_viaja_por_el_outbox_hasta_el_envio():
+    repo, enviador, plan = RepoOutboxMem(), EnviadorMem(), PlanificadorMem()
+    encolar_correo(
+        repo, plan, tipo='t', destinatario='a@b.com', destinatario_cedula='', asunto='A', titulo='T', mensaje='M',
+        enlace='/x', ref_id='r', texto_boton='Crear mi contraseña',
+    )
+    enviar_correo(repo, enviador, AlmacenMem(), plan.programados[0], T0, url_base='https://gath')
+    assert 'Crear mi contraseña: https://gath/x' in enviador.enviados[0]['texto']

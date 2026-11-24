@@ -24,6 +24,8 @@ interface Props {
   error?: string | null;
   onConfirmar: (motivo: string) => void;
   onCancelar: () => void;
+  /** Contenido extra bajo el motivo (p. ej. cómo se entrega el acceso). */
+  children?: React.ReactNode;
 }
 
 /** Diálogo con motivo obligatorio (devolver, rechazar, observar faltantes…). Se monta solo mientras está abierto. */
@@ -36,6 +38,7 @@ export function DialogoMotivo({
   error,
   onConfirmar,
   onCancelar,
+  children,
 }: Props) {
   const [motivo, setMotivo] = useState("");
   const [tocado, setTocado] = useState(false);
@@ -73,6 +76,7 @@ export function DialogoMotivo({
               : `Obligatorio, mínimo ${LIMITES_TEXTO.motivo.min} caracteres.`}
           </p>
         </div>
+        {children}
         {error ? (
           <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft p-3 text-sm text-danger">
             {error}

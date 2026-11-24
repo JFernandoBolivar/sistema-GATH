@@ -9,6 +9,25 @@ class AccesoSerializer(serializers.Serializer):
     password = serializers.CharField(max_length=128, trim_whitespace=False, write_only=True)
 
 
+class ActivarEnlaceSerializer(serializers.Serializer):
+    """`POST activar/`: el token del enlace, la cédula (segundo factor) y la contraseña que elige el postulante."""
+
+    token = serializers.CharField(max_length=200, trim_whitespace=True)
+    cedula = serializers.CharField(max_length=15)
+    clave_nueva = serializers.CharField(max_length=128, trim_whitespace=False, write_only=True)
+
+
+class EnlaceValidoSerializer(serializers.Serializer):
+    valido = serializers.BooleanField()
+    numero = serializers.CharField(help_text="Número del expediente (EXP-AAAA-NNNNN).")
+    vence_el = serializers.DateTimeField()
+
+
+class EnlaceEnviadoSerializer(serializers.Serializer):
+    enviado_a = serializers.CharField(help_text="Correo enmascarado, p. ej. ju***@gmail.com.")
+    vence_el = serializers.DateTimeField()
+
+
 class CambiarClaveSerializer(serializers.Serializer):
     clave_actual = serializers.CharField(max_length=128, trim_whitespace=False, write_only=True)
     clave_nueva = serializers.CharField(max_length=128, trim_whitespace=False, write_only=True)
@@ -58,6 +77,10 @@ class AltaPostulanteSerializer(serializers.Serializer):
     apellidos = serializers.CharField(max_length=150)
     correo = serializers.EmailField(max_length=254, required=False, allow_blank=True, default='')
     telefono_movil = serializers.CharField(max_length=30, required=False, allow_blank=True, default='')
+    entrega = serializers.ChoiceField(
+        choices=['persona', 'correo'], required=False, default='persona',
+        help_text="`persona` (contraseña temporal mostrada una vez) o `correo` (enlace de activación; requiere correo).",
+    )
 
     def validate_cedula(self, value):
         return validar_drf(validar_cedula, value) or ''
@@ -118,7 +141,10 @@ class EnvioSerializer(serializers.Serializer):
 
 class CredencialEmitidaSerializer(serializers.Serializer):
     usuario = serializers.CharField(help_text="La cédula del postulante.")
-    clave_temporal = serializers.CharField(help_text="Se muestra UNA sola vez; no se puede volver a consultar.")
+    clave_temporal = serializers.CharField(
+        required=False, help_text="Se muestra UNA sola vez; no se puede volver a consultar. Ausente con `entrega=correo`.",
+    )
+    enlace = EnlaceEnviadoSerializer(required=False, help_text="Solo con `entrega=correo`.")
     ventana = serializers.IntegerField()
     vence_el = serializers.DateTimeField()
     debe_cambiar_clave = serializers.BooleanField()
@@ -144,6 +170,10 @@ class FiltrosBandejaSerializer(serializers.Serializer):
 
 class TransicionSerializer(serializers.Serializer):
     destino = serializers.CharField(max_length=30)
+    entrega = serializers.ChoiceField(
+        choices=['persona', 'correo'], required=False, default='persona',
+        help_text="Solo al reabrir la Ventana 2 (CONSOLIDANDO): cómo se entrega el acceso. Ver `POST postulantes/`.",
+    )
     motivo = serializers.CharField(max_length=2000, required=False, allow_blank=True, default='')
     datos = serializers.DictField(
         required=False, default=dict,

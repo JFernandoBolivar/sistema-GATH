@@ -91,6 +91,7 @@ class ServicioNotificaciones:
             self._outbox, self._planificador,
             tipo=s.tipo, destinatario=s.destinatario_correo, destinatario_cedula='', asunto=s.asunto,
             titulo=s.titulo, mensaje=s.mensaje, enlace=s.enlace, ref_id=s.ref_id, clave=s.clave, adjuntos=adjuntos,
+            texto_boton=s.texto_boton, enlace_sensible=s.enlace_sensible,
         )
 
     def _correo(self, s: SolicitudNotificacion, cedula: str) -> None:

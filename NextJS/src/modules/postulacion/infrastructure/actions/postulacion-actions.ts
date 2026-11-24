@@ -14,15 +14,19 @@ import type { MiExpedienteDTO, ResultadoPostulacion, Ventana2DTO } from "../../a
 import {
   cambiarClave,
   catalogosVentana2,
+  activarConEnlace,
   enviarACaptacion,
   guardarBorrador,
+  validarEnlaceActivacion,
   guardarVentana2,
 } from "../../application/use-cases/gestionar-postulacion";
 import {
   RUTA_ACCESO_POSTULANTE,
   RUTA_RECIBIDO,
 } from "../../domain/acceso-ruta";
+import { esquemaActivacion, tokenConForma } from "../../domain/activacion";
 import { clavesCoinciden, evaluarClaveNueva } from "../../domain/clave";
+import { codigoDeEnlace, mensajeDeEnlace, type CodigoEnlace } from "../../domain/errores-enlace";
 import { credencialesPostulanteSchema } from "../../domain/credenciales";
 import {
   falloDeCodigoNextAuth,
@@ -107,6 +111,81 @@ export async function iniciarSesionPostulanteAction(raw: {
   });
   if (fallo) return { ok: false, ...fallo, mensaje: mensajeDeAcceso(fallo) };
   return { ok: true };
+}
+
+// --- Enlace de activación (D-10): rutas PÚBLICAS; el token del enlace nunca se registra ni se devuelve. ---
+export type ResultadoValidacionEnlace =
+  | { ok: true; numero: string; venceEl: string }
+  | { ok: false; codigo: CodigoEnlace };
+
+/** Valida el enlace sin consumirlo (lo llama la página en el servidor). */
+export async function validarEnlaceAction(tokenEnlace: string | undefined): Promise<ResultadoValidacionEnlace> {
+  if (!tokenConForma(tokenEnlace)) return { ok: false, codigo: "ENLACE_INVALIDO" };
+  try {
+    const d = await validarEnlaceActivacion(repoPostulacionApi, tokenEnlace);
+    return { ok: true, numero: d.numero, venceEl: d.venceEl };
+  } catch (e) {
+    if (e instanceof ErrorPostulacion) return { ok: false, codigo: codigoDeEnlace(e.status, e.codigo) };
+    return { ok: false, codigo: "SERVICIO_NO_DISPONIBLE" };
+  }
+}
+
+export type FalloActivacion = {
+  ok: false;
+  codigo: CodigoEnlace;
+  titulo: string;
+  mensaje: string;
+  errores?: Record<string, string[]>;
+};
+export type ResultadoActivacion = { ok: true; conSesion: boolean } | FalloActivacion;
+
+/**
+ * Crea la contraseña con el enlace y deja la sesión iniciada: el backend fija la clave y, igual que tras el cambio
+ * de clave, se entra de nuevo DENTRO del servidor con la cédula y la clave recién creadas (así el token de Django
+ * sale de `authorize`, nunca del navegador). Si ese ingreso fallara, la contraseña ya quedó creada: se avisa y se
+ * lleva a la pantalla de acceso.
+ */
+export async function activarCuentaAction(raw: {
+  token: string;
+  cedula: string;
+  claveNueva: string;
+  confirmacion: string;
+}): Promise<ResultadoActivacion> {
+  const falla = (codigo: CodigoEnlace, errores?: Record<string, string[]>): FalloActivacion => {
+    const { titulo, detalle } = mensajeDeEnlace(codigo);
+    return { ok: false, codigo, titulo, mensaje: detalle, errores };
+  };
+  if (!tokenConForma(raw.token)) return falla("ENLACE_INVALIDO");
+  const validacion = esquemaActivacion.safeParse(raw);
+  if (!validacion.success) {
+    const errores: Record<string, string[]> = {};
+    for (const issue of validacion.error.issues) (errores[String(issue.path[0])] ??= []).push(issue.message);
+    return { ...falla("ACTIVACION_DATOS_INCORRECTOS", errores), titulo: "Revisa los datos", mensaje: "Corrige los campos marcados." };
+  }
+  const { cedula, claveNueva } = validacion.data;
+  const traceId = generateTraceId();
+  const inicio = Date.now();
+  try {
+    await activarConEnlace(repoPostulacionApi, raw.token, cedula, claveNueva);
+  } catch (e) {
+    await logAudit({ traceId, action: "activarCuentaPostulanteAction", status: "FAILED", durationMs: Date.now() - inicio });
+    if (e instanceof ErrorPostulacion) {
+      // Un 400 con errores por campo (política de la contraseña) conserva el texto del servidor.
+      if (e.errores && e.codigo !== "ACTIVACION_DATOS_INCORRECTOS") {
+        return { ...falla("ACTIVACION_DATOS_INCORRECTOS", e.errores), titulo: "Revisa la contraseña", mensaje: e.message };
+      }
+      return falla(codigoDeEnlace(e.status, e.codigo));
+    }
+    return falla("SERVICIO_NO_DISPONIBLE");
+  }
+  const fallo = await iniciarSesion(cedula, claveNueva);
+  await logAudit({
+    traceId,
+    action: "activarCuentaPostulanteAction",
+    status: "SUCCESS",
+    durationMs: Date.now() - inicio,
+  });
+  return { ok: true, conSesion: fallo === null };
 }
 
 export async function cambiarClaveAction(raw: {

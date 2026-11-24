@@ -2,6 +2,7 @@ import type {
   AccionExpediente,
   AltaPostulanteResultado,
   CredencialEmitida,
+  EnlaceActivacionInfo,
   DetalleExpediente,
   FaltanteVentana2,
   FilaBandeja,
@@ -69,6 +70,8 @@ function hitoDesdeApi(h: Crudo): HitoHistorial {
     actorCedula: texto(h.actor_cedula),
     actorTipo: texto(h.actor_tipo),
     motivo: texto(h.motivo),
+    tipo: textoONulo(h.tipo),
+    correoEnmascarado: textoONulo(h.correo_enmascarado),
   };
 }
 
@@ -147,6 +150,7 @@ export function detalleDesdeApi(d: Crudo): DetalleExpediente {
       tamano: numeroONulo(foto.tamano),
       url: textoONulo(foto.url),
     },
+    enlaceActivacion: enlaceActivacionDesdeApi(d.enlace_activacion),
     historial: lista(d.historial).map(hitoDesdeApi),
     psicofisico: psicofisicoDesdeApi(d.psicofisico),
     acciones: lista(d.acciones).map(accionDesdeApi),
@@ -161,6 +165,38 @@ export function credencialDesdeApi(raw: unknown): CredencialEmitida {
     ventana: numeroONulo(c.ventana),
     venceEl: textoONulo(c.vence_el),
     debeCambiarClave: c.debe_cambiar_clave !== false,
+    enlace: c.enlace && typeof c.enlace === "object"
+      ? { enviadoA: texto(objeto(c.enlace).enviado_a), venceEl: textoONulo(objeto(c.enlace).vence_el) }
+      : null,
+  };
+}
+
+const ESTADOS_ENLACE = new Set(["PENDIENTE", "USADO", "VENCIDO", "ANULADO", "BLOQUEADO"]);
+
+export function enlaceActivacionDesdeApi(raw: unknown): EnlaceActivacionInfo | null {
+  if (!raw || typeof raw !== "object") return null;
+  const e = objeto(raw);
+  const estado = texto(e.estado);
+  if (!ESTADOS_ENLACE.has(estado)) return null;
+  return {
+    estado: estado as EnlaceActivacionInfo["estado"],
+    enviadoA: texto(e.enviado_a),
+    enviadoEl: textoONulo(e.enviado_el),
+    venceEl: textoONulo(e.vence_el),
+    usadoEl: textoONulo(e.usado_el),
+  };
+}
+
+/** Respuesta de `enviar-enlace/`: se presenta como una credencial sin contraseña para reusar el mismo panel. */
+export function envioEnlaceDesdeApi(raw: unknown): CredencialEmitida {
+  const e = objeto(raw);
+  return {
+    usuario: "",
+    claveTemporal: "",
+    ventana: null,
+    venceEl: textoONulo(e.vence_el),
+    debeCambiarClave: false,
+    enlace: { enviadoA: texto(e.enviado_a), venceEl: textoONulo(e.vence_el) },
   };
 }
 

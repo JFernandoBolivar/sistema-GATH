@@ -63,6 +63,8 @@ CLAVE_CAPTACION_RETENCION_RECHAZADOS_MESES = 'captacion.retencion_rechazados_mes
 CLAVE_CAPTACION_ESPERA_DIFERIDO_DIAS = 'captacion.espera_diferido_dias'
 # G-1: horas sin contactar al postulante tras reabrir su ventana antes de escalar la tarea.
 CLAVE_CAPTACION_HORAS_ESCALAMIENTO_CONTACTO = 'captacion.horas_escalamiento_contacto'
+# D-10: horas de vigencia del enlace de activación enviado por correo (nunca más allá de la ventana del expediente).
+CLAVE_CAPTACION_HORAS_VIGENCIA_ENLACE_ACTIVACION = 'captacion.horas_vigencia_enlace_activacion'
 
 ALCANCE_CARNET_NADIE = 'nadie'
 ALCANCE_CARNET_TODOS = 'todos'

@@ -5,6 +5,7 @@ from apps.postulacion.presentation.views.captacion_views import (
     AltaPostulanteView,
     AsignarView,
     BandejaView,
+    EnviarEnlaceView,
     ContactadoView,
     ExpedienteDetalleView,
     FotoExpedienteView,
@@ -22,6 +23,7 @@ from apps.postulacion.presentation.views.direccion_views import (
 )
 from apps.postulacion.presentation.views.postulante_views import (
     AccesoView,
+    ActivarEnlaceView,
     BorradorView,
     CambiarClaveView,
     EnviarView,
@@ -44,6 +46,7 @@ from apps.postulacion.presentation.views.presupuesto_views import (
 urlpatterns = [
     # Postulante (sesión de invitado)
     path('acceso/', AccesoView.as_view(), name='postulacion_acceso'),
+    path('activar/', ActivarEnlaceView.as_view(), name='postulacion_activar'),
     path('cambiar-clave/', CambiarClaveView.as_view(), name='postulacion_cambiar_clave'),
     path('mi-expediente/', MiExpedienteView.as_view(), name='postulacion_mi_expediente'),
     path('borrador/', BorradorView.as_view(), name='postulacion_borrador'),
@@ -56,6 +59,10 @@ urlpatterns = [
     path(
         'expedientes/<uuid:expediente_id>/reponer-credencial/', ReponerCredencialView.as_view(),
         name='postulacion_reponer_credencial',
+    ),
+    path(
+        'expedientes/<uuid:expediente_id>/enviar-enlace/', EnviarEnlaceView.as_view(),
+        name='postulacion_enviar_enlace',
     ),
     path('expedientes/', BandejaView.as_view(), name='postulacion_bandeja'),
     path('expedientes/<uuid:expediente_id>/', ExpedienteDetalleView.as_view(), name='postulacion_expediente_detalle'),

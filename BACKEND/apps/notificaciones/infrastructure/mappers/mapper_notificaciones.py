@@ -21,7 +21,8 @@ def outbox_a_entidad(m: EventoOutboxModel) -> MensajeOutbox:
         id=str(m.pk), tipo=m.tipo, canal=Canal(m.canal), destinatario=m.destinatario,
         destinatario_cedula=m.destinatario_cedula, asunto=p.get('asunto', ''), titulo=p.get('titulo', ''),
         mensaje=p.get('mensaje', ''), enlace=p.get('enlace', ''), idempotency_key=m.idempotency_key,
-        copia_a=tuple(p.get('copia_a', [])),
+        copia_a=tuple(p.get('copia_a', [])), texto_boton=p.get('texto_boton', ''),
+        enlace_sensible=bool(p.get('enlace_sensible', False)),
         adjuntos=tuple(
             AdjuntoOutbox(a['nombre'], a['mime'], a.get('clave_almacen', ''), a.get('contenido_b64', ''))
             for a in p.get('adjuntos', [])
@@ -34,7 +35,7 @@ def outbox_a_entidad(m: EventoOutboxModel) -> MensajeOutbox:
 def outbox_a_payload(msg: MensajeOutbox) -> dict:
     return {
         'asunto': msg.asunto, 'titulo': msg.titulo, 'mensaje': msg.mensaje, 'enlace': msg.enlace,
-        'copia_a': list(msg.copia_a),
+        'texto_boton': msg.texto_boton, 'enlace_sensible': msg.enlace_sensible, 'copia_a': list(msg.copia_a),
         'adjuntos': [
             {'nombre': a.nombre, 'mime': a.mime, 'clave_almacen': a.clave_almacen, 'contenido_b64': a.contenido_b64}
             for a in msg.adjuntos

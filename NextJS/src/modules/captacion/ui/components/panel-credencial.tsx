@@ -5,6 +5,7 @@ import { AlertTriangle, Check, Copy, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { CredencialEmitida } from "../../domain/expediente";
 import { formatearFechaHora } from "../../domain/formato";
+import { PanelEnlaceEnviado } from "./panel-enlace-enviado";
 
 interface PanelCredencialProps {
   credencial: CredencialEmitida;
@@ -28,6 +29,11 @@ export function PanelCredencial({ credencial, esReingreso = false, onEntendido }
     } catch {
       setCopiada(false);
     }
+  }
+
+  // Entrega por correo (D-10): no hay contraseña temporal; se confirma el envío del enlace.
+  if (credencial.enlace) {
+    return <PanelEnlaceEnviado enviadoA={credencial.enlace.enviadoA} venceEl={credencial.enlace.venceEl} onEntendido={onEntendido} />;
   }
 
   return (

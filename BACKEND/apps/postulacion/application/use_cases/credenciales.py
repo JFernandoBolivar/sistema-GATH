@@ -11,6 +11,14 @@ from dataclasses import dataclass, replace
 from datetime import datetime
 
 from apps.postulacion.application.use_cases._comun import ahora_utc, obtener_expediente
+from apps.postulacion.application.use_cases.enlace_emision import (
+    ENTREGA_CORREO,
+    ENTREGAS,
+    TIPO_HISTORIAL_REVOCADO,
+    EnlaceEmitido,
+    asentar,
+    crear_y_enviar_enlace,
+)
 from apps.postulacion.application.use_cases.postulantes import crear_postulante_con_expediente
 from apps.postulacion.application.use_cases.transiciones import aplicar_transicion_expediente
 from apps.postulacion.domain.entities.credencial import CredencialPostulante
@@ -20,6 +28,7 @@ from apps.postulacion.domain.errores import (
     CredencialesInvalidas,
     CredencialBloqueada,
     SesionInvalida,
+    ValidacionConCodigo,
 )
 from apps.postulacion.domain.ports.repos import BuscadorEmpleados, HasheadorClaves, RepoPostulacion
 from apps.postulacion.domain.services.credencial import (
@@ -32,8 +41,9 @@ from apps.postulacion.domain.services.credencial import (
 )
 from apps.postulacion.domain.services.maquina_estados import Actor
 from apps.postulacion.domain.value_objects.estados import EstadoExpediente
+from apps.postulacion.domain.value_objects.estados import ACTOR_USUARIO
 from core.domain.exceptions import ConflictError, NotFoundError
-from core.domain.ports import LectorConfiguracion
+from core.domain.ports import LectorConfiguracion, Notificador
 
 MENSAJE_CREDENCIALES_INVALIDAS = "Cédula o contraseña incorrectas."
 
@@ -44,6 +54,7 @@ class EmisionCredencial:
 
     credencial: CredencialPostulante
     clave_temporal: str
+    enlace: EnlaceEmitido | None = None  # entrega por correo: no hay contraseña temporal que mostrar
 
 
 @dataclass(frozen=True)
@@ -74,7 +85,7 @@ def emitir_credencial(
     """
     Emite la credencial del expediente o la REPONE: genera una contraseña temporal nueva, que invalida la anterior
     (y cierra las sesiones abiertas), reinicia intentos y bloqueo y obliga a cambiarla al entrar. La vigencia es la
-    de la ventana del expediente.
+    de la ventana del expediente. Anula también el enlace de activación pendiente (D-10): «en persona» lo reemplaza.
     """
     ahora = ahora or ahora_utc()
     with repo.transaccion():
@@ -98,15 +109,25 @@ def emitir_credencial(
             emitida_por=emitida_por, emitida_el=ahora, version_sesion=(previa.version_sesion + 1) if previa else 1,
             revocada=False,
         ))
+        if repo.revocar_enlaces_pendientes(exp.id):
+            asentar(
+                repo, exp, actor_cedula=emitida_por, actor_tipo=ACTOR_USUARIO, fecha=ahora,
+                tipo=TIPO_HISTORIAL_REVOCADO, origen='captacion',
+            )
     return EmisionCredencial(guardada, clave)
 
 
 def alta_postulante_con_credencial(
     repo: RepoPostulacion, empleados: BuscadorEmpleados, config: LectorConfiguracion, hasheador: HasheadorClaves, *,
     cedula: str, nombres: str, apellidos: str, creado_por: str, correo: str = '', telefono_movil: str = '',
-    ahora: datetime | None = None,
+    ahora: datetime | None = None, entrega: str = 'persona', notificador: Notificador | None = None,
 ) -> AltaPostulante:
-    """Postulante + expediente + credencial en UNA transacción (si algo falla no queda nada a medias)."""
+    """
+    Postulante + expediente + credencial en UNA transacción (si algo falla no queda nada a medias). Con `entrega='correo'`
+    el acceso se manda como enlace de activación (tras el commit) y NO se devuelve contraseña temporal; sin correo, 409 `SIN_CORREO`.
+    """
+    if entrega not in ENTREGAS:
+        raise ValidacionConCodigo("La entrega debe ser «persona» o «correo».", campo='entrega', codigo='ENTREGA_INVALIDA')
     ahora = ahora or ahora_utc()
     with repo.transaccion():
         postulante, expediente, reingreso = crear_postulante_con_expediente(
@@ -114,6 +135,11 @@ def alta_postulante_con_credencial(
             correo=correo, telefono_movil=telefono_movil, ahora=ahora,
         )
         emision = emitir_credencial(repo, hasheador, expediente_id=expediente.id, emitida_por=creado_por, ahora=ahora)
+        if entrega == ENTREGA_CORREO:
+            enlace = crear_y_enviar_enlace(
+                repo, notificador, config, exp=expediente, postulante=postulante, creado_por=creado_por, ahora=ahora,
+            )
+            emision = EmisionCredencial(emision.credencial, '', enlace)
     return AltaPostulante(postulante, expediente, reingreso, emision)
 
 

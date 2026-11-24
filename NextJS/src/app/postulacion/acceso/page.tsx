@@ -9,5 +9,5 @@ export default async function AccesoPostulantePage({
   searchParams: Promise<{ motivo?: string }>;
 }) {
   const { motivo } = await searchParams;
-  return <AccesoPostulanteForm sesionTerminada={motivo === "sesion"} />;
+  return <AccesoPostulanteForm sesionTerminada={motivo === "sesion"} contrasenaCreada={motivo === "creada"} />;
 }

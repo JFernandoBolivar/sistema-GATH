@@ -61,6 +61,23 @@ def test_observar_faltantes_incluye_motivo_numero_enlace_y_plazo_pero_nunca_la_c
     assert c.enlace == '/postulacion/acceso' and c.clave == 'asiento-1'
     assert 'nueva contraseña temporal' in c.mensaje      # remite a Captación; la clave NO viaja en el correo
     assert CEDULA_SECRETA not in f'{c.asunto} {c.titulo} {c.mensaje} {c.enlace}'
+    assert 'otro correo' not in c.mensaje
+
+
+def test_observar_faltantes_con_entrega_por_correo_remite_al_otro_correo():
+    c = correo_al_postulante(
+        expediente(E.CONSOLIDANDO), postulante(), E.EN_REVISION_FINAL, E.CONSOLIDANDO, CAPTACION, 'asiento-1',
+        'Falta la foto', {'entrega': 'correo'},
+    )
+    assert 'Te enviamos en otro correo un enlace para crear tu nueva contraseña' in c.mensaje
+    assert 'Captación se comunicará' not in c.mensaje and 'contraseña temporal' not in c.mensaje
+
+
+def test_correo_de_activacion_usa_boton_propio_y_marca_el_enlace_sensible():
+    from apps.postulacion.application.use_cases.avisos import correo_enlace_activacion
+    c = correo_enlace_activacion(expediente(E.CONSOLIDANDO), postulante(), 'tok', VENCE, 'e1')
+    assert c.texto_boton == 'Crear mi contraseña' and c.enlace_sensible is True
+    assert correo(E.APROBADO, E.CONSOLIDANDO, motivo='').enlace_sensible is False
 
 
 def test_rechazo_es_cordial_y_no_revela_el_motivo_interno():

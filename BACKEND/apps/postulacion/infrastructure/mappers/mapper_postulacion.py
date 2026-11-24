@@ -1,6 +1,7 @@
 """Mappers ORM <-> entidades de postulación."""
 from apps.postulacion.domain.entities.constancia import ConstanciaPresupuestaria
 from apps.postulacion.domain.entities.credencial import CredencialPostulante
+from apps.postulacion.domain.entities.enlace_activacion import EnlaceActivacion
 from apps.postulacion.domain.entities.expediente import ExpedientePostulacion
 from apps.postulacion.domain.entities.postulante import Postulante, TransicionRegistrada
 from apps.postulacion.domain.entities.psicofisico import ResultadoPsicofisico
@@ -53,6 +54,17 @@ CAMPOS_CREDENCIAL = (
 def credencial_a_entidad(m) -> CredencialPostulante:
     return CredencialPostulante(
         id=str(m.pk), expediente_id=str(m.expediente_id), **{c: getattr(m, c) for c in CAMPOS_CREDENCIAL},
+    )
+
+
+CAMPOS_ENLACE_ACTIVACION = (
+    'token_hash', 'correo_destino', 'creado_por', 'creado_el', 'vence_el', 'usado_el', 'ip_uso', 'intentos', 'revocado',
+)
+
+
+def enlace_activacion_a_entidad(m) -> EnlaceActivacion:
+    return EnlaceActivacion(
+        id=str(m.pk), expediente_id=str(m.expediente_id), **{c: getattr(m, c) for c in CAMPOS_ENLACE_ACTIVACION},
     )
 
 

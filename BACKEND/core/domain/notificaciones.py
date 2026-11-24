@@ -110,6 +110,8 @@ class SolicitudCorreoDirecto:
     ref_id: str = ''
     clave: str = ''
     adjuntos: tuple[AdjuntoCorreo, ...] = ()
+    texto_boton: str = ''            # rótulo del botón/enlace del correo ('' = «Ver en GATH»)
+    enlace_sensible: bool = False    # el enlace lleva un secreto: se retira del outbox al enviar o fallar definitivo
 
     def __post_init__(self):
         if not self.tipo or not self.asunto.strip() or not self.titulo.strip() or not self.mensaje.strip():

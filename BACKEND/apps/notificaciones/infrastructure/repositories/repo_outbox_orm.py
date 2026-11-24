@@ -29,15 +29,25 @@ class RepoOutboxORM:
             return None
         return outbox_a_entidad(m) if m else None
 
+    @staticmethod
+    def _retirar_enlace_sensible(outbox_id) -> None:
+        """Quita del payload el enlace con secreto (token) cuando ya no hará falta reintentar."""
+        m = EventoOutboxModel.objects.filter(pk=outbox_id).first()
+        if m and (m.payload or {}).get('enlace_sensible') and m.payload.get('enlace') != '[retirado]':
+            EventoOutboxModel.objects.filter(pk=outbox_id).update(payload={**m.payload, 'enlace': '[retirado]'})
+
     def marcar_enviado(self, outbox_id, ahora) -> None:
         EventoOutboxModel.objects.filter(pk=outbox_id).update(
             estado=EventoOutboxModel.Estado.ENVIADO, enviado_en=ahora, proximo_intento=None, ultimo_error='',
         )
+        self._retirar_enlace_sensible(outbox_id)
 
     def registrar_fallo(self, outbox_id, intentos, estado, proximo_intento, error) -> None:
         EventoOutboxModel.objects.filter(pk=outbox_id).update(
             intentos=intentos, estado=estado.value, proximo_intento=proximo_intento, ultimo_error=error,
         )
+        if estado.value == EventoOutboxModel.Estado.FALLIDO:
+            self._retirar_enlace_sensible(outbox_id)
 
     def ids_pendientes_vencidos(self, ahora, limite) -> list[str]:
         qs = EventoOutboxModel.objects.filter(estado=PENDIENTE).filter(

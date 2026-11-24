@@ -12,10 +12,16 @@ SALUDO = 'Estimado(a) usuario(a):'
 FIRMA = 'Gestión Humana — CONATEL'
 
 
-def render_correo(titulo: str, mensaje: str, enlace_absoluto: str = '') -> tuple[str, str]:
+TEXTO_BOTON = 'Ver en GATH'
+
+
+def render_correo(
+    titulo: str, mensaje: str, enlace_absoluto: str = '', texto_boton: str = '',
+) -> tuple[str, str]:
     lineas_texto = [titulo, '', SALUDO, '', mensaje]
     if enlace_absoluto:
-        lineas_texto += ['', f'Ingrese al sistema para ver el detalle: {enlace_absoluto}']
+        entrada = f'{texto_boton}: {enlace_absoluto}' if texto_boton else f'Ingrese al sistema para ver el detalle: {enlace_absoluto}'
+        lineas_texto += ['', entrada]
     lineas_texto += ['', 'Atentamente,', FIRMA, '', '--', PIE, AVISO_AUTOMATICO]
     texto = '\n'.join(lineas_texto)
 
@@ -23,7 +29,7 @@ def render_correo(titulo: str, mensaje: str, enlace_absoluto: str = '') -> tuple
     boton = (
         f'<p style="margin:16px 0"><a href="{escape(enlace_absoluto, quote=True)}" '
         'style="background:#1d4ed8;color:#ffffff;padding:10px 18px;border-radius:6px;text-decoration:none">'
-        'Ver en GATH</a></p>'
+        f'{escape(texto_boton or TEXTO_BOTON)}</a></p>'
     ) if enlace_absoluto else ''
     html = (
         '<!doctype html><html lang="es"><body style="font-family:Arial,Helvetica,sans-serif;color:#111827;'

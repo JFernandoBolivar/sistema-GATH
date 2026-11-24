@@ -5,7 +5,7 @@ import Link from "next/link";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { ArrowLeft, Camera, ClipboardCheck, History, Undo2, KeyRound, Loader2, Stethoscope, UserRound } from "lucide-react";
+import { ArrowLeft, Camera, ClipboardCheck, History, Undo2, KeyRound, Loader2, Mail, Stethoscope, UserRound } from "lucide-react";
 import PageLayout from "@/components/layout/page-layout";
 import {
   AlertDialog,
@@ -26,13 +26,15 @@ import { VistaCargando, VistaError, VistaVacia } from "@/shared/ui/components/vi
 import type { ItemBarraAcciones } from "../../domain/barra-acciones";
 import type { CredencialEmitida, DatosPropuesta, DetalleExpediente } from "../../domain/expediente";
 import type { ResultadoContratacion } from "../../domain/contratacion";
-import { nombreCompleto } from "../../domain/formato";
+import { ENTREGA_CORREO, ENTREGA_PERSONA, entregaEfectiva, type TipoEntrega } from "../../domain/entrega";
+import { formatearFechaHora, nombreCompleto } from "../../domain/formato";
 import { motivoDeEntrada } from "../../domain/motivo-entrada";
 import { hitosDeHistorial } from "../historial-hitos";
 import { ESTADOS_PSICOFISICO_EDITABLE } from "../../domain/psicofisico";
 import {
   contratarPostulanteAction,
   descargarInformePsicofisicoAction,
+  enviarEnlaceActivacionAction,
   obtenerExpedienteAction,
   registrarContactoAction,
   registrarPsicofisicoAction,
@@ -48,11 +50,21 @@ import { DialogoMotivo } from "../components/dialogo-motivo";
 import { DialogoPropuesta } from "../components/dialogo-propuesta";
 import { InsigniaEstado } from "../components/insignia-estado";
 import { PanelCredencial } from "../components/panel-credencial";
+import { SelectorEntrega } from "../components/selector-entrega";
 import { SeccionDatos } from "../components/seccion-datos";
 import { SeccionPsicofisico } from "../components/seccion-psicofisico";
 
 const PERMISO_PSICOFISICO = "postulacion.registrar_psicofisico";
 const PERMISO_CREDENCIAL = "postulacion.crear_postulante";
+/** Reabrir la Ventana 2 (y observar faltantes) emiten un acceso nuevo: ahí se elige cómo entregarlo. */
+const DESTINO_REABRE_VENTANA2 = "CONSOLIDANDO";
+const ETIQUETA_ENLACE: Record<string, string> = {
+  PENDIENTE: "esperando que lo use",
+  USADO: "ya usado",
+  VENCIDO: "vencido",
+  ANULADO: "anulado por uno nuevo",
+  BLOQUEADO: "bloqueado por intentos fallidos",
+};
 
 async function cargar(id: string): Promise<DetalleExpediente> {
   const r = await obtenerExpedienteAction(id);
@@ -74,6 +86,8 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
   const [errorAccion, setErrorAccion] = useState<string | null>(null);
   const [pendiente, iniciar] = useTransition();
   const [confirmaReposicion, setConfirmaReposicion] = useState(false);
+  const [reenviando, setReenviando] = useState(false);
+  const [entrega, setEntrega] = useState<TipoEntrega>(ENTREGA_PERSONA);
   const [credencial, setCredencial] = useState<{ datos: CredencialEmitida; titulo: string; descripcion: string } | null>(null);
   const [errorContacto, setErrorContacto] = useState<string | null>(null);
   const [contratando, setContratando] = useState(false);
@@ -84,6 +98,13 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
   function cerrarAccion() {
     setActiva(null);
     setErrorAccion(null);
+    setEntrega(ENTREGA_PERSONA);
+  }
+
+  function abrirAcceso(paraReenviar: boolean) {
+    setReenviando(paraReenviar);
+    setEntrega(paraReenviar ? ENTREGA_CORREO : ENTREGA_PERSONA);
+    setConfirmaReposicion(true);
   }
 
   function ejecutar(item: ItemBarraAcciones, motivo?: string, datos?: DatosPropuesta) {
@@ -93,6 +114,7 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
         destino: item.destino,
         motivo,
         datos,
+        entrega: item.destino === DESTINO_REABRE_VENTANA2 ? entregaEfectiva(entrega, detalle?.postulante.correo) : undefined,
       });
       if (!r.ok) {
         setErrorAccion(r.error);
@@ -103,10 +125,13 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
       cerrarAccion();
       // Reabrir la Ventana 2 u observar faltantes emite una contraseña temporal nueva: se muestra UNA vez.
       if (r.data.credencial) {
+        const porCorreo = r.data.credencial.enlace !== null;
         setCredencial({
           datos: r.data.credencial,
-          titulo: "Credencial de la Ventana 2",
-          descripcion: "Entregue esta contraseña temporal al postulante: es la nueva y la anterior dejó de servir.",
+          titulo: porCorreo ? "Enlace de acceso enviado" : "Credencial de la Ventana 2",
+          descripcion: porCorreo
+            ? "La contraseña temporal anterior dejó de servir: la persona creará la suya con el enlace."
+            : "Entregue esta contraseña temporal al postulante: es la nueva y la anterior dejó de servir.",
         });
       }
     });
@@ -114,13 +139,19 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
 
   function reponer() {
     setConfirmaReposicion(false);
+    const porCorreo = entregaEfectiva(entrega, detalle?.postulante.correo) === ENTREGA_CORREO;
     iniciar(async () => {
-      const r = await reponerCredencialAction(expedienteId);
+      const r = porCorreo ? await enviarEnlaceActivacionAction(expedienteId) : await reponerCredencialAction(expedienteId);
       if (!r.ok) {
         toast.error(r.error);
         return;
       }
-      setCredencial({ datos: r.data, titulo: "Credencial repuesta", descripcion: "Entregue la nueva contraseña temporal al postulante." });
+      setCredencial(
+        porCorreo
+          ? { datos: r.data, titulo: "Enlace de acceso enviado", descripcion: "El enlace anterior y la contraseña temporal previa dejaron de servir." }
+          : { datos: r.data, titulo: "Credencial repuesta", descripcion: "Entregue la nueva contraseña temporal al postulante." },
+      );
+      if (porCorreo) await mutate();
     });
   }
 
@@ -197,12 +228,28 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
                   <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft p-3 text-sm text-danger">{errorAccion}</p>
                 ) : null}
                 {tienePermiso(permisos, PERMISO_CREDENCIAL) && ESTADOS_CON_VENTANA_ABIERTA.has(detalle.expediente.estado) ? (
-                  <div>
-                    <Button type="button" variant="ghost" size="sm" onClick={() => setConfirmaReposicion(true)} disabled={pendiente}>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="ghost" size="sm" onClick={() => abrirAcceso(false)} disabled={pendiente}>
                       {pendiente && !activa ? <Loader2 className="animate-spin" aria-hidden /> : <KeyRound aria-hidden />}
                       Reponer credencial
                     </Button>
+                    {detalle.enlaceActivacion ? (
+                      <Button type="button" variant="ghost" size="sm" onClick={() => abrirAcceso(true)} disabled={pendiente}>
+                        <Mail aria-hidden />
+                        Reenviar enlace
+                      </Button>
+                    ) : null}
                   </div>
+                ) : null}
+                {detalle.enlaceActivacion ? (
+                  <p className="text-sm text-muted-foreground" data-testid="estado-enlace">
+                    Último enlace de acceso: enviado a <strong className="break-all font-mono text-foreground">{detalle.enlaceActivacion.enviadoA}</strong>
+                    {detalle.enlaceActivacion.enviadoEl ? ` el ${formatearFechaHora(detalle.enlaceActivacion.enviadoEl)}` : ""}
+                    {detalle.enlaceActivacion.venceEl ? `, vence el ${formatearFechaHora(detalle.enlaceActivacion.venceEl)}` : ""}
+                    {" — "}
+                    {ETIQUETA_ENLACE[detalle.enlaceActivacion.estado] ?? detalle.enlaceActivacion.estado}
+                    {detalle.enlaceActivacion.usadoEl ? ` (${formatearFechaHora(detalle.enlaceActivacion.usadoEl)})` : ""}.
+                  </p>
                 ) : null}
               </div>
             </section>
@@ -278,7 +325,11 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
                 error={errorAccion}
                 onConfirmar={(motivo) => ejecutar(activa, motivo)}
                 onCancelar={cerrarAccion}
-              />
+              >
+                {activa.destino === DESTINO_REABRE_VENTANA2 ? (
+                  <SelectorEntrega valor={entrega} onCambio={setEntrega} correo={detalle.postulante.correo} disabled={pendiente} />
+                ) : null}
+              </DialogoMotivo>
             ) : null}
             {activa?.modo === "propuesta" ? (
               <DialogoPropuesta
@@ -305,6 +356,9 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
                   <AlertDialogTitle>{activa?.etiqueta}</AlertDialogTitle>
                   <AlertDialogDescription>¿Confirma que desea aplicar esta acción al expediente {detalle.expediente.numero}?</AlertDialogDescription>
                 </AlertDialogHeader>
+                {activa?.destino === DESTINO_REABRE_VENTANA2 ? (
+                  <SelectorEntrega valor={entrega} onCambio={setEntrega} correo={detalle.postulante.correo} disabled={pendiente} />
+                ) : null}
                 <AlertDialogFooter>
                   <AlertDialogCancel disabled={pendiente}>Cancelar</AlertDialogCancel>
                   <AlertDialogAction
@@ -326,14 +380,19 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
         <AlertDialog open={confirmaReposicion} onOpenChange={setConfirmaReposicion}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Reponer la credencial</AlertDialogTitle>
+              <AlertDialogTitle>{reenviando ? "Reenviar el enlace de acceso" : "Reponer la credencial"}</AlertDialogTitle>
               <AlertDialogDescription>
-                Se generará una contraseña temporal nueva. La anterior y las sesiones abiertas del postulante dejarán de funcionar.
+                {entregaEfectiva(entrega, detalle?.postulante.correo) === ENTREGA_CORREO
+                  ? "Se enviará un enlace nuevo al correo del postulante. El enlace anterior, la contraseña temporal previa y las sesiones abiertas dejarán de funcionar."
+                  : "Se generará una contraseña temporal nueva. La anterior, el enlace pendiente y las sesiones abiertas del postulante dejarán de funcionar."}
               </AlertDialogDescription>
             </AlertDialogHeader>
+            {detalle ? <SelectorEntrega valor={entrega} onCambio={setEntrega} correo={detalle.postulante.correo} /> : null}
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={reponer}>Reponer credencial</AlertDialogAction>
+              <AlertDialogAction onClick={reponer}>
+                {entregaEfectiva(entrega, detalle?.postulante.correo) === ENTREGA_CORREO ? "Enviar enlace" : "Reponer credencial"}
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

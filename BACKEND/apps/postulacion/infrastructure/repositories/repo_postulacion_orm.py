@@ -34,6 +34,8 @@ from apps.postulacion.infrastructure.mappers.mapper_postulacion import (
     campos_de_expediente,
     constancia_a_entidad,
     credencial_a_entidad,
+    enlace_activacion_a_entidad,
+    CAMPOS_ENLACE_ACTIVACION,
     expediente_a_entidad,
     postulante_a_entidad,
     psicofisico_a_entidad,
@@ -42,6 +44,8 @@ from apps.postulacion.infrastructure.mappers.mapper_postulacion import (
     transicion_a_entidad,
 )
 from apps.postulacion.infrastructure.models.credencial_models import CredencialPostulanteModel
+from apps.postulacion.infrastructure.models.enlace_activacion_models import EnlaceActivacionModel
+from apps.postulacion.domain.entities.enlace_activacion import EnlaceActivacion
 from apps.postulacion.infrastructure.models.presupuesto_models import (
     ConstanciaPresupuestariaModel,
     PuntoCuentaIngresoModel,
@@ -357,6 +361,39 @@ class RepoPostulacionORM:
             campos['emitida_el'] = timezone.now()
         m, _ = CredencialPostulanteModel.objects.update_or_create(expediente_id=c.expediente_id, defaults=campos)
         return credencial_a_entidad(m)
+
+    # --- enlace de activación (D-10) ---
+    def crear_enlace_activacion(self, e: EnlaceActivacion) -> EnlaceActivacion:
+        m = EnlaceActivacionModel.objects.create(
+            expediente_id=e.expediente_id, **{c: getattr(e, c) for c in CAMPOS_ENLACE_ACTIVACION},
+        )
+        return enlace_activacion_a_entidad(m)
+
+    def obtener_enlace_por_hash(self, token_hash: str, bloquear: bool = False) -> EnlaceActivacion | None:
+        qs = EnlaceActivacionModel.objects.select_for_update() if bloquear else EnlaceActivacionModel.objects
+        m = qs.filter(token_hash=token_hash).first()
+        return enlace_activacion_a_entidad(m) if m else None
+
+    def guardar_enlace_activacion(self, e: EnlaceActivacion) -> EnlaceActivacion:
+        EnlaceActivacionModel.objects.filter(pk=e.id).update(
+            **{c: getattr(e, c) for c in ('intentos', 'usado_el', 'ip_uso', 'revocado', 'vence_el')},
+        )
+        return enlace_activacion_a_entidad(EnlaceActivacionModel.objects.get(pk=e.id))
+
+    def revocar_enlaces_pendientes(self, expediente_id: str) -> int:
+        pk = _uuid_valido(expediente_id)
+        if pk is None:
+            return 0
+        return EnlaceActivacionModel.objects.filter(
+            expediente_id=pk, usado_el__isnull=True, revocado=False,
+        ).update(revocado=True)
+
+    def ultimo_enlace_de_expediente(self, expediente_id: str) -> EnlaceActivacion | None:
+        pk = _uuid_valido(expediente_id)
+        if pk is None:
+            return None
+        m = EnlaceActivacionModel.objects.filter(expediente_id=pk).order_by('-creado_el').first()
+        return enlace_activacion_a_entidad(m) if m else None
 
 
 class BuscadorEmpleadosORM:

@@ -80,3 +80,9 @@ export type ResultadoPostulacion<T = void> =
       /** Ordena al cliente volver a la pantalla de acceso (sesión caída). */
       sesionCaida?: boolean;
     };
+
+/** Enlace de activación válido (D-10): lo único que se muestra antes de pedir la cédula. */
+export interface EnlaceValidoDTO {
+  numero: string;
+  venceEl: string;
+}

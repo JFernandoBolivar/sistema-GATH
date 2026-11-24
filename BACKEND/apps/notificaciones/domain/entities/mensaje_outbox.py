@@ -30,6 +30,8 @@ class MensajeOutbox:
     idempotency_key: str
     copia_a: tuple[str, ...] = ()
     adjuntos: tuple[AdjuntoOutbox, ...] = ()
+    texto_boton: str = ''
+    enlace_sensible: bool = False
     estado: EstadoOutbox = EstadoOutbox.PENDIENTE
     intentos: int = 0
     proximo_intento: datetime | None = None

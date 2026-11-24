@@ -1,9 +1,13 @@
 import type { ValoresVentana1 } from "../../domain/ventana1";
 import type { CatalogosVentana2 } from "../../domain/ventana2";
-import type { EnvioDTO, MiExpedienteDTO, SesionInvitadoDTO, Ventana2DTO } from "../dtos/postulacion-dto";
+import type { EnlaceValidoDTO, EnvioDTO, MiExpedienteDTO, SesionInvitadoDTO, Ventana2DTO } from "../dtos/postulacion-dto";
 
 /** Puerto del backend de postulación. Todo método recibe el token de Django del postulante. */
 export interface RepoPostulacion {
+  /** Enlace de activación (público, sin token de sesión): valida sin consumirlo. */
+  validarEnlace(tokenEnlace: string): Promise<EnlaceValidoDTO>;
+  /** Fija la contraseña con el enlace y la cédula (segundo factor). Un solo uso. */
+  activarEnlace(tokenEnlace: string, cedula: string, claveNueva: string): Promise<void>;
   obtenerMiExpediente(token: string): Promise<MiExpedienteDTO>;
   guardarBorrador(token: string, valores: ValoresVentana1): Promise<MiExpedienteDTO>;
   enviar(token: string): Promise<EnvioDTO>;

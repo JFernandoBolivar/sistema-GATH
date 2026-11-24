@@ -21,6 +21,13 @@ describe("sin sesión", () => {
     expect(decidirRutaPostulacion("/postulacion/recibido", null)).toEqual(continua);
   });
 
+  it("«activar» (enlace del correo) es pública con o sin sesión, para empleado y postulante", () => {
+    expect(decidirRutaPostulacion("/postulacion/activar", null)).toEqual(continua);
+    expect(decidirRutaPostulacion("/postulacion/activar/", null)).toEqual(continua);
+    expect(decidirRutaPostulacion("/postulacion/activar", { rol: "POSTULANTE", debeCambiarClave: true })).toEqual(continua);
+    expect(decidirRutaPostulacion("/postulacion/activar", { rol: "ADMIN", debeCambiarClave: false })).toEqual(continua);
+  });
+
   it("las rutas del personal siguen su flujo normal (login)", () => {
     expect(decidirRutaPostulacion("/carnetizacion", null)).toEqual(noAplica);
   });

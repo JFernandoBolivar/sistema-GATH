@@ -17,6 +17,7 @@ import {
   altaDesdeApi,
   contratacionDesdeApi,
   credencialDesdeApi,
+  envioEnlaceDesdeApi,
   detalleDesdeApi,
   paginaDesdeApi,
   psicofisicoDesdeApi,
@@ -53,6 +54,7 @@ export const captacionApi = {
       destino: t.destino,
       ...(t.motivo ? { motivo: t.motivo } : {}),
       ...(t.datos ? { datos: t.datos } : {}),
+      ...(t.entrega ? { entrega: t.entrega } : {}),
     });
     return transicionDesdeApi(sobre.data);
   },
@@ -74,6 +76,7 @@ export const captacionApi = {
       apellidos: d.apellidos,
       ...(d.correo ? { correo: d.correo } : {}),
       ...(d.telefonoMovil ? { telefono_movil: d.telefonoMovil } : {}),
+      ...(d.entrega ? { entrega: d.entrega } : {}),
     });
     return altaDesdeApi(sobre.data, sobre.message);
   },
@@ -81,6 +84,12 @@ export const captacionApi = {
   reponerCredencial: async (id: string): Promise<CredencialEmitida> => {
     const sobre = await apiClient.post<ApiResponse<Crudo>>(`${BASE}/expedientes/${id}/reponer-credencial/`);
     return credencialDesdeApi(sobre.data);
+  },
+
+  /** D-10: envía (o reenvía) el enlace de activación al correo del postulante; el correo no lleva contraseña. */
+  enviarEnlace: async (id: string): Promise<CredencialEmitida> => {
+    const sobre = await apiClient.post<ApiResponse<Crudo>>(`${BASE}/expedientes/${id}/enviar-enlace/`);
+    return envioEnlaceDesdeApi(sobre.data);
   },
 
   registrarPsicofisico: async (id: string, d: DatosPsicofisico, informe: File | null): Promise<ResultadoPsicofisico> => {

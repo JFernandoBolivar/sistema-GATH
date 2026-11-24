@@ -5,6 +5,8 @@
  * (`acciones[]`) y la interfaz solo las dibuja.
  */
 
+import type { TipoEntrega } from "./entrega";
+
 export type TonoEstado = "success" | "warning" | "danger" | "info" | "neutral";
 
 export interface DescripcionEstado {
@@ -119,6 +121,19 @@ export interface HitoHistorial {
   actorCedula: string;
   actorTipo: string;
   motivo: string;
+  /** Asiento sin cambio de estado (p. ej. `ENLACE_ACTIVACION_ENVIADO`); `null` en un cambio de estado normal. */
+  tipo?: string | null;
+  /** Correo enmascarado (`ju***@gmail.com`) de los asientos del enlace de activación. */
+  correoEnmascarado?: string | null;
+}
+
+/** Último enlace de activación enviado al postulante (el correo siempre enmascarado). */
+export interface EnlaceActivacionInfo {
+  estado: "PENDIENTE" | "USADO" | "VENCIDO" | "ANULADO" | "BLOQUEADO";
+  enviadoA: string;
+  enviadoEl: string | null;
+  venceEl: string | null;
+  usadoEl: string | null;
 }
 
 export interface ResultadoPsicofisico {
@@ -190,6 +205,7 @@ export interface DetalleExpediente {
   datosVentana2Legible: Record<string, unknown> | null;
   ventana2Faltantes: FaltanteVentana2[] | null;
   foto: FotoExpediente;
+  enlaceActivacion: EnlaceActivacionInfo | null;
   historial: HitoHistorial[];
   psicofisico: ResultadoPsicofisico;
   acciones: AccionExpediente[];
@@ -198,10 +214,13 @@ export interface DetalleExpediente {
 // --- Credencial (se muestra UNA vez) ---
 export interface CredencialEmitida {
   usuario: string;
+  /** Vacía con la entrega por correo: no existe contraseña temporal. */
   claveTemporal: string;
   ventana: number | null;
   venceEl: string | null;
   debeCambiarClave: boolean;
+  /** Presente solo con la entrega por correo: a dónde se envió el enlace (enmascarado) y hasta cuándo sirve. */
+  enlace?: { enviadoA: string; venceEl: string | null } | null;
 }
 
 /** Detalle más la credencial NUEVA (solo al reabrir la Ventana 2 u observar faltantes; se muestra UNA vez). */
@@ -224,6 +243,7 @@ export interface DatosAltaPostulante {
   apellidos: string;
   correo?: string;
   telefonoMovil?: string;
+  entrega?: TipoEntrega;
 }
 
 /** Cuerpo `datos` de la transición hacia Presupuesto (claves del backend). */
@@ -244,6 +264,8 @@ export interface DatosTransicion {
   destino: string;
   motivo?: string;
   datos?: DatosPropuesta;
+  /** Solo al reabrir la Ventana 2 u observar faltantes: cómo se entrega el acceso nuevo. */
+  entrega?: TipoEntrega;
 }
 
 export interface DatosPsicofisico {

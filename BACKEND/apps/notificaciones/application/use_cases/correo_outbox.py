@@ -35,7 +35,8 @@ class ResultadoEnvio:
 def encolar_correo(
     repo: RepoOutbox, planificador: PlanificadorEnvio, *, tipo: str, destinatario: str, destinatario_cedula: str,
     asunto: str, titulo: str, mensaje: str, enlace: str = '', ref_id: str = '', clave: str = '',
-    copia_a: tuple[str, ...] = (), adjuntos: tuple[AdjuntoOutbox, ...] = (),
+    copia_a: tuple[str, ...] = (), adjuntos: tuple[AdjuntoOutbox, ...] = (), texto_boton: str = '',
+    enlace_sensible: bool = False,
 ) -> bool:
     """Escribe el mensaje en el outbox (transacción vigente) y programa el envío tras el commit."""
     llave = f'{tipo}:{ref_id}:{clave}:{destinatario.lower()}:{Canal.EMAIL.value}'[:250]
@@ -43,6 +44,7 @@ def encolar_correo(
         id=str(uuid4()), tipo=tipo, canal=Canal.EMAIL, destinatario=destinatario,
         destinatario_cedula=destinatario_cedula, asunto=asunto, titulo=titulo, mensaje=mensaje,
         enlace=enlace, idempotency_key=llave, copia_a=copia_a, adjuntos=adjuntos,
+        texto_boton=texto_boton, enlace_sensible=enlace_sensible,
     ))
     if creado is None:
         logger.info('correo %s duplicado, se ignora (idempotency_key ya existe)', tipo)
@@ -71,7 +73,7 @@ def enviar_correo(
         return ResultadoEnvio('OMITIDO')  # un reintento anterior ya reprogramó; no adelantarlo
     try:
         enlace = f'{url_base.rstrip("/")}{msg.enlace}' if msg.enlace and url_base else ''
-        texto, html = render_correo(msg.titulo, msg.mensaje, enlace)
+        texto, html = render_correo(msg.titulo, msg.mensaje, enlace, msg.texto_boton)
         enviador.enviar(
             destinatario=msg.destinatario, copia_a=msg.copia_a, asunto=msg.asunto, texto=texto, html=html,
             adjuntos=_adjuntos_a_bytes(msg.adjuntos, almacen),

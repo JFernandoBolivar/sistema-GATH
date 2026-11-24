@@ -4,7 +4,7 @@
  */
 import type { ValoresVentana1 } from "../../domain/ventana1";
 import type { CatalogosVentana2 } from "../../domain/ventana2";
-import type { EnvioDTO, MiExpedienteDTO, SesionInvitadoDTO, Ventana2DTO } from "../dtos/postulacion-dto";
+import type { EnlaceValidoDTO, EnvioDTO, MiExpedienteDTO, SesionInvitadoDTO, Ventana2DTO } from "../dtos/postulacion-dto";
 import type { RepoPostulacion } from "../ports/repo-postulacion";
 
 export function obtenerMiExpediente(repo: RepoPostulacion, token: string): Promise<MiExpedienteDTO> {
@@ -51,4 +51,17 @@ export function catalogosVentana2(
   municipioId?: number,
 ): Promise<CatalogosVentana2> {
   return repo.catalogosVentana2(token, estadoId, municipioId);
+}
+
+export function validarEnlaceActivacion(repo: RepoPostulacion, tokenEnlace: string): Promise<EnlaceValidoDTO> {
+  return repo.validarEnlace(tokenEnlace);
+}
+
+export function activarConEnlace(
+  repo: RepoPostulacion,
+  tokenEnlace: string,
+  cedula: string,
+  claveNueva: string,
+): Promise<void> {
+  return repo.activarEnlace(tokenEnlace, cedula, claveNueva);
 }

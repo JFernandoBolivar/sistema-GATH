@@ -56,6 +56,11 @@ ESTADO_HTTP_POR_CODIGO = {
     'CREDENCIAL_VENCIDA': 403,
     'ACCESO_NO_DISPONIBLE': 403,
     'CAMBIO_CLAVE_OBLIGATORIO': 403,
+    'ENLACE_INVALIDO': 404,
+    'ENLACE_VENCIDO': 410,
+    'ENLACE_USADO': 410,
+    'ENLACE_BLOQUEADO': 403,
+    'ACTIVACION_DATOS_INCORRECTOS': 400,
 }
 
 
@@ -183,10 +188,34 @@ def a_dict_mi_expediente(v: VistaMiExpediente) -> dict:
 
 
 def a_dict_credencial(emision: EmisionCredencial) -> dict:
+    """Con entrega por correo NO hay `clave_temporal` (no existe) y viaja `enlace` = {enviado_a (enmascarado), vence_el}."""
     c = emision.credencial
+    datos = {'usuario': c.usuario, 'ventana': c.ventana, 'vence_el': c.vence_el, 'debe_cambiar_clave': c.debe_cambiar_clave}
+    if emision.enlace is not None:
+        return {**datos, 'enlace': a_dict_enlace_enviado(emision.enlace)}
+    return {**datos, 'clave_temporal': emision.clave_temporal}
+
+
+def a_dict_enlace_enviado(e) -> dict:
+    return {'enviado_a': e.enviado_a, 'vence_el': e.enlace.vence_el}
+
+
+def a_dict_ultimo_enlace(e, momento: datetime) -> dict | None:
+    """Último enlace de activación del expediente para el detalle de Captación (correo enmascarado, nunca el token)."""
+    if e is None:
+        return None
+    from apps.postulacion.domain.services.enlace_activacion import MAX_INTENTOS_CEDULA, enmascarar_correo
+    if e.usado_el is not None:
+        estado = 'USADO'
+    elif e.revocado:
+        estado = 'ANULADO'
+    elif momento > e.vence_el:
+        estado = 'VENCIDO'
+    else:
+        estado = 'BLOQUEADO' if e.intentos >= MAX_INTENTOS_CEDULA else 'PENDIENTE'
     return {
-        'usuario': c.usuario, 'clave_temporal': emision.clave_temporal, 'ventana': c.ventana, 'vence_el': c.vence_el,
-        'debe_cambiar_clave': c.debe_cambiar_clave,
+        'estado': estado, 'enviado_a': enmascarar_correo(e.correo_destino), 'enviado_el': e.creado_el,
+        'vence_el': e.vence_el, 'usado_el': e.usado_el,
     }
 
 
@@ -266,6 +295,7 @@ def a_dict_detalle_captacion(d: DetalleCaptacion) -> dict:
         'datos_ventana1': exp.datos_ventana1,
         'datos_ventana2': exp.datos_ventana2,
         'datos_ventana2_legible': d.ventana2_legible,
+        'enlace_activacion': a_dict_ultimo_enlace(d.ultimo_enlace, ahora()),
         'ventana2_faltantes': d.ventana2_faltantes,
         'foto': {
             'tiene': exp.tiene_foto, 'subida_el': exp.foto_subida_el, 'tamano': exp.foto_tamano,
@@ -273,7 +303,8 @@ def a_dict_detalle_captacion(d: DetalleCaptacion) -> dict:
         },
         'historial': [
             {'estado_origen': t.estado_origen, 'estado_destino': t.estado_destino, 'fecha': t.fecha,
-             'actor_cedula': t.actor_cedula, 'actor_tipo': t.actor_tipo, 'motivo': t.motivo}
+             'actor_cedula': t.actor_cedula, 'actor_tipo': t.actor_tipo, 'motivo': t.motivo,
+             'tipo': (t.datos_extra or {}).get('tipo'), 'correo_enmascarado': (t.datos_extra or {}).get('correo_enmascarado')}
             for t in d.base.transiciones
         ],
         'psicofisico': {**(a_dict_psicofisico(d.psicofisico) or {}), 'obligatorio': d.psicofisico_obligatorio}

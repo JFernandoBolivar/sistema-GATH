@@ -10,6 +10,18 @@ import {
 } from "../mappers/mapper-postulacion";
 
 export const repoPostulacionApi: RepoPostulacion = {
+  async validarEnlace(tokenEnlace) {
+    const d = await llamarPostulacion<{ numero?: unknown; vence_el?: unknown }>(
+      `activar/?t=${encodeURIComponent(tokenEnlace)}`,
+    );
+    return { numero: String(d.numero ?? ""), venceEl: String(d.vence_el ?? "") };
+  },
+  async activarEnlace(tokenEnlace, cedula, claveNueva) {
+    await llamarPostulacion<unknown>("activar/", {
+      metodo: "POST",
+      cuerpo: { token: tokenEnlace, cedula, clave_nueva: claveNueva },
+    });
+  },
   async obtenerMiExpediente(token) {
     return mapearMiExpediente(await llamarPostulacion<unknown>("mi-expediente/", { token }));
   },

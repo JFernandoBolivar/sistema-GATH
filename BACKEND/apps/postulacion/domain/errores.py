@@ -108,3 +108,38 @@ class DatosVentana2Invalidos(ValidacionConCodigo):
         ruta, mensaje = next(iter(errores.items()))
         super().__init__(mensaje, campo=f'datos_ventana2.{ruta}', codigo='DATOS_INVALIDOS')
         self.detalle = {'errores': errores}
+
+
+# --- Enlace de activación (D-10): mensajes amables; el cliente decide por `codigo` ---
+class ErrorEnlaceActivacion(ErrorAccesoPostulante):
+    codigo = 'ENLACE_INVALIDO'
+    mensaje = 'Este enlace no es válido. Pide a Captación un enlace nuevo.'
+
+    def __init__(self, mensaje: str | None = None, *, campo: str | None = None):
+        super().__init__(mensaje or self.mensaje, campo=campo)
+
+
+class EnlaceInvalido(ErrorEnlaceActivacion):
+    """No existe, fue reemplazado por otro o el expediente ya no admite acceso."""
+
+
+class EnlaceVencido(ErrorEnlaceActivacion):
+    codigo = 'ENLACE_VENCIDO'
+    mensaje = 'Este enlace venció. Pide a Captación un enlace nuevo.'
+
+
+class EnlaceUsado(ErrorEnlaceActivacion):
+    codigo = 'ENLACE_USADO'
+    mensaje = 'Este enlace ya se usó. Si ya creaste tu contraseña, ingresa con tu cédula; si no, pide a Captación un enlace nuevo.'
+
+
+class EnlaceBloqueado(ErrorEnlaceActivacion):
+    codigo = 'ENLACE_BLOQUEADO'
+    mensaje = 'Este enlace se bloqueó por demasiados intentos. Pide a Captación un enlace nuevo.'
+
+
+class DatosActivacionIncorrectos(ErrorEnlaceActivacion):
+    """La cédula no coincide: mensaje genérico (no revela si el enlace existe ni de quién es)."""
+
+    codigo = 'ACTIVACION_DATOS_INCORRECTOS'
+    mensaje = 'No pudimos verificar tus datos. Revisa tu cédula e inténtalo de nuevo.'

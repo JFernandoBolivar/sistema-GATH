@@ -6,6 +6,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 
 from apps.postulacion.application.use_cases.credenciales import autenticar_postulante, cambiar_clave
+from apps.postulacion.application.use_cases.enlace_activacion import activar_con_enlace, consultar_enlace
 from apps.postulacion.application.use_cases.mi_expediente import (
     consultar_mi_expediente,
     enviar_expediente,
@@ -29,6 +30,8 @@ from apps.postulacion.presentation.authentication import PostulanteJWTAuthentica
 from apps.postulacion.presentation.permissions.postulante_permissions import EsPostulante
 from apps.postulacion.presentation.serializers.postulacion_serializers import (
     AccesoSerializer,
+    ActivarEnlaceSerializer,
+    EnlaceValidoSerializer,
     BorradorSerializer,
     CambiarClaveSerializer,
     EnvioSerializer,
@@ -54,6 +57,7 @@ from core.infrastructure.providers import obtener_notificador
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
 from core.presentation.archivos import respuesta_archivo
 from core.presentation.envelope import ok
+from core.presentation.ip_cliente import ip_del_cliente
 from core.presentation.schema import MensajeRespuestaSerializer
 
 TAG = ['Postulación · Postulante']
@@ -111,6 +115,60 @@ class AccesoView(ErroresAccesoMixin, APIView):
              'primer_acceso': acceso.primer_acceso},
         )
         return sin_cache(ok(_sesion(acceso.credencial, acceso.expediente, momento), 'Acceso concedido.'))
+
+
+class ActivarEnlaceView(ErroresAccesoMixin, APIView):
+    """
+    Enlace de activación enviado por correo (D-10). Público, con throttle por IP (`login`) y bloqueo del enlace tras 5
+    cédulas equivocadas. Los errores llevan `data.codigo`: ENLACE_INVALIDO (404), ENLACE_VENCIDO y ENLACE_USADO (410),
+    ENLACE_BLOQUEADO (403) y ACTIVACION_DATOS_INCORRECTOS (400, mensaje genérico).
+    """
+
+    authentication_classes: list = []
+    permission_classes = [AllowAny]
+    throttle_scope = 'login'
+
+    @extend_schema(
+        tags=TAG, summary='Validar el enlace de activación (sin consumirlo)',
+        parameters=[OpenApiParameter('t', str, required=True, description='Token del enlace.')],
+        responses={200: EnlaceValidoSerializer, **ERRORES},
+    )
+    def get(self, request):
+        token = (request.query_params.get('t') or '').strip()
+        try:
+            enlace, numero = consultar_enlace(RepoPostulacionORM(), token=token, ahora=ahora())
+        except ErrorAccesoPostulante as exc:
+            registrar_rechazo(request, exc, '')
+            raise
+        return sin_cache(ok({'valido': True, 'numero': numero, 'vence_el': enlace.vence_el}))
+
+    @extend_schema(
+        tags=TAG, summary='Activar el acceso: cédula + contraseña nueva (un solo uso)', request=ActivarEnlaceSerializer,
+        description=(
+            "Comprueba la cédula (segundo factor), fija la contraseña, marca el enlace como usado y devuelve la MISMA sesión de "
+            "invitado que el acceso (`debe_cambiar_clave` = false). Reglas de la contraseña: las del cambio de clave."
+        ),
+        responses={200: SesionInvitadoSerializer, **ERRORES},
+    )
+    def post(self, request):
+        datos = validar_entrada(ActivarEnlaceSerializer, request.data)
+        cedula = datos['cedula'].strip()
+        momento = ahora()
+        try:
+            acceso = activar_con_enlace(
+                RepoPostulacionORM(), HasheadorDjango(), configuracion(), token=datos['token'], cedula=cedula,
+                clave_nueva=datos['clave_nueva'], ip=ip_del_cliente(request), ahora=momento,
+            )
+        except ErrorAccesoPostulante as exc:
+            registrar_rechazo(request, exc, cedula)
+            raise
+        # La auditoría guarda la IP de uso (origen de la petición) y nunca el token ni la contraseña.
+        auditar_postulante(
+            request, 'POSTULANTE_ENLACE_USADO', acceso.credencial.usuario, acceso.expediente.id,
+            {'estado': acceso.expediente.estado.value, 'ventana': acceso.credencial.ventana,
+             'primer_acceso': acceso.primer_acceso},
+        )
+        return sin_cache(ok(_sesion(acceso.credencial, acceso.expediente, momento), 'Contraseña creada.'))
 
 
 class CambiarClaveView(ErroresAccesoMixin, APIView):

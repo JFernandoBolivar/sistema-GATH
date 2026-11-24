@@ -8,7 +8,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle, Clock, LogIn } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock, LogIn } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +27,14 @@ import { mensajeDeAcceso } from "../domain/errores-acceso";
 import { RUTA_POSTULACION } from "../domain/acceso-ruta";
 import { iniciarSesionPostulanteAction } from "../infrastructure/actions/postulacion-actions";
 
-export function AccesoPostulanteForm({ sesionTerminada = false }: { sesionTerminada?: boolean }) {
+export function AccesoPostulanteForm({
+  sesionTerminada = false,
+  contrasenaCreada = false,
+}: {
+  sesionTerminada?: boolean;
+  /** Llegó desde el enlace del correo: la contraseña quedó creada pero no se pudo iniciar la sesión directo. */
+  contrasenaCreada?: boolean;
+}) {
   const [pendiente, iniciar] = useTransition();
   const [fallo, setFallo] = useState<{ mensaje: string; bloqueado: boolean } | null>(null);
 
@@ -72,6 +79,13 @@ export function AccesoPostulanteForm({ sesionTerminada = false }: { sesionTermin
             {fallo.bloqueado ? <Clock aria-hidden /> : <AlertCircle aria-hidden />}
             <AlertTitle>{fallo.bloqueado ? "Acceso bloqueado por un rato" : "No pudimos ingresarte"}</AlertTitle>
             <AlertDescription>{fallo.mensaje}</AlertDescription>
+          </Alert>
+        )}
+        {!fallo && contrasenaCreada && (
+          <Alert className="mb-5" data-testid="aviso-contrasena-creada">
+            <CheckCircle2 aria-hidden />
+            <AlertTitle>Tu contraseña quedó creada</AlertTitle>
+            <AlertDescription>Ingresa con tu cédula y la contraseña que acabas de crear.</AlertDescription>
           </Alert>
         )}
         {aviso && (

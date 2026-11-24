@@ -7,6 +7,7 @@ from datetime import date, datetime
 from apps.postulacion.domain.entities.bandeja import FilaBandeja, FiltrosBandeja, PropuestaCatalogo
 from apps.postulacion.domain.entities.constancia import ConstanciaPresupuestaria
 from apps.postulacion.domain.entities.credencial import CredencialPostulante
+from apps.postulacion.domain.entities.enlace_activacion import EnlaceActivacion
 from apps.postulacion.domain.entities.expediente import ExpedientePostulacion
 from apps.postulacion.domain.entities.promocion import ResultadoPromocion, SolicitudPromocion
 from apps.postulacion.domain.entities.postulante import EmpleadoPrevio, Postulante, TransicionRegistrada
@@ -129,6 +130,21 @@ class RepoPostulacion(Protocol):
     def guardar_credencial(self, credencial: CredencialPostulante) -> CredencialPostulante:
         """Crea o reemplaza la credencial del expediente (una sola por expediente)."""
         ...
+
+    # --- enlace de activación del postulante (D-10): solo el hash del token ---
+    def crear_enlace_activacion(self, enlace: EnlaceActivacion) -> EnlaceActivacion: ...
+
+    def obtener_enlace_por_hash(self, token_hash: str, bloquear: bool = False) -> EnlaceActivacion | None: ...
+
+    def guardar_enlace_activacion(self, enlace: EnlaceActivacion) -> EnlaceActivacion:
+        """Actualiza intentos, uso y revocación de un enlace existente."""
+        ...
+
+    def revocar_enlaces_pendientes(self, expediente_id: str) -> int:
+        """Anula los enlaces sin usar del expediente (reenvío o entrega en persona). Devuelve cuántos."""
+        ...
+
+    def ultimo_enlace_de_expediente(self, expediente_id: str) -> EnlaceActivacion | None: ...
 
 
 class HasheadorClaves(Protocol):

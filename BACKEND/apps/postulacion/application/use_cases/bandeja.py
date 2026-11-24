@@ -66,6 +66,7 @@ class DetalleCaptacion:
     horas_escalamiento_contacto: int = 48
     ventana2_legible: dict | None = None        # los datos de la Ventana 2 con el nombre de cada catálogo
     ventana2_faltantes: list[dict] | None = None
+    ultimo_enlace: object | None = None         # último enlace de activación enviado (D-10)
 
 
 def detalle_para_captacion(
@@ -97,6 +98,6 @@ def detalle_para_captacion(
             exp, permisos, hechos, psicofisico, pares={**PARES_CAPTACION, **PARES_ASIGNACION},
         ),
         horas_escalamiento_contacto=leer_horas_escalamiento_contacto(config), ventana2_legible=legible,
-        ventana2_faltantes=faltantes,
+        ventana2_faltantes=faltantes, ultimo_enlace=repo.ultimo_enlace_de_expediente(exp.id),
     )
 

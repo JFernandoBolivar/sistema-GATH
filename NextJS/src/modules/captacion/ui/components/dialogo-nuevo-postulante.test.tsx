@@ -100,4 +100,29 @@ describe("<DialogoNuevoPostulante />", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/ya existe un expediente abierto/i);
     expect(screen.queryByTestId("credencial-clave")).not.toBeInTheDocument();
   });
+
+  it("sin correo escrito la opción por correo está deshabilitada y se crea «en persona»", async () => {
+    const { crear } = montar();
+    expect(screen.getByRole("radio", { name: /enviar enlace por correo/i })).toBeDisabled();
+    await llenar();
+    await userEvent.click(screen.getByRole("button", { name: /crear postulante/i }));
+    await waitFor(() => expect(crear).toHaveBeenCalled());
+    expect(vi.mocked(crear).mock.calls[0][0]).toMatchObject({ cedula: "18123456", entrega: "persona" });
+  });
+
+  it("con correo se puede enviar el enlace: manda entrega «correo» y confirma sin mostrar contraseña", async () => {
+    const alta: AltaPostulanteResultado = {
+      ...ALTA,
+      credencial: { ...ALTA.credencial, claveTemporal: "", enlace: { enviadoA: "an***@ejemplo.invalid", venceEl: "2026-11-26T12:00:00Z" } },
+    };
+    const { crear } = montar(creador({ ok: true, data: alta }));
+    await llenar();
+    await userEvent.type(screen.getByLabelText(/correo \(opcional\)/i), "ana@ejemplo.invalid");
+    expect(screen.getByText(/confirma el correo con la persona antes de enviar/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("radio", { name: /enviar enlace por correo/i }));
+    await userEvent.click(screen.getByRole("button", { name: /crear y enviar enlace/i }));
+    expect(await screen.findByTestId("enlace-enviado")).toHaveTextContent("an***@ejemplo.invalid");
+    expect(vi.mocked(crear).mock.calls[0][0]).toMatchObject({ correo: "ana@ejemplo.invalid", entrega: "correo" });
+    expect(screen.queryByTestId("credencial-clave")).not.toBeInTheDocument();
+  });
 });

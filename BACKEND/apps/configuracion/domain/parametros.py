@@ -27,6 +27,7 @@ from core.domain.configuracion import (
     CLAVE_CAPTACION_VIGENCIA_RESERVA_PUESTO_DIAS,
     CLAVE_CAPTACION_VIGENCIA_VENTANA1_DIAS,
     CLAVE_CAPTACION_HORAS_ESCALAMIENTO_CONTACTO,
+    CLAVE_CAPTACION_HORAS_VIGENCIA_ENLACE_ACTIVACION,
     CLAVE_CAPTACION_VIGENCIA_VENTANA2_DIAS,
     CLAVE_CARGA_MASIVA_APROBACION,
     CLAVE_CARNETIZACION_MI_CARNET_ALCANCE,
@@ -611,6 +612,19 @@ DEFINICIONES = (
         defecto='48',
         minimo=1,
         maximo=720,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_CAPTACION_HORAS_VIGENCIA_ENLACE_ACTIVACION,
+        etiqueta='Horas de vigencia del enlace de activación',
+        descripcion=(
+            'Horas que sirve el enlace que Captación envía por correo para que el postulante cree su contraseña. '
+            'Nunca vence después de la ventana del expediente (se usa el menor de los dos plazos).'
+        ),
+        grupo=GRUPO_CAPTACION,
+        tipo=TIPO_ENTERO,
+        defecto='48',
+        minimo=1,
+        maximo=168,
     ),
 )
 

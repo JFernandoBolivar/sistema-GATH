@@ -17,6 +17,7 @@ from datetime import datetime
 from apps.postulacion.application.use_cases._comun import ahora_utc, obtener_expediente, texto_normalizado
 from apps.postulacion.application.use_cases.avisos import TIPO_CONTACTAR_POSTULANTE, TIPO_CONTACTO_ATRASADO, REF_TIPO
 from apps.postulacion.application.use_cases.credenciales import EmisionCredencial, emitir_credencial
+from apps.postulacion.application.use_cases.enlace_emision import ENTREGA_CORREO, ENTREGAS, crear_y_enviar_enlace, exigir_envio_posible
 from apps.postulacion.application.use_cases.transiciones import aplicar_transicion_expediente
 from apps.postulacion.domain.entities.bandeja import PropuestaCatalogo
 from apps.postulacion.domain.entities.expediente import ExpedientePostulacion
@@ -93,12 +94,16 @@ def construir_propuesta(datos: dict, catalogo: CatalogoPropuesta) -> dict:
 def transicionar_captacion(
     repo: RepoPostulacion, config: LectorConfiguracion, catalogo: CatalogoPropuesta, notificador: Notificador | None, *,
     expediente_id: str, destino: EstadoExpediente | str, actor: Actor, motivo: str = '', datos: dict | None = None,
-    ahora: datetime | None = None, hasheador: HasheadorClaves | None = None,
+    ahora: datetime | None = None, hasheador: HasheadorClaves | None = None, entrega: str = 'persona',
 ) -> tuple[ExpedientePostulacion, TransicionRegistrada | None, str, EmisionCredencial | None]:
     """
     Devuelve `(expediente, asiento, estado_origen, emision)`; `emision` es la credencial NUEVA (con su contraseña temporal, que
     solo viaja aquí) cuando la transición reabre la Ventana 2, y None en las demás. Los errores son `DomainError` con `codigo`.
+    Con `entrega='correo'` (solo al reabrir la Ventana 2) la emisión trae `enlace` y NO hay contraseña temporal: el enlace de
+    activación sale por correo tras el commit (409 `SIN_CORREO` si el postulante no tiene correo).
     """
+    if entrega not in ENTREGAS:
+        raise ValidacionConCodigo("La entrega debe ser «persona» o «correo».", campo='entrega', codigo='ENTREGA_INVALIDA')
     try:
         destino = EstadoExpediente(destino)
     except ValueError as e:
@@ -134,12 +139,20 @@ def transicionar_captacion(
             datos_extra={
                 'origen': 'captacion', **({'propuesta': propuesta} if propuesta else {}),
                 **({'credencial_repuesta': True} if reabre_ventana2 else {}),
+                **({'entrega': ENTREGA_CORREO} if reabre_ventana2 and entrega == ENTREGA_CORREO else {}),
             },
             ahora=ahora, notificador=notificador,
         )
         if reabre_ventana2:
             # La nueva contraseña invalida la anterior y las sesiones abiertas; el correo de cortesía NUNCA la incluye.
             emision = emitir_credencial(repo, hasheador, expediente_id=exp.id, emitida_por=actor.cedula, ahora=ahora)
+            if entrega == ENTREGA_CORREO:
+                postulante = repo.obtener_postulante(exp.postulante_id)
+                exigir_envio_posible(exp, postulante, ahora)
+                enlace = crear_y_enviar_enlace(
+                    repo, notificador, config, exp=exp, postulante=postulante, creado_por=actor.cedula, ahora=ahora,
+                )
+                emision = EmisionCredencial(emision.credencial, '', enlace)
     return exp, asiento, asiento.estado_origen if asiento else actual.estado.value, emision
 
 

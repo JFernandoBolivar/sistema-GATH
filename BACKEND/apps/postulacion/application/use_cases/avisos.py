@@ -81,6 +81,8 @@ TIPO_CORREO_CORRECCION = 'POSTULACION_CORRECCION'
 TIPO_CORREO_VENTANA2 = 'POSTULACION_VENTANA2'
 TIPO_CORREO_FALTANTES = 'POSTULACION_FALTANTES'
 TIPO_CORREO_RECHAZO = 'POSTULACION_RECHAZO'
+TIPO_CORREO_ACTIVACION = 'POSTULACION_ACTIVACION'
+RUTA_ACTIVACION = '/postulacion/activar'
 
 # Estado que un área atiende -> tipo de aviso compartido que esa acción cierra.
 _AVISO_PENDIENTE_DE: dict[EstadoExpediente, str] = {
@@ -226,7 +228,7 @@ def _fecha_plazo(vence: datetime | None) -> str:
 
 def correo_al_postulante(
     exp: ExpedientePostulacion, postulante: Postulante, origen: EstadoExpediente, destino: EstadoExpediente,
-    actor: Actor, asiento_id: str, motivo: str = '',
+    actor: Actor, asiento_id: str, motivo: str = '', datos_extra: dict | None = None,
 ) -> SolicitudCorreoDirecto | None:
     """Correo que el postulante recibe en este paso, o None (sin correo, o paso que no lo avisa). Sin datos sensibles."""
     if not (postulante.correo or '').strip() or actor.tipo != ACTOR_USUARIO:
@@ -269,12 +271,21 @@ def correo_al_postulante(
             f'Tienes hasta el {plazo} para completarlos y enviarlos de nuevo.'
             if plazo else 'Completa y envía tus datos dentro del plazo que verás al ingresar al portal.'
         )
+        if (datos_extra or {}).get('entrega') == 'correo':
+            acceso = (
+                'Te enviamos en otro correo un enlace para crear tu nueva contraseña. '
+                'Con ella ingresa al portal con tu cédula, completa lo indicado y envía tus datos otra vez.\n'
+            )
+        else:
+            acceso = (
+                'Captación se comunicará contigo para entregarte tu nueva contraseña temporal. '
+                'Con ella ingresa al portal con tu cédula, completa lo indicado y envía tus datos otra vez.\n'
+            )
         return SolicitudCorreoDirecto(
             tipo=TIPO_CORREO_FALTANTES, asunto=asunto, titulo=asunto, mensaje=(
                 f'Revisamos tu expediente N.º {exp.numero} y necesitamos que completes algunos datos para poder continuar.\n'
                 f'Lo que falta: {motivo.strip()}\n'
-                'Captación se comunicará contigo para entregarte tu nueva contraseña temporal. '
-                'Con ella ingresa al portal con tu cédula, completa lo indicado y envía tus datos otra vez.\n'
+                f'{acceso}'
                 f'{cuando}'
             ), **base,
         )
@@ -291,6 +302,26 @@ def correo_al_postulante(
     return None
 
 
+def correo_enlace_activacion(
+    exp: ExpedientePostulacion, postulante: Postulante, token: str, vence_el: datetime, enlace_id: str,
+) -> SolicitudCorreoDirecto:
+    """
+    Invitación a crear la contraseña (D-10). Lleva el enlace con el token (el envío le antepone FRONTEND_URL) y NUNCA una
+    contraseña ni la cédula. `clave` = id del enlace: cada reenvío es un hecho nuevo y se envía.
+    """
+    asunto = 'Crea tu contraseña para tu postulación en CONATEL'
+    return SolicitudCorreoDirecto(
+        tipo=TIPO_CORREO_ACTIVACION, destinatario_correo=postulante.correo, asunto=asunto, titulo=asunto, mensaje=(
+            f'Captación de CONATEL te invitó a completar tu postulación N.º {exp.numero}. '
+            'Crea tu contraseña con el enlace que aparece abajo; te pediremos tu cédula para confirmar que eres tú.\n'
+            f'El enlace sirve una sola vez y vence el {_fecha_plazo(vence_el)}.\n'
+            'Si no solicitaste esto, ignora este mensaje.'
+        ),
+        enlace=f'{RUTA_ACTIVACION}?t={token}', ref_tipo=REF_TIPO, ref_id=exp.id, clave=enlace_id,
+        texto_boton='Crear mi contraseña', enlace_sensible=True,
+    )
+
+
 def programar_avisos(
     repo: RepoPostulacion, notificador: Notificador | None, *, exp: ExpedientePostulacion, postulante: Postulante,
     origen: EstadoExpediente, destino: EstadoExpediente, actor: Actor, asiento_id: str, motivo: str = '',
@@ -301,7 +332,7 @@ def programar_avisos(
         return
     solicitudes = solicitudes_de_transicion(exp, postulante, origen, destino, actor, asiento_id, motivo, datos_extra)
     resolver = tipos_a_resolver(origen, destino, actor)
-    correo = correo_al_postulante(exp, postulante, origen, destino, actor, asiento_id, motivo)
+    correo = correo_al_postulante(exp, postulante, origen, destino, actor, asiento_id, motivo, datos_extra)
     if not solicitudes and not resolver and correo is None:
         return
 
