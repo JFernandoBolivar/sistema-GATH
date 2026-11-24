@@ -12,6 +12,11 @@ Qué se emite (el postulante no recibe campana: no tiene cuenta):
   - EN_CORRECCION_CARGO (Presupuesto devuelve por cargo u oficina)  -> EXPEDIENTE_CORRECCION_CARGO a `postulacion.ver_bandeja`.
   - APROBADO (Dirección General aprueba)                            -> INGRESO_APROBADO a `postulacion.ver_bandeja`: Captación
     reabre la Ventana 2.
+  - CONSOLIDANDO (Captación reabre la Ventana 2, o la reabre por faltantes) -> CONTACTAR_POSTULANTE a `postulacion.ver_bandeja`
+    (tarea crítica: el postulante no tiene cuenta, hay que llamarlo). Reabrir resuelve INGRESO_APROBADO / EXPEDIENTE_REVISION_FINAL;
+    marcarlo contactado (endpoint `contactado`) o que el postulante envíe resuelve CONTACTAR_POSTULANTE.
+  - CONTRATADO (promoción atómica)                                  -> CONTRATACION_COMPLETADA a `postulacion.ver_bandeja` y, si hay foto,
+    CARNET_PENDIENTE a `carnetizacion.emitir`; se cierran todos los avisos pendientes del expediente.
   - Un usuario actúa sobre un expediente que esperaba su acción     -> `resolver_avisos`: el aviso compartido deja de estar
     pendiente para todos los que tienen el permiso (ENVIADO_CAPTACION, EN_REVISION_FINAL, EN_PRESUPUESTO,
     EN_DIRECCION_GENERAL, EN_CORRECCION_CARGO y APROBADO).
@@ -21,6 +26,7 @@ escribe en el outbox de `apps.notificaciones` (asíncrono, con reintentos y dedu
 tiene correo, y siempre tras el commit:
   - ENVIADO_CAPTACION -> EN_CORRECCION_DATOS (devolución con observaciones): «Tu postulación necesita correcciones».
   - APROBADO -> CONSOLIDANDO (reapertura de la Ventana 2): «¡Tu ingreso fue aprobado! Completa tus datos».
+  - EN_REVISION_FINAL -> CONSOLIDANDO (faltantes): «Tu expediente necesita completar datos», con el motivo y el plazo.
   - ENVIADO_CAPTACION -> RECHAZADO_CAPTACION: aviso cordial, sin el motivo interno ni más detalle.
 Nunca se envía la contraseña ni la cédula: el correo solo remite al portal y recuerda que entra con la suya.
 """
@@ -56,8 +62,15 @@ TIPO_EN_PRESUPUESTO = 'EXPEDIENTE_EN_PRESUPUESTO'
 TIPO_EN_DIRECCION = 'EXPEDIENTE_EN_DIRECCION'
 TIPO_CORRECCION_CARGO = 'EXPEDIENTE_CORRECCION_CARGO'
 TIPO_INGRESO_APROBADO = 'INGRESO_APROBADO'
+TIPO_CONTACTAR_POSTULANTE = 'CONTACTAR_POSTULANTE'
+TIPO_CONTACTO_ATRASADO = 'CONTACTO_ATRASADO'
+TIPO_CONTRATACION_COMPLETADA = 'CONTRATACION_COMPLETADA'
+TIPO_CARNET_PENDIENTE = 'CARNET_PENDIENTE'
+PERMISO_EMITIR_CARNET = 'carnetizacion.emitir'
+ENLACE_FICHA_TRABAJADOR = '/personal/consultar'
 TIPO_CORREO_CORRECCION = 'POSTULACION_CORRECCION'
 TIPO_CORREO_VENTANA2 = 'POSTULACION_VENTANA2'
+TIPO_CORREO_FALTANTES = 'POSTULACION_FALTANTES'
 TIPO_CORREO_RECHAZO = 'POSTULACION_RECHAZO'
 
 # Estado que un área atiende -> tipo de aviso compartido que esa acción cierra.
@@ -69,6 +82,19 @@ _AVISO_PENDIENTE_DE: dict[EstadoExpediente, str] = {
     E.EN_CORRECCION_CARGO: TIPO_CORRECCION_CARGO,
     E.APROBADO: TIPO_INGRESO_APROBADO,
 }
+
+
+def tipos_a_resolver(origen: EstadoExpediente, destino: EstadoExpediente, actor: Actor) -> list[str]:
+    """Avisos compartidos que este paso deja atendidos (quien actúa con cédula los cierra para todos)."""
+    if not actor.cedula or actor.tipo not in (ACTOR_USUARIO, ACTOR_POSTULANTE):
+        return []
+    if actor.tipo == ACTOR_POSTULANTE:
+        # El postulante envía su Ventana 2: ya no hay a quién contactar (ni escalar).
+        return [TIPO_CONTACTAR_POSTULANTE, TIPO_CONTACTO_ATRASADO] if destino == E.EN_REVISION_FINAL else []
+    if destino == E.CONTRATADO:
+        return [TIPO_CONTACTAR_POSTULANTE, TIPO_CONTACTO_ATRASADO, TIPO_REVISION_FINAL, TIPO_INGRESO_APROBADO]
+    tipo = _AVISO_PENDIENTE_DE.get(origen)
+    return [tipo] if tipo else []
 
 
 def _quien(p: Postulante, exp: ExpedientePostulacion) -> str:
@@ -119,6 +145,33 @@ def solicitudes_de_transicion(
             mensaje=f'Presupuesto devolvió el expediente de {quien} para corregir el cargo o la oficina.{detalle}',
             **comunes,
         )]
+    if destino == E.CONSOLIDANDO and origen != E.CONSOLIDANDO and actor.tipo == ACTOR_USUARIO:
+        if origen == E.EN_REVISION_FINAL:
+            detalle = f' Faltante: {motivo.strip()}' if (motivo or '').strip() else ''
+            titulo, mensaje = 'Contactar al postulante: faltan datos', (
+                f'Captación observó la Ventana 2 de {quien}: hay que contactarlo para que complete lo que falta.{detalle}'
+            )
+        else:
+            titulo, mensaje = 'Contactar al postulante', (
+                f'Se reabrió la Ventana 2 de {quien}: contáctelo y entréguele su nueva contraseña temporal para que complete sus datos.'
+            )
+        return [SolicitudNotificacion(
+            tipo=TIPO_CONTACTAR_POSTULANTE, permiso_destino=PERMISO_BANDEJA, enlace=ENLACE_BANDEJA.format(id=exp.id),
+            titulo=titulo, mensaje=mensaje, **comunes,
+        )]
+    if destino == E.CONTRATADO:
+        avisos = [SolicitudNotificacion(
+            tipo=TIPO_CONTRATACION_COMPLETADA, permiso_destino=PERMISO_BANDEJA, enlace=ENLACE_FICHA_TRABAJADOR,
+            titulo='Contratación completada',
+            mensaje=f'{quien} ya es trabajador de CONATEL: se le asignó el cargo y se creó su ficha.', **comunes,
+        )]
+        if exp.tiene_foto:
+            avisos.append(SolicitudNotificacion(
+                tipo=TIPO_CARNET_PENDIENTE, permiso_destino=PERMISO_EMITIR_CARNET, enlace='/carnetizacion',
+                titulo='Carnet pendiente', mensaje=f'{quien} ya tiene foto cargada y aún no tiene carnet: emítalo.',
+                **comunes,
+            ))
+        return avisos
     if destino == E.APROBADO:
         return [SolicitudNotificacion(
             tipo=TIPO_INGRESO_APROBADO, permiso_destino=PERMISO_BANDEJA, enlace=ENLACE_BANDEJA.format(id=exp.id),
@@ -174,6 +227,21 @@ def correo_al_postulante(
                 f'{cuando}'
             ), **base,
         )
+    if origen == E.EN_REVISION_FINAL and destino == E.CONSOLIDANDO:
+        asunto = 'Tu expediente necesita completar datos'
+        cuando = (
+            f'Tienes hasta el {plazo} para completarlos y enviarlos de nuevo.'
+            if plazo else 'Completa y envía tus datos dentro del plazo que verás al ingresar al portal.'
+        )
+        return SolicitudCorreoDirecto(
+            tipo=TIPO_CORREO_FALTANTES, asunto=asunto, titulo=asunto, mensaje=(
+                f'Revisamos tu expediente N.º {exp.numero} y necesitamos que completes algunos datos para poder continuar.\n'
+                f'Lo que falta: {motivo.strip()}\n'
+                'Captación se comunicará contigo para entregarte tu nueva contraseña temporal. '
+                'Con ella ingresa al portal con tu cédula, completa lo indicado y envía tus datos otra vez.\n'
+                f'{cuando}'
+            ), **base,
+        )
     if origen == E.ENVIADO_CAPTACION and destino == E.RECHAZADO_CAPTACION:
         asunto = 'Sobre tu postulación a CONATEL'
         base.pop('enlace')
@@ -195,18 +263,18 @@ def programar_avisos(
     if notificador is None:
         return
     solicitudes = solicitudes_de_transicion(exp, postulante, origen, destino, actor, asiento_id, motivo)
-    resolver = _AVISO_PENDIENTE_DE.get(origen) if actor.tipo == ACTOR_USUARIO and actor.cedula else None
+    resolver = tipos_a_resolver(origen, destino, actor)
     correo = correo_al_postulante(exp, postulante, origen, destino, actor, asiento_id, motivo)
-    if not solicitudes and resolver is None and correo is None:
+    if not solicitudes and not resolver and correo is None:
         return
 
     def emitir() -> None:
         # Primero se cierra el aviso que esta acción atiende y después se emiten los nuevos (no se pisan: distinto tipo).
-        if resolver is not None:
+        for tipo in resolver:
             try:
-                notificador.resolver_avisos(REF_TIPO, exp.id, por_cedula=actor.cedula, tipo=resolver)
+                notificador.resolver_avisos(REF_TIPO, exp.id, por_cedula=actor.cedula, tipo=tipo)
             except Exception:  # noqa: BLE001 - el aviso nunca deshace la transición
-                logger.exception('No se pudo resolver el aviso %s del expediente %s', resolver, exp.numero)
+                logger.exception('No se pudo resolver el aviso %s del expediente %s', tipo, exp.numero)
         for s in solicitudes:
             try:
                 notificador.notificar(s)

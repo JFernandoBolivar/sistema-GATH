@@ -456,19 +456,18 @@ def test_devolucion_de_captacion_reabre_la_ventana_y_el_postulante_corrige_y_ree
     assert r.status_code == 200 and r.json()['data']['expediente']['estado'] == 'ENVIADO_CAPTACION'
 
 
-def test_ventana_2_envia_a_revision_final_y_solo_admite_datos_basicos(anonimo, captacion):
+def test_ventana_2_solo_admite_datos_basicos_en_el_borrador_y_exige_su_formulario_para_enviar(anonimo, captacion):
     cliente, datos, _ = invitado(anonimo, captacion)
     ahora = timezone.now()
     ExpedientePostulacionModel.objects.update(estado='CONSOLIDANDO', ventana=2, ventana_vence_el=ahora + timedelta(days=5))
     CredencialPostulanteModel.objects.update(ventana=2, vence_el=ahora + timedelta(days=5))
     r = cliente.put(f'{BASE}/borrador/', {'nombres': 'Ana', 'apellidos': 'Pérez', 'datos_ventana1': DATOS_OK}, format='json')
-    assert r.status_code == 400
+    assert r.status_code == 400   # la Ventana 2 tiene su propio formulario (ventana2/): ver test_ventana2_api.py
     r = cliente.put(f'{BASE}/borrador/', {'nombres': 'Ana', 'apellidos': 'Pérez'}, format='json')
     assert r.status_code == 200 and r.json()['data']['expediente']['ventana'] == 2
-    r = cliente.post(f'{BASE}/enviar/')
-    assert r.status_code == 200 and r.json()['data']['expediente']['estado'] == 'EN_REVISION_FINAL'
-    assert TransicionExpedienteModel.objects.filter(
-        expediente_id=datos['expediente']['id']).order_by('fecha', 'created_at').last().estado_destino == 'EN_REVISION_FINAL'
+    r = cliente.post(f'{BASE}/enviar/')   # sin el formulario ni la foto no se puede enviar
+    assert r.status_code == 400 and r.json()['data']['codigo'] == 'VENTANA2_INCOMPLETA'
+    assert ExpedientePostulacionModel.objects.get().estado == 'CONSOLIDANDO'
 
 
 def test_enviar_y_borrador_con_la_ventana_vencida_se_rechazan(anonimo, captacion):

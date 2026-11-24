@@ -3,8 +3,11 @@ from django.urls import path
 
 from apps.postulacion.presentation.views.captacion_views import (
     AltaPostulanteView,
+    AsignarView,
     BandejaView,
+    ContactadoView,
     ExpedienteDetalleView,
+    FotoExpedienteView,
     InformePsicofisicoView,
     PsicofisicoView,
     ReponerCredencialView,
@@ -23,6 +26,9 @@ from apps.postulacion.presentation.views.postulante_views import (
     CambiarClaveView,
     EnviarView,
     MiExpedienteView,
+    Ventana2CatalogosView,
+    Ventana2FotoView,
+    Ventana2View,
 )
 from apps.postulacion.presentation.views.presupuesto_views import (
     ConstanciaAdjuntoView,
@@ -42,6 +48,9 @@ urlpatterns = [
     path('mi-expediente/', MiExpedienteView.as_view(), name='postulacion_mi_expediente'),
     path('borrador/', BorradorView.as_view(), name='postulacion_borrador'),
     path('enviar/', EnviarView.as_view(), name='postulacion_enviar'),
+    path('ventana2/', Ventana2View.as_view(), name='postulacion_ventana2'),
+    path('ventana2/catalogos/', Ventana2CatalogosView.as_view(), name='postulacion_ventana2_catalogos'),
+    path('ventana2/foto/', Ventana2FotoView.as_view(), name='postulacion_ventana2_foto'),
     # Captación (personal con permiso)
     path('postulantes/', AltaPostulanteView.as_view(), name='postulacion_alta'),
     path(
@@ -53,6 +62,11 @@ urlpatterns = [
     path(
         'expedientes/<uuid:expediente_id>/transicion/', TransicionView.as_view(), name='postulacion_transicion',
     ),
+    path(
+        'expedientes/<uuid:expediente_id>/contactado/', ContactadoView.as_view(), name='postulacion_contactado',
+    ),
+    path('expedientes/<uuid:expediente_id>/asignar/', AsignarView.as_view(), name='postulacion_asignar'),
+    path('expedientes/<uuid:expediente_id>/foto/', FotoExpedienteView.as_view(), name='postulacion_foto'),
     path(
         'expedientes/<uuid:expediente_id>/psicofisico/', PsicofisicoView.as_view(), name='postulacion_psicofisico',
     ),

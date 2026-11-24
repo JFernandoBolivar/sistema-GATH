@@ -87,3 +87,24 @@ class NoEncontradoConCodigo(NotFoundError):
     def __init__(self, *args, codigo: str, campo: str | None = None):
         super().__init__(*args, campo=campo)
         self.codigo = codigo
+
+
+class Ventana2Incompleta(ValidacionConCodigo):
+    """400 `VENTANA2_INCOMPLETA`: lo que falta para enviar la Ventana 2 viaja en `detalle['faltantes']` (va en `data`)."""
+
+    def __init__(self, faltantes: list[dict]):
+        resumen = '; '.join(f['mensaje'] for f in faltantes[:3]) + ('…' if len(faltantes) > 3 else '')
+        super().__init__(
+            f"La Ventana 2 está incompleta ({len(faltantes)} pendiente{'s' if len(faltantes) != 1 else ''}): {resumen}",
+            codigo='VENTANA2_INCOMPLETA', campo='datos_ventana2',
+        )
+        self.detalle = {'faltantes': faltantes}
+
+
+class DatosVentana2Invalidos(ValidacionConCodigo):
+    """400 `DATOS_INVALIDOS`: los datos de la Ventana 2 no cuadran con los catálogos; `detalle['errores']` = `{ruta: mensaje}`."""
+
+    def __init__(self, errores: dict[str, str]):
+        ruta, mensaje = next(iter(errores.items()))
+        super().__init__(mensaje, campo=f'datos_ventana2.{ruta}', codigo='DATOS_INVALIDOS')
+        self.detalle = {'errores': errores}

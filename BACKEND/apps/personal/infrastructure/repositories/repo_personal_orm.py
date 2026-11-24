@@ -394,6 +394,37 @@ class RepoPersonalORM:
             fila.profile = clave
             fila.save(update_fields=['profile'])
 
+    def correo_alternativo_de(self, cedula: str) -> str | None:
+        """Correo alternativo guardado del trabajador (datos complementarios), o None."""
+        return self._correo_alternativo_de(cedula) or None
+
+    def validar_correo_alternativo_libre(self, correo: str, cedula: str) -> None:
+        """Lanza `ValidationError` si el correo alternativo ya lo usa otra persona o es el institucional propio."""
+        self._validar_correo_alternativo_unico(correo, cedula=cedula, correo_institucional=None)
+
+    def registrar_procedencia_ingreso(
+        self, cedula: str, *, origen_expediente: str | None, foto_clave: str | None, ahora,
+    ) -> None:
+        """
+        Fase 2 (G-5): anota de qué expediente de postulación salió el trabajador y, si hay, su foto con
+        metadatos (`foto_objeto` + `foto_actualizada`; `profile` se alinea para los visores actuales).
+        `origen_expediente` es un id opaco: `personal` no conoce `postulacion`.
+        """
+        fila = EmployeeModel.objects.filter(cedulaidentidad=cedula).first()
+        if fila is None:
+            raise NotFoundError(f"Empleado con cédula {cedula} no encontrado")
+        campos = []
+        if origen_expediente:
+            fila.origen_expediente = origen_expediente
+            campos.append('origen_expediente')
+        if foto_clave:
+            fila.foto_objeto = foto_clave
+            fila.foto_actualizada = ahora
+            fila.profile = foto_clave
+            campos += ['foto_objeto', 'foto_actualizada', 'profile']
+        if campos:
+            fila.save(update_fields=campos)  # save() y no update(): invalida la caché de «Mi ficha»
+
     def obtener_clave_foto(self, cedula: str) -> str | None:
         valor = EmployeeModel.objects.filter(cedulaidentidad=cedula).values_list('profile', flat=True).first()
         return valor.strip() if valor and isinstance(valor, str) and valor.strip() else None

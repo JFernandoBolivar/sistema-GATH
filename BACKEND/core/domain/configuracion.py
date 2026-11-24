@@ -61,6 +61,8 @@ CLAVE_CAPTACION_VIGENCIA_RESERVA_PUESTO_DIAS = 'captacion.vigencia_reserva_puest
 CLAVE_CAPTACION_PSICOFISICO_OBLIGATORIO = 'captacion.psicofisico_obligatorio'
 CLAVE_CAPTACION_RETENCION_RECHAZADOS_MESES = 'captacion.retencion_rechazados_meses'
 CLAVE_CAPTACION_ESPERA_DIFERIDO_DIAS = 'captacion.espera_diferido_dias'
+# G-1: horas sin contactar al postulante tras reabrir su ventana antes de escalar la tarea.
+CLAVE_CAPTACION_HORAS_ESCALAMIENTO_CONTACTO = 'captacion.horas_escalamiento_contacto'
 
 ALCANCE_CARNET_NADIE = 'nadie'
 ALCANCE_CARNET_TODOS = 'todos'

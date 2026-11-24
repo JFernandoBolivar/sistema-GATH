@@ -5,6 +5,8 @@ Vencimientos que ejecuta el SISTEMA (E-7): tarea periódica `postulacion.liberar
     EN_PRESUPUESTO (transición de sistema «el puesto se perdió»).
   * DIFERIDO_PRESUPUESTO con la espera vencida (C-10) -> DESISTIDO.
   * PRE_REGISTRADO / EN_CAPTURA con la ventana vencida -> EXPIRADO.
+  * CONSOLIDANDO con el contacto al postulante pendiente más de `captacion.horas_escalamiento_contacto` horas (48 por defecto)
+    -> se ESCALA: aviso CONTACTO_ATRASADO (una sola vez por reapertura: se deduplica por `clave`). No cambia el estado.
 
 Idempotente: cada paso relee el estado bajo bloqueo y no hace nada si ya no corresponde. Un fallo en un expediente se
 registra y no detiene a los demás. En el historial queda el actor «sistema» (`actor_tipo=SISTEMA`, sin cédula).
@@ -13,13 +15,22 @@ import logging
 from dataclasses import dataclass, replace
 from datetime import datetime
 
-from apps.postulacion.application.use_cases._comun import ahora_utc, obtener_expediente
+from apps.postulacion.application.use_cases._comun import ahora_utc, leer_horas_escalamiento_contacto, obtener_expediente
+from apps.postulacion.application.use_cases.avisos import (
+    ENLACE_BANDEJA,
+    MODULO,
+    PERMISO_BANDEJA,
+    REF_TIPO,
+    TIPO_CONTACTO_ATRASADO,
+)
 from apps.postulacion.application.use_cases.transiciones import aplicar_transicion_expediente
 from apps.postulacion.domain.entities.reserva import MOTIVO_VENCIMIENTO, VENCIDA
 from apps.postulacion.domain.ports.repos import RepoPostulacion
+from apps.postulacion.domain.services.contacto import limite_de_atraso
 from apps.postulacion.domain.services.maquina_estados import Actor
 from apps.postulacion.domain.value_objects.estados import EstadoExpediente
 from core.domain.exceptions import DomainError
+from core.domain.notificaciones import SolicitudNotificacion
 from core.domain.ports import LectorConfiguracion, Notificador
 
 logger = logging.getLogger('gath.postulacion')
@@ -36,6 +47,7 @@ class ResumenVencimientos:
     vueltos_a_presupuesto: int = 0
     desistidos: int = 0
     expirados: int = 0
+    contactos_escalados: int = 0
     errores: int = 0
 
     @property
@@ -117,4 +129,40 @@ def procesar_vencimientos(
             except Exception:  # noqa: BLE001
                 logger.exception('Error inesperado con el expediente %s', expediente_id)
                 contar(errores=1)
+    contar(contactos_escalados=escalar_contactos_atrasados(repo, config, notificador, ahora))
     return resumen
+
+
+def escalar_contactos_atrasados(
+    repo: RepoPostulacion, config: LectorConfiguracion, notificador: Notificador | None, ahora: datetime,
+) -> int:
+    """
+    Avisa (CONTACTO_ATRASADO, a `postulacion.ver_bandeja`) de cada expediente cuyo contacto con el postulante lleva más de las
+    horas del parámetro sin atenderse. Idempotente: la `clave` es la fecha desde la que está pendiente, así que el mismo
+    atraso no se avisa dos veces (una nueva reapertura sí genera un aviso nuevo). Devuelve cuántos avisó.
+    """
+    if notificador is None:
+        return 0
+    horas = leer_horas_escalamiento_contacto(config)
+    avisados = 0
+    for expediente_id in repo.listar_ids_con_contacto_atrasado(limite_de_atraso(ahora, horas)):
+        try:
+            exp = obtener_expediente(repo, expediente_id)
+            postulante = repo.obtener_postulante(exp.postulante_id)
+            desde = exp.contacto_pendiente_desde
+            if postulante is None or desde is None:
+                continue
+            transcurridas = int((ahora - desde).total_seconds() // 3600)
+            creadas = notificador.notificar(SolicitudNotificacion(
+                tipo=TIPO_CONTACTO_ATRASADO, permiso_destino=PERMISO_BANDEJA,
+                enlace=ENLACE_BANDEJA.format(id=exp.id), ref_tipo=REF_TIPO, ref_id=exp.id, clave=desde.isoformat(),
+                modulo=MODULO, titulo='Contacto con el postulante atrasado',
+                mensaje=(
+                    f'Hace más de {transcurridas} horas se reabrió la Ventana 2 de {postulante.nombres} {postulante.apellidos} '
+                    f'({exp.numero}) y nadie lo ha contactado. Si no se le avisa, el expediente queda detenido.'
+                ),
+            ))
+            avisados += 1 if creadas else 0   # el notificador deduplica: solo cuenta lo que creó
+        except Exception:  # noqa: BLE001 - un expediente con problemas no detiene al resto
+            logger.exception('No se pudo escalar el contacto del expediente %s', expediente_id)
+    return avisados

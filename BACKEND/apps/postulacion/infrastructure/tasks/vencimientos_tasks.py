@@ -25,9 +25,11 @@ def liberar_reservas_vencidas_tarea() -> dict:
     r = procesar_vencimientos(RepoPostulacionORM(), config, obtener_notificador(), ahora=datetime.now(timezone.utc))
     logger.info(
         'postulacion.liberar_reservas_vencidas: %s reserva(s) vencida(s), %s vuelta(s) a Presupuesto, %s desistido(s), '
-        '%s expirado(s), %s error(es)', r.reservas_vencidas, r.vueltos_a_presupuesto, r.desistidos, r.expirados, r.errores,
+        '%s expirado(s), %s contacto(s) escalado(s), %s error(es)', r.reservas_vencidas, r.vueltos_a_presupuesto,
+        r.desistidos, r.expirados, r.contactos_escalados, r.errores,
     )
     return {
         'reservas_vencidas': r.reservas_vencidas, 'vueltos_a_presupuesto': r.vueltos_a_presupuesto,
-        'desistidos': r.desistidos, 'expirados': r.expirados, 'errores': r.errores,
+        'desistidos': r.desistidos, 'expirados': r.expirados, 'contactos_escalados': r.contactos_escalados,
+        'errores': r.errores,
     }

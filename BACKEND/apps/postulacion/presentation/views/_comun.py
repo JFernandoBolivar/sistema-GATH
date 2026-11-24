@@ -20,6 +20,7 @@ from apps.postulacion.domain.entities.constancia import ConstanciaPresupuestaria
 from apps.postulacion.domain.entities.punto_cuenta_ingreso import PuntoCuentaIngreso
 from apps.postulacion.domain.entities.reserva import ReservaPuesto
 from apps.postulacion.domain.entities.vacantes import PuestoVacante
+from apps.postulacion.domain.services.contacto import contacto_atrasado, contacto_pendiente
 from apps.postulacion.domain.services.maquina_estados import (
     P_ABRIR_EXPEDIENTE,
     P_APROBAR_INGRESO,
@@ -95,7 +96,14 @@ class ErroresAccesoMixin:
     def handle_exception(self, exc):
         if isinstance(exc, ErrorAccesoPostulante):
             return respuesta_error_acceso(exc)
-        return super().handle_exception(exc)
+        respuesta = super().handle_exception(exc)
+        # Los errores de dominio con `codigo` explícito (p. ej. VENTANA2_INCOMPLETA, VENTANA_INCORRECTA) lo llevan en `data`,
+        # con su detalle (la lista de faltantes). Los demás conservan su respuesta de siempre.
+        if isinstance(exc, DomainError) and getattr(exc, 'codigo', None) and isinstance(getattr(respuesta, 'data', None), dict):
+            respuesta.data['data'] = {
+                **(respuesta.data.get('data') or {}), **(getattr(exc, 'detalle', None) or {}), 'codigo': exc.codigo,
+            }
+        return respuesta
 
 
 class VistaPostulante(ErroresAccesoMixin, APIView):
@@ -164,6 +172,12 @@ def a_dict_mi_expediente(v: VistaMiExpediente) -> dict:
             'telefono_movil': p.telefono_movil,
         },
         'datos_ventana1': exp.datos_ventana1,
+        # Qué formulario toca: el frontend muestra el de la Ventana 1 o el de la 2 (con sus datos, faltantes y foto).
+        'ventana_actual': exp.ventana,
+        'formulario': {1: 'ventana1', 2: 'ventana2'}.get(exp.ventana),
+        'datos_ventana2': exp.datos_ventana2 if exp.ventana == 2 else {},
+        'tiene_foto': exp.tiene_foto,
+        'faltantes_ventana2': v.faltantes_ventana2,
         'campos_pendientes': v.campos_pendientes,
     }
 
@@ -196,16 +210,26 @@ class ErroresConCodigoMixin:
         respuesta = super().handle_exception(exc)
         if isinstance(exc, DomainError) and isinstance(getattr(respuesta, 'data', None), dict):
             codigo = getattr(exc, 'codigo', None) or CODIGO_POR_ERROR.get(type(exc).__name__, 'ERROR')
-            respuesta.data['data'] = {**(respuesta.data.get('data') or {}), 'codigo': codigo}
+            respuesta.data['data'] = {
+                **(respuesta.data.get('data') or {}), **(getattr(exc, 'detalle', None) or {}), 'codigo': codigo,
+            }
         return respuesta
 
 
-def a_dict_fila_bandeja(f: FilaBandeja) -> dict:
+def a_dict_contacto(exp: ExpedientePostulacion, horas: int, momento: datetime | None = None) -> dict:
+    """La tarea «contactar al postulante» (G-1): pendiente, desde cuándo y si ya pasó el plazo de escalamiento."""
+    return {
+        'contacto_pendiente': contacto_pendiente(exp), 'contacto_pendiente_desde': exp.contacto_pendiente_desde,
+        'contacto_atrasado': contacto_atrasado(exp, momento or ahora(), horas),
+    }
+
+
+def a_dict_fila_bandeja(f: FilaBandeja, horas: int = 48, momento: datetime | None = None) -> dict:
     exp, p = f.expediente, f.postulante
     return {
         'id': exp.id, 'numero': exp.numero, 'estado': exp.estado.value, 'ventana': exp.ventana,
         'vence_el': exp.ventana_vence_el, 'ultimo_cambio': f.ultimo_cambio, 'es_reingreso': f.es_reingreso,
-        'pendiente_de_captacion': f.pendiente_de_captacion,
+        'pendiente_de_captacion': f.pendiente_de_captacion, **a_dict_contacto(exp, horas, momento),
         'postulante': {'cedula': p.cedula, 'nombres': p.nombres, 'apellidos': p.apellidos},
     }
 
@@ -226,6 +250,7 @@ def a_dict_detalle_captacion(d: DetalleCaptacion) -> dict:
         'expediente': {
             **a_dict_expediente_resumen(exp), 'fecha_apertura': exp.fecha_apertura, 'fecha_cierre': exp.fecha_cierre,
             'observaciones': exp.observaciones, 'es_reingreso': p.es_reingreso,
+            **a_dict_contacto(exp, d.horas_escalamiento_contacto),
             'propuesta': {
                 'cargo_id': exp.cargo_propuesto_id, 'cargo_especifico_id': exp.cargo_especifico_propuesto_id,
                 'tipo_nomina_id': exp.tipo_nomina_propuesto_id, 'direccion_general_id': exp.direccion_general_id,
@@ -239,6 +264,13 @@ def a_dict_detalle_captacion(d: DetalleCaptacion) -> dict:
             'telefono_movil': p.telefono_movil, 'es_reingreso': p.es_reingreso,
         },
         'datos_ventana1': exp.datos_ventana1,
+        'datos_ventana2': exp.datos_ventana2,
+        'datos_ventana2_legible': d.ventana2_legible,
+        'ventana2_faltantes': d.ventana2_faltantes,
+        'foto': {
+            'tiene': exp.tiene_foto, 'subida_el': exp.foto_subida_el, 'tamano': exp.foto_tamano,
+            'url': f'{RUTA_BASE}/expedientes/{exp.id}/foto/' if exp.tiene_foto else None,
+        },
         'historial': [
             {'estado_origen': t.estado_origen, 'estado_destino': t.estado_destino, 'fecha': t.fecha,
              'actor_cedula': t.actor_cedula, 'actor_tipo': t.actor_tipo, 'motivo': t.motivo}
@@ -399,5 +431,28 @@ def a_dict_detalle_area(d: DetalleArea, area: str) -> dict:
         ],
         'capacidades': {
             'puede_reservar': d.puede_reservar, 'puede_declarar_disponibilidad': d.puede_declarar,
+        },
+    }
+
+
+# --- Promoción (G-4) ---
+def a_dict_contratacion(r) -> dict:
+    """Resultado de `promover_postulante`. NUNCA lleva contraseñas: la inicial es la cédula del trabajador (política vigente)."""
+    p, c = r.promocion, r.promocion.cuenta
+    return {
+        'expediente': a_dict_expediente_resumen(r.expediente),
+        'employee_id': p.employee_id, 'cedula': p.cedula, 'es_reingreso': p.es_reingreso,
+        'puesto': {'id': r.reserva.puesto_id, 'codigo': p.puesto_codigo},
+        'familiares_copiados': p.familiares_copiados,
+        'reserva': {'id': r.reserva.id, 'estado': r.reserva.estado},
+        'cuenta': {
+            'creada': c.creada, 'reactivada': c.reactivada, 'motivo': c.motivo, 'correo': c.correo,
+            'correo_alternativo': c.correo_alternativo,
+            'dias_vigencia_clave_inicial': c.dias_vigencia_clave_inicial,
+            'entrega': (
+                'Cuenta creada: la contraseña inicial es la cédula del trabajador y vence en '
+                f'{c.dias_vigencia_clave_inicial} días; debe cambiarla en su primer ingreso.'
+                if c.creada and c.dias_vigencia_clave_inicial else None
+            ),
         },
     }

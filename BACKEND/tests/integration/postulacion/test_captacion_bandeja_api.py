@@ -61,7 +61,7 @@ class Config:
     def __init__(self, psicofisico=True):
         self.valores = {
             'captacion.vigencia_ventana1_dias': 15, 'captacion.vigencia_ventana2_dias': 10,
-            'captacion.vigencia_reserva_puesto_dias': 30, 'captacion.espera_diferido_dias': 90,
+            'captacion.vigencia_reserva_puesto_dias': 30, 'captacion.espera_diferido_dias': 90, 'captacion.horas_escalamiento_contacto': 48,
             'captacion.psicofisico_obligatorio': psicofisico,
         }
 
@@ -558,8 +558,11 @@ def test_el_envio_de_la_ventana_1_avisa_a_la_bandeja_de_captacion(django_capture
     assert aviso.cedula_destino == '' and 'Ana María Pérez' in aviso.mensaje
 
 
-def test_el_envio_de_la_ventana_2_avisa_revision_final(django_capture_on_commit_callbacks):
+def test_el_envio_de_la_ventana_2_avisa_revision_final(django_capture_on_commit_callbacks, mundo):
+    from tests.integration.postulacion._ventana2_mundo import Mundo2, completar_ventana2
+
     exp, c = postulante_envia(ventana2=True)
+    completar_ventana2(exp, Mundo2(mundo).cat)   # la Ventana 2 completa y la foto (el formulario se prueba en test_ventana2_api)
     with django_capture_on_commit_callbacks(execute=True):
         r = c.post('/api/v1/postulacion/enviar/')
     assert r.status_code == 200, r.content

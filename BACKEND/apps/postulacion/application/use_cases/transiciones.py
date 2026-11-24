@@ -49,6 +49,9 @@ class HechosExternos:
     disponibilidad_declarada: bool = False
     puesto_reservado: bool = False
     puesto_revalidado: bool = False
+    # Vencimiento de la reserva REAL (la fila de `ReservaPuesto`): manda sobre el copiado al expediente, que lo fija
+    # la entrada a Dirección General y puede diferir de la reserva vigente (G-4).
+    reserva_vence_el: datetime | None = None
 
 
 def aplicar_transicion_expediente(
@@ -98,7 +101,8 @@ def aplicar_transicion_expediente(
             exige_presupuesto and repo.obtener_constancia(exp.id) is not None
         )
         hechos = Hechos(
-            ahora=ahora, ventana_vence_el=exp.ventana_vence_el, reserva_vence_el=exp.reserva_vence_el,
+            ahora=ahora, ventana_vence_el=exp.ventana_vence_el,
+            reserva_vence_el=externos.reserva_vence_el or exp.reserva_vence_el,
             diferido_vence_el=exp.diferido_vence_el,
             cargo_definido=exp.cargo_definido, oficina_definida=exp.oficina_definida,
             psicofisico_obligatorio=psicofisico_obligatorio,

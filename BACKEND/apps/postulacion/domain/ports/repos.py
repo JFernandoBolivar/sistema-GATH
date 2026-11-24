@@ -2,12 +2,13 @@
 from contextlib import AbstractContextManager
 from typing import Callable, Protocol
 
-from datetime import datetime
+from datetime import date, datetime
 
 from apps.postulacion.domain.entities.bandeja import FilaBandeja, FiltrosBandeja, PropuestaCatalogo
 from apps.postulacion.domain.entities.constancia import ConstanciaPresupuestaria
 from apps.postulacion.domain.entities.credencial import CredencialPostulante
 from apps.postulacion.domain.entities.expediente import ExpedientePostulacion
+from apps.postulacion.domain.entities.promocion import ResultadoPromocion, SolicitudPromocion
 from apps.postulacion.domain.entities.postulante import EmpleadoPrevio, Postulante, TransicionRegistrada
 from apps.postulacion.domain.entities.psicofisico import ResultadoPsicofisico
 from apps.postulacion.domain.entities.punto_cuenta_ingreso import (
@@ -66,6 +67,10 @@ class RepoPostulacion(Protocol):
 
     def listar_ids_con_diferido_vencido(self, ahora: datetime) -> list[str]:
         """Expedientes DIFERIDO_PRESUPUESTO cuya espera (`diferido_vence_el`) venció."""
+        ...
+
+    def listar_ids_con_contacto_atrasado(self, limite: datetime) -> list[str]:
+        """Expedientes en CONSOLIDANDO con el contacto al postulante pendiente desde antes de `limite` (G-1)."""
         ...
 
     # --- test psicofísico (uno por expediente) ---
@@ -177,3 +182,34 @@ class EmisorPuntoCuenta(Protocol):
     def descartar(self, punto_cuenta_id: str, pdf_clave: str) -> None:
         """Compensación: borra el objeto del almacén si la transacción del expediente se revierte."""
         ...
+
+
+class CatalogosVentana2(Protocol):
+    """Catálogos y comprobaciones de la Ventana 2 contra las tablas de personal, familiares y catálogos (sin FK)."""
+
+    def catalogos(self, estado_id: int | None = None, municipio_id: int | None = None) -> dict:
+        """Opciones del formulario. Los municipios solo si llega `estado_id`; las parroquias solo si llega `municipio_id`."""
+        ...
+
+    def errores(
+        self, datos: dict, *, cedula_titular: str, fecha_nacimiento_titular: date | None, hoy: date, completo: bool,
+    ) -> dict[str, str]:
+        """
+        `{ruta: mensaje}` de lo que no cuadra con los catálogos: ids inexistentes, jerarquía estado > municipio >
+        parroquia, parentesco no permitido y (si `completo`) las reglas del familiar (edad, sexo, cédula o hijo sin cédula).
+        """
+        ...
+
+    def legible(self, datos: dict) -> dict:
+        """Los mismos datos con el nombre de cada catálogo junto al id, para que Captación los lea."""
+        ...
+
+
+class PromotorEmpleado(Protocol):
+    """
+    Da de alta al trabajador desde el expediente: Employee (o el existente en un reingreso), sus datos, su puesto, el
+    movimiento INGRESO y su cuenta. Lo implementa `infrastructure` invocando los casos de uso de personal, familiares,
+    cargos, movimientos e identidad. NO abre transacción: corre dentro de la del caso de uso (todo o nada).
+    """
+
+    def promover(self, solicitud: SolicitudPromocion) -> ResultadoPromocion: ...

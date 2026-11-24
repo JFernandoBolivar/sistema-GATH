@@ -4,20 +4,31 @@ Transiciones del flujo de Captación por la API (D-7). Sin Django.
 Envuelve `aplicar_transicion_expediente`: la máquina valida permiso, guardas y motivo; aquí se limita el endpoint a
 las transiciones de Captación (`PARES_CAPTACION`) y se traduce `datos` a la propuesta de cargo y oficina, con los
 ids comprobados contra los catálogos por un puerto.
+
+Reabrir la Ventana 2 (G-1, G-3): APROBADO -> CONSOLIDANDO y EN_REVISION_FINAL -> CONSOLIDANDO («observar faltantes») emiten
+en la MISMA transacción una contraseña temporal NUEVA (misma que `reponer-credencial`: ventana 2, vence según el parámetro,
+cambio de clave obligatorio) que se devuelve UNA sola vez. La tarea «contactar al postulante» queda pendiente hasta que
+Captación la marca con `registrar_contacto`.
 """
+import logging
+from dataclasses import replace
 from datetime import datetime
 
-from apps.postulacion.application.use_cases._comun import obtener_expediente, texto_normalizado
+from apps.postulacion.application.use_cases._comun import ahora_utc, obtener_expediente, texto_normalizado
+from apps.postulacion.application.use_cases.avisos import TIPO_CONTACTAR_POSTULANTE, TIPO_CONTACTO_ATRASADO, REF_TIPO
+from apps.postulacion.application.use_cases.credenciales import EmisionCredencial, emitir_credencial
 from apps.postulacion.application.use_cases.transiciones import aplicar_transicion_expediente
 from apps.postulacion.domain.entities.bandeja import PropuestaCatalogo
 from apps.postulacion.domain.entities.expediente import ExpedientePostulacion
 from apps.postulacion.domain.entities.postulante import TransicionRegistrada
 from apps.postulacion.domain.errores import ConflictoConCodigo, ValidacionConCodigo
-from apps.postulacion.domain.ports.repos import CatalogoPropuesta, RepoPostulacion
+from apps.postulacion.domain.ports.repos import CatalogoPropuesta, HasheadorClaves, RepoPostulacion
 from apps.postulacion.domain.services.acciones import es_par_de_captacion
 from apps.postulacion.domain.services.maquina_estados import Actor
 from apps.postulacion.domain.value_objects.estados import EstadoExpediente
 from core.domain.ports import LectorConfiguracion, Notificador
+
+logger = logging.getLogger('gath.postulacion')
 
 # clave de `datos` -> campo del expediente, para los ids (enteros positivos) y los textos.
 _IDS = {
@@ -82,9 +93,12 @@ def construir_propuesta(datos: dict, catalogo: CatalogoPropuesta) -> dict:
 def transicionar_captacion(
     repo: RepoPostulacion, config: LectorConfiguracion, catalogo: CatalogoPropuesta, notificador: Notificador | None, *,
     expediente_id: str, destino: EstadoExpediente | str, actor: Actor, motivo: str = '', datos: dict | None = None,
-    ahora: datetime | None = None,
-) -> tuple[ExpedientePostulacion, TransicionRegistrada | None, str]:
-    """Devuelve `(expediente, asiento, estado_origen)`. Los errores son `DomainError` con `codigo` en español."""
+    ahora: datetime | None = None, hasheador: HasheadorClaves | None = None,
+) -> tuple[ExpedientePostulacion, TransicionRegistrada | None, str, EmisionCredencial | None]:
+    """
+    Devuelve `(expediente, asiento, estado_origen, emision)`; `emision` es la credencial NUEVA (con su contraseña temporal, que
+    solo viaja aquí) cuando la transición reabre la Ventana 2, y None en las demás. Los errores son `DomainError` con `codigo`.
+    """
     try:
         destino = EstadoExpediente(destino)
     except ValueError as e:
@@ -107,9 +121,61 @@ def transicionar_captacion(
                 codigo='PROPUESTA_INVALIDA',
             )
         propuesta = construir_propuesta(datos, catalogo) or None
-    exp, asiento = aplicar_transicion_expediente(
-        repo, config, expediente_id=expediente_id, destino=destino, actor=actor, motivo=motivo, propuesta=propuesta,
-        datos_extra={'origen': 'captacion', **({'propuesta': propuesta} if propuesta else {})},
-        ahora=ahora, notificador=notificador,
-    )
-    return exp, asiento, asiento.estado_origen if asiento else actual.estado.value
+    reabre_ventana2 = destino == EstadoExpediente.CONSOLIDANDO and actual.estado != EstadoExpediente.CONSOLIDANDO
+    if reabre_ventana2 and hasheador is None:
+        raise ValidacionConCodigo(
+            "No se puede reabrir la Ventana 2 sin emitir la credencial nueva.", campo='destino', codigo='DESTINO_INVALIDO',
+        )
+    ahora = ahora or ahora_utc()
+    emision = None
+    with repo.transaccion():
+        exp, asiento = aplicar_transicion_expediente(
+            repo, config, expediente_id=expediente_id, destino=destino, actor=actor, motivo=motivo, propuesta=propuesta,
+            datos_extra={
+                'origen': 'captacion', **({'propuesta': propuesta} if propuesta else {}),
+                **({'credencial_repuesta': True} if reabre_ventana2 else {}),
+            },
+            ahora=ahora, notificador=notificador,
+        )
+        if reabre_ventana2:
+            # La nueva contraseña invalida la anterior y las sesiones abiertas; el correo de cortesía NUNCA la incluye.
+            emision = emitir_credencial(repo, hasheador, expediente_id=exp.id, emitida_por=actor.cedula, ahora=ahora)
+    return exp, asiento, asiento.estado_origen if asiento else actual.estado.value, emision
+
+
+def registrar_contacto(
+    repo: RepoPostulacion, notificador: Notificador | None, *, expediente_id: str, actor: Actor, nota: str = '',
+    ahora: datetime | None = None,
+) -> ExpedientePostulacion:
+    """
+    Captación registra que contactó al postulante (G-1): queda en el historial SIN cambiar de estado (la nota va en
+    `datos_extra`, no en `motivo`, para que el postulante no la lea como observación), limpia la tarea pendiente y cierra
+    el aviso CONTACTAR_POSTULANTE (y su escalamiento) para todos.
+    """
+    ahora = ahora or ahora_utc()
+    nota = texto_normalizado(nota, "La nota", maximo=500, obligatorio=False)
+    with repo.transaccion():
+        exp = obtener_expediente(repo, expediente_id, bloquear=True)
+        if exp.estado != EstadoExpediente.CONSOLIDANDO or exp.contacto_pendiente_desde is None:
+            raise ConflictoConCodigo(
+                "Este expediente no tiene un contacto con el postulante pendiente.", codigo='CONTACTO_NO_PENDIENTE',
+            )
+        desde = exp.contacto_pendiente_desde
+        guardado = repo.guardar_expediente(replace(exp, contacto_pendiente_desde=None))
+        repo.registrar_transicion(TransicionRegistrada(
+            id='', expediente_id=guardado.id, estado_origen=exp.estado.value, estado_destino=exp.estado.value,
+            actor_cedula=actor.cedula, actor_tipo=actor.tipo, fecha=ahora,
+            datos_extra={
+                'tipo': 'CONTACTADO', 'origen': 'captacion', 'pendiente_desde': desde.isoformat(),
+                **({'nota': nota} if nota else {}),
+            },
+        ))
+        if notificador is not None and actor.cedula:
+            def cerrar() -> None:
+                for tipo in (TIPO_CONTACTAR_POSTULANTE, TIPO_CONTACTO_ATRASADO):
+                    try:
+                        notificador.resolver_avisos(REF_TIPO, guardado.id, por_cedula=actor.cedula, tipo=tipo)
+                    except Exception:  # noqa: BLE001 - el aviso nunca deshace el registro
+                        logger.exception('No se pudo resolver el aviso %s del expediente %s', tipo, guardado.numero)
+            repo.al_confirmar(cerrar)
+    return guardado

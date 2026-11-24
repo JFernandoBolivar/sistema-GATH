@@ -47,6 +47,12 @@ class RepoPersonal(Protocol):
     def guardar_foto(self, cedula: str, clave: str) -> None:
         ...
 
+    def registrar_procedencia_ingreso(
+        self, cedula: str, *, origen_expediente: str | None, foto_clave: str | None, ahora,
+    ) -> None:
+        """Anota el origen del ingreso (id opaco de expediente) y la foto con metadatos (G-5)."""
+        ...
+
     def obtener_clave_foto(self, cedula: str) -> str | None:
         """Clave del objeto de la foto del empleado, o None si no tiene/no existe."""
         ...

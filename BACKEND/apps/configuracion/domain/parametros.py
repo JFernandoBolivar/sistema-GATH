@@ -26,6 +26,7 @@ from core.domain.configuracion import (
     CLAVE_CAPTACION_RETENCION_RECHAZADOS_MESES,
     CLAVE_CAPTACION_VIGENCIA_RESERVA_PUESTO_DIAS,
     CLAVE_CAPTACION_VIGENCIA_VENTANA1_DIAS,
+    CLAVE_CAPTACION_HORAS_ESCALAMIENTO_CONTACTO,
     CLAVE_CAPTACION_VIGENCIA_VENTANA2_DIAS,
     CLAVE_CARGA_MASIVA_APROBACION,
     CLAVE_CARNETIZACION_MI_CARNET_ALCANCE,
@@ -596,6 +597,20 @@ DEFINICIONES = (
         defecto='90',
         minimo=1,
         maximo=365,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_CAPTACION_HORAS_ESCALAMIENTO_CONTACTO,
+        etiqueta='Horas para escalar el contacto con el postulante',
+        descripcion=(
+            'Horas que Captación tiene para contactar al postulante tras reabrir su ventana '
+            '(Ventana 2 o faltantes). Pasado ese plazo sin contactarlo, la tarea queda atrasada: '
+            'sube al inicio de la bandeja y se avisa de nuevo.'
+        ),
+        grupo=GRUPO_CAPTACION,
+        tipo=TIPO_ENTERO,
+        defecto='48',
+        minimo=1,
+        maximo=720,
     ),
 )
 

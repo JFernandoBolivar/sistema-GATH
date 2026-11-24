@@ -1,5 +1,7 @@
 """Vistas del postulante (invitado): acceso, cambio de clave, su expediente, borrador y envío (D-4)."""
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 
@@ -9,8 +11,17 @@ from apps.postulacion.application.use_cases.mi_expediente import (
     enviar_expediente,
     guardar_borrador,
 )
+from apps.postulacion.application.use_cases.ventana2 import (
+    VistaVentana2,
+    consultar_ventana2,
+    foto_propia,
+    guardar_ventana2,
+    subir_foto,
+)
 from apps.postulacion.domain.errores import ErrorAccesoPostulante
 from apps.postulacion.domain.services.credencial import expiracion_sesion
+from apps.postulacion.infrastructure.catalogos_ventana2_orm import CatalogosVentana2ORM
+from apps.postulacion.infrastructure.foto_carnet import preparar_foto_carnet
 from apps.postulacion.infrastructure.hasheador_django import HasheadorDjango
 from apps.postulacion.infrastructure.repositories.repo_postulacion_orm import RepoPostulacionORM
 from apps.postulacion.infrastructure.tokens.sesion_invitado import emitir_token_invitado
@@ -21,8 +32,11 @@ from apps.postulacion.presentation.serializers.postulacion_serializers import (
     BorradorSerializer,
     CambiarClaveSerializer,
     EnvioSerializer,
+    FotoCarnetSerializer,
     MiExpedienteSerializer,
     SesionInvitadoSerializer,
+    Ventana2RespuestaSerializer,
+    Ventana2Serializer,
 )
 from apps.postulacion.presentation.views._comun import (
     ErroresAccesoMixin,
@@ -37,6 +51,8 @@ from apps.postulacion.presentation.views._comun import (
     validar_entrada,
 )
 from core.infrastructure.providers import obtener_notificador
+from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
+from core.presentation.archivos import respuesta_archivo
 from core.presentation.envelope import ok
 from core.presentation.schema import MensajeRespuestaSerializer
 
@@ -160,7 +176,8 @@ class EnviarView(VistaPostulante):
         tags=TAG, summary='Enviar la ventana actual a Captación', request=None,
         description=(
             "EN_CAPTURA o EN_CORRECCION_DATOS -> ENVIADO_CAPTACION; CONSOLIDANDO -> EN_REVISION_FINAL. "
-            "La sesión se cierra: el token deja de valer al enviar."
+            "La sesión se cierra: el token deja de valer al enviar. Ventana 2 incompleta: 400 con `data.codigo` = "
+            "VENTANA2_INCOMPLETA y `data.faltantes` = `[{seccion, campo, mensaje}]` (incluye la foto)."
         ),
         responses={200: EnvioSerializer, **ERRORES},
     )
@@ -169,7 +186,7 @@ class EnviarView(VistaPostulante):
         repo = RepoPostulacionORM()
         enviar_expediente(
             repo, configuracion(), expediente_id=sesion.expediente_id, cedula=sesion.cedula, ahora=ahora(),
-            notificador=obtener_notificador(),
+            notificador=obtener_notificador(), catalogos=CatalogosVentana2ORM(),
         )
         vista = consultar_mi_expediente(repo, expediente_id=sesion.expediente_id, cedula=sesion.cedula)
         auditar_postulante(
@@ -180,3 +197,110 @@ class EnviarView(VistaPostulante):
             {'sesion_cerrada': True, 'expediente': a_dict_mi_expediente(vista)['expediente']},
             'Expediente enviado a Captación.',
         ))
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Ventana 2 (G-2): formulario de consolidación y foto de carnet. Solo en CONSOLIDANDO y con la ventana vigente.
+# ---------------------------------------------------------------------------------------------------------------
+def _dict_ventana2(v: VistaVentana2) -> dict:
+    exp = v.expediente
+    return {
+        'expediente': a_dict_expediente_resumen(exp), 'datos_ventana2': v.datos, 'faltantes': v.faltantes,
+        'completa': v.completa,
+        'foto': {'tiene': exp.tiene_foto, 'subida_el': exp.foto_subida_el, 'tamano': exp.foto_tamano},
+    }
+
+
+class Ventana2View(VistaPostulante):
+    @extend_schema(
+        tags=TAG, summary='Borrador de la Ventana 2 (familiares, vivienda, salud, tallas) y lo que falta',
+        responses={200: Ventana2RespuestaSerializer, **ERRORES},
+        description=(
+            "Solo con el expediente en CONSOLIDANDO y la ventana vigente (otro estado: 409 `VENTANA_INCORRECTA`; ventana "
+            "vencida: 403). `faltantes` es lo que aún impide enviar."
+        ),
+    )
+    def get(self, request):
+        sesion = request.user
+        vista = consultar_ventana2(
+            RepoPostulacionORM(), CatalogosVentana2ORM(), expediente_id=sesion.expediente_id, cedula=sesion.cedula,
+            ahora=ahora(),
+        )
+        return sin_cache(ok(_dict_ventana2(vista)))
+
+    @extend_schema(
+        tags=TAG, summary='Guardar el borrador de la Ventana 2', request=Ventana2Serializer,
+        responses={200: Ventana2RespuestaSerializer, **ERRORES},
+        description=(
+            "Cada sección enviada (`familiares`, `sin_familiares`, `vivienda`, `salud`, `tallas`) REEMPLAZA a la anterior; las "
+            "omitidas no cambian. Todo viaja por id de los catálogos de `ventana2/catalogos/`. Claves desconocidas: 400. "
+            "Ids inexistentes o jerarquía geográfica incoherente: 400 `DATOS_INVALIDOS` con `data.errores` = `{ruta: mensaje}`."
+        ),
+    )
+    def put(self, request):
+        sesion = request.user
+        vista = guardar_ventana2(
+            RepoPostulacionORM(), configuracion(), CatalogosVentana2ORM(), expediente_id=sesion.expediente_id,
+            cedula=sesion.cedula, datos=request.data, ahora=ahora(),
+        )
+        return sin_cache(ok(_dict_ventana2(vista), 'Borrador de la Ventana 2 guardado.'))
+
+
+class Ventana2CatalogosView(VistaPostulante):
+    @extend_schema(
+        tags=TAG, summary='Catálogos del formulario de la Ventana 2',
+        parameters=[
+            OpenApiParameter('estado_id', int, description='Devuelve además los municipios de ese estado.'),
+            OpenApiParameter('municipio_id', int, description='Devuelve además las parroquias de ese municipio.'),
+        ],
+        description=(
+            "Los MISMOS catálogos del expediente del trabajador: `parentescos` (con la regla de hijo/menor sin cédula), "
+            "`sexos`, `condiciones_vivienda`, `estados` (+ `municipios` y `parroquias` en cascada), `grupos_sanguineos`, "
+            "`alergias`, `patologias_cronicas`, `discapacidades` y `tallas` (`camisa`, `pantalon`, `calzado`, `chaqueta`)."
+        ),
+        responses={200: OpenApiTypes.OBJECT, **ERRORES},
+    )
+    def get(self, request):
+        def entero(clave):
+            valor = request.query_params.get(clave)
+            return int(valor) if valor and valor.isdigit() else None
+
+        return sin_cache(ok(CatalogosVentana2ORM().catalogos(entero('estado_id'), entero('municipio_id'))))
+
+
+class Ventana2FotoView(VistaPostulante):
+    parser_classes = [MultiPartParser, FormParser]
+
+    @extend_schema(
+        tags=TAG, summary='Mi foto de carnet (binario)', responses={200: OpenApiTypes.BINARY, **ERRORES},
+        description="Solo la del propio expediente de la sesión. Sin caché. 404 si todavía no subió ninguna.",
+    )
+    def get(self, request):
+        sesion = request.user
+        clave = foto_propia(
+            RepoPostulacionORM(), expediente_id=sesion.expediente_id, cedula=sesion.cedula, ahora=ahora(),
+        )
+        return respuesta_archivo(SeaweedFSStorage(), clave, cache='private, no-store')
+
+    @extend_schema(
+        tags=TAG, summary='Subir (o reemplazar) mi foto de carnet', request={'multipart/form-data': FotoCarnetSerializer},
+        responses={200: Ventana2RespuestaSerializer, **ERRORES},
+        description=(
+            "JPEG o PNG (se valida la firma real, no el `Content-Type`), máx. 5 MB, mínimo 300 x 300 px. Se reencodifica sin "
+            "metadatos y se guarda con una clave opaca (sin la cédula). Una por expediente: reemplazable mientras siga en CONSOLIDANDO."
+        ),
+    )
+    def post(self, request):
+        datos = validar_entrada(FotoCarnetSerializer, request.data)
+        sesion = request.user
+        repo = RepoPostulacionORM()
+        foto = preparar_foto_carnet(datos['foto'])
+        subir_foto(
+            repo, SeaweedFSStorage(), configuracion(), expediente_id=sesion.expediente_id, cedula=sesion.cedula,
+            foto=foto, ahora=ahora(),
+        )
+        auditar_postulante(request, 'POSTULANTE_FOTO_SUBIDA', sesion.cedula, sesion.expediente_id, {'tamano': len(foto.contenido)})
+        vista = consultar_ventana2(
+            repo, CatalogosVentana2ORM(), expediente_id=sesion.expediente_id, cedula=sesion.cedula, ahora=ahora(),
+        )
+        return sin_cache(ok(_dict_ventana2(vista), 'Foto de carnet guardada.'))

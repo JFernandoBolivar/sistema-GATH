@@ -39,12 +39,26 @@ class ExpedientePostulacion:
     observaciones: str = ''
     # Formulario de la Ventana 1 que llena el postulante (esquema en `services/datos_ventana.py`).
     datos_ventana1: dict = field(default_factory=dict)
+    # Formulario de la Ventana 2 (familiares, vivienda, salud, tallas; esquema en `services/datos_ventana2.py`) y la
+    # foto de carnet: clave opaca en el almacén (sin la cédula), huella y tamaño. Una foto por expediente.
+    datos_ventana2: dict = field(default_factory=dict)
+    foto_clave: str = ''
+    foto_sha256: str = ''
+    foto_tamano: int = 0
+    foto_subida_el: datetime | None = None
+    # Desde cuándo Captación debe contactar al postulante (se fija al reabrir la Ventana 2 y se limpia al marcarlo
+    # contactado o al salir de CONSOLIDANDO). Alimenta la tarea «contactar» y su escalamiento (G-1).
+    contacto_pendiente_desde: datetime | None = None
     fecha_apertura: datetime | None = None
     fecha_cierre: datetime | None = None
 
     @property
     def es_terminal(self) -> bool:
         return self.estado in ESTADOS_TERMINALES
+
+    @property
+    def tiene_foto(self) -> bool:
+        return bool(self.foto_clave)
 
     @property
     def cargo_definido(self) -> bool:

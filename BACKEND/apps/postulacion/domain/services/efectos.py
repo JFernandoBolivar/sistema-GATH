@@ -40,6 +40,12 @@ def aplicar_transicion(
         cambios.update(diferido_vence_el=ahora + timedelta(days=vig.espera_diferido_dias))
     elif t.origen == E.DIFERIDO_PRESUPUESTO:
         cambios.update(diferido_vence_el=None)
+    # G-1: reabrir la Ventana 2 (desde APROBADO o por faltantes) deja pendiente el contacto con el postulante; salir de
+    # CONSOLIDANDO (envía, o el estado se cierra) lo da por atendido.
+    if t.destino == E.CONSOLIDANDO and not t.es_autotransicion:
+        cambios.update(contacto_pendiente_desde=ahora)
+    elif t.origen == E.CONSOLIDANDO and t.destino != E.CONSOLIDANDO:
+        cambios.update(contacto_pendiente_desde=None)
     if t.destino in ESTADOS_TERMINALES:
         cambios.update(fecha_cierre=ahora)
     return replace(exp, **cambios)

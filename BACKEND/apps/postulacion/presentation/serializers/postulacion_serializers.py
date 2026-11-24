@@ -29,6 +29,29 @@ class BorradorSerializer(serializers.Serializer):
     )
 
 
+class Ventana2Serializer(serializers.Serializer):
+    """
+    Solo documentación: el cuerpo del borrador de la Ventana 2 se valida en el dominio (rechaza claves desconocidas). Cada
+    sección enviada REEMPLAZA a la anterior; las omitidas no cambian. Esquema completo en `services/datos_ventana2.py`.
+    """
+
+    familiares = serializers.ListField(child=serializers.DictField(), required=False, max_length=20)
+    sin_familiares = serializers.BooleanField(required=False)
+    vivienda = serializers.DictField(required=False)
+    salud = serializers.DictField(required=False)
+    tallas = serializers.DictField(required=False)
+
+
+class FotoCarnetSerializer(serializers.Serializer):
+    """Multipart: `foto` (JPEG o PNG, firma real, <= 5 MB, mínimo 300 x 300 px). Una por expediente: reemplaza la anterior."""
+
+    foto = serializers.FileField(allow_empty_file=False)
+
+
+class ContactadoSerializer(serializers.Serializer):
+    nota = serializers.CharField(max_length=500, required=False, allow_blank=True, default='')
+
+
 class AltaPostulanteSerializer(serializers.Serializer):
     cedula = serializers.CharField(max_length=15)
     nombres = serializers.CharField(max_length=150)
@@ -72,7 +95,20 @@ class MiExpedienteSerializer(serializers.Serializer):
     expediente = serializers.JSONField()
     postulante = serializers.JSONField()
     datos_ventana1 = serializers.JSONField()
+    ventana_actual = serializers.IntegerField(allow_null=True, help_text="1 o 2: la ventana en que está el expediente.")
+    formulario = serializers.CharField(allow_null=True, help_text="`ventana1` o `ventana2`: qué formulario mostrar.")
+    datos_ventana2 = serializers.JSONField()
+    tiene_foto = serializers.BooleanField()
+    faltantes_ventana2 = serializers.ListField(child=serializers.JSONField())
     campos_pendientes = serializers.ListField(child=serializers.CharField())
+
+
+class Ventana2RespuestaSerializer(serializers.Serializer):
+    expediente = serializers.JSONField()
+    datos_ventana2 = serializers.JSONField()
+    faltantes = serializers.ListField(child=serializers.JSONField(), help_text="`[{seccion, campo, mensaje}]`; vacío = lista para enviar.")
+    completa = serializers.BooleanField()
+    foto = serializers.JSONField()
 
 
 class EnvioSerializer(serializers.Serializer):
@@ -97,8 +133,9 @@ class AltaPostulanteRespuestaSerializer(serializers.Serializer):
 
 # --- Bandeja y flujo de Captación (D-7, D-8) ---
 class FiltrosBandejaSerializer(serializers.Serializer):
-    """Query: `estado` repetible o separado por comas, `q`, `desde`, `hasta` (fecha del último cambio)."""
+    """Query: `estado` repetible o separado por comas, `q`, `desde`, `hasta` (fecha del último cambio) y `por_contactar`."""
 
+    por_contactar = serializers.BooleanField(required=False, default=False)
     estado = serializers.ListField(child=serializers.CharField(max_length=30), required=False)
     q = serializers.CharField(max_length=100, required=False, allow_blank=True)
     desde = serializers.DateField(required=False)
@@ -131,6 +168,10 @@ class ExpedienteDetalleSerializer(serializers.Serializer):
     expediente = serializers.JSONField()
     postulante = serializers.JSONField()
     datos_ventana1 = serializers.JSONField()
+    datos_ventana2 = serializers.JSONField()
+    datos_ventana2_legible = serializers.JSONField(allow_null=True)
+    ventana2_faltantes = serializers.JSONField(allow_null=True)
+    foto = serializers.JSONField()
     historial = serializers.ListField(child=serializers.JSONField())
     psicofisico = serializers.JSONField(allow_null=True)
     acciones = serializers.ListField(child=serializers.JSONField())

@@ -5,15 +5,17 @@ Zero-IDOR: el expediente y la cédula salen SIEMPRE de la sesión (token + crede
 Ninguna de estas funciones recibe un id ajeno: solo el de la sesión, y además se comprueba que el expediente
 pertenezca a esa cédula.
 """
-from dataclasses import dataclass, replace
-from datetime import datetime
+from dataclasses import dataclass, field, replace
+from datetime import date, datetime
 
 from apps.postulacion.application.use_cases._comun import ahora_utc, obtener_expediente, texto_normalizado
 from apps.postulacion.application.use_cases.transiciones import aplicar_transicion_expediente
 from apps.postulacion.domain.entities.expediente import ExpedientePostulacion
 from apps.postulacion.domain.entities.postulante import Postulante, TransicionRegistrada
-from apps.postulacion.domain.ports.repos import RepoPostulacion
+from apps.postulacion.domain.errores import Ventana2Incompleta
+from apps.postulacion.domain.ports.repos import CatalogosVentana2, RepoPostulacion
 from apps.postulacion.domain.services.datos_ventana import campos_obligatorios_faltantes, validar_datos_ventana1
+from apps.postulacion.domain.services.datos_ventana2 import faltantes_ventana2
 from apps.postulacion.domain.services.maquina_estados import Actor
 from apps.postulacion.domain.value_objects.estados import EstadoExpediente
 from core.domain.exceptions import ConflictError, NotFoundError, ValidationError
@@ -37,6 +39,7 @@ class VistaMiExpediente:
     postulante: Postulante
     ultima_observacion: TransicionRegistrada | None
     campos_pendientes: list[str]
+    faltantes_ventana2: list[dict] = field(default_factory=list)   # solo en la Ventana 2: `[{seccion, campo, mensaje}]`
 
 
 def _propio(repo: RepoPostulacion, exp: ExpedientePostulacion, cedula: str) -> Postulante:
@@ -47,7 +50,34 @@ def _propio(repo: RepoPostulacion, exp: ExpedientePostulacion, cedula: str) -> P
     return postulante
 
 
-def consultar_mi_expediente(repo: RepoPostulacion, *, expediente_id: str, cedula: str) -> VistaMiExpediente:
+def fecha_de(valor) -> date | None:
+    try:
+        return date.fromisoformat(valor) if valor else None
+    except ValueError:
+        return None
+
+
+def faltantes_de(
+    exp: ExpedientePostulacion, cedula: str, catalogos: CatalogosVentana2 | None, ahora: datetime,
+) -> list[dict]:
+    """Lo que impide enviar la Ventana 2: huecos del esquema, la foto y, con catálogos, lo que no cuadra con ellos."""
+    faltan = faltantes_ventana2(exp.datos_ventana2, exp.tiene_foto)
+    if catalogos is not None:
+        errores = catalogos.errores(
+            exp.datos_ventana2 or {}, cedula_titular=cedula, hoy=ahora.date(), completo=True,
+            fecha_nacimiento_titular=fecha_de(exp.datos_ventana1.get('fecha_nacimiento')),
+        )
+        ya = {f['campo'] for f in faltan}
+        faltan += [
+            {'seccion': ruta.split('.')[0], 'campo': ruta, 'mensaje': mensaje}
+            for ruta, mensaje in errores.items() if ruta not in ya
+        ]
+    return faltan
+
+
+def consultar_mi_expediente(
+    repo: RepoPostulacion, *, expediente_id: str, cedula: str, ahora: datetime | None = None,
+) -> VistaMiExpediente:
     exp = obtener_expediente(repo, expediente_id)
     postulante = _propio(repo, exp, cedula)
     # La observación vigente es el motivo con que Captación devolvió el expediente al estado actual.
@@ -57,7 +87,11 @@ def consultar_mi_expediente(repo: RepoPostulacion, *, expediente_id: str, cedula
         None,
     )
     pendientes = campos_obligatorios_faltantes(exp.datos_ventana1) if exp.ventana == 1 else []
-    return VistaMiExpediente(exp, postulante, ultima, pendientes)
+    faltan2: list[dict] = []
+    if exp.ventana == 2:
+        faltan2 = faltantes_ventana2(exp.datos_ventana2, exp.tiene_foto)
+        pendientes = [f['campo'] for f in faltan2]
+    return VistaMiExpediente(exp, postulante, ultima, pendientes, faltan2)
 
 
 def guardar_borrador(
@@ -94,7 +128,7 @@ def guardar_borrador(
             raise ConflictError(f"El expediente está en {exp.estado.value} y no admite cambios del postulante.")
         if datos is not None and exp.ventana != 1:
             raise ValidationError(
-                "La Ventana 2 todavía no tiene formulario de datos: solo se actualizan los datos básicos.",
+                "La Ventana 2 usa su propio formulario (ventana2/): aquí solo se actualizan los datos básicos.",
                 campo='datos_ventana1',
             )
         if exp.estado == E.EN_CORRECCION_DATOS:
@@ -116,9 +150,15 @@ def guardar_borrador(
 
 def enviar_expediente(
     repo: RepoPostulacion, config: LectorConfiguracion, *, expediente_id: str, cedula: str,
-    ahora: datetime | None = None, notificador: Notificador | None = None,
+    ahora: datetime | None = None, notificador: Notificador | None = None, catalogos: CatalogosVentana2 | None = None,
 ) -> ExpedientePostulacion:
-    """EN_CAPTURA|EN_CORRECCION_DATOS -> ENVIADO_CAPTACION o CONSOLIDANDO -> EN_REVISION_FINAL, con historial."""
+    """
+    EN_CAPTURA|EN_CORRECCION_DATOS -> ENVIADO_CAPTACION o CONSOLIDANDO -> EN_REVISION_FINAL, con historial.
+
+    Ventana 2: exige el formulario completo y la foto; si falta algo lanza `Ventana2Incompleta` (400
+    `VENTANA2_INCOMPLETA` con la lista de faltantes). Al enviar la credencial queda suspendida y las sesiones se cierran (igual
+    que la Ventana 1); se revoca definitivamente al contratar o al cerrarse el expediente.
+    """
     ahora = ahora or ahora_utc()
     with repo.transaccion():
         exp = obtener_expediente(repo, expediente_id, bloquear=True)
@@ -132,6 +172,10 @@ def enviar_expediente(
                 raise ValidationError(
                     f"Complete los datos obligatorios antes de enviar: {', '.join(faltan)}.", campo='datos_ventana1',
                 )
+        if exp.ventana == 2:
+            faltan = faltantes_de(exp, cedula, catalogos, ahora)
+            if faltan:
+                raise Ventana2Incompleta(faltan)
         guardado, _ = aplicar_transicion_expediente(
             repo, config, expediente_id=exp.id, destino=destino, actor=Actor.postulante(cedula),
             datos_extra={'origen': 'postulante'}, ahora=ahora, notificador=notificador,

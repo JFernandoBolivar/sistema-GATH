@@ -15,6 +15,7 @@ MOTIVO_DIFERIDO = 'diferido'
 MOTIVO_RECHAZO_DIRECCION = 'rechazo de Dirección General'
 MOTIVO_VENCIMIENTO = 'vencimiento de la reserva'
 MOTIVO_LIBERADA_POR_USUARIO = 'liberada por Presupuesto'
+MOTIVO_CONTRATACION = 'contratación'   # la reserva pasa a CONSUMIDA al asignar el cargo (G-4)
 
 
 @dataclass(frozen=True)

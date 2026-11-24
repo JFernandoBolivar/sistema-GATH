@@ -6,6 +6,7 @@ from apps.postulacion.domain.ports.repos import RepoPostulacion
 from apps.postulacion.domain.services.efectos import Vigencias
 from core.domain.configuracion import (
     CLAVE_CAPTACION_ESPERA_DIFERIDO_DIAS,
+    CLAVE_CAPTACION_HORAS_ESCALAMIENTO_CONTACTO,
     CLAVE_CAPTACION_PSICOFISICO_OBLIGATORIO,
     CLAVE_CAPTACION_VIGENCIA_RESERVA_PUESTO_DIAS,
     CLAVE_CAPTACION_VIGENCIA_VENTANA1_DIAS,
@@ -27,6 +28,11 @@ def leer_vigencias(config: LectorConfiguracion) -> Vigencias:
         reserva_puesto_dias=config.obtener_entero(CLAVE_CAPTACION_VIGENCIA_RESERVA_PUESTO_DIAS),
         espera_diferido_dias=config.obtener_entero(CLAVE_CAPTACION_ESPERA_DIFERIDO_DIAS),
     )
+
+
+def leer_horas_escalamiento_contacto(config: LectorConfiguracion) -> int:
+    """Horas (parámetro `captacion.horas_escalamiento_contacto`, 48 por defecto) tras las que un contacto pendiente se escala."""
+    return max(1, config.obtener_entero(CLAVE_CAPTACION_HORAS_ESCALAMIENTO_CONTACTO) or 48)
 
 
 def leer_psicofisico_obligatorio(config: LectorConfiguracion) -> bool:

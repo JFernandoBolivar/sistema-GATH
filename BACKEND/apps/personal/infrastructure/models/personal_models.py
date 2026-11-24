@@ -46,6 +46,16 @@ class EmployeeModel(models.Model):
         max_length=30, blank=True, null=True, db_column='carnet_patria_serial',
     )
     fecha_actualizacion = models.DateTimeField(auto_now=True)
+    # Fase 2 (G-5): trazabilidad de cómo entró el trabajador y foto con metadatos. Columnas NULLABLE
+    # (migración `personal.0004`); las filas existentes quedan en NULL.
+    # `foto_objeto`: clave opaca (sin la cédula) del objeto en SeaweedFS; `profile` conserva su uso actual
+    # y se mantiene igual a `foto_objeto` cuando la foto llega por la promoción, para que «Mi ficha», el
+    # carnet y el visor actual sigan mostrándola sin cambios.
+    foto_objeto = models.CharField(max_length=120, blank=True, null=True)
+    foto_actualizada = models.DateTimeField(blank=True, null=True)
+    # Id del `ExpedientePostulacion` de origen. SIN FK a propósito (regla Onion: `personal` no conoce
+    # `postulacion`) y UUID (no entero) porque ése es el tipo de la clave primaria del expediente.
+    origen_expediente = models.UUIDField(blank=True, null=True)
 
     class Meta:
         managed = False

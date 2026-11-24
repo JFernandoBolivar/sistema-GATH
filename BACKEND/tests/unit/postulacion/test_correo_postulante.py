@@ -54,6 +54,15 @@ def test_reabrir_ventana_2_felicita_e_incluye_enlace_y_plazo():
     assert 'EXP-2026-00007' in c.mensaje and '06/12/2026' in c.mensaje and c.enlace == '/postulacion/acceso'
 
 
+def test_observar_faltantes_incluye_motivo_numero_enlace_y_plazo_pero_nunca_la_contrasena():
+    c = correo(E.EN_REVISION_FINAL, E.CONSOLIDANDO, motivo='Falta la foto de carnet')
+    assert c.asunto == 'Tu expediente necesita completar datos' and c.tipo == 'POSTULACION_FALTANTES'
+    assert 'Falta la foto de carnet' in c.mensaje and 'EXP-2026-00007' in c.mensaje and '06/12/2026 a las 12:00' in c.mensaje
+    assert c.enlace == '/postulacion/acceso' and c.clave == 'asiento-1'
+    assert 'nueva contraseña temporal' in c.mensaje      # remite a Captación; la clave NO viaja en el correo
+    assert CEDULA_SECRETA not in f'{c.asunto} {c.titulo} {c.mensaje} {c.enlace}'
+
+
 def test_rechazo_es_cordial_y_no_revela_el_motivo_interno():
     c = correo(E.ENVIADO_CAPTACION, E.RECHAZADO_CAPTACION, motivo='Antecedentes: detalle interno confidencial')
     assert 'detalle interno' not in c.mensaje and 'EXP-2026-00007' in c.mensaje and c.enlace == ''
@@ -67,6 +76,7 @@ def test_sin_plazo_conocido_el_texto_remite_al_portal():
 @pytest.mark.parametrize('c', [
     lambda: correo(E.ENVIADO_CAPTACION, E.EN_CORRECCION_DATOS),
     lambda: correo(E.APROBADO, E.CONSOLIDANDO),
+    lambda: correo(E.EN_REVISION_FINAL, E.CONSOLIDANDO, motivo='Falta algo'),
     lambda: correo(E.ENVIADO_CAPTACION, E.RECHAZADO_CAPTACION),
 ])
 def test_nunca_incluye_la_cedula_ni_pide_la_contrasena(c):
@@ -78,7 +88,8 @@ def test_nunca_incluye_la_cedula_ni_pide_la_contrasena(c):
 def test_sin_correo_o_en_otros_pasos_no_hay_correo():
     assert correo(E.ENVIADO_CAPTACION, E.EN_CORRECCION_DATOS, p=postulante('')) is None
     assert correo(E.ENVIADO_CAPTACION, E.EN_CORRECCION_DATOS, p=postulante('  ')) is None
-    assert correo(E.EN_REVISION_FINAL, E.CONSOLIDANDO) is None
+    assert correo(E.EN_REVISION_FINAL, E.LISTO_PARA_ASIGNAR) is None
+    assert correo(E.LISTO_PARA_ASIGNAR, E.CONTRATADO) is None
     assert correo(E.ENVIADO_CAPTACION, E.EN_PRESUPUESTO) is None
     # El propio postulante enviando su ventana no se avisa por correo.
     assert correo(E.EN_CORRECCION_DATOS, E.ENVIADO_CAPTACION, actor=Actor.postulante(CEDULA_SECRETA)) is None

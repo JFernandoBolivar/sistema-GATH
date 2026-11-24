@@ -33,12 +33,14 @@ PARAMETROS_ESPERADOS = {
     'captacion.psicofisico_obligatorio': ('true', None, None, 'booleano'),
     'captacion.retencion_rechazados_meses': ('24', 1, 120, 'entero'),
     'captacion.espera_diferido_dias': ('90', 1, 365, 'entero'),
+    'captacion.horas_escalamiento_contacto': ('48', 1, 720, 'entero'),
 }
 
 
 MIGRACIONES_CAPTACION = (
     'apps.configuracion.migrations.0014_sembrar_parametros_captacion',
     'apps.configuracion.migrations.0015_sembrar_espera_diferido',
+    'apps.configuracion.migrations.0016_sembrar_horas_escalamiento_contacto',
 )
 
 
@@ -152,14 +154,14 @@ def test_migracion_de_parametros_es_idempotente_reversible_y_no_pisa_valores():
     _sembrar_captacion(registro)
     ParametroSistemaModel.objects.filter(clave='captacion.vigencia_ventana1_dias').update(valor='20')
     _sembrar_captacion(registro)
-    assert ParametroSistemaModel.objects.filter(grupo=GRUPO_CAPTACION).count() == 6
+    assert ParametroSistemaModel.objects.filter(grupo=GRUPO_CAPTACION).count() == 7
     assert ParametroSistemaModel.objects.get(clave='captacion.vigencia_ventana1_dias').valor == '20'
 
     for nombre in MIGRACIONES_CAPTACION:
         importlib.import_module(nombre).retirar(registro, None)
     assert not ParametroSistemaModel.objects.filter(grupo=GRUPO_CAPTACION).exists()
     _sembrar_captacion(registro)
-    assert ParametroSistemaModel.objects.filter(grupo=GRUPO_CAPTACION).count() == 6
+    assert ParametroSistemaModel.objects.filter(grupo=GRUPO_CAPTACION).count() == 7
 
 
 def test_migracion_0015_es_idempotente_reversible_y_no_pisa_el_valor_editado():
@@ -172,3 +174,15 @@ def test_migracion_0015_es_idempotente_reversible_y_no_pisa_el_valor_editado():
     assert ParametroSistemaModel.objects.get(clave='captacion.espera_diferido_dias').valor == '120'
     migracion.retirar(registro, None)
     assert not ParametroSistemaModel.objects.filter(clave='captacion.espera_diferido_dias').exists()
+
+
+def test_migracion_0016_es_idempotente_reversible_y_no_pisa_el_valor_editado():
+    from django.apps import apps as registro
+
+    migracion = importlib.import_module('apps.configuracion.migrations.0016_sembrar_horas_escalamiento_contacto')
+    migracion.sembrar(registro, None)
+    ParametroSistemaModel.objects.filter(clave='captacion.horas_escalamiento_contacto').update(valor='72')
+    migracion.sembrar(registro, None)
+    assert ParametroSistemaModel.objects.get(clave='captacion.horas_escalamiento_contacto').valor == '72'
+    migracion.retirar(registro, None)
+    assert not ParametroSistemaModel.objects.filter(clave='captacion.horas_escalamiento_contacto').exists()

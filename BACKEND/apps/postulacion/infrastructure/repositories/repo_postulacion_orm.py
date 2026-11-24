@@ -182,7 +182,16 @@ class RepoPostulacionORM:
                 When(estado__in=[e.value for e in filtros.prioritarios], then=Value(0)),
                 default=Value(1), output_field=IntegerField(),
             ),
+            # Un contacto atrasado con el postulante sube por encima de todo (G-1); sin límite, todos valen 1.
+            _atrasado=(
+                Case(
+                    When(contacto_pendiente_desde__lte=filtros.atraso_antes_de, then=Value(0)),
+                    default=Value(1), output_field=IntegerField(),
+                ) if filtros.atraso_antes_de is not None else Value(1, output_field=IntegerField())
+            ),
         )
+        if filtros.solo_por_contactar:
+            qs = qs.filter(contacto_pendiente_desde__isnull=False)
         criterio = Q()
         if filtros.estados:
             criterio |= Q(estado__in=[e.value for e in filtros.estados])
@@ -201,7 +210,7 @@ class RepoPostulacionORM:
         if filtros.hasta:
             qs = qs.filter(_cambio__lt=datetime.combine(filtros.hasta, time.min, tzinfo=tz_utc.utc) + timedelta(days=1))
         total = qs.count()
-        pagina = qs.order_by('_pendiente', '_cambio', 'numero')[paginacion.offset:paginacion.offset + paginacion.tamano]
+        pagina = qs.order_by('_atrasado', '_pendiente', '_cambio', 'numero')[paginacion.offset:paginacion.offset + paginacion.tamano]
         filas = [
             FilaBandeja(
                 expediente=expediente_a_entidad(m), postulante=postulante_a_entidad(m.postulante),
@@ -222,6 +231,12 @@ class RepoPostulacionORM:
         qs = ExpedientePostulacionModel.objects.filter(
             estado='DIFERIDO_PRESUPUESTO', diferido_vence_el__lt=ahora,
         ).order_by('diferido_vence_el')
+        return [str(pk) for pk in qs.values_list('pk', flat=True)]
+
+    def listar_ids_con_contacto_atrasado(self, limite: datetime) -> list[str]:
+        qs = ExpedientePostulacionModel.objects.filter(
+            estado='CONSOLIDANDO', contacto_pendiente_desde__isnull=False, contacto_pendiente_desde__lte=limite,
+        ).order_by('contacto_pendiente_desde')
         return [str(pk) for pk in qs.values_list('pk', flat=True)]
 
     # --- test psicofísico ---

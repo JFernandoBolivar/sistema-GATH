@@ -51,6 +51,14 @@ class ExpedientePostulacionModel(BaseModel):
     diferido_vence_el = models.DateTimeField(null=True, blank=True)
     observaciones = models.TextField(blank=True, default='')
     datos_ventana1 = models.JSONField(default=dict, blank=True)  # formulario de la Ventana 1 (esquema en el dominio)
+    datos_ventana2 = models.JSONField(default=dict, blank=True)  # formulario de la Ventana 2 (esquema en el dominio)
+    # Foto de carnet (una por expediente): clave opaca en SeaweedFS (sin la cédula), huella y tamaño.
+    foto_clave = models.CharField(max_length=200, blank=True, default='')
+    foto_sha256 = models.CharField(max_length=64, blank=True, default='')
+    foto_tamano = models.PositiveIntegerField(default=0)
+    foto_subida_el = models.DateTimeField(null=True, blank=True)
+    # Tarea «contactar al postulante» (G-1): desde cuándo está pendiente; NULL = nada pendiente.
+    contacto_pendiente_desde = models.DateTimeField(null=True, blank=True, db_index=True)
     fecha_apertura = models.DateTimeField(default=timezone.now)
     fecha_cierre = models.DateTimeField(null=True, blank=True)
 

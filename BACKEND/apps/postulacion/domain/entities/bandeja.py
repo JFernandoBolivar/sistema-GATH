@@ -20,6 +20,10 @@ class FiltrosBandeja:
     hasta: date | None = None
     # «o con Punto de Cuenta de ingreso en alguno de estos estados» (histórico de Dirección General, E-6).
     o_punto_cuenta_estados: tuple[str, ...] = ()
+    # G-1: solo los expedientes con el contacto al postulante pendiente (pestaña «Por contactar»).
+    solo_por_contactar: bool = False
+    # G-1: los contactos pendientes desde antes de este instante (atrasados) van antes que todo lo demás.
+    atraso_antes_de: datetime | None = None
     # Estados que van primero en la bandeja (los que esperan al área que consulta); por defecto, los de Captación.
     prioritarios: tuple[EstadoExpediente, ...] = tuple(ESTADOS_PENDIENTES_CAPTACION)
 

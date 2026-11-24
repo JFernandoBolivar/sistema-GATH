@@ -12,7 +12,8 @@ CAMPOS_EXPEDIENTE = (
     'cargo_propuesto_id', 'cargo_especifico_propuesto_id', 'tipo_nomina_propuesto_id', 'direccion_general_id',
     'direccion_linea_id', 'coordinacion_id', 'dependencia_id', 'cargo_propuesto_texto', 'oficina_propuesta_texto',
     'ventana', 'ventana_vence_el', 'reserva_vence_el', 'diferido_vence_el', 'observaciones', 'datos_ventana1', 'fecha_cierre',
-    'creado_por',
+    'creado_por', 'datos_ventana2', 'foto_clave', 'foto_sha256', 'foto_tamano', 'foto_subida_el',
+    'contacto_pendiente_desde',
 )
 
 
