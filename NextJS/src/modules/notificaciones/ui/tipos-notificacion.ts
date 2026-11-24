@@ -39,7 +39,10 @@ export const TIPOS_POR_MODULO: Record<ModuloNotificaciones, TipoNotificacion[]> 
     { codigo: "movimiento.egreso", etiqueta: "Egreso de personal" },
     { codigo: "movimiento.sobreviviente", etiqueta: "Alta de sobreviviente" },
   ],
-  carnetizacion: [{ codigo: "autogestion.foto_aprobada", etiqueta: "Reemisión de carnet" }],
+  carnetizacion: [
+    { codigo: "autogestion.foto_aprobada", etiqueta: "Reemisión de carnet" },
+    { codigo: "CARNET_PENDIENTE", etiqueta: "Carnet por emitir" },
+  ],
   pasivos: [],
   seguridad: [],
   postulacion: [
@@ -49,8 +52,18 @@ export const TIPOS_POR_MODULO: Record<ModuloNotificaciones, TipoNotificacion[]> 
     { codigo: "EXPEDIENTE_EN_DIRECCION", etiqueta: "Ingreso por decidir en Dirección General" },
     { codigo: "EXPEDIENTE_CORRECCION_CARGO", etiqueta: "Cargo por corregir" },
     { codigo: "INGRESO_APROBADO", etiqueta: "Ingreso aprobado" },
+    { codigo: "CONTACTAR_POSTULANTE", etiqueta: "Postulante por contactar" },
+    { codigo: "CONTACTO_ATRASADO", etiqueta: "Contacto con el postulante atrasado" },
+    { codigo: "CONTRATACION_COMPLETADA", etiqueta: "Contratación completada" },
   ],
 };
+
+/** Avisos que se destacan (borde y etiqueta «Urgente»): requieren acción de Captación cuanto antes. */
+const TIPOS_CRITICOS: ReadonlySet<string> = new Set(["CONTACTAR_POSTULANTE", "CONTACTO_ATRASADO"]);
+
+export function esTipoCritico(codigo: string): boolean {
+  return TIPOS_CRITICOS.has(codigo);
+}
 
 /** Unión sin duplicados de todos los tipos, para la bandeja única del usuario. */
 export const TIPOS_NOTIFICACION: TipoNotificacion[] = Array.from(

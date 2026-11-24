@@ -10,11 +10,13 @@ import { AuthError } from "next-auth";
 import { auth, signIn, signOut } from "#/auth";
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
-import type { MiExpedienteDTO, ResultadoPostulacion } from "../../application/dtos/postulacion-dto";
+import type { MiExpedienteDTO, ResultadoPostulacion, Ventana2DTO } from "../../application/dtos/postulacion-dto";
 import {
   cambiarClave,
+  catalogosVentana2,
   enviarACaptacion,
   guardarBorrador,
+  guardarVentana2,
 } from "../../application/use-cases/gestionar-postulacion";
 import {
   RUTA_ACCESO_POSTULANTE,
@@ -29,6 +31,7 @@ import {
   type FalloAcceso,
 } from "../../domain/errores-acceso";
 import { camposFaltantesParaEnviar, ETIQUETA_CAMPO, type ValoresVentana1 } from "../../domain/ventana1";
+import { mensajeDeCodigoVentana2, type CatalogosVentana2 } from "../../domain/ventana2";
 import { esquemaVentana1 } from "../../ui/schema/schema-ventana1";
 import { ErrorPostulacion } from "../http/postulacion-api";
 import { repoPostulacionApi } from "../repositories/repo-postulacion-api";
@@ -52,7 +55,15 @@ function resultadoDeError(e: unknown, porDefecto: string): Extract<ResultadoPost
       mensajeServidor: e.message,
       conErroresDeCampo: !!e.errores,
     });
-    return { ok: false, mensaje: p.mensaje, codigo: e.codigo, errores: e.errores, sesionCaida: p.sesionCaida };
+    const mensaje = e.errores || p.sesionCaida ? p.mensaje : (mensajeDeCodigoVentana2(e.codigo) ?? p.mensaje);
+    return {
+      ok: false,
+      mensaje,
+      codigo: e.codigo,
+      errores: e.errores,
+      faltantes: e.faltantes,
+      sesionCaida: p.sesionCaida,
+    };
   }
   return { ok: false, mensaje: porDefecto };
 }
@@ -208,6 +219,59 @@ export async function enviarACaptacionAction(valores: ValoresVentana1): Promise<
   // El token de Django ya no vale: se cierra también la sesión de NextAuth.
   await signOut({ redirect: false });
   redirect(numero ? `${RUTA_RECIBIDO}?n=${encodeURIComponent(numero)}` : RUTA_RECIBIDO);
+}
+
+// --- Ventana 2 (postulante con el ingreso aprobado) ---
+
+/** Guarda una o varias secciones del borrador de la Ventana 2 (las enviadas reemplazan a las guardadas). */
+export async function guardarVentana2Action(cuerpo: Record<string, unknown>): Promise<ResultadoPostulacion<Ventana2DTO>> {
+  const sesion = await leerSesionPostulante();
+  if (!sesion) return SIN_SESION;
+  const traceId = generateTraceId();
+  const inicio = Date.now();
+  try {
+    const datos = await guardarVentana2(repoPostulacionApi, sesion.tokenDjango, cuerpo);
+    await logAudit({ traceId, action: "guardarVentana2PostulanteAction", status: "SUCCESS", durationMs: Date.now() - inicio });
+    return { ok: true, datos };
+  } catch (e) {
+    await logAudit({ traceId, action: "guardarVentana2PostulanteAction", status: "FAILED", durationMs: Date.now() - inicio });
+    return resultadoDeError(e, "No fue posible guardar tu avance.");
+  }
+}
+
+/** Catálogos del formulario; con `estadoId` y `municipioId` trae también los municipios y las parroquias. */
+export async function catalogosVentana2Action(
+  estadoId?: number,
+  municipioId?: number,
+): Promise<ResultadoPostulacion<CatalogosVentana2>> {
+  const sesion = await leerSesionPostulante();
+  if (!sesion) return SIN_SESION;
+  try {
+    return { ok: true, datos: await catalogosVentana2(repoPostulacionApi, sesion.tokenDjango, estadoId, municipioId) };
+  } catch (e) {
+    return resultadoDeError(e, "No fue posible cargar las opciones.");
+  }
+}
+
+/** Envía la Ventana 2 a revisión final, cierra la sesión y lleva a «Recibimos tus datos». */
+export async function enviarVentana2Action(): Promise<ResultadoPostulacion> {
+  const sesion = await leerSesionPostulante();
+  if (!sesion) return SIN_SESION;
+  const traceId = generateTraceId();
+  const inicio = Date.now();
+  let numero = "";
+  try {
+    const envio = await enviarACaptacion(repoPostulacionApi, sesion.tokenDjango);
+    numero = envio.expediente.numero;
+  } catch (e) {
+    await logAudit({ traceId, action: "enviarVentana2PostulanteAction", status: "FAILED", durationMs: Date.now() - inicio });
+    return resultadoDeError(e, "No fue posible enviar tus datos.");
+  }
+  await logAudit({ traceId, action: "enviarVentana2PostulanteAction", status: "SUCCESS", durationMs: Date.now() - inicio });
+  await signOut({ redirect: false });
+  const parametros = new URLSearchParams({ v: "2" });
+  if (numero) parametros.set("n", numero);
+  redirect(`${RUTA_RECIBIDO}?${parametros.toString()}`);
 }
 
 /** «Salir»: cierra la sesión del postulante y vuelve a su pantalla de acceso. */

@@ -107,7 +107,10 @@ def promover_postulante(
             capturado['reserva'] = repo.guardar_reserva(replace(
                 capturado['reserva'], estado=CONSUMIDA, cerrada_el=ahora, motivo_liberacion=MOTIVO_CONTRATACION,
             ))
-            repo.vincular_empleado(postulante.id, postulante.cedula)
+            # `employee_cedula` significa «empleado PREVIO» (reingreso, C-1): una contratación nueva no lo llena (si no, el
+            # expediente se mostraría como reingreso). La trazabilidad de un ingreso nuevo es `Employee.origen_expediente`.
+            if resultado.es_reingreso and not postulante.employee_cedula:
+                repo.vincular_empleado(postulante.id, postulante.cedula)
             return {
                 'puesto_id': capturado['reserva'].puesto_id, 'puesto_codigo': resultado.puesto_codigo,
                 'employee_id': resultado.employee_id, 'reingreso': resultado.es_reingreso,

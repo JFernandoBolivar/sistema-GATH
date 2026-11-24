@@ -1,5 +1,6 @@
 import { apiClient } from "@/shared/infrastructure/http/fetcher-api";
 import type { ApiResponse } from "@/shared/types/api-response";
+import type { ResultadoContratacion } from "../../domain/contratacion";
 import type {
   AltaPostulanteResultado,
   CredencialEmitida,
@@ -9,14 +10,17 @@ import type {
   FiltrosBandeja,
   PaginaBandeja,
   ResultadoPsicofisico,
+  ResultadoTransicion,
   DatosPsicofisico,
 } from "../../domain/expediente";
 import {
   altaDesdeApi,
+  contratacionDesdeApi,
   credencialDesdeApi,
   detalleDesdeApi,
   paginaDesdeApi,
   psicofisicoDesdeApi,
+  transicionDesdeApi,
 } from "../mappers/mapper-captacion";
 
 const BASE = "/api/v1/postulacion";
@@ -28,6 +32,7 @@ export const captacionApi = {
     const sobre = await apiClient.get<ApiResponse<Crudo>>(`${BASE}/expedientes/`, {
       params: {
         estado: f.estados.join(","),
+        por_contactar: f.porContactar ? "true" : undefined,
         q: f.q?.trim(),
         desde: f.desde,
         hasta: f.hasta,
@@ -43,13 +48,23 @@ export const captacionApi = {
     return detalleDesdeApi(sobre.data);
   },
 
-  transicion: async (id: string, t: DatosTransicion): Promise<DetalleExpediente> => {
+  transicion: async (id: string, t: DatosTransicion): Promise<ResultadoTransicion> => {
     const sobre = await apiClient.post<ApiResponse<Crudo>>(`${BASE}/expedientes/${id}/transicion/`, {
       destino: t.destino,
       ...(t.motivo ? { motivo: t.motivo } : {}),
       ...(t.datos ? { datos: t.datos } : {}),
     });
+    return transicionDesdeApi(sobre.data);
+  },
+
+  contactado: async (id: string, nota?: string): Promise<DetalleExpediente> => {
+    const sobre = await apiClient.post<ApiResponse<Crudo>>(`${BASE}/expedientes/${id}/contactado/`, nota?.trim() ? { nota: nota.trim() } : {});
     return detalleDesdeApi(sobre.data);
+  },
+
+  asignar: async (id: string): Promise<ResultadoContratacion> => {
+    const sobre = await apiClient.post<ApiResponse<Crudo>>(`${BASE}/expedientes/${id}/asignar/`, {});
+    return contratacionDesdeApi(sobre.data);
   },
 
   altaPostulante: async (d: DatosAltaPostulante): Promise<AltaPostulanteResultado> => {

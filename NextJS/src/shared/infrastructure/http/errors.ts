@@ -19,12 +19,15 @@ export class ApiHttpError extends Error {
   readonly status: number;
   /** Errores por campo del backend (`data.errores`): `{ "cedula": ["..."], "contactos.0.telefono": ["..."] }`. */
   readonly errores?: Record<string, string[]>;
+  /** Código estable del backend (`data.codigo`, p. ej. `PUESTO_NO_DISPONIBLE`), si lo trae. */
+  readonly codigo?: string;
 
-  constructor(message: string, status: number, errores?: Record<string, string[]>) {
+  constructor(message: string, status: number, errores?: Record<string, string[]>, codigo?: string) {
     super(message);
     this.name = "ApiHttpError";
     this.status = status;
     this.errores = errores;
+    this.codigo = codigo;
   }
 }
 

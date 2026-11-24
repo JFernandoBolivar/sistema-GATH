@@ -26,24 +26,38 @@ import {
   contarExpedientesAction,
   crearPostulanteAction,
   listarBandejaAction,
+  resumenPorContactarAction,
 } from "../../infrastructure/actions/captacion-actions";
 import { DialogoNuevoPostulante } from "../components/dialogo-nuevo-postulante";
+import { InsigniaContacto } from "../components/insignia-contacto";
 import { InsigniaEstado } from "../components/insignia-estado";
 import { Paginador } from "../components/paginador";
 
 const TAMANO = 10;
 const PERMISO_CREAR = "postulacion.crear_postulante";
 
-type Conteos = Record<PestanaBandeja, number | null>;
+type Conteos = Record<PestanaBandeja, number | null> & { atrasados: number };
 
 async function cargarConteos(): Promise<Conteos> {
-  const resultados = await Promise.all(PESTANAS.map((p) => contarExpedientesAction(p.estados)));
-  return Object.fromEntries(
+  const [resultados, resumen] = await Promise.all([
+    Promise.all(PESTANAS.map((p) => contarExpedientesAction(p.estados, p.porContactar))),
+    resumenPorContactarAction(),
+  ]);
+  const conteos = Object.fromEntries(
     PESTANAS.map((p, i) => {
       const r = resultados[i];
       return [p.id, r.ok ? r.data : null];
     }),
-  ) as Conteos;
+  ) as Record<PestanaBandeja, number | null>;
+  return { ...conteos, atrasados: resumen.ok ? resumen.data.atrasados : 0 };
+}
+
+/** Color del contador de cada pestaña: «Por revisar» y «Por contactar» se destacan (rojo si hay atrasados). */
+function claseContador(id: PestanaBandeja, conteos: Conteos | undefined): string {
+  const n = conteos?.[id] ?? 0;
+  if (id === "por_contactar" && n > 0) return conteos && conteos.atrasados > 0 ? "bg-danger text-white" : "bg-warning text-white";
+  if (id === "por_revisar" && n > 0) return "bg-warning text-white";
+  return "bg-muted text-muted-foreground";
 }
 
 function useRetraso<T>(valor: T, ms: number): T {
@@ -59,9 +73,9 @@ function EtiquetaReingreso() {
   return <span className="rounded-full border border-info/40 bg-info-soft px-2 py-0.5 text-xs font-semibold text-info">Reingreso</span>;
 }
 
-function FilaTabla({ fila }: { fila: FilaBandeja }) {
+function FilaTabla({ fila, ahora }: { fila: FilaBandeja; ahora: Date }) {
   return (
-    <tr className={`border-b transition-colors hover:bg-muted/40 ${fila.pendienteDeCaptacion ? "bg-warning-soft/40" : ""}`}>
+    <tr className={`border-b transition-colors hover:bg-muted/40 ${fila.contactoAtrasado ? "bg-danger-soft/40" : fila.pendienteDeCaptacion || fila.contactoPendiente ? "bg-warning-soft/40" : ""}`}>
       <td className="p-3 font-mono text-sm">{fila.numero}</td>
       <td className="p-3">
         <p className="font-semibold">{nombreCompleto(fila.postulante)}</p>
@@ -72,6 +86,7 @@ function FilaTabla({ fila }: { fila: FilaBandeja }) {
           <InsigniaEstado estado={fila.estado} />
           {fila.esReingreso ? <EtiquetaReingreso /> : null}
         </div>
+        <InsigniaContacto contacto={fila} ahora={ahora} className="mt-1.5" />
       </td>
       <td className="p-3 text-sm text-muted-foreground">{formatearFechaHora(fila.ultimoCambio)}</td>
       <td className="p-3 text-right">
@@ -86,13 +101,13 @@ function FilaTabla({ fila }: { fila: FilaBandeja }) {
   );
 }
 
-function TarjetaFila({ fila }: { fila: FilaBandeja }) {
+function TarjetaFila({ fila, ahora }: { fila: FilaBandeja; ahora: Date }) {
   return (
     <li>
       <Link
         href={`/captacion/expedientes/${fila.id}`}
         aria-label={`Abrir expediente ${fila.numero} de ${nombreCompleto(fila.postulante)}`}
-        className={`flex flex-col gap-2 rounded-xl border bg-card p-4 shadow-sm active:bg-muted/50 ${fila.pendienteDeCaptacion ? "border-l-4 border-l-warning" : ""}`}
+        className={`flex flex-col gap-2 rounded-xl border bg-card p-4 shadow-sm active:bg-muted/50 ${fila.contactoAtrasado ? "border-l-4 border-l-danger" : fila.pendienteDeCaptacion || fila.contactoPendiente ? "border-l-4 border-l-warning" : ""}`}
       >
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
@@ -105,6 +120,7 @@ function TarjetaFila({ fila }: { fila: FilaBandeja }) {
           <InsigniaEstado estado={fila.estado} />
           {fila.esReingreso ? <EtiquetaReingreso /> : null}
         </div>
+        <InsigniaContacto contacto={fila} ahora={ahora} />
         <p className="text-xs text-muted-foreground">
           {fila.numero} · Último cambio: {formatearFechaHora(fila.ultimoCambio)}
         </p>
@@ -130,7 +146,7 @@ export function BandejaExpedientesView() {
   const { data, error, isLoading, isValidating, mutate } = useSWR<PaginaBandeja>(
     clave,
     async () => {
-      const r = await listarBandejaAction({ estados: estadosDePestana(pestana), q, desde, hasta, pagina, tamano: TAMANO });
+      const r = await listarBandejaAction({ estados: estadosDePestana(pestana), porContactar: PESTANAS.find((p) => p.id === pestana)?.porContactar, q, desde, hasta, pagina, tamano: TAMANO });
       if (!r.ok) throw new Error(r.error);
       return r.data;
     },
@@ -157,6 +173,7 @@ export function BandejaExpedientesView() {
   }
 
   const filas = data?.resultados ?? [];
+  const ahora = new Date();
   const hayFiltros = chips.length > 0;
 
   return (
@@ -183,7 +200,7 @@ export function BandejaExpedientesView() {
                     {p.etiqueta}
                     <span
                       aria-label={conteos?.[p.id] != null ? `${conteos[p.id]} expedientes` : undefined}
-                      className={`min-w-6 rounded-full px-1.5 text-xs font-semibold ${p.id === "por_revisar" && (conteos?.[p.id] ?? 0) > 0 ? "bg-warning text-white" : "bg-muted text-muted-foreground"}`}
+                      className={`min-w-6 rounded-full px-1.5 text-xs font-semibold ${claseContador(p.id, conteos)}`}
                     >
                       {conteos?.[p.id] ?? "–"}
                     </span>
@@ -221,7 +238,7 @@ export function BandejaExpedientesView() {
           <VistaError mensaje={error instanceof Error ? error.message : "No fue posible cargar la bandeja."} onReintentar={() => void mutate()} />
         ) : filas.length === 0 ? (
           <VistaVacia
-            titulo={hayFiltros ? "Ningún expediente coincide" : pestana === "por_revisar" ? "No hay expedientes por revisar" : "No hay expedientes en esta vista"}
+            titulo={hayFiltros ? "Ningún expediente coincide" : pestana === "por_revisar" ? "No hay expedientes por revisar" : pestana === "por_contactar" ? "No hay postulantes por contactar" : "No hay expedientes en esta vista"}
             descripcion={hayFiltros ? "Pruebe con otra búsqueda o limpie los filtros." : "Cuando llegue uno que requiera su atención aparecerá aquí."}
             accion={hayFiltros ? <Button type="button" variant="outline" onClick={limpiar}>Limpiar filtros</Button> : <Inbox className="size-6 text-muted-foreground" aria-hidden />}
           />
@@ -238,11 +255,11 @@ export function BandejaExpedientesView() {
                     <th scope="col" className="p-3"><span className="sr-only">Acción</span></th>
                   </tr>
                 </thead>
-                <tbody>{filas.map((f) => <FilaTabla key={f.id} fila={f} />)}</tbody>
+                <tbody>{filas.map((f) => <FilaTabla key={f.id} fila={f} ahora={ahora} />)}</tbody>
               </table>
             </div>
             <ul className="flex flex-col gap-3 p-3 md:hidden" aria-label="Expedientes de postulantes">
-              {filas.map((f) => <TarjetaFila key={f.id} fila={f} />)}
+              {filas.map((f) => <TarjetaFila key={f.id} fila={f} ahora={ahora} />)}
             </ul>
             <div className="px-4 pb-4">
               <Paginador pagina={data?.pagina ?? 1} totalPaginas={data?.totalPaginas ?? 1} total={data?.total ?? 0} cargando={isValidating} onPagina={setPagina} />

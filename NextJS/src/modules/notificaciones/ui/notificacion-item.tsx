@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import type { NotificacionDTO } from "../application/dtos/notificacion-dto";
 import { destinoInterno, rutaActual } from "./enlace-notificacion";
 import { formatearFechaNotificacion } from "./formato-notificacion";
+import { esTipoCritico } from "./tipos-notificacion";
 
 const ICONOS_MODULO: Record<string, { Icono: LucideIcon; clases: string; etiqueta: string }> = {
   fe_de_vida: { Icono: HeartPulse, clases: "bg-success-soft text-success", etiqueta: "Fe de Vida" },
@@ -101,6 +102,7 @@ export function NotificacionItem({
   const estado = n.atendida
     ? { texto: "Atendida", tono: "neutral" as const }
     : { texto: n.leida ? "Leída" : "Nueva", tono: n.leida ? ("neutral" as const) : ("info" as const) };
+  const critica = esTipoCritico(n.tipo) && !n.atendida;
   const enlaceVisible = n.enlace && (puedeAbrirEnlace?.(n.enlace) ?? true);
 
   const acciones = (
@@ -138,11 +140,15 @@ export function NotificacionItem({
         className={cn(
           "flex flex-col gap-1.5 rounded-lg border p-2.5",
           n.leida ? "bg-card" : "border-info/40 bg-info-soft/40",
+          critica && "border-danger/50 bg-danger-soft/40",
           n.atendida && "opacity-70",
         )}
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <StatusBadge texto={estado.texto} tono={estado.tono} />
+          <span className="flex items-center gap-1.5">
+            <StatusBadge texto={estado.texto} tono={estado.tono} />
+            {critica ? <StatusBadge texto="Urgente" tono="danger" /> : null}
+          </span>
           <time dateTime={n.creadaEn} className="text-xs text-muted-foreground">
             {formatearFechaNotificacion(n.creadaEn)}
           </time>
@@ -170,6 +176,7 @@ export function NotificacionItem({
         n.leida
           ? "border-border bg-card"
           : "border-border border-l-4 border-l-primary bg-info-soft/40",
+        critica && "border-l-4 border-danger/50 border-l-danger bg-danger-soft/40",
         n.atendida && "opacity-70",
       )}
     >
@@ -194,6 +201,7 @@ export function NotificacionItem({
               {n.titulo}
             </p>
             <StatusBadge texto={estado.texto} tono={estado.tono} />
+            {critica ? <StatusBadge texto="Urgente" tono="danger" /> : null}
           </div>
           <time
             dateTime={n.creadaEn}

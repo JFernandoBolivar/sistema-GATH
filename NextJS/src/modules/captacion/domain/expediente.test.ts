@@ -30,13 +30,21 @@ describe("estados de Captación en lenguaje claro", () => {
 });
 
 describe("pestañas de la bandeja", () => {
-  it("son Por revisar, En corrección, En Presupuesto y Todos", () => {
-    expect(PESTANAS.map((p) => p.etiqueta)).toEqual(["Por revisar", "En corrección", "En Presupuesto", "Todos"]);
+  it("son Por revisar, Por contactar, En corrección, En Presupuesto y Todos", () => {
+    expect(PESTANAS.map((p) => p.etiqueta)).toEqual(["Por revisar", "Por contactar", "En corrección", "En Presupuesto", "Todos"]);
   });
 
   it("«Por revisar» agrupa lo que espera a Captación y «Todos» no filtra", () => {
     expect(estadosDePestana("por_revisar")).toEqual(["ENVIADO_CAPTACION", "EN_REVISION_FINAL"]);
     expect(estadosDePestana("en_correccion")).toContain("EN_CORRECCION_DATOS");
     expect(estadosDePestana("todos")).toEqual([]);
+  });
+});
+
+describe("pestañas de la bandeja", () => {
+  it("«Por contactar» filtra por la bandera y no por estado", () => {
+    const p = PESTANAS.find((x) => x.id === "por_contactar");
+    expect(p).toMatchObject({ etiqueta: "Por contactar", estados: [], porContactar: true });
+    expect(estadosDePestana("por_contactar")).toEqual([]);
   });
 });

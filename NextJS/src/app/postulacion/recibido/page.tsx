@@ -8,8 +8,8 @@ const NUMERO_VALIDO = /^[A-Za-z0-9-]{1,30}$/;
 export default async function RecibidoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ n?: string }>;
+  searchParams: Promise<{ n?: string; v?: string }>;
 }) {
-  const { n } = await searchParams;
-  return <RecibidoView numero={n && NUMERO_VALIDO.test(n) ? n : undefined} />;
+  const { n, v } = await searchParams;
+  return <RecibidoView numero={n && NUMERO_VALIDO.test(n) ? n : undefined} ventana2={v === "2"} />;
 }

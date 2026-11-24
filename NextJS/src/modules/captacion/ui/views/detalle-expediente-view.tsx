@@ -5,7 +5,7 @@ import Link from "next/link";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { ArrowLeft, History, Undo2, KeyRound, Loader2, Stethoscope, UserRound } from "lucide-react";
+import { ArrowLeft, Camera, ClipboardCheck, History, Undo2, KeyRound, Loader2, Stethoscope, UserRound } from "lucide-react";
 import PageLayout from "@/components/layout/page-layout";
 import {
   AlertDialog,
@@ -25,18 +25,25 @@ import { LineaTiempo } from "@/shared/ui/components/linea-tiempo";
 import { VistaCargando, VistaError, VistaVacia } from "@/shared/ui/components/vista-estados";
 import type { ItemBarraAcciones } from "../../domain/barra-acciones";
 import type { CredencialEmitida, DatosPropuesta, DetalleExpediente } from "../../domain/expediente";
+import type { ResultadoContratacion } from "../../domain/contratacion";
 import { nombreCompleto } from "../../domain/formato";
 import { motivoDeEntrada } from "../../domain/motivo-entrada";
 import { hitosDeHistorial } from "../historial-hitos";
 import { ESTADOS_PSICOFISICO_EDITABLE } from "../../domain/psicofisico";
 import {
+  contratarPostulanteAction,
   descargarInformePsicofisicoAction,
   obtenerExpedienteAction,
+  registrarContactoAction,
   registrarPsicofisicoAction,
   reponerCredencialAction,
   transicionarExpedienteAction,
 } from "../../infrastructure/actions/captacion-actions";
+import { BannerContacto } from "../components/banner-contacto";
 import { BarraAcciones } from "../components/barra-acciones";
+import { DialogoContratar, PanelExitoContratacion } from "../components/panel-contratacion";
+import { SeccionFotoExpediente } from "../components/seccion-foto-expediente";
+import { SeccionVentana2 } from "../components/seccion-ventana2";
 import { DialogoMotivo } from "../components/dialogo-motivo";
 import { DialogoPropuesta } from "../components/dialogo-propuesta";
 import { InsigniaEstado } from "../components/insignia-estado";
@@ -53,6 +60,9 @@ async function cargar(id: string): Promise<DetalleExpediente> {
   return r.data;
 }
 
+
+/** Solo con una ventana abierta para el postulante hay credencial que reponer (el backend lo exige igual). */
+const ESTADOS_CON_VENTANA_ABIERTA: ReadonlySet<string> = new Set(["PRE_REGISTRADO", "EN_CAPTURA", "EN_CORRECCION_DATOS", "CONSOLIDANDO"]);
 export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }) {
   const { data: session } = useSession();
   const permisos = session?.user?.permisos;
@@ -64,7 +74,12 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
   const [errorAccion, setErrorAccion] = useState<string | null>(null);
   const [pendiente, iniciar] = useTransition();
   const [confirmaReposicion, setConfirmaReposicion] = useState(false);
-  const [credencial, setCredencial] = useState<CredencialEmitida | null>(null);
+  const [credencial, setCredencial] = useState<{ datos: CredencialEmitida; titulo: string; descripcion: string } | null>(null);
+  const [errorContacto, setErrorContacto] = useState<string | null>(null);
+  const [contratando, setContratando] = useState(false);
+  const [errorContratar, setErrorContratar] = useState<string | null>(null);
+  const [contratacion, setContratacion] = useState<ResultadoContratacion | null>(null);
+  const ahora = new Date();
 
   function cerrarAccion() {
     setActiva(null);
@@ -83,9 +98,17 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
         setErrorAccion(r.error);
         return;
       }
-      await mutate(r.data, { revalidate: false });
+      await mutate(r.data.detalle, { revalidate: false });
       toast.success(`Listo: «${item.etiqueta}» aplicada.`);
       cerrarAccion();
+      // Reabrir la Ventana 2 u observar faltantes emite una contraseña temporal nueva: se muestra UNA vez.
+      if (r.data.credencial) {
+        setCredencial({
+          datos: r.data.credencial,
+          titulo: "Credencial de la Ventana 2",
+          descripcion: "Entregue esta contraseña temporal al postulante: es la nueva y la anterior dejó de servir.",
+        });
+      }
     });
   }
 
@@ -97,10 +120,38 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
         toast.error(r.error);
         return;
       }
-      setCredencial(r.data);
+      setCredencial({ datos: r.data, titulo: "Credencial repuesta", descripcion: "Entregue la nueva contraseña temporal al postulante." });
     });
   }
 
+  function registrarContacto(nota: string) {
+    setErrorContacto(null);
+    iniciar(async () => {
+      const r = await registrarContactoAction(expedienteId, nota);
+      if (!r.ok) {
+        setErrorContacto(r.error);
+        return;
+      }
+      await mutate(r.data, { revalidate: false });
+      toast.success("Contacto registrado.");
+    });
+  }
+
+  function contratar() {
+    setErrorContratar(null);
+    iniciar(async () => {
+      const r = await contratarPostulanteAction(expedienteId);
+      if (!r.ok) {
+        setErrorContratar(r.error);
+        return;
+      }
+      setContratando(false);
+      setContratacion(r.data);
+      await mutate();
+    });
+  }
+
+  const tieneVentana2 = !!detalle && (detalle.datosVentana2Legible !== null || detalle.foto.tiene || detalle.expediente.ventana === 2);
   const titulo = detalle ? `Expediente ${detalle.expediente.numero}` : "Expediente";
 
   return (
@@ -133,11 +184,19 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
 
               <div className="flex flex-col gap-3 border-t pt-4">
                 <h3 className="text-sm font-semibold text-muted-foreground">¿Qué desea hacer?</h3>
-                <BarraAcciones acciones={detalle.acciones} ocupado={pendiente} onElegir={(item) => { setErrorAccion(null); setActiva(item); }} />
+                <BarraAcciones acciones={detalle.acciones} ocupado={pendiente} onElegir={(item) => {
+                    setErrorAccion(null);
+                    if (item.modo === "contratacion") {
+                      setErrorContratar(null);
+                      setContratando(true);
+                      return;
+                    }
+                    setActiva(item);
+                  }} />
                 {errorAccion && activa?.modo === "directa" ? (
                   <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft p-3 text-sm text-danger">{errorAccion}</p>
                 ) : null}
-                {tienePermiso(permisos, PERMISO_CREDENCIAL) ? (
+                {tienePermiso(permisos, PERMISO_CREDENCIAL) && ESTADOS_CON_VENTANA_ABIERTA.has(detalle.expediente.estado) ? (
                   <div>
                     <Button type="button" variant="ghost" size="sm" onClick={() => setConfirmaReposicion(true)} disabled={pendiente}>
                       {pendiente && !activa ? <Loader2 className="animate-spin" aria-hidden /> : <KeyRound aria-hidden />}
@@ -147,6 +206,19 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
                 ) : null}
               </div>
             </section>
+
+            {contratacion ? (
+              <PanelExitoContratacion resultado={contratacion} nombre={nombreCompleto(detalle.postulante)} onCerrar={() => setContratacion(null)} />
+            ) : null}
+
+            <BannerContacto
+              contacto={detalle.expediente}
+              ahora={ahora}
+              pendiente={pendiente}
+              error={errorContacto}
+              onRegistrar={registrarContacto}
+              onCerrarError={() => setErrorContacto(null)}
+            />
 
             {detalle.expediente.estado === "EN_CORRECCION_CARGO" ? (
               <div role="note" className="flex items-start gap-3 rounded-xl border border-warning/40 bg-warning-soft p-4 text-sm" data-testid="aviso-correccion-cargo">
@@ -162,12 +234,18 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
             ) : null}
 
             <Tabs defaultValue="datos" className="gap-4">
-              <TabsList className="w-full justify-start group-data-[orientation=horizontal]/tabs:h-auto sm:w-fit">
+              <div className="-mx-1 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <TabsList className="w-max min-w-full justify-start group-data-[orientation=horizontal]/tabs:h-auto sm:min-w-0">
                 <TabsTrigger value="datos" className="min-h-10 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-3"><UserRound aria-hidden /> Datos</TabsTrigger>
+                {tieneVentana2 ? <TabsTrigger value="ventana2" className="min-h-10 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-3"><ClipboardCheck aria-hidden /> Datos de Ventana 2</TabsTrigger> : null}
+                {tieneVentana2 ? <TabsTrigger value="foto" className="min-h-10 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-3"><Camera aria-hidden /> Foto</TabsTrigger> : null}
                 <TabsTrigger value="psicofisico" className="min-h-10 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-3"><Stethoscope aria-hidden /> Psicofísico</TabsTrigger>
                 <TabsTrigger value="historial" className="min-h-10 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-3"><History aria-hidden /> Historial</TabsTrigger>
               </TabsList>
+              </div>
               <TabsContent value="datos"><SeccionDatos detalle={detalle} /></TabsContent>
+              <TabsContent value="ventana2"><SeccionVentana2 detalle={detalle} /></TabsContent>
+              <TabsContent value="foto"><SeccionFotoExpediente foto={detalle.foto} /></TabsContent>
               <TabsContent value="psicofisico">
                 <SeccionPsicofisico
                   psicofisico={detalle.psicofisico}
@@ -213,6 +291,14 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
                 onCancelar={cerrarAccion}
               />
             ) : null}
+            <DialogoContratar
+              abierto={contratando}
+              pendiente={pendiente}
+              error={errorContratar}
+              nombre={nombreCompleto(detalle.postulante)}
+              onConfirmar={contratar}
+              onCancelar={() => setContratando(false)}
+            />
             <AlertDialog open={activa?.modo === "directa"} onOpenChange={(a) => (!a && !pendiente ? cerrarAccion() : undefined)}>
               <AlertDialogContent>
                 <AlertDialogHeader>
@@ -255,10 +341,10 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
         <Dialog open={credencial !== null} onOpenChange={() => undefined}>
           <DialogContent className="sm:max-w-xl" showCloseButton={false} onEscapeKeyDown={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
             <DialogHeader>
-              <DialogTitle>Credencial repuesta</DialogTitle>
-              <DialogDescription>Entregue la nueva contraseña temporal al postulante.</DialogDescription>
+              <DialogTitle>{credencial?.titulo ?? "Credencial"}</DialogTitle>
+              <DialogDescription>{credencial?.descripcion ?? ""}</DialogDescription>
             </DialogHeader>
-            {credencial ? <PanelCredencial credencial={credencial} onEntendido={() => setCredencial(null)} /> : null}
+            {credencial ? <PanelCredencial credencial={credencial.datos} onEntendido={() => setCredencial(null)} /> : null}
           </DialogContent>
         </Dialog>
       </div>

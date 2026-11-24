@@ -93,7 +93,7 @@ export function BarraFiltros({
                   value={busqueda ?? ""}
                   onChange={(e) => onBusquedaChange(e.target.value)}
                   placeholder={placeholderBusqueda}
-                  className="pl-9 pr-8 h-10 w-full text-sm bg-background border-input"
+                  className="pl-9 pr-8 h-10 w-full text-sm bg-background border-input [&::-webkit-search-cancel-button]:appearance-none"
                   aria-label={placeholderBusqueda}
                 />
                 {busqueda && busqueda.length > 0 && (

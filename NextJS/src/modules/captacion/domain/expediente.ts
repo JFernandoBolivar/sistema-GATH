@@ -37,17 +37,20 @@ export function describirEstado(estado: string): DescripcionEstado {
   return ESTADOS[estado] ?? { etiqueta: estado, tono: "neutral" };
 }
 
-export type PestanaBandeja = "por_revisar" | "en_correccion" | "en_presupuesto" | "todos";
+export type PestanaBandeja = "por_revisar" | "por_contactar" | "en_correccion" | "en_presupuesto" | "todos";
 
 export interface DefinicionPestana {
   id: PestanaBandeja;
   etiqueta: string;
   /** Estados que filtra la pestaña (vacío = todos). */
   estados: string[];
+  /** Pestaña «Por contactar»: se filtra por `?por_contactar=true`, no por estado. */
+  porContactar?: boolean;
 }
 
 export const PESTANAS: DefinicionPestana[] = [
   { id: "por_revisar", etiqueta: "Por revisar", estados: ["ENVIADO_CAPTACION", "EN_REVISION_FINAL"] },
+  { id: "por_contactar", etiqueta: "Por contactar", estados: [], porContactar: true },
   { id: "en_correccion", etiqueta: "En corrección", estados: ["EN_CORRECCION_DATOS", "EN_CORRECCION_CARGO"] },
   { id: "en_presupuesto", etiqueta: "En Presupuesto", estados: ["EN_PRESUPUESTO", "DIFERIDO_PRESUPUESTO"] },
   { id: "todos", etiqueta: "Todos", estados: [] },
@@ -73,6 +76,9 @@ export interface FilaBandeja {
   ultimoCambio: string | null;
   esReingreso: boolean;
   pendienteDeCaptacion: boolean;
+  contactoPendiente: boolean;
+  contactoPendienteDesde: string | null;
+  contactoAtrasado: boolean;
   postulante: PostulanteResumen;
 }
 
@@ -86,6 +92,8 @@ export interface PaginaBandeja {
 
 export interface FiltrosBandeja {
   estados: string[];
+  /** Solo los expedientes con el contacto al postulante pendiente. */
+  porContactar?: boolean;
   q?: string;
   desde?: string;
   hasta?: string;
@@ -137,8 +145,25 @@ export interface PropuestaCargo {
   oficinaTexto: string;
 }
 
+export interface FotoExpediente {
+  tiene: boolean;
+  subidaEl: string | null;
+  tamano: number | null;
+  /** Ruta del proxy del mismo origen (el token nunca llega al navegador). */
+  url: string | null;
+}
+
+export interface FaltanteVentana2 {
+  seccion: string;
+  campo: string;
+  mensaje: string;
+}
+
 export interface DetalleExpediente {
   expediente: {
+    contactoPendiente: boolean;
+    contactoPendienteDesde: string | null;
+    contactoAtrasado: boolean;
     id: string;
     numero: string;
     estado: string;
@@ -160,6 +185,11 @@ export interface DetalleExpediente {
     esReingreso: boolean;
   };
   datosVentana1: Record<string, unknown>;
+  datosVentana2: Record<string, unknown>;
+  /** Los datos de la Ventana 2 con el nombre de cada catálogo (`null` si aún no hay). */
+  datosVentana2Legible: Record<string, unknown> | null;
+  ventana2Faltantes: FaltanteVentana2[] | null;
+  foto: FotoExpediente;
   historial: HitoHistorial[];
   psicofisico: ResultadoPsicofisico;
   acciones: AccionExpediente[];
@@ -172,6 +202,12 @@ export interface CredencialEmitida {
   ventana: number | null;
   venceEl: string | null;
   debeCambiarClave: boolean;
+}
+
+/** Detalle más la credencial NUEVA (solo al reabrir la Ventana 2 u observar faltantes; se muestra UNA vez). */
+export interface ResultadoTransicion {
+  detalle: DetalleExpediente;
+  credencial: CredencialEmitida | null;
 }
 
 export interface AltaPostulanteResultado {
@@ -219,4 +255,4 @@ export interface DatosPsicofisico {
 /** Resultado uniforme de las Server Actions: el motivo llega en español, sin lanzar al navegador. */
 export type ResultadoAccion<T> =
   | { ok: true; data: T; mensaje?: string }
-  | { ok: false; error: string; errores?: Record<string, string[]> };
+  | { ok: false; error: string; errores?: Record<string, string[]>; codigo?: string };

@@ -109,16 +109,20 @@ async function buildHeaders(
 async function extractError(
   response: Response,
   fallback: string,
-): Promise<{ message: string; errores?: Record<string, string[]> }> {
+): Promise<{ message: string; errores?: Record<string, string[]>; codigo?: string }> {
   try {
-    const body = (await response.json()) as { message?: unknown; data?: { errores?: unknown } | null };
+    const body = (await response.json()) as {
+      message?: unknown;
+      data?: { errores?: unknown; codigo?: unknown } | null;
+    };
     const message =
       typeof body?.message === "string" && body.message.trim().length > 0 ? body.message : fallback;
     const errores = body?.data?.errores;
+    const codigo = typeof body?.data?.codigo === "string" ? body.data.codigo : undefined;
     if (errores && typeof errores === "object" && !Array.isArray(errores)) {
-      return { message, errores: errores as Record<string, string[]> };
+      return { message, errores: errores as Record<string, string[]>, codigo };
     }
-    return { message };
+    return { message, codigo };
   } catch {
     // Respuesta sin cuerpo JSON: se usa el mensaje de reserva.
   }
@@ -169,16 +173,16 @@ async function request<T>(
   if (response.status === 403) {
     // F2-15: no se enmascara el mensaje del backend (la ficha pública del carnet
     // explica si la credencial no es válida o si el dato está restringido).
-    const { message } = await extractError(response, "No tienes permiso para ejecutar esta acción");
-    throw new ApiHttpError(message, 403);
+    const { message, codigo } = await extractError(response, "No tienes permiso para ejecutar esta acción");
+    throw new ApiHttpError(message, 403, undefined, codigo);
   }
 
   if (!response.ok) {
-    const { message, errores } = await extractError(
+    const { message, errores, codigo } = await extractError(
       response,
       `Error ${response.status} al comunicarse con el servidor`,
     );
-    throw new ApiHttpError(message, response.status, errores);
+    throw new ApiHttpError(message, response.status, errores, codigo);
   }
 
   if (response.status === 204) return undefined as T;

@@ -12,7 +12,12 @@ from apps.postulacion.application.use_cases.consultas import ExpedienteConHistor
 from apps.postulacion.domain.entities.bandeja import FilaBandeja, FiltrosBandeja
 from apps.postulacion.domain.entities.psicofisico import ResultadoPsicofisico
 from apps.postulacion.domain.ports.repos import CatalogosVentana2, RepoPostulacion
-from apps.postulacion.domain.services.acciones import AccionDisponible, acciones_disponibles
+from apps.postulacion.domain.services.acciones import (
+    PARES_ASIGNACION,
+    PARES_CAPTACION,
+    AccionDisponible,
+    acciones_disponibles,
+)
 from apps.postulacion.domain.services.contacto import limite_de_atraso
 from apps.postulacion.domain.services.datos_ventana2 import faltantes_ventana2
 from apps.postulacion.domain.services.maquina_estados import Hechos
@@ -72,8 +77,13 @@ def detalle_para_captacion(
     exp = base.expediente
     psicofisico = repo.obtener_psicofisico(exp.id)
     obligatorio = leer_psicofisico_obligatorio(config)
+    # Para MOSTRAR la acción de contratar basta una reserva activa; la revalidación real (con bloqueo del puesto) ocurre
+    # al ejecutar `asignar/`.
+    reserva = repo.obtener_reserva_activa_de_expediente(exp.id) if exp.estado == EstadoExpediente.LISTO_PARA_ASIGNAR else None
     hechos = Hechos(
-        ahora=ahora or ahora_utc(), ventana_vence_el=exp.ventana_vence_el, reserva_vence_el=exp.reserva_vence_el,
+        ahora=ahora or ahora_utc(), ventana_vence_el=exp.ventana_vence_el,
+        reserva_vence_el=reserva.vence_el if reserva is not None else exp.reserva_vence_el,
+        puesto_reservado=reserva is not None, puesto_revalidado=reserva is not None,
         diferido_vence_el=exp.diferido_vence_el, cargo_definido=exp.cargo_definido,
         oficina_definida=exp.oficina_definida, psicofisico_obligatorio=obligatorio,
         psicofisico_registrado=psicofisico is not None,
@@ -83,7 +93,9 @@ def detalle_para_captacion(
         legible = catalogos.legible(exp.datos_ventana2 or {}) if catalogos is not None else None
         faltantes = faltantes_ventana2(exp.datos_ventana2, exp.tiene_foto)
     return DetalleCaptacion(
-        base, psicofisico, obligatorio, acciones_disponibles(exp, permisos, hechos, psicofisico),
+        base, psicofisico, obligatorio, acciones_disponibles(
+            exp, permisos, hechos, psicofisico, pares={**PARES_CAPTACION, **PARES_ASIGNACION},
+        ),
         horas_escalamiento_contacto=leer_horas_escalamiento_contacto(config), ventana2_legible=legible,
         ventana2_faltantes=faltantes,
     )

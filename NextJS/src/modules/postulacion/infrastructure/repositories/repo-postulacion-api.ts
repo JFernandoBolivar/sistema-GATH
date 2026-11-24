@@ -2,9 +2,11 @@ import type { RepoPostulacion } from "../../application/ports/repo-postulacion";
 import { construirCuerpoBorrador } from "../../domain/ventana1";
 import { llamarPostulacion } from "../http/postulacion-api";
 import {
+  mapearCatalogosVentana2,
   mapearEnvio,
   mapearMiExpediente,
   mapearSesionInvitado,
+  mapearVentana2,
 } from "../mappers/mapper-postulacion";
 
 export const repoPostulacionApi: RepoPostulacion = {
@@ -28,5 +30,18 @@ export const repoPostulacionApi: RepoPostulacion = {
         cuerpo: { clave_actual: claveActual, clave_nueva: claveNueva },
       }),
     );
+  },
+  async obtenerVentana2(token) {
+    return mapearVentana2(await llamarPostulacion<unknown>("ventana2/", { token }));
+  },
+  async guardarVentana2(token, cuerpo) {
+    return mapearVentana2(await llamarPostulacion<unknown>("ventana2/", { metodo: "PUT", token, cuerpo }));
+  },
+  async catalogosVentana2(token, estadoId, municipioId) {
+    const params = new URLSearchParams();
+    if (estadoId) params.set("estado_id", String(estadoId));
+    if (municipioId) params.set("municipio_id", String(municipioId));
+    const consulta = params.size > 0 ? `?${params.toString()}` : "";
+    return mapearCatalogosVentana2(await llamarPostulacion<unknown>(`ventana2/catalogos/${consulta}`, { token }));
   },
 };

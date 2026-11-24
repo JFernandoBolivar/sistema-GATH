@@ -31,6 +31,7 @@ from apps.postulacion.infrastructure.repositories.repo_postulacion_orm import (
     RepoPostulacionORM,
 )
 from apps.postulacion.domain.services.maquina_estados import P_REVISION_FINAL
+from apps.postulacion.domain.value_objects.estados import EstadoExpediente
 from apps.postulacion.presentation.permissions.postulante_permissions import (
     REGISTRAR_PSICOFISICO,
     VER_BANDEJA,
@@ -72,7 +73,7 @@ from core.infrastructure.providers import obtener_notificador
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
 from core.infrastructure.storage.validacion_archivo import MAX_BYTES_DOCUMENTO, PDF, clave_segura, validar_archivo
 from core.presentation.archivos import respuesta_archivo
-from core.presentation.envelope import ok
+from core.presentation.envelope import fail, ok
 from core.presentation.permissions import HasAnyPermission, HasPermission
 from core.presentation.schema import MensajeRespuestaSerializer
 
@@ -127,6 +128,12 @@ class AltaPostulanteView(APIView):
         ))
 
 
+ESTADOS_CON_VENTANA_ABIERTA = frozenset({
+    EstadoExpediente.PRE_REGISTRADO, EstadoExpediente.EN_CAPTURA, EstadoExpediente.EN_CORRECCION_DATOS,
+    EstadoExpediente.CONSOLIDANDO,
+})
+
+
 class ReponerCredencialView(APIView):
     """`postulacion.crear_postulante`: nueva contraseña temporal; la anterior y las sesiones abiertas quedan invalidadas."""
 
@@ -137,6 +144,14 @@ class ReponerCredencialView(APIView):
         responses={200: CredencialEmitidaSerializer, **ERRORES},
     )
     def post(self, request, expediente_id):
+        # Solo tiene sentido con una ventana ABIERTA para el postulante: en revisión, en Presupuesto o en Dirección
+        # General la credencial está suspendida a propósito y reponerla la reactivaría sin nada que completar.
+        exp = RepoPostulacionORM().obtener_expediente(str(expediente_id))
+        if exp is not None and exp.estado not in ESTADOS_CON_VENTANA_ABIERTA:
+            return fail(
+                'El postulante no tiene una ventana abierta en este estado: no hay credencial que reponer.',
+                status=409, data={'codigo': 'SIN_VENTANA_ABIERTA'},
+            )
         emision = emitir_credencial(
             RepoPostulacionORM(), HasheadorDjango(), expediente_id=str(expediente_id),
             emitida_por=_cedula_del_analista(request), ahora=ahora(),

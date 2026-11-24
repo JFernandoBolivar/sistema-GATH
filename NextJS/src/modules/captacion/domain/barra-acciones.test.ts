@@ -47,6 +47,11 @@ describe("barra de acciones desde acciones[]", () => {
     expect(items.map((i) => i.modo)).toEqual(["propuesta", "motivo", "directa"]);
   });
 
+  it("contratar tiene su propio modo y etiqueta (ya no es una transición)", () => {
+    const [item] = construirBarraAcciones([{ ...base, destino: "CONTRATADO", etiqueta: "Contratado", requierePropuesta: false, bloqueada: true, motivoBloqueo: "Sin reserva vigente" }]);
+    expect(item).toMatchObject({ modo: "contratacion", etiqueta: "Contratar y asignar puesto", variante: "primaria", deshabilitada: true, motivoBloqueo: "Sin reserva vigente" });
+  });
+
   it("sin acciones devuelve una lista vacía", () => {
     expect(construirBarraAcciones([])).toEqual([]);
   });

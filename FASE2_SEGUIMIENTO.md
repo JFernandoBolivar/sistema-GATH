@@ -4,7 +4,7 @@ Rama: `feature/fase2-captacion-carnet` · Creado: 2026-11-20 · Referencia: `FAS
 
 ## ▶ Cómo continuar (actualizado 2026-11-22)
 
-**Dónde quedamos:** bloques A, B, K (carnet), C (decisiones), D (Captación Ventana 1) **completos**. bloque E (Presupuesto y Dirección General) **completo** (2026-11-24). **Siguiente: bloque G** (Ventana 2 del postulante y asignación atómica del cargo; consumir la reserva). F espera los PDF oficiales (F-3) (Presupuesto y Dirección General: bandeja de Presupuesto, reserva de puesto, declaración de disponibilidad, Punto de Cuenta de ingreso, aprobación de Dirección General y tarea que libera reservas vencidas). Después F, G y H.
+**Dónde quedamos:** bloques A, B, K (carnet), C (decisiones), D (Captación Ventana 1), E (Presupuesto y Dirección General) y **G (Ventana 2 y contratación atómica, 2026-11-24) completos**: el circuito de ingreso funciona de punta a punta, del alta del postulante hasta la ficha del trabajador. **Siguiente:** pendientes de H (H-2 soportes con cédula en la ruta, H-3 bitácora de descargas…), J (actualizar la propuesta) y decidir C-9. F espera los PDF oficiales (F-3).
 
 **Código:** rama `feature/fase2-captacion-carnet` en GitHub (`git fetch github && git checkout feature/fase2-captacion-carnet`). GitLab (`origin`) sigue sin resolver DNS: subir ahí cuando vuelva (`git push origin feature/fase2-captacion-carnet`). Nunca push a `dev` ni `qa`.
 
@@ -48,7 +48,7 @@ Cómo actualizar: cambiar el ícono de la columna **Estado**, la **Fecha** del �
 | D · Captación Ventana 1 (E-3) | 9 | 0 | 0 | 9 | 0 |
 | E · Presupuesto y Dirección General (E-4) | 7 | 0 | 0 | 7 | 0 |
 | F · Documentos digitales (E-5) | 7 | 6 | 0 | 0 | 1 |
-| G · Ventana 2 y asignación de cargo (E-6) | 6 | 6 | 0 | 0 | 0 |
+| G · Ventana 2 y asignación de cargo (E-6) | 6 | 0 | 0 | 6 | 0 |
 | H · Transversales / deuda técnica | 13 | 7 | 0 | 6 | 0 |
 | I · Sincronización con nómina (E-9) | 1 | 0 | 0 | 0 | 1 |
 | K · Hallazgos de auditoría (opencode) | 16 | 0 | 0 | 16 | 0 |
@@ -157,12 +157,12 @@ Cómo actualizar: cambiar el ícono de la columna **Estado**, la **Fecha** del �
 
 | ID | Tarea | Estado | Fecha | Nota |
 |---|---|---|---|---|
-| G-1 | Reapertura de Ventana 2 y tarea `CONTACTAR_POSTULANTE` con antigüedad visible | ⬜ Pendiente | | |
-| G-2 | Carga de grupo familiar, vivienda, salud, tallas y foto por el postulante | ⬜ Pendiente | | |
-| G-3 | Revisión final de Captación (observar faltantes / conforme) | ⬜ Pendiente | | |
-| G-4 | Caso de uso de promoción atómica: crear `Employee`, asignar puesto revalidado, INGRESO, cuenta, cerrar expediente | ⬜ Pendiente | | orquesta `crear_empleado` + `asignar_cargo_a_empleado` + `aprovisionar_cuenta_trabajador` |
-| G-5 | `Employee.origen_expediente`, `foto_objeto`, `foto_actualizada` | ⬜ Pendiente | | |
-| G-6 | Prueba de concurrencia: dos expedientes al mismo puesto | ⬜ Pendiente | | |
+| G-1 | Reapertura de Ventana 2 y tarea `CONTACTAR_POSTULANTE` con antigüedad visible | ✅ Completado | 2026-11-24 |  `0d16ddf6` + auditoría |
+| G-2 | Carga de grupo familiar, vivienda, salud, tallas y foto por el postulante | ✅ Completado | 2026-11-24 |  `0d16ddf6` + auditoría |
+| G-3 | Revisión final de Captación (observar faltantes / conforme) | ✅ Completado | 2026-11-24 |  `0d16ddf6` + auditoría |
+| G-4 | Caso de uso de promoción atómica: crear `Employee`, asignar puesto revalidado, INGRESO, cuenta, cerrar expediente | ✅ Completado | 2026-11-24 | orquesta `crear_empleado` + `asignar_cargo_a_empleado` + `aprovisionar_cuenta_trabajador` `0d16ddf6` + auditoría |
+| G-5 | `Employee.origen_expediente`, `foto_objeto`, `foto_actualizada` | ✅ Completado | 2026-11-24 |  `0d16ddf6` + auditoría |
+| G-6 | Prueba de concurrencia: dos expedientes al mismo puesto | ✅ Completado | 2026-11-24 |  `0d16ddf6` + auditoría |
 
 ## H · Transversales / deuda técnica
 
@@ -225,6 +225,7 @@ Cómo actualizar: cambiar el ícono de la columna **Estado**, la **Fecha** del �
 
 | Fecha | Cambio |
 |---|---|
+| 2026-11-24 | **Bloque G completo** (6/6). Backend `0d16ddf6` (worker Sonnet): Ventana 2 (familiares, vivienda, salud, tallas y foto sin EXIF con clave opaca), reapertura con credencial nueva y tarea «Contactar al postulante» con escalamiento (`captacion.horas_escalamiento_contacto`, 48 h), revisión final, promoción atómica por el puerto `PromotorEmpleado` y `Employee.foto_objeto/foto_actualizada/origen_expediente` (migraciones `postulacion.0006`, `personal.0004` por SQL, `configuracion.0016`, aplicadas en desarrollo). Frontend (worker Sonnet): Ventana 2 paso a paso, pestaña «Por contactar», «Ya lo contacté», datos y foto en Captación, panel de contratación. Auditoría: el botón «Contratar» no salía (faltaba en `acciones[]`), una contratación nueva quedaba marcada «Reingreso», «Reponer credencial» se ofrecía fuera de una ventana abierta (ahora 409 `SIN_VENTANA_ABIERTA`), texto con género («fue contratado»), doble «×» en el buscador compartido y tres fallos de la E2E. Backend 3412 ✅, frontend 393 de los módulos tocados ✅, E2E Ventana 2 + Captación ✅ (escritorio y 390x844). **Limpieza tras la E2E:** cada contratación crea un Employee real y ocupa un puesto; en desarrollo hay muy pocas vacantes, así que tras correrla hay que borrar los Employee «Prueba Ventana Dos» con `origen_expediente` y devolver su puesto a VACANTE (script en la sesión; quedó en 0). Decisiones del worker: el correo personal del postulante queda como alternativo y la cuenta se crea cuando RRHH asigne el institucional; reingreso de un activo → 409. |
 | 2026-11-24 | **Bloque E completo** (7/7). Pantallas de Presupuesto y Dirección General (commit `7316d5fa`, GitHub ✅). Worker Sonnet; en la auditoría: los listados decían «Cargo sin texto» (ahora se guardan los nombres del catálogo al abrir hacia Presupuesto) y la E2E dependía de corridas anteriores (ahora busca vacantes libres; escritorio aprueba y móvil rechaza). Nota de pruebas: tras aprobar, la reserva queda ACTIVA por diseño hasta el bloque G; en desarrollo solo hay 2 propuestas distintas con vacantes, así que antes de repetir la E2E hay que liberar las reservas de prueba: `R.objects.filter(estado='ACTIVA', expediente__creado_por='99000990').update(estado='LIBERADA')` (modelo `postulacion.ReservaPuestoModel`). Frontend 1522 ✅, backend 626 de postulación ✅. |
 | 2026-11-24 | Backend del bloque E (commit `352af7c3`, GitHub ✅). Worker Sonnet; suite 3285 ✅; probado en vivo de punta a punta (Captación → Presupuesto reserva + constancia → Punto de Cuenta 0001-2026 en PDF → aprobación de Dirección General). Corregido en la auditoría: el PDF decía «emitido por N/A». Migración postulacion 0005 aplicada en desarrollo; la reserva de prueba del puesto 107807 se liberó a mano y se borraron 33 avisos de prueba. Sigue: pantallas de Presupuesto y Dirección General. |
 | 2026-11-22 | Documentos versionados en GitHub para continuar desde otra PC (`FASE2_SEGUIMIENTO.md`, `FASE2_PROPUESTA_TECNICA.md`, `Propuesta_Fase2_GATH.html`) y sección «Cómo continuar». Siguiente: bloque E. |

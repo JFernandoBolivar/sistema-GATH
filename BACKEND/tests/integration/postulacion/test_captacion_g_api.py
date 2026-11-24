@@ -60,7 +60,12 @@ def aprobado(m2, cedula='12345678', correo='ana@ejemplo.invalid'):
 # ------------------------------------------------------------------------------------------------ G-1 · reapertura
 def test_reabrir_la_ventana_2_devuelve_una_credencial_nueva_una_sola_vez(m2, captacion, django_capture_on_commit_callbacks):
     exp = aprobado(m2)
-    captacion.post(f'{BASE}/expedientes/{exp}/reponer-credencial/')    # ya había una credencial de la Ventana 1
+    # Ya había una credencial de la Ventana 1 (suspendida). Por la API ya no se repone fuera de una ventana abierta.
+    from apps.postulacion.application.use_cases.credenciales import emitir_credencial
+    from apps.postulacion.infrastructure.hasheador_django import HasheadorDjango
+    from apps.postulacion.infrastructure.repositories.repo_postulacion_orm import RepoPostulacionORM
+    ExpedientePostulacionModel.objects.filter(pk=exp).update(ventana_vence_el=timezone.now() + timedelta(days=1))
+    emitir_credencial(RepoPostulacionORM(), HasheadorDjango(), expediente_id=exp, emitida_por='20000001')
     version_antes = CredencialPostulanteModel.objects.get(expediente_id=exp).version_sesion
     with django_capture_on_commit_callbacks(execute=True):
         r = transicion(captacion, exp, 'CONSOLIDANDO')

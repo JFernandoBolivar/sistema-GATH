@@ -7,7 +7,8 @@
 import { unstable_rethrow } from "next/navigation";
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
-import { errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
+import { ApiHttpError, errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
+import { mensajeErrorContratacion, type ResultadoContratacion } from "../../domain/contratacion";
 import type {
   AltaPostulanteResultado,
   CredencialEmitida,
@@ -18,6 +19,7 @@ import type {
   PaginaBandeja,
   ResultadoAccion,
   ResultadoPsicofisico,
+  ResultadoTransicion,
 } from "../../domain/expediente";
 import { captacionApi } from "../http/captacion-api";
 
@@ -38,7 +40,7 @@ async function ejecutar<T>(
     await logAudit({ traceId, action: accion, status: "FAILED", durationMs: Date.now() - inicio });
     handleSessionExpired(error);
     const e = errorDeAccion(error, porDefecto);
-    return { ok: false, error: e.error, errores: e.errores };
+    return { ok: false, error: e.error, errores: e.errores, codigo: error instanceof ApiHttpError ? error.codigo : undefined };
   }
 }
 
@@ -49,10 +51,18 @@ export async function listarBandejaAction(filtros: FiltrosBandeja): Promise<Resu
 }
 
 /** Conteo de una pestaña: pide una sola fila y usa `total`. */
-export async function contarExpedientesAction(estados: string[]): Promise<ResultadoAccion<number>> {
+export async function contarExpedientesAction(estados: string[], porContactar = false): Promise<ResultadoAccion<number>> {
   return ejecutar("contarExpedientesCaptacionAction", "No fue posible contar los expedientes.", async () =>
-    (await captacionApi.bandeja({ estados, pagina: 1, tamano: 1 })).total,
+    (await captacionApi.bandeja({ estados, porContactar, pagina: 1, tamano: 1 })).total,
   );
+}
+
+/** «Por contactar»: total y cuántos están atrasados (el backend ordena primero los atrasados). */
+export async function resumenPorContactarAction(): Promise<ResultadoAccion<{ total: number; atrasados: number }>> {
+  return ejecutar("resumenPorContactarCaptacionAction", "No fue posible contar los contactos pendientes.", async () => {
+    const p = await captacionApi.bandeja({ estados: [], porContactar: true, pagina: 1, tamano: 50 });
+    return { total: p.total, atrasados: p.resultados.filter((f) => f.contactoAtrasado).length };
+  });
 }
 
 export async function obtenerExpedienteAction(id: string): Promise<ResultadoAccion<DetalleExpediente>> {
@@ -64,7 +74,7 @@ export async function obtenerExpedienteAction(id: string): Promise<ResultadoAcci
 export async function transicionarExpedienteAction(
   id: string,
   transicion: DatosTransicion,
-): Promise<ResultadoAccion<DetalleExpediente>> {
+): Promise<ResultadoAccion<ResultadoTransicion>> {
   return ejecutar("transicionarExpedienteAction", "No fue posible aplicar la acción.", () =>
     captacionApi.transicion(id, transicion),
   );
@@ -122,4 +132,15 @@ export async function descargarInformePsicofisicoAction(
       nombre: `informe-psicofisico-${id.slice(0, 8)}.pdf`,
     };
   });
+}
+
+export async function registrarContactoAction(id: string, nota?: string): Promise<ResultadoAccion<DetalleExpediente>> {
+  return ejecutar("registrarContactoPostulanteAction", "No fue posible registrar el contacto.", () => captacionApi.contactado(id, nota));
+}
+
+/** Contratación atómica (crea la ficha, asigna el puesto y la cuenta). Los errores traen un texto claro por código. */
+export async function contratarPostulanteAction(id: string): Promise<ResultadoAccion<ResultadoContratacion>> {
+  const r = await ejecutar("contratarPostulanteAction", "No fue posible contratar al postulante.", () => captacionApi.asignar(id));
+  if (r.ok) return r;
+  return { ...r, error: mensajeErrorContratacion(r.codigo, r.error) };
 }

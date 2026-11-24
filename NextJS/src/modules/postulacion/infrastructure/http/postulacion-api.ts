@@ -17,6 +17,8 @@ export class ErrorPostulacion extends Error {
     readonly codigo?: string,
     readonly bloqueadaHasta?: string,
     readonly errores?: Record<string, string[]>,
+    /** Lo que falta para enviar la Ventana 2 (`VENTANA2_INCOMPLETA`). */
+    readonly faltantes?: Array<{ seccion: string; campo: string; mensaje: string }>,
   ) {
     super(mensaje);
     this.name = "ErrorPostulacion";
@@ -29,7 +31,8 @@ interface Sobre<T> {
   data?: T & {
     codigo?: string;
     bloqueada_hasta?: string;
-    errores?: Record<string, string[]>;
+    errores?: Record<string, string[] | string>;
+    faltantes?: Array<{ seccion: string; campo: string; mensaje: string }>;
   };
 }
 
@@ -63,9 +66,12 @@ export async function llamarPostulacion<T>(ruta: string, opciones: Opciones = {}
   const sobre = (await respuesta.json().catch(() => null)) as Sobre<T> | null;
   if (!respuesta.ok) {
     const datos = sobre?.data ?? undefined;
+    // `data.errores` es `{campo: [mensajes]}` (Ventana 1) o `{ruta: mensaje}` (Ventana 2): se unifica a lista.
     const errores =
       datos?.errores && typeof datos.errores === "object" && !Array.isArray(datos.errores)
-        ? datos.errores
+        ? Object.fromEntries(
+            Object.entries(datos.errores).map(([k, v]) => [k, Array.isArray(v) ? v.map(String) : [String(v)]]),
+          )
         : undefined;
     throw new ErrorPostulacion(
       typeof sobre?.message === "string" && sobre.message
@@ -75,10 +81,22 @@ export async function llamarPostulacion<T>(ruta: string, opciones: Opciones = {}
       datos?.codigo,
       datos?.bloqueada_hasta,
       errores,
+      Array.isArray(datos?.faltantes) ? datos.faltantes : undefined,
     );
   }
   if (!sobre || sobre.data === undefined || sobre.data === null) {
     throw new ErrorPostulacion("Respuesta inesperada del sistema.", respuesta.status);
   }
   return sobre.data as T;
+}
+
+/**
+ * Pasa tal cual la respuesta de la foto de carnet del postulante (binario en el GET, sobre JSON en el POST).
+ * Solo para el Route Handler `/postulacion/foto`: el token nunca llega al navegador.
+ */
+export async function reenviarFotoPostulante(token: string, metodo: "GET" | "POST", formulario?: FormData): Promise<Response> {
+  const cabeceras: Record<string, string> = { Authorization: `Bearer ${token}` };
+  const ip = await ipDelCliente().catch(() => null);
+  if (ip) cabeceras["X-Forwarded-For"] = ip;
+  return fetch(`${BASE}ventana2/foto/`, { method: metodo, headers: cabeceras, body: formulario, cache: "no-store" });
 }

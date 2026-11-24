@@ -19,11 +19,37 @@ export interface PostulanteDTO {
   telefonoMovil: string;
 }
 
+export interface FaltanteDTO {
+  seccion: string;
+  campo: string;
+  mensaje: string;
+}
+
+export interface FotoDTO {
+  tiene: boolean;
+  subidaEl: string | null;
+  tamano: number | null;
+}
+
 export interface MiExpedienteDTO {
   expediente: ExpedienteDTO;
   postulante: PostulanteDTO;
   datosVentana1: Record<string, unknown>;
   camposPendientes: string[];
+  /** Qué formulario toca: el de la Ventana 1 o el de la 2. */
+  formulario: "ventana1" | "ventana2" | null;
+  datosVentana2: Record<string, unknown>;
+  tieneFoto: boolean;
+  faltantesVentana2: FaltanteDTO[];
+}
+
+/** `GET/PUT ventana2/`: borrador de la Ventana 2, lo que falta y el estado de la foto. */
+export interface Ventana2DTO {
+  expediente: ExpedienteDTO;
+  datos: Record<string, unknown>;
+  faltantes: FaltanteDTO[];
+  completa: boolean;
+  foto: FotoDTO;
 }
 
 /** Sesión de invitado que devuelve `acceso/` y `cambiar-clave/`. */
@@ -49,6 +75,8 @@ export type ResultadoPostulacion<T = void> =
       mensaje: string;
       codigo?: string;
       errores?: Record<string, string[]>;
+      /** `VENTANA2_INCOMPLETA`: lo que falta para enviar. */
+      faltantes?: FaltanteDTO[];
       /** Ordena al cliente volver a la pantalla de acceso (sesión caída). */
       sesionCaida?: boolean;
     };

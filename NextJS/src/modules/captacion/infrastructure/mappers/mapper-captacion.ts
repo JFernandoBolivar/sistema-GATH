@@ -3,12 +3,15 @@ import type {
   AltaPostulanteResultado,
   CredencialEmitida,
   DetalleExpediente,
+  FaltanteVentana2,
   FilaBandeja,
   HitoHistorial,
   PaginaBandeja,
   PropuestaCargo,
   ResultadoPsicofisico,
+  ResultadoTransicion,
 } from "../../domain/expediente";
+import type { ResultadoContratacion } from "../../domain/contratacion";
 
 type Crudo = Record<string, unknown>;
 
@@ -29,6 +32,9 @@ export function filaDesdeApi(f: Crudo): FilaBandeja {
     ultimoCambio: textoONulo(f.ultimo_cambio),
     esReingreso: f.es_reingreso === true,
     pendienteDeCaptacion: f.pendiente_de_captacion === true,
+    contactoPendiente: f.contacto_pendiente === true,
+    contactoPendienteDesde: textoONulo(f.contacto_pendiente_desde),
+    contactoAtrasado: f.contacto_atrasado === true,
     postulante: { cedula: texto(p.cedula), nombres: texto(p.nombres), apellidos: texto(p.apellidos) },
   };
 }
@@ -100,8 +106,12 @@ function propuestaDesdeApi(raw: unknown): PropuestaCargo {
 export function detalleDesdeApi(d: Crudo): DetalleExpediente {
   const e = objeto(d.expediente);
   const p = objeto(d.postulante);
+  const foto = objeto(d.foto);
   return {
     expediente: {
+      contactoPendiente: e.contacto_pendiente === true,
+      contactoPendienteDesde: textoONulo(e.contacto_pendiente_desde),
+      contactoAtrasado: e.contacto_atrasado === true,
       id: texto(e.id),
       numero: texto(e.numero),
       estado: texto(e.estado),
@@ -123,6 +133,20 @@ export function detalleDesdeApi(d: Crudo): DetalleExpediente {
       esReingreso: p.es_reingreso === true,
     },
     datosVentana1: objeto(d.datos_ventana1),
+    datosVentana2: objeto(d.datos_ventana2),
+    datosVentana2Legible: d.datos_ventana2_legible && typeof d.datos_ventana2_legible === "object" ? objeto(d.datos_ventana2_legible) : null,
+    ventana2Faltantes: Array.isArray(d.ventana2_faltantes)
+      ? d.ventana2_faltantes.map((x): FaltanteVentana2 => {
+          const o = objeto(x);
+          return { seccion: texto(o.seccion), campo: texto(o.campo), mensaje: texto(o.mensaje) };
+        })
+      : null,
+    foto: {
+      tiene: foto.tiene === true,
+      subidaEl: textoONulo(foto.subida_el),
+      tamano: numeroONulo(foto.tamano),
+      url: textoONulo(foto.url),
+    },
     historial: lista(d.historial).map(hitoDesdeApi),
     psicofisico: psicofisicoDesdeApi(d.psicofisico),
     acciones: lista(d.acciones).map(accionDesdeApi),
@@ -148,5 +172,31 @@ export function altaDesdeApi(d: Crudo, mensaje: string): AltaPostulanteResultado
     esReingreso: d.es_reingreso === true,
     credencial: credencialDesdeApi(d.credencial),
     mensaje,
+  };
+}
+
+/** Respuesta de `transicion/`: el detalle y, al reabrir la Ventana 2 u observar faltantes, la credencial nueva. */
+export function transicionDesdeApi(d: Crudo): ResultadoTransicion {
+  return { detalle: detalleDesdeApi(d), credencial: d.credencial ? credencialDesdeApi(d.credencial) : null };
+}
+
+export function contratacionDesdeApi(d: Crudo): ResultadoContratacion {
+  const p = objeto(d.puesto);
+  const c = objeto(d.cuenta);
+  return {
+    employeeId: texto(d.employee_id) || String(d.employee_id ?? ""),
+    cedula: texto(d.cedula),
+    esReingreso: d.es_reingreso === true,
+    puesto: { id: String(p.id ?? ""), codigo: texto(p.codigo) },
+    familiaresCopiados: numeroONulo(d.familiares_copiados) ?? 0,
+    cuenta: {
+      creada: c.creada === true,
+      reactivada: c.reactivada === true,
+      motivo: texto(c.motivo),
+      correo: textoONulo(c.correo),
+      correoAlternativo: textoONulo(c.correo_alternativo),
+      diasVigenciaClaveInicial: numeroONulo(c.dias_vigencia_clave_inicial),
+      entrega: textoONulo(c.entrega),
+    },
   };
 }

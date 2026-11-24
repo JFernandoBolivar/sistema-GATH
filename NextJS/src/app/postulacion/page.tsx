@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
 import type { MiExpedienteDTO } from "@/modules/postulacion/application/dtos/postulacion-dto";
-import { obtenerMiExpediente } from "@/modules/postulacion/application/use-cases/gestionar-postulacion";
+import { catalogosVentana2, obtenerMiExpediente } from "@/modules/postulacion/application/use-cases/gestionar-postulacion";
+import { CATALOGOS_VACIOS, viviendaDesdeDatos, type CatalogosVentana2 } from "@/modules/postulacion/domain/ventana2";
+import { InicioVentana2 } from "@/modules/postulacion/ui/ventana2/inicio-ventana2";
 import {
   RUTA_ACCESO_POSTULANTE,
   RUTA_CAMBIAR_CLAVE,
@@ -23,8 +25,18 @@ export default async function InicioPostulantePage() {
   let vista: MiExpedienteDTO | null = null;
   let aviso = "";
   let destino: string | null = null;
+  let catalogos: CatalogosVentana2 = CATALOGOS_VACIOS;
   try {
     vista = await obtenerMiExpediente(repoPostulacionApi, sesion.tokenDjango);
+    if (vista.formulario === "ventana2" && vista.expediente.estado === "CONSOLIDANDO") {
+      const v = viviendaDesdeDatos(vista.datosVentana2);
+      catalogos = await catalogosVentana2(
+        repoPostulacionApi,
+        sesion.tokenDjango,
+        Number(v.estadoId) || undefined,
+        Number(v.municipioId) || undefined,
+      );
+    }
   } catch (e) {
     if (e instanceof ErrorPostulacion) {
       const p = presentarErrorApi({
@@ -60,6 +72,9 @@ export default async function InicioPostulantePage() {
         </a>
       </section>
     );
+  }
+  if (vista.formulario === "ventana2" && vista.expediente.estado === "CONSOLIDANDO") {
+    return <InicioVentana2 vista={vista} catalogos={catalogos} />;
   }
   return <InicioPostulacion vista={vista} />;
 }

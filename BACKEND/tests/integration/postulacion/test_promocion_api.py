@@ -128,7 +128,8 @@ def test_asignar_crea_al_trabajador_con_todo_y_cierra_el_expediente(m2, captacio
     # reserva, postulante, credencial y expediente
     reserva = ReservaPuestoModel.objects.get(expediente_id=exp)
     assert reserva.estado == 'CONSUMIDA' and reserva.cerrada_el and reserva.motivo_liberacion == 'contratación'
-    assert PostulanteModel.objects.get(cedula=CEDULA).employee_cedula == CEDULA
+    # Ingreso nuevo: el postulante NO queda marcado como reingreso; la trazabilidad es Employee.origen_expediente.
+    assert PostulanteModel.objects.get(cedula=CEDULA).employee_cedula == ''
     assert CredencialPostulanteModel.objects.get(expediente_id=exp).revocada is True
     e = ExpedientePostulacionModel.objects.get(pk=exp)
     assert e.estado == 'CONTRATADO' and e.fecha_cierre and e.reserva_vence_el is None and e.contacto_pendiente_desde is None
@@ -335,7 +336,6 @@ FALLOS = [
     ('ocupar el puesto', 'apps.cargos.infrastructure.repositories.repo_cargos_orm.RepoCargosORM.asignar_cargo_a_empleado'),
     ('crear la cuenta', 'apps.postulacion.infrastructure.promotor_empleado_orm.aprovisionar_por_cedula'),
     ('consumir la reserva', 'apps.postulacion.infrastructure.repositories.repo_postulacion_orm.RepoPostulacionORM.guardar_reserva'),
-    ('enlazar al postulante', 'apps.postulacion.infrastructure.repositories.repo_postulacion_orm.RepoPostulacionORM.vincular_empleado'),
     ('revocar la credencial', 'apps.postulacion.infrastructure.repositories.repo_postulacion_orm.RepoPostulacionORM.guardar_credencial'),
     ('guardar el expediente', 'apps.postulacion.infrastructure.repositories.repo_postulacion_orm.RepoPostulacionORM.guardar_expediente'),
     ('registrar el asiento', 'apps.postulacion.infrastructure.repositories.repo_postulacion_orm.RepoPostulacionORM.registrar_transicion'),
@@ -365,3 +365,29 @@ def test_un_fallo_con_error_de_dominio_en_el_puesto_tambien_revierte_lo_anterior
     monkeypatch.setattr('apps.cargos.infrastructure.repositories.repo_cargos_orm.RepoCargosORM.asignar_cargo_a_empleado', ocupado)
     assert asignar(captacion, exp).status_code == 409
     sin_efectos(m2, exp)
+
+
+def test_el_detalle_ofrece_contratar_y_la_bloquea_sin_reserva_pero_no_se_puede_por_transicion(m2, captacion):
+    exp = listo_para_asignar(m2)
+    acciones = captacion.get(f'{BASE}/expedientes/{exp}/').json()['data']['acciones']
+    contratar = [a for a in acciones if a['destino'] == 'CONTRATADO']
+    assert len(contratar) == 1 and contratar[0]['etiqueta'] == 'Contratar y asignar puesto'
+    assert contratar[0]['bloqueada'] is False
+    # La contratación solo va por `asignar/`: el endpoint de transición la sigue rechazando.
+    r = captacion.post(f'{BASE}/expedientes/{exp}/transicion/', {'destino': 'CONTRATADO'}, format='json')
+    assert r.status_code == 409 and codigo(r) == 'TRANSICION_NO_PERMITIDA'
+    # Sin reserva activa se muestra bloqueada, con su motivo.
+    ReservaPuestoModel.objects.filter(expediente_id=exp).update(estado='VENCIDA')
+    acciones = captacion.get(f'{BASE}/expedientes/{exp}/').json()['data']['acciones']
+    contratar = [a for a in acciones if a['destino'] == 'CONTRATADO'][0]
+    assert contratar['bloqueada'] is True and contratar['motivo_bloqueo']
+    # Quien no tiene revisión final no la ve.
+    solo_ver = cliente_personal('postulacion.ver_bandeja', pk=m2.cuenta.pk)
+    assert not [a for a in solo_ver.get(f'{BASE}/expedientes/{exp}/').json()['data']['acciones'] if a['destino'] == 'CONTRATADO']
+
+
+def test_no_se_repone_la_credencial_sin_una_ventana_abierta(m2, captacion):
+    exp = listo_para_asignar(m2)
+    r = captacion.post(f'{BASE}/expedientes/{exp}/reponer-credencial/', {}, format='json')
+    assert r.status_code == 409 and codigo(r) == 'SIN_VENTANA_ABIERTA'
+    assert CredencialPostulanteModel.objects.filter(expediente_id=exp, revocada=False).count() <= 1

@@ -34,6 +34,12 @@ PARES_CAPTACION: dict[tuple[EstadoExpediente, EstadoExpediente], str] = {
     (E.EN_REVISION_FINAL, E.LISTO_PARA_ASIGNAR): 'Conforme',
 }
 
+# La contratación NO va por el endpoint de transición (tiene el suyo, `asignar/`, con la promoción atómica), pero se
+# muestra en el detalle de Captación para que el frontend la dibuje desde `acciones[]` como las demás.
+PARES_ASIGNACION: dict[tuple[EstadoExpediente, EstadoExpediente], str] = {
+    (E.LISTO_PARA_ASIGNAR, E.CONTRATADO): 'Contratar y asignar puesto',
+}
+
 # Lo que Presupuesto hace por el endpoint de transición de `solicitudes/` (E-4).
 PARES_PRESUPUESTO: dict[tuple[EstadoExpediente, EstadoExpediente], str] = {
     (E.EN_PRESUPUESTO, E.EN_CORRECCION_CARGO): 'Devolver a Captación (cargo u oficina)',
