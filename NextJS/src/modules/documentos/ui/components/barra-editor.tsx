@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { RUTA_DOCUMENTOS } from "@/shared/lib/administracion-sistema";
 import type { PlantillaCompleta } from "../../domain/entities/plantilla";
-import { ETIQUETA_MODO } from "../lib/etiquetas";
+import { ETIQUETA_MODO, estaPublicada } from "../lib/etiquetas";
 import { EstadoPlantilla } from "./estado-plantilla";
 
 interface Props {
@@ -45,34 +45,34 @@ export function BarraEditor({
   onHistorial,
   onMetadatos,
 }: Props) {
-  const publicada = servidor.ultima_version !== null;
+  const publicada = estaPublicada(servidor);
   return (
-    <header className="sticky top-0 z-30 flex flex-wrap items-center gap-x-3 gap-y-2 border-b bg-background/95 px-3 py-2 backdrop-blur sm:px-4">
+    <header className="sticky top-0 z-30 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 gap-y-2 border-b bg-background/95 px-3 py-2 backdrop-blur sm:flex sm:flex-wrap sm:gap-x-3 sm:px-4">
       <Button asChild variant="ghost" size="icon-sm">
         <Link href={RUTA_DOCUMENTOS} aria-label="Volver a la lista de plantillas">
           <ArrowLeft aria-hidden />
         </Link>
       </Button>
-      <div className="min-w-0 flex-1">
-        <h1 className="truncate text-lg font-semibold leading-tight">{nombre || "Plantilla sin nombre"}</h1>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <EstadoPlantilla plantilla={servidor} />
-          <Badge variant="secondary">{ETIQUETA_MODO[servidor.modo]}</Badge>
-          {dirty && (
-            <Badge variant="outline" className="border-amber-500 text-amber-700 dark:text-amber-400" role="status">
-              Cambios sin guardar
-            </Badge>
-          )}
-        </div>
+      <div className="min-w-0 sm:flex-1">
+        <h1 className="line-clamp-2 break-words text-lg font-semibold leading-tight sm:truncate sm:line-clamp-none">{nombre || "Plantilla sin nombre"}</h1>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="col-span-2 flex min-w-0 flex-wrap items-center gap-1.5 sm:order-3 sm:col-span-1 sm:basis-full lg:order-none lg:basis-auto">
+        <EstadoPlantilla plantilla={servidor} />
+        <Badge variant="secondary">{ETIQUETA_MODO[servidor.modo]}</Badge>
+        {dirty && (
+          <Badge variant="outline" className="border-amber-500 text-amber-700 dark:text-amber-400" role="status">
+            Cambios sin guardar
+          </Badge>
+        )}
+      </div>
+      <div className="col-span-2 flex items-center gap-2 sm:col-span-1">
         {puedeGestionar && (
           <>
-            <Button size="sm" onClick={onGuardar} disabled={!dirty || ocupado !== null} title="Guardar borrador (Ctrl+S)">
+            <Button size="sm" onClick={onGuardar} disabled={!dirty || ocupado !== null} title="Guardar borrador (Ctrl+S)" className="flex-1 sm:flex-none">
               <Save aria-hidden /> <span className="hidden sm:inline">Guardar borrador</span>
               <span className="sm:hidden">Guardar</span>
             </Button>
-            <Button size="sm" variant="secondary" onClick={onPublicar} disabled={ocupado !== null || (publicada && !servidor.cambios_sin_publicar && !dirty)}>
+            <Button size="sm" variant="secondary" onClick={onPublicar} disabled={ocupado !== null || (publicada && !servidor.cambios_sin_publicar && !dirty)} className="flex-1 sm:flex-none">
               <Rocket aria-hidden /> Publicar
             </Button>
           </>

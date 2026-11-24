@@ -251,6 +251,32 @@ def test_sembrar_plantillas_de_ejemplo_es_idempotente_y_usa_el_almacen_falso(alm
     assert caja.modo == 'pdf_overlay' and caja.definicion['paginas'][0]['campos']
 
 
+def test_sembrar_es_todo_o_nada_si_falla_la_subida_y_se_completa_despues(almacen, tmp_path):
+    from django.core.management import call_command
+
+    pdf = tmp_path / 'caja.pdf'
+    pdf.write_bytes(pdf_fondo(1))
+    subir_real = almacen.subir
+
+    def falla(*a, **k):
+        raise RuntimeError('almacén caído')
+
+    almacen.subir = falla
+    with pytest.raises(RuntimeError):
+        call_command('sembrar_plantillas_documentos', '--pdf-caja-ahorro', str(pdf))
+    assert not PlantillaDocumentoModel.objects.filter(codigo='AFILIACION_CAJA_AHORRO').exists()
+
+    # Una plantilla que quedó sin fondo (siembra antigua) se completa al repetir con el PDF.
+    almacen.subir = subir_real
+    PlantillaDocumentoModel.objects.create(
+        codigo='AFILIACION_CAJA_AHORRO', nombre='Afiliación Caja de Ahorro', modo='pdf_overlay',
+        momento='ventana2', firmante='postulante', definicion={'paginas': []}, campos_propios=[])
+    call_command('sembrar_plantillas_documentos', '--pdf-caja-ahorro', str(pdf))
+    caja = PlantillaDocumentoModel.objects.get(codigo='AFILIACION_CAJA_AHORRO')
+    assert caja.fondo_clave and caja.definicion['paginas'][0]['campos']
+    assert len(almacen.objetos) == 1
+
+
 def test_las_plantillas_de_ejemplo_se_publican_y_se_ven(admin, almacen, tmp_path):
     from django.core.management import call_command
     pdf = tmp_path / 'caja.pdf'

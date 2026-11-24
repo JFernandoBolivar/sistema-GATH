@@ -47,6 +47,7 @@ export function EditorFormulario({ editor, entorno, disposicion, plantillaId, pa
   const [seleccionId, setSeleccionId] = useState<string | null>(null);
   const [tabIzq, setTabIzq] = useState("bloques");
   const [tabMovil, setTabMovil] = useState("diseno");
+  const [tabDerecha, setTabDerecha] = useState("propiedades");
 
   const bloques = definicion.bloques;
   const seleccionado = bloques.find((b) => b.id === seleccionId) ?? null;
@@ -69,6 +70,7 @@ export function EditorFormulario({ editor, entorno, disposicion, plantillaId, pa
     cambiarBloques((l) => insertarBloque(l, nuevo, seleccionId));
     setSeleccionId(nuevo.id);
     setTabIzq("bloques");
+    setTabDerecha("propiedades");
   };
 
   const ir = (u: UbicacionError) => {
@@ -99,22 +101,25 @@ export function EditorFormulario({ editor, entorno, disposicion, plantillaId, pa
 
   const columnaDiseno = (
     <Tabs value={tabIzq} onValueChange={setTabIzq} className="min-w-0">
-      <TabsList className="w-full">
+      <TabsList className="w-full min-w-0">
         <TabsTrigger value="bloques">Bloques</TabsTrigger>
         <TabsTrigger value="documento">Documento</TabsTrigger>
         <TabsTrigger value="propios">Campos propios</TabsTrigger>
       </TabsList>
-      <TabsContent value="bloques" className="grid gap-4">
+      <TabsContent value="bloques" className="grid min-w-0 gap-4">
         <ResumenErrores errores={editor.errores} modo="formulario" definicion={definicion} onIr={ir} />
         {!ro && <PaletaBloques onAgregar={agregar} haySeleccion={seleccionado !== null} />}
-        <section aria-labelledby="titulo-lista" className="grid gap-2">
+        <section aria-labelledby="titulo-lista" className="grid min-w-0 gap-2">
           <h3 id="titulo-lista" className="font-semibold">Bloques del documento ({bloques.length})</h3>
           <ListaBloques
             bloques={bloques}
             seleccionadoId={seleccionId}
             conErrorIds={conErrorIds}
             soloLectura={ro}
-            onSeleccionar={setSeleccionId}
+            onSeleccionar={(id) => {
+              setSeleccionId(id);
+              setTabDerecha("propiedades");
+            }}
             onReordenar={(desde, hacia) => cambiarBloques((l) => reordenarBloques(l, desde, hacia))}
             onMover={(id, d) => cambiarBloques((l) => moverBloque(l, id, d))}
             onDuplicar={(id) => {
@@ -129,7 +134,7 @@ export function EditorFormulario({ editor, entorno, disposicion, plantillaId, pa
           />
         </section>
       </TabsContent>
-      <TabsContent value="documento">
+      <TabsContent value="documento" className="min-w-0">
         <AjustesDocumento
           definicion={definicion}
           onCambio={(fn) => editor.cambiarDefinicion<DefinicionFormulario>(fn)}
@@ -140,7 +145,7 @@ export function EditorFormulario({ editor, entorno, disposicion, plantillaId, pa
           maxBytesLogo={maxBytesLogo}
         />
       </TabsContent>
-      <TabsContent value="propios">
+      <TabsContent value="propios" className="min-w-0">
         <CamposPropiosEditor campos={borrador!.campos_propios} onCambio={editor.cambiarCamposPropios} entorno={entorno} />
       </TabsContent>
     </Tabs>
@@ -150,29 +155,32 @@ export function EditorFormulario({ editor, entorno, disposicion, plantillaId, pa
 
   if (disposicion === "ancho") {
     return (
-      <div className="grid grid-cols-[22rem_minmax(20rem,26rem)_minmax(0,1fr)] gap-4 p-4">
-        <div className="max-h-[calc(100dvh-9rem)] overflow-y-auto pr-1">{columnaDiseno}</div>
-        <aside aria-label="Propiedades del bloque" className="max-h-[calc(100dvh-9rem)] overflow-y-auto rounded-xl border bg-background p-4">
+      <div className="grid grid-cols-[minmax(19rem,24rem)_minmax(20rem,26rem)_minmax(24rem,1fr)] gap-4 p-4">
+        <div className="min-w-0 max-h-[calc(100dvh-9rem)] overflow-y-auto overflow-x-hidden pr-1">{columnaDiseno}</div>
+        <aside aria-label="Propiedades del bloque" className="min-w-0 max-h-[calc(100dvh-9rem)] overflow-y-auto overflow-x-hidden rounded-xl border bg-background p-4">
           {propiedades}
         </aside>
-        <div className="sticky top-20 h-[calc(100dvh-9rem)]">{vista}</div>
+        <div className="sticky top-20 h-[calc(100dvh-9rem)] min-w-0">{vista}</div>
       </div>
     );
   }
 
   if (disposicion === "medio") {
+    // Dos columnas: bloques | (propiedades o vista previa, conmutables).
     return (
-      <>
-        <div className="grid grid-cols-[minmax(22rem,28rem)_minmax(0,1fr)] gap-4 p-4">
-          <div className="min-w-0">{columnaDiseno}</div>
-          <div className="sticky top-20 h-[calc(100dvh-14rem)]">{vista}</div>
-        </div>
-        {seleccionado && (
-          <PanelInferior titulo={`Propiedades del bloque ${indiceSel + 1}`} onCerrar={() => setSeleccionId(null)}>
-            {propiedades}
-          </PanelInferior>
-        )}
-      </>
+      <div className="grid grid-cols-[minmax(18rem,26rem)_minmax(0,1fr)] gap-4 p-4">
+        <div className="min-w-0 max-h-[calc(100dvh-9rem)] overflow-y-auto overflow-x-hidden pr-1">{columnaDiseno}</div>
+        <aside aria-label="Propiedades y vista previa" className="sticky top-20 flex h-[calc(100dvh-9rem)] min-w-0 flex-col rounded-xl border bg-background p-3">
+          <Tabs value={tabDerecha} onValueChange={setTabDerecha} className="min-h-0 flex-1">
+            <TabsList className="w-full">
+              <TabsTrigger value="propiedades">Propiedades{seleccionado ? ` (bloque ${indiceSel + 1})` : ""}</TabsTrigger>
+              <TabsTrigger value="vista">Vista previa</TabsTrigger>
+            </TabsList>
+            <TabsContent value="propiedades" className="min-h-0 min-w-0 overflow-y-auto overflow-x-hidden">{propiedades}</TabsContent>
+            <TabsContent value="vista" className="flex min-h-0 flex-col">{vista}</TabsContent>
+          </Tabs>
+        </aside>
+      </div>
     );
   }
 

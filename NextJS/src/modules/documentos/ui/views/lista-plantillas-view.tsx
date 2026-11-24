@@ -28,7 +28,7 @@ import { CrearPlantillaDialog } from "../components/crear-plantilla-dialog";
 import { EstadoPlantilla } from "../components/estado-plantilla";
 import { usePermisosDocumentos } from "../hooks/use-permisos-documentos";
 import { usePlantillas } from "../hooks/use-documentos-datos";
-import { ETIQUETA_FIRMANTE, ETIQUETA_MODO, ETIQUETA_MOMENTO, formatearFecha } from "../lib/etiquetas";
+import { ETIQUETA_FIRMANTE, ETIQUETA_MODO, ETIQUETA_MOMENTO, estaPublicada, formatearFecha } from "../lib/etiquetas";
 
 export function ListaPlantillasView() {
   const router = useRouter();
@@ -143,7 +143,7 @@ export function ListaPlantillasView() {
                     <Button size="sm" variant="outline" disabled={trabajando === p.id} onClick={() => duplicar(p)}>
                       <Copy aria-hidden /> Duplicar
                     </Button>
-                    {p.ultima_version != null && (
+                    {estaPublicada(p) && (
                       <Button size="sm" variant="outline" disabled={trabajando === p.id} onClick={() => setAActivar(p)}>
                         <Power aria-hidden /> {p.activa ? "Desactivar" : "Activar"}
                       </Button>

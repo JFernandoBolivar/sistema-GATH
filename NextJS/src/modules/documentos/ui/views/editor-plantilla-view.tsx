@@ -37,7 +37,7 @@ export function EditorPlantillaView({ id }: { id: string }) {
   const { plantilla, cargando, error, status } = usePlantilla(id);
   const { catalogo, error: errorCatalogo } = useVariables();
   const { puedeGestionar } = usePermisosDocumentos();
-  const disposicion = useDisposicionEditor();
+  const { ref: refEditor, disposicion } = useDisposicionEditor();
   const editor = useEditorPlantilla({ plantilla, catalogo });
   const [confirmando, setConfirmando] = useState<Confirmacion>(null);
   const [verHistorial, setVerHistorial] = useState(false);
@@ -107,7 +107,7 @@ export function EditorPlantillaView({ id }: { id: string }) {
   };
 
   return (
-    <div className="min-h-[calc(100dvh-5rem)] bg-muted/30">
+    <div ref={refEditor} className="min-h-[calc(100dvh-5rem)] min-w-0 bg-muted/30">
       <BarraEditor
         nombre={borrador.nombre}
         servidor={servidor}

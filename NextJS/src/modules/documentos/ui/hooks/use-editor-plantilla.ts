@@ -23,6 +23,7 @@ import {
   publicarPlantillaAction,
 } from "../../infrastructure/actions/documentos-actions";
 import { subirArchivo } from "../lib/subir-archivo";
+import { estaPublicada } from "../lib/etiquetas";
 
 /** Borrador editable a partir de la plantilla del servidor. */
 export function borradorDesdePlantilla(p: PlantillaCompleta): BorradorPlantilla {
@@ -80,7 +81,7 @@ export function useEditorPlantilla({ plantilla, catalogo }: Params) {
   });
 
   const dirty = hayCambiosSinGuardar(borrador, base);
-  const publicada = (servidor?.ultima_version ?? null) !== null;
+  const publicada = servidor ? estaPublicada(servidor) : false;
 
   /** Toda edición pasa por aquí: limpia los errores del servidor, que ya no aplican. */
   const cambiar = useCallback((fn: (b: BorradorPlantilla) => BorradorPlantilla) => {
@@ -119,7 +120,7 @@ export function useEditorPlantilla({ plantilla, catalogo }: Params) {
     if (!enviado || !actual) return false;
     setOcupado("guardando");
     const { codigo, ...sinCodigo } = enviado;
-    const cuerpo = actual.ultima_version !== null ? sinCodigo : { codigo, ...sinCodigo };
+    const cuerpo = estaPublicada(actual) ? sinCodigo : { codigo, ...sinCodigo };
     const r = await guardarPlantillaAction(actual.id, cuerpo);
     setOcupado(null);
     if (!r.success) {

@@ -47,11 +47,16 @@ export const ETIQUETA_TIPO_CAMPO_PROPIO: Record<TipoCampoPropio, string> = {
   opcion: "Lista de opciones",
 };
 
-/** Texto del estado visible de una plantilla: «Borrador», «Publicada v2», «Con cambios sin publicar». */
+/** Una plantilla está publicada solo si tiene al menos una versión (el backend envía 0 cuando nunca se publicó). */
+export function estaPublicada(p: Pick<PlantillaResumen, "ultima_version">): boolean {
+  return (p.ultima_version ?? 0) > 0;
+}
+
+/** Texto del estado visible: «Borrador (sin publicar)», «Publicada v2», «Borrador con cambios (vigente v2)». */
 export function textoEstado(p: Pick<PlantillaResumen, "estado" | "ultima_version" | "cambios_sin_publicar">): string {
-  if (p.estado === "borrador" && p.ultima_version == null) return "Borrador";
-  if (p.cambios_sin_publicar) return "Con cambios sin publicar";
-  return p.ultima_version != null ? `Publicada v${p.ultima_version}` : "Borrador";
+  if (!estaPublicada(p)) return "Borrador (sin publicar)";
+  if (p.cambios_sin_publicar) return `Borrador con cambios (vigente v${p.ultima_version})`;
+  return `Publicada v${p.ultima_version}`;
 }
 
 export function formatearFecha(iso: string | null | undefined): string {

@@ -70,7 +70,7 @@ function ItemBloque({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       data-bloque-id={bloque.id}
       className={cn(
-        "flex items-stretch gap-1 rounded-lg border bg-background",
+        "flex min-w-0 items-stretch gap-1 rounded-lg border bg-background",
         seleccionado && "border-primary ring-1 ring-primary",
         conError && "border-destructive",
         isDragging && "z-10 opacity-80 shadow-lg",
@@ -144,7 +144,7 @@ export function ListaBloques(props: Props) {
   return (
     <DndContext sensors={sensores} collisionDetection={closestCenter} onDragEnd={alSoltar}>
       <SortableContext items={bloques.map((b) => b.id)} strategy={verticalListSortingStrategy}>
-        <ol className="grid gap-2" aria-label="Bloques del documento">
+        <ol className="grid min-w-0 gap-2" aria-label="Bloques del documento">
           {bloques.map((b, i) => (
             <ItemBloque
               key={b.id}

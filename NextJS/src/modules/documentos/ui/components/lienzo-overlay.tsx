@@ -199,7 +199,7 @@ export function LienzoOverlay({ pagina, imagenUrl, campos, seleccionadoId, conEr
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          {pagina.ancho_mm.toFixed(0)} × {pagina.alto_mm.toFixed(0)} mm · Ctrl + rueda para el zoom
+          {pagina.ancho_mm.toFixed(0)} × {pagina.alto_mm.toFixed(0)} mm<span className="hidden [@media(pointer:fine)]:inline"> · Ctrl + rueda para el zoom</span>
         </p>
       </div>
 

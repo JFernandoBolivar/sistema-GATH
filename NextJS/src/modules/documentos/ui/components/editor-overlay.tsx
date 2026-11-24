@@ -54,7 +54,14 @@ const ICONOS_CAMPO: Record<TipoCampoOverlay, typeof Type> = {
 };
 
 /** Editor del modo «formato de terceros»: PDF de fondo, páginas, lienzo con campos y vista previa. */
-export function EditorOverlay({ editor, entorno, disposicion, plantillaId, payload, maxBytesFondo }: Props) {
+export function EditorOverlay({
+  editor,
+  entorno,
+  disposicion,
+  plantillaId,
+  payload,
+  maxBytesFondo,
+}: Props) {
   const { borrador, servidor } = editor;
   const definicion = borrador!.definicion as DefinicionOverlay;
   const fondoPaginas = servidor!.fondo_paginas ?? [];
@@ -72,7 +79,8 @@ export function EditorOverlay({ editor, entorno, disposicion, plantillaId, paylo
   const campoIdx = campo && paginaDoc ? paginaDoc.campos.indexOf(campo) : -1;
   const version = `${servidor!.fondo_nombre ?? ""}-${editor.versionFondo}`;
 
-  const cambiarDef = (fn: (d: DefinicionOverlay) => DefinicionOverlay) => editor.cambiarDefinicion<DefinicionOverlay>(fn);
+  const cambiarDef = (fn: (d: DefinicionOverlay) => DefinicionOverlay) =>
+    editor.cambiarDefinicion<DefinicionOverlay>(fn);
 
   const { conErrorIds, conErrorPaginas } = useMemo(() => {
     const ids = new Set<string>();
@@ -89,7 +97,12 @@ export function EditorOverlay({ editor, entorno, disposicion, plantillaId, paylo
     if (!paginaDoc || !dim) return;
     const todos = definicion.paginas.flatMap((p) => p.campos);
     const desplazo = (paginaDoc.campos.length % 10) * 5;
-    const base = nuevoCampoOverlay(tipo, todos, { x: 20 + desplazo, y: 20 + desplazo }, entorno.catalogo);
+    const base = nuevoCampoOverlay(
+      tipo,
+      todos,
+      { x: 20 + desplazo, y: 20 + desplazo },
+      entorno.catalogo,
+    );
     const nuevo = limitarCampoALaPagina(base, dim) as CampoOverlay;
     cambiarDef((d) => agregarCampo(d, paginaIdx, nuevo));
     setCampoId(nuevo.id);
@@ -120,7 +133,13 @@ export function EditorOverlay({ editor, entorno, disposicion, plantillaId, paylo
     />
   );
 
-  const propios = <CamposPropiosEditor campos={borrador!.campos_propios} onCambio={editor.cambiarCamposPropios} entorno={entorno} />;
+  const propios = (
+    <CamposPropiosEditor
+      campos={borrador!.campos_propios}
+      onCambio={editor.cambiarCamposPropios}
+      entorno={entorno}
+    />
+  );
 
   const propiedades =
     campo && paginaDoc && dim ? (
@@ -143,18 +162,33 @@ export function EditorOverlay({ editor, entorno, disposicion, plantillaId, paylo
       />
     ) : (
       <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-        Seleccione un campo en la página para editar sus propiedades, o agregue uno con la barra de herramientas.
+        Seleccione un campo en la página para editar sus propiedades, o agregue uno con la barra de
+        herramientas.
       </p>
     );
 
-  const vista = <VistaPreviaPdf plantillaId={plantillaId} payload={payload} className="h-full" altoClase="min-h-[32rem] flex-1" />;
+  const vista = (
+    <VistaPreviaPdf
+      plantillaId={plantillaId}
+      payload={payload}
+      className="h-full"
+      altoClase="min-h-[32rem] flex-1"
+    />
+  );
 
   const herramientas = (
     <div className="flex flex-wrap items-center gap-2" role="toolbar" aria-label="Agregar campo">
       {(Object.keys(ETIQUETAS_CAMPO_OVERLAY) as TipoCampoOverlay[]).map((t) => {
         const Icono = ICONOS_CAMPO[t];
         return (
-          <Button key={t} type="button" size="sm" variant="outline" disabled={ro || !paginaDoc || !dim} onClick={() => agregar(t)}>
+          <Button
+            key={t}
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={ro || !paginaDoc || !dim}
+            onClick={() => agregar(t)}
+          >
             <Icono aria-hidden /> {ETIQUETAS_CAMPO_OVERLAY[t]}
           </Button>
         );
@@ -168,67 +202,96 @@ export function EditorOverlay({ editor, entorno, disposicion, plantillaId, paylo
         <div className="mx-auto w-full max-w-xl pt-4">
           {subida}
           <p className="mt-3 text-center text-sm text-muted-foreground">
-            Primero suba el PDF del formato oficial; después elegirá sus páginas y colocará los datos encima.
+            Primero suba el PDF del formato oficial; después elegirá sus páginas y colocará los
+            datos encima.
           </p>
         </div>
       ) : (
         <>
-          <ResumenErrores errores={editor.errores} modo="pdf_overlay" definicion={definicion} onIr={ir} />
-          <MiniaturasPaginas
-            plantillaId={plantillaId}
-            version={version}
-            fondoPaginas={fondoPaginas}
-            paginasDoc={definicion.paginas}
-            paginaIdx={paginaIdx}
-            conErrorPaginas={conErrorPaginas}
-            soloLectura={ro}
-            onSeleccionar={(i) => {
-              setPaginaSel(i);
-              setCampoId(null);
-            }}
-            onAgregar={(origen) => {
-              cambiarDef((d) => agregarPaginaOrigen(d, origen));
-              setPaginaSel(definicion.paginas.length);
-              setCampoId(null);
-            }}
-            onQuitar={(i) => {
-              cambiarDef((d) => quitarPagina(d, i));
-              setPaginaSel(Math.max(0, i - 1));
-              setCampoId(null);
-            }}
-            onMover={(i, delta) => {
-              cambiarDef((d) => moverPagina(d, i, delta));
-              setPaginaSel(i + delta);
-            }}
-            onDuplicar={(i) => {
-              cambiarDef((d) => duplicarPagina(d, i));
-              setPaginaSel(i + 1);
-              setCampoId(null);
-            }}
+          <ResumenErrores
+            errores={editor.errores}
+            modo="pdf_overlay"
+            definicion={definicion}
+            onIr={ir}
           />
-          {paginaDoc && dim ? (
-            <>
-              {!ro && herramientas}
-              <LienzoOverlay
-                pagina={dim}
-                imagenUrl={urlPaginaFondo(plantillaId, paginaDoc.origen, version)}
-                campos={paginaDoc.campos}
-                seleccionadoId={campoId}
-                conErrorIds={conErrorIds}
+          <div
+            className={
+              disposicion === "movil"
+                ? "grid min-w-0 gap-3"
+                : "grid grid-cols-[8.5rem_minmax(0,1fr)] items-start gap-3"
+            }
+          >
+            <div
+              className={
+                disposicion === "movil"
+                  ? "min-w-0"
+                  : "sticky top-20 max-h-[calc(100dvh-7rem)] min-w-0 overflow-y-auto overflow-x-hidden rounded-lg border bg-background p-2"
+              }
+            >
+              <MiniaturasPaginas
+                plantillaId={plantillaId}
+                version={version}
+                fondoPaginas={fondoPaginas}
+                paginasDoc={definicion.paginas}
+                paginaIdx={paginaIdx}
+                conErrorPaginas={conErrorPaginas}
                 soloLectura={ro}
-                onSeleccionar={setCampoId}
-                onCambiarGeometria={(id, g: GeometriaCampo) => cambiarDef((d) => actualizarCampoEnPagina(d, paginaIdx, id, g))}
-                onEliminar={(id) => {
-                  cambiarDef((d) => eliminarCampo(d, paginaIdx, id));
+                orientacion={disposicion === "movil" ? "horizontal" : "vertical"}
+                onSeleccionar={(i) => {
+                  setPaginaSel(i);
+                  setCampoId(null);
+                }}
+                onAgregar={(origen) => {
+                  cambiarDef((d) => agregarPaginaOrigen(d, origen));
+                  setPaginaSel(definicion.paginas.length);
+                  setCampoId(null);
+                }}
+                onQuitar={(i) => {
+                  cambiarDef((d) => quitarPagina(d, i));
+                  setPaginaSel(Math.max(0, i - 1));
+                  setCampoId(null);
+                }}
+                onMover={(i, delta) => {
+                  cambiarDef((d) => moverPagina(d, i, delta));
+                  setPaginaSel(i + delta);
+                }}
+                onDuplicar={(i) => {
+                  cambiarDef((d) => duplicarPagina(d, i));
+                  setPaginaSel(i + 1);
                   setCampoId(null);
                 }}
               />
-            </>
-          ) : (
-            <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-              {paginaDoc ? "La página elegida ya no existe en el PDF de fondo; quítela o suba otro PDF." : "Agregue una página del PDF para empezar."}
-            </p>
-          )}
+            </div>
+            <div className="grid min-w-0 gap-2">
+              {paginaDoc && dim ? (
+                <>
+                  {!ro && herramientas}
+                  <LienzoOverlay
+                    pagina={dim}
+                    imagenUrl={urlPaginaFondo(plantillaId, paginaDoc.origen, version)}
+                    campos={paginaDoc.campos}
+                    seleccionadoId={campoId}
+                    conErrorIds={conErrorIds}
+                    soloLectura={ro}
+                    onSeleccionar={setCampoId}
+                    onCambiarGeometria={(id, g: GeometriaCampo) =>
+                      cambiarDef((d) => actualizarCampoEnPagina(d, paginaIdx, id, g))
+                    }
+                    onEliminar={(id) => {
+                      cambiarDef((d) => eliminarCampo(d, paginaIdx, id));
+                      setCampoId(null);
+                    }}
+                  />
+                </>
+              ) : (
+                <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                  {paginaDoc
+                    ? "La página elegida ya no existe en el PDF de fondo; quítela o suba otro PDF."
+                    : "Agregue una página del PDF para empezar."}
+                </p>
+              )}
+            </div>
+          </div>
         </>
       )}
     </div>
@@ -238,7 +301,10 @@ export function EditorOverlay({ editor, entorno, disposicion, plantillaId, paylo
     return (
       <div className="grid grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)] gap-4 p-4">
         <div className="min-w-0">{zonaDiseno}</div>
-        <aside aria-label="Panel lateral" className="sticky top-20 max-h-[calc(100dvh-6rem)] overflow-y-auto rounded-xl border bg-background p-3">
+        <aside
+          aria-label="Panel lateral"
+          className="sticky top-20 max-h-[calc(100dvh-6rem)] overflow-y-auto rounded-xl border bg-background p-3"
+        >
           <Tabs value={tabDer} onValueChange={setTabDer}>
             <TabsList className="w-full">
               <TabsTrigger value="propiedades">Campo</TabsTrigger>
@@ -247,7 +313,9 @@ export function EditorOverlay({ editor, entorno, disposicion, plantillaId, paylo
               <TabsTrigger value="propios">Propios</TabsTrigger>
             </TabsList>
             <TabsContent value="propiedades">{propiedades}</TabsContent>
-            <TabsContent value="vista" className="flex h-[calc(100dvh-12rem)] flex-col">{vista}</TabsContent>
+            <TabsContent value="vista" className="flex h-[calc(100dvh-12rem)] flex-col">
+              {vista}
+            </TabsContent>
             <TabsContent value="pdf">{subida}</TabsContent>
             <TabsContent value="propios">{propios}</TabsContent>
           </Tabs>
@@ -276,14 +344,18 @@ export function EditorOverlay({ editor, entorno, disposicion, plantillaId, paylo
             </Tabs>
           )}
         </TabsContent>
-        <TabsContent value="vista" className="flex min-h-[70dvh] flex-col">{vista}</TabsContent>
+        <TabsContent value="vista" className="flex min-h-[70dvh] flex-col">
+          {vista}
+        </TabsContent>
       </Tabs>
       {campo && tabMovil === "diseno" && (
-        <PanelInferior titulo={`Propiedades: ${ETIQUETAS_CAMPO_OVERLAY[campo.tipo]}`} onCerrar={() => setCampoId(null)}>
+        <PanelInferior
+          titulo={`Propiedades: ${ETIQUETAS_CAMPO_OVERLAY[campo.tipo]}`}
+          onCerrar={() => setCampoId(null)}
+        >
           {propiedades}
         </PanelInferior>
       )}
     </>
   );
 }
-

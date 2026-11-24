@@ -40,12 +40,14 @@ const nextConfig: NextConfig = {
           },
           { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
           // CSP base sin tocar scripts ni estilos (no cambia el render): impide
-          // incrustar la app en iframes ajenos, plugins (<object>/<embed>),
+          // incrustar la app en iframes ajenos, plugins (<object>/<embed>) salvo los
+          // propios/blob: (el visor PDF de Chrome en el iframe de la vista previa de
+          // documentos es un plugin y `object-src 'none'` lo dejaba en blanco),
           // cambiar la <base> y enviar formularios a otros dominios. La CSP de
           // scripts con nonce queda como decisión aparte (ver plan 2026-11-03).
           {
             key: "Content-Security-Policy",
-            value: "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'",
+            value: "frame-ancestors 'none'; object-src 'self' blob:; base-uri 'self'; form-action 'self'",
           },
           ...(process.env.NODE_ENV === "production"
             ? [

@@ -32,6 +32,9 @@ export function VistaPreviaPdf({ plantillaId, payload, className, altoClase = "m
           <Label htmlFor="vp-auto" className="text-sm">Actualizar automáticamente</Label>
         </div>
       </div>
+      {cargando && url && (
+        <p role="status" className="text-xs text-muted-foreground">Generando vista previa…</p>
+      )}
       {error && (
         <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/5 p-2 text-sm text-destructive">
           {error}
@@ -41,15 +44,29 @@ export function VistaPreviaPdf({ plantillaId, payload, className, altoClase = "m
         {url ? (
           <iframe key={url} src={url} title="Vista previa del documento" className="absolute inset-0 h-full w-full" />
         ) : (
-          <div className="flex h-full min-h-[16rem] items-center justify-center p-6 text-center text-sm text-muted-foreground">
-            {cargando ? "Generando vista previa…" : "Pulse «Actualizar vista previa» para ver el documento con datos de ejemplo."}
+          <div role={cargando ? "status" : undefined} className="flex h-full min-h-[16rem] flex-col items-center justify-center gap-2 p-6 text-center text-sm text-muted-foreground">
+            {cargando ? (
+              <>
+                <Loader2 className="size-6 animate-spin" aria-hidden />
+                Generando vista previa…
+              </>
+            ) : error ? (
+              "No se pudo generar la vista previa. Corrija el problema indicado e inténtelo de nuevo."
+            ) : (
+              "Pulse «Actualizar vista previa» para ver el documento con datos de ejemplo."
+            )}
           </div>
         )}
       </div>
       {url && (
-        <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 self-start text-xs text-primary underline-offset-4 hover:underline">
-          <ExternalLink className="size-3" aria-hidden /> Abrir el PDF en una pestaña nueva
-        </a>
+        <div className="flex flex-col gap-1">
+          <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 self-start py-1 text-sm text-primary underline-offset-4 hover:underline">
+            <ExternalLink className="size-4" aria-hidden /> Abrir en pestaña nueva
+          </a>
+          <p className="text-xs text-muted-foreground [@media(pointer:fine)]:hidden">
+            En el teléfono el visor puede mostrar solo la primera página: use «Abrir en pestaña nueva» para verlo completo.
+          </p>
+        </div>
       )}
     </div>
   );
