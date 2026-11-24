@@ -71,6 +71,22 @@ const MODULOS: Modulo[] = [
     permiso: "postulacion.ver_bandeja",
   },
   {
+    id: "Presupuesto",
+    name: "Presupuesto",
+    imageSrc: "/images/departments/beneficios.png",
+    href: "/presupuesto",
+    alt: "Presupuesto: reserva de puesto y disponibilidad presupuestaria de postulantes",
+    permiso: "postulacion.ver_solicitudes",
+  },
+  {
+    id: "DireccionGeneral",
+    name: "Dirección General",
+    imageSrc: "/images/departments/beneficios.png",
+    href: "/direccion",
+    alt: "Dirección General: decisión sobre los ingresos de personal",
+    permiso: "postulacion.ver_ingresos",
+  },
+  {
     id: "AUTOGESTION",
     name: "Autogestión",
     imageSrc: "/images/departments/autogestion.svg",

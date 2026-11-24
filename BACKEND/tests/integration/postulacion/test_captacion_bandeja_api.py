@@ -314,6 +314,21 @@ def test_abrir_hacia_presupuesto_valida_cargo_y_oficina_contra_los_catalogos(cap
     assert datos(r)['expediente']['estado'] == 'EN_PRESUPUESTO'
 
 
+def test_abrir_sin_texto_completa_cargo_y_oficina_con_los_nombres_del_catalogo(captacion, entorno, catalogos):
+    """Si Captación elige del catálogo sin escribir texto, los listados deben mostrar los nombres (antes «sin texto»)."""
+    from apps.cargos.infrastructure.models.cargo_models import DenominacionCargoModel
+    from apps.organizacion.infrastructure.models.organizacion_models import DireccionGeneralModel
+
+    entorno['valor'] = Config(psicofisico=False)
+    exp = crear()
+    r = transicion(captacion, exp, 'EN_PRESUPUESTO', datos={
+        'cargo_id': catalogos['cargo'], 'dependencia_id': catalogos['dep'], 'direccion_general_id': catalogos['dg']})
+    assert r.status_code == 200, r.content
+    p = datos(r)['expediente']['propuesta']
+    assert p['cargo_texto'] == DenominacionCargoModel.objects.get(pk=catalogos['cargo']).cargo
+    assert DireccionGeneralModel.objects.get(pk=catalogos['dg']).direccion_general in p['oficina_texto']
+
+
 def test_abrir_acepta_cargo_y_oficina_solo_en_texto(captacion, entorno):
     entorno['valor'] = Config(psicofisico=False)
     exp = crear()

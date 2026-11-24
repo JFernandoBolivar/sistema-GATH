@@ -46,6 +46,9 @@ export const TIPOS_POR_MODULO: Record<ModuloNotificaciones, TipoNotificacion[]> 
     { codigo: "EXPEDIENTE_RECIBIDO", etiqueta: "Expediente recibido" },
     { codigo: "EXPEDIENTE_REVISION_FINAL", etiqueta: "Expediente en revisión final" },
     { codigo: "EXPEDIENTE_EN_PRESUPUESTO", etiqueta: "Expediente en Presupuesto" },
+    { codigo: "EXPEDIENTE_EN_DIRECCION", etiqueta: "Ingreso por decidir en Dirección General" },
+    { codigo: "EXPEDIENTE_CORRECCION_CARGO", etiqueta: "Cargo por corregir" },
+    { codigo: "INGRESO_APROBADO", etiqueta: "Ingreso aprobado" },
   ],
 };
 

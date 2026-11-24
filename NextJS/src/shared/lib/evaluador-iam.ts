@@ -187,6 +187,8 @@ export const REGLAS_RUTA: ReglaRuta[] = [
   { prefijo: 'usuarios/modificar', permisos: ['identidad.editar_usuarios'] },
   { prefijo: 'usuarios/matriz', permisos: ['identidad.ver_roles'] },
   { prefijo: 'captacion', permisos: ['postulacion.ver_bandeja'] },
+  { prefijo: 'presupuesto', permisos: ['postulacion.ver_solicitudes'] },
+  { prefijo: 'direccion', permisos: ['postulacion.ver_ingresos'] },
   { prefijo: 'carnetizacion/visitantes', permisos: ['carnetizacion.visitantes'] },
   { prefijo: 'carnetizacion/temporal', permisos: ['carnetizacion.temporal'] },
   { prefijo: 'carnetizacion/lote', permisos: ['carnetizacion.lote'] },

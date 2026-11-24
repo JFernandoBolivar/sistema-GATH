@@ -62,6 +62,20 @@ def construir_propuesta(datos: dict, catalogo: CatalogoPropuesta) -> dict:
     if errores:
         campo, mensaje = next(iter(errores.items()))
         raise ValidacionConCodigo(mensaje, campo=f'datos.{campo}', codigo='PROPUESTA_INVALIDA')
+    # Sin texto libre, los textos se completan con los nombres del catálogo: así los listados de Presupuesto,
+    # Dirección General y Captación muestran el cargo y la oficina sin consultar los catálogos fila por fila.
+    nombres = catalogo.nombres_de_propuesta(PropuestaCatalogo(**{
+        k: v for k, v in propuesta.items() if k in PropuestaCatalogo.__dataclass_fields__
+    }))
+    if not propuesta.get('cargo_propuesto_texto'):
+        cargo = nombres.get('cargo_especifico') or nombres.get('cargo') or ''
+        if cargo:
+            propuesta['cargo_propuesto_texto'] = cargo[:200]
+    if not propuesta.get('oficina_propuesta_texto'):
+        partes = [nombres.get(k, '') for k in ('direccion_general', 'direccion_linea', 'coordinacion')]
+        oficina = ' › '.join(p for p in partes if p)
+        if oficina:
+            propuesta['oficina_propuesta_texto'] = oficina[:200]
     return propuesta
 
 

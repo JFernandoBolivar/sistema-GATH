@@ -5,7 +5,7 @@ import Link from "next/link";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { ArrowLeft, History, KeyRound, Loader2, Stethoscope, UserRound } from "lucide-react";
+import { ArrowLeft, History, Undo2, KeyRound, Loader2, Stethoscope, UserRound } from "lucide-react";
 import PageLayout from "@/components/layout/page-layout";
 import {
   AlertDialog,
@@ -26,6 +26,7 @@ import { VistaCargando, VistaError, VistaVacia } from "@/shared/ui/components/vi
 import type { ItemBarraAcciones } from "../../domain/barra-acciones";
 import type { CredencialEmitida, DatosPropuesta, DetalleExpediente } from "../../domain/expediente";
 import { nombreCompleto } from "../../domain/formato";
+import { motivoDeEntrada } from "../../domain/motivo-entrada";
 import { hitosDeHistorial } from "../historial-hitos";
 import { ESTADOS_PSICOFISICO_EDITABLE } from "../../domain/psicofisico";
 import {
@@ -146,6 +147,19 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
                 ) : null}
               </div>
             </section>
+
+            {detalle.expediente.estado === "EN_CORRECCION_CARGO" ? (
+              <div role="note" className="flex items-start gap-3 rounded-xl border border-warning/40 bg-warning-soft p-4 text-sm" data-testid="aviso-correccion-cargo">
+                <Undo2 className="mt-0.5 size-5 shrink-0 text-warning" aria-hidden />
+                <div className="min-w-0">
+                  <p className="font-semibold">Presupuesto devolvió este expediente para corregir el cargo o la oficina.</p>
+                  {motivoDeEntrada(detalle.historial, "EN_CORRECCION_CARGO") ? (
+                    <p className="mt-1 break-words">Motivo: {motivoDeEntrada(detalle.historial, "EN_CORRECCION_CARGO")}</p>
+                  ) : null}
+                  <p className="mt-1 text-muted-foreground">Use «Reabrir hacia Presupuesto» para enviarlo de nuevo con la propuesta corregida.</p>
+                </div>
+              </div>
+            ) : null}
 
             <Tabs defaultValue="datos" className="gap-4">
               <TabsList className="w-full justify-start group-data-[orientation=horizontal]/tabs:h-auto sm:w-fit">

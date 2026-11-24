@@ -18,6 +18,8 @@ const SECCIONES = [
   { href: "/pasivos", label: "Pasivos" },
   { href: "/carnetizacion", label: "Carnetización" },
   { href: "/captacion", label: "Captación" },
+  { href: "/presupuesto", label: "Presupuesto" },
+  { href: "/direccion", label: "Dirección General" },
   { href: "/autogestion", label: "Autogestión" },
   { href: "/reportes", label: "Reportes" },
   { href: "/catalogos", label: "Catálogos" },
