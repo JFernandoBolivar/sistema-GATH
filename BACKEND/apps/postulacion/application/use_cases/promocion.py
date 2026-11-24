@@ -25,7 +25,7 @@ from apps.postulacion.domain.entities.promocion import ResultadoPromocion, Solic
 from apps.postulacion.domain.entities.reserva import ACTIVA, CONSUMIDA, MOTIVO_CONTRATACION, ReservaPuesto
 from apps.postulacion.domain.entities.vacantes import PuestoVacante
 from apps.postulacion.domain.errores import ConflictoConCodigo
-from apps.postulacion.domain.ports.repos import PromotorEmpleado, PuestosVacantes, RepoPostulacion
+from apps.postulacion.domain.ports.repos import DocumentosDelExpediente, PromotorEmpleado, PuestosVacantes, RepoPostulacion
 from apps.postulacion.domain.services.maquina_estados import Actor
 from apps.postulacion.domain.value_objects.estados import EstadoExpediente
 from core.domain.exceptions import NotFoundError
@@ -76,7 +76,7 @@ def revalidar_puesto(
 def promover_postulante(
     repo: RepoPostulacion, config: LectorConfiguracion, puestos: PuestosVacantes, promotor: PromotorEmpleado,
     notificador: Notificador | None, *, expediente_id: str, actor: Actor, usuario_id: int | None,
-    ahora: datetime | None = None,
+    ahora: datetime | None = None, documentos: DocumentosDelExpediente | None = None,
 ) -> ResultadoContratacion:
     ahora = ahora or ahora_utc()
     capturado: dict = {}
@@ -104,6 +104,12 @@ def promover_postulante(
                 ahora=ahora, hoy=ahora.date(),
             ))
             capturado['promocion'] = resultado
+            if documentos is not None:
+                # Documentos digitales: los de «contratación» se generan y todos quedan vinculados al trabajador (su cédula,
+                # sin FK cruzada). Dentro de la misma transacción: si algo falla, no queda nada a medias.
+                generados = documentos.generar_de_contratacion(actual.id, postulante.cedula, usuario_id)
+                vinculados = documentos.vincular_trabajador(actual.id, postulante.cedula)
+                capturado['documentos'] = {'generados_contratacion': generados, 'vinculados': vinculados}
             capturado['reserva'] = repo.guardar_reserva(replace(
                 capturado['reserva'], estado=CONSUMIDA, cerrada_el=ahora, motivo_liberacion=MOTIVO_CONTRATACION,
             ))
@@ -116,7 +122,7 @@ def promover_postulante(
                 'employee_id': resultado.employee_id, 'reingreso': resultado.es_reingreso,
                 'cuenta_creada': resultado.cuenta.creada, 'cuenta_motivo': resultado.cuenta.motivo,
                 'contratado_el': ahora.date().isoformat(), 'familiares': resultado.familiares_copiados,
-                'ficha': resultado.ficha_copiada,
+                'ficha': resultado.ficha_copiada, **({'documentos': capturado['documentos']} if 'documentos' in capturado else {}),
             }
 
         guardado, asiento = aplicar_transicion_expediente(

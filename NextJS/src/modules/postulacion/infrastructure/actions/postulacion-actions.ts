@@ -10,6 +10,7 @@ import { AuthError } from "next-auth";
 import { auth, signIn, signOut } from "#/auth";
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
+import type { DocumentoExpedienteDTO } from "@/modules/documentos/domain/lib/documentos-expediente";
 import type { MiExpedienteDTO, ResultadoPostulacion, Ventana2DTO } from "../../application/dtos/postulacion-dto";
 import {
   cambiarClave,
@@ -19,6 +20,10 @@ import {
   guardarBorrador,
   validarEnlaceActivacion,
   guardarVentana2,
+  guardarCamposDocumento,
+  listarDocumentos,
+  firmarDocumento,
+  obtenerVentana2,
 } from "../../application/use-cases/gestionar-postulacion";
 import {
   RUTA_ACCESO_POSTULANTE,
@@ -329,6 +334,62 @@ export async function catalogosVentana2Action(
     return { ok: true, datos: await catalogosVentana2(repoPostulacionApi, sesion.tokenDjango, estadoId, municipioId) };
   } catch (e) {
     return resultadoDeError(e, "No fue posible cargar las opciones.");
+  }
+}
+
+/** Vuelve a leer la Ventana 2 (lo que falta cambia al llenar o firmar un documento). */
+export async function refrescarVentana2Action(): Promise<ResultadoPostulacion<Ventana2DTO>> {
+  const sesion = await leerSesionPostulante();
+  if (!sesion) return SIN_SESION;
+  try {
+    return { ok: true, datos: await obtenerVentana2(repoPostulacionApi, sesion.tokenDjango) };
+  } catch (e) {
+    return resultadoDeError(e, "No fue posible actualizar tu avance.");
+  }
+}
+
+// --- Documentos de la Ventana 2 (campos propios, planilla y firma por clic) ---
+
+export async function listarDocumentosAction(): Promise<ResultadoPostulacion<DocumentoExpedienteDTO[]>> {
+  const sesion = await leerSesionPostulante();
+  if (!sesion) return SIN_SESION;
+  try {
+    return { ok: true, datos: await listarDocumentos(repoPostulacionApi, sesion.tokenDjango) };
+  } catch (e) {
+    return resultadoDeError(e, "No fue posible cargar tus documentos.");
+  }
+}
+
+export async function guardarCamposDocumentoAction(
+  codigo: string,
+  valores: Record<string, string>,
+): Promise<ResultadoPostulacion<DocumentoExpedienteDTO>> {
+  const sesion = await leerSesionPostulante();
+  if (!sesion) return SIN_SESION;
+  const traceId = generateTraceId();
+  const inicio = Date.now();
+  try {
+    const datos = await guardarCamposDocumento(repoPostulacionApi, sesion.tokenDjango, codigo, valores);
+    await logAudit({ traceId, action: "guardarCamposDocumentoPostulanteAction", status: "SUCCESS", durationMs: Date.now() - inicio });
+    return { ok: true, datos };
+  } catch (e) {
+    await logAudit({ traceId, action: "guardarCamposDocumentoPostulanteAction", status: "FAILED", durationMs: Date.now() - inicio });
+    return resultadoDeError(e, "No fue posible guardar los datos del documento.");
+  }
+}
+
+export async function firmarDocumentoAction(codigo: string, acepto: boolean): Promise<ResultadoPostulacion<DocumentoExpedienteDTO>> {
+  const sesion = await leerSesionPostulante();
+  if (!sesion) return SIN_SESION;
+  const traceId = generateTraceId();
+  const inicio = Date.now();
+  try {
+    const datos = await firmarDocumento(repoPostulacionApi, sesion.tokenDjango, codigo, acepto);
+    await logAudit({ traceId, action: "firmarDocumentoPostulanteAction", status: "SUCCESS", durationMs: Date.now() - inicio });
+    return { ok: true, datos };
+  } catch (e) {
+    await logAudit({ traceId, action: "firmarDocumentoPostulanteAction", status: "FAILED", durationMs: Date.now() - inicio });
+    return resultadoDeError(e, "No fue posible firmar el documento.");
   }
 }
 

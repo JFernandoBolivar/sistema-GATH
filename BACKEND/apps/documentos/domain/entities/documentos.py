@@ -56,6 +56,8 @@ class DocumentoGenerado:
     pdf_sha256: str
     generado_por_id: int | None
     generado_en: datetime | None = None
+    huella_datos: str = ''          # huella de los datos usados (sin las fechas del día): detecta que cambiaron tras firmar
+    trabajador_cedula: str = ''     # al contratar: cédula del trabajador (id opaco, sin FK a personal)
 
 
 @dataclass
@@ -69,3 +71,13 @@ class FirmaDocumento:
     user_agent: str
     sha256_firmado: str
     texto_conformidad: str
+
+
+@dataclass
+class ValoresDocumento:
+    """Valores de los campos propios que el sujeto dio a un documento: `{clave: valor}` (sin el prefijo `propio.`)."""
+
+    sujeto_tipo: str
+    sujeto_id: str
+    plantilla_id: str
+    valores: dict

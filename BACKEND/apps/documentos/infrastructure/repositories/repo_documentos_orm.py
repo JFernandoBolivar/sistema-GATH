@@ -6,12 +6,14 @@ from apps.documentos.domain.entities.documentos import (
     DocumentoGenerado,
     FirmaDocumento,
     Plantilla,
+    ValoresDocumento,
     VersionPlantilla,
 )
 from apps.documentos.infrastructure.models.documentos_models import (
     DocumentoGeneradoModel,
     FirmaDocumentoModel,
     PlantillaDocumentoModel,
+    ValoresDocumentoModel,
     VersionPlantillaDocumentoModel,
 )
 from core.domain.exceptions import ConflictError, NotFoundError
@@ -127,7 +129,8 @@ def _generado(m: DocumentoGeneradoModel) -> DocumentoGenerado:
     return DocumentoGenerado(
         id=str(m.id), plantilla_id=str(m.plantilla_id), version_id=str(m.version_id), version_numero=m.version.numero,
         sujeto_tipo=m.sujeto_tipo, sujeto_id=m.sujeto_id, datos_snapshot=m.datos_snapshot, pdf_clave=m.pdf_clave,
-        pdf_sha256=m.pdf_sha256, generado_por_id=m.generado_por_id, generado_en=m.created_at)
+        pdf_sha256=m.pdf_sha256, generado_por_id=m.generado_por_id, generado_en=m.created_at,
+        huella_datos=m.huella_datos, trabajador_cedula=m.trabajador_cedula)
 
 
 def _firma(m: FirmaDocumentoModel) -> FirmaDocumento:
@@ -162,3 +165,22 @@ class RepoDocumentosORM:
 
     def firmas_de(self, documento_id: str) -> list[FirmaDocumento]:
         return [_firma(f) for f in FirmaDocumentoModel.objects.filter(documento_id=documento_id)]
+
+    def vincular_trabajador(self, sujeto_tipo: str, sujeto_id: str, cedula: str) -> int:
+        """Deja en cada documento del sujeto aún sin vincular la cédula del trabajador (id opaco, sin FK)."""
+        return DocumentoGeneradoModel.objects.filter(
+            sujeto_tipo=sujeto_tipo, sujeto_id=str(sujeto_id), trabajador_cedula='').update(trabajador_cedula=cedula)
+
+    def documentos_de_trabajador(self, cedula: str) -> list[DocumentoGenerado]:
+        qs = DocumentoGeneradoModel.objects.select_related('version').filter(trabajador_cedula=cedula)
+        return [_generado(m) for m in qs]
+
+    def guardar_valores(self, sujeto_tipo: str, sujeto_id: str, plantilla_id: str, valores: dict) -> ValoresDocumento:
+        m, _ = ValoresDocumentoModel.objects.update_or_create(
+            plantilla_id=plantilla_id, sujeto_tipo=sujeto_tipo, sujeto_id=str(sujeto_id), defaults={'valores': valores})
+        return ValoresDocumento(sujeto_tipo, str(sujeto_id), str(m.plantilla_id), m.valores)
+
+    def valores_de(self, sujeto_tipo: str, sujeto_id: str) -> dict[str, dict]:
+        """`{plantilla_id: {clave: valor}}` de todo lo que el sujeto llenó."""
+        qs = ValoresDocumentoModel.objects.filter(sujeto_tipo=sujeto_tipo, sujeto_id=str(sujeto_id))
+        return {str(m.plantilla_id): m.valores for m in qs}

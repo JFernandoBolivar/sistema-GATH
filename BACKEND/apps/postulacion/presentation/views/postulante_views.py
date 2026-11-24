@@ -1,11 +1,19 @@
 """Vistas del postulante (invitado): acceso, cambio de clave, su expediente, borrador y envío (D-4)."""
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
-from rest_framework.parsers import FormParser, MultiPartParser
+from django.http import HttpResponse
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 
 from apps.postulacion.application.use_cases.credenciales import autenticar_postulante, cambiar_clave
+from apps.postulacion.application.use_cases.documentos_expediente import (
+    firmar_mi_documento,
+    guardar_mis_campos,
+    listar_mis_documentos,
+    mi_documento_firmado,
+    ver_mi_planilla,
+)
 from apps.postulacion.application.use_cases.enlace_activacion import activar_con_enlace, consultar_enlace
 from apps.postulacion.application.use_cases.mi_expediente import (
     consultar_mi_expediente,
@@ -22,6 +30,7 @@ from apps.postulacion.application.use_cases.ventana2 import (
 from apps.postulacion.domain.errores import ErrorAccesoPostulante
 from apps.postulacion.domain.services.credencial import expiracion_sesion
 from apps.postulacion.infrastructure.catalogos_ventana2_orm import CatalogosVentana2ORM
+from apps.postulacion.infrastructure.documentos_expediente_orm import DocumentosExpedienteORM
 from apps.postulacion.infrastructure.foto_carnet import preparar_foto_carnet
 from apps.postulacion.infrastructure.hasheador_django import HasheadorDjango
 from apps.postulacion.infrastructure.repositories.repo_postulacion_orm import RepoPostulacionORM
@@ -34,7 +43,9 @@ from apps.postulacion.presentation.serializers.postulacion_serializers import (
     EnlaceValidoSerializer,
     BorradorSerializer,
     CambiarClaveSerializer,
+    DocumentoCamposSerializer,
     EnvioSerializer,
+    FirmarDocumentoSerializer,
     FotoCarnetSerializer,
     MiExpedienteSerializer,
     SesionInvitadoSerializer,
@@ -206,7 +217,10 @@ class MiExpedienteView(VistaPostulante):
     )
     def get(self, request):
         sesion = request.user
-        vista = consultar_mi_expediente(RepoPostulacionORM(), expediente_id=sesion.expediente_id, cedula=sesion.cedula)
+        vista = consultar_mi_expediente(
+            RepoPostulacionORM(), expediente_id=sesion.expediente_id, cedula=sesion.cedula,
+            documentos=DocumentosExpedienteORM(),
+        )
         return sin_cache(ok(a_dict_mi_expediente(vista)))
 
 
@@ -244,7 +258,7 @@ class EnviarView(VistaPostulante):
         repo = RepoPostulacionORM()
         enviar_expediente(
             repo, configuracion(), expediente_id=sesion.expediente_id, cedula=sesion.cedula, ahora=ahora(),
-            notificador=obtener_notificador(), catalogos=CatalogosVentana2ORM(),
+            notificador=obtener_notificador(), catalogos=CatalogosVentana2ORM(), documentos=DocumentosExpedienteORM(),
         )
         vista = consultar_mi_expediente(repo, expediente_id=sesion.expediente_id, cedula=sesion.cedula)
         auditar_postulante(
@@ -282,7 +296,7 @@ class Ventana2View(VistaPostulante):
         sesion = request.user
         vista = consultar_ventana2(
             RepoPostulacionORM(), CatalogosVentana2ORM(), expediente_id=sesion.expediente_id, cedula=sesion.cedula,
-            ahora=ahora(),
+            ahora=ahora(), documentos=DocumentosExpedienteORM(),
         )
         return sin_cache(ok(_dict_ventana2(vista)))
 
@@ -299,7 +313,7 @@ class Ventana2View(VistaPostulante):
         sesion = request.user
         vista = guardar_ventana2(
             RepoPostulacionORM(), configuracion(), CatalogosVentana2ORM(), expediente_id=sesion.expediente_id,
-            cedula=sesion.cedula, datos=request.data, ahora=ahora(),
+            cedula=sesion.cedula, datos=request.data, ahora=ahora(), documentos=DocumentosExpedienteORM(),
         )
         return sin_cache(ok(_dict_ventana2(vista), 'Borrador de la Ventana 2 guardado.'))
 
@@ -363,5 +377,118 @@ class Ventana2FotoView(VistaPostulante):
         auditar_postulante(request, 'POSTULANTE_FOTO_SUBIDA', sesion.cedula, sesion.expediente_id, {'tamano': len(foto.contenido)})
         vista = consultar_ventana2(
             repo, CatalogosVentana2ORM(), expediente_id=sesion.expediente_id, cedula=sesion.cedula, ahora=ahora(),
+            documentos=DocumentosExpedienteORM(),
         )
         return sin_cache(ok(_dict_ventana2(vista), 'Foto de carnet guardada.'))
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Documentos de la Ventana 2 (F-4, F-5, F-6): campos propios, «Ver mi planilla» y firma por clic de conformidad.
+# El postulante solo ve y firma lo de SU expediente (sale de la sesión); `codigo` es el de la plantilla, nunca un id ajeno.
+# ---------------------------------------------------------------------------------------------------------------
+def _pdf_en_linea(contenido: bytes, nombre: str) -> HttpResponse:
+    respuesta = HttpResponse(contenido, content_type='application/pdf')
+    respuesta['Content-Disposition'] = f'inline; filename="{nombre}"'
+    respuesta['Cache-Control'] = 'private, no-store'
+    respuesta['X-Content-Type-Options'] = 'nosniff'
+    return respuesta
+
+
+class Ventana2DocumentosView(VistaPostulante):
+    @extend_schema(
+        tags=TAG, summary='Mis documentos de la Ventana 2 con su estado',
+        description=(
+            "Las plantillas ACTIVAS y publicadas de momento «Ventana 2». Cada una trae sus `campos_propios` y mis `valores`, "
+            "`faltan` (obligatorios sin llenar), `estado` (`pendiente_datos` | `listo_para_revisar` | `firmado`), `requiere_firma`, "
+            "`texto_conformidad`, `firma_invalidada` (estaba firmado y un cambio deshizo la firma) y la evidencia de `firma`."
+        ),
+        responses={200: OpenApiTypes.OBJECT, **ERRORES},
+    )
+    def get(self, request):
+        sesion = request.user
+        return sin_cache(ok(listar_mis_documentos(
+            RepoPostulacionORM(), DocumentosExpedienteORM(), expediente_id=sesion.expediente_id, cedula=sesion.cedula,
+            ahora=ahora(),
+        )))
+
+
+class Ventana2DocumentoCamposView(VistaPostulante):
+    parser_classes = [JSONParser]
+
+    @extend_schema(
+        tags=TAG, summary='Guardar los campos propios de un documento', request=DocumentoCamposSerializer,
+        responses={200: OpenApiTypes.OBJECT, **ERRORES},
+        description=(
+            "Reemplaza los valores del documento `codigo`. Valida el tipo de cada campo (texto, texto largo, fecha, sí/no, lista); "
+            "los obligatorios pueden quedar vacíos mientras se llena (se exigen al firmar y al enviar). Si el documento estaba "
+            "firmado, la firma queda sin efecto: `firma_invalidada` = true y hay que firmar de nuevo."
+        ),
+    )
+    def put(self, request, codigo):
+        datos = validar_entrada(DocumentoCamposSerializer, request.data)
+        sesion = request.user
+        item = guardar_mis_campos(
+            RepoPostulacionORM(), configuracion(), DocumentosExpedienteORM(), expediente_id=sesion.expediente_id,
+            cedula=sesion.cedula, codigo=codigo, valores=datos['valores'], ahora=ahora(),
+        )
+        auditar_postulante(request, 'POSTULANTE_DOCUMENTO_CAMPOS', sesion.cedula, sesion.expediente_id, {'documento': codigo})
+        if item.get('firma_invalidada'):
+            auditar_postulante(request, 'POSTULANTE_DOCUMENTO_FIRMA_INVALIDADA', sesion.cedula, sesion.expediente_id, {'documento': codigo})
+        return sin_cache(ok(item, 'Datos del documento guardados.'))
+
+
+class Ventana2DocumentoVistaPreviaView(VistaPostulante):
+    @extend_schema(
+        tags=TAG, summary='Ver mi planilla: PDF prellenado con mis datos', responses={(200, 'application/pdf'): OpenApiTypes.BINARY, **ERRORES},
+        description="Se genera al momento con mis datos y lo que llevo llenado; no se guarda ni cuenta como firma.",
+    )
+    def get(self, request, codigo):
+        sesion = request.user
+        pdf = ver_mi_planilla(
+            RepoPostulacionORM(), DocumentosExpedienteORM(), expediente_id=sesion.expediente_id, cedula=sesion.cedula,
+            codigo=codigo, ahora=ahora(),
+        )
+        return _pdf_en_linea(pdf, 'mi_planilla.pdf')
+
+
+class Ventana2DocumentoFirmarView(VistaPostulante):
+    parser_classes = [JSONParser]
+
+    @extend_schema(
+        tags=TAG, summary='Firmar un documento con un clic de conformidad', request=FirmarDocumentoSerializer,
+        responses={200: OpenApiTypes.OBJECT, **ERRORES},
+        description=(
+            "Genera el documento final con mis datos de hoy (snapshot y sha256) y registra la firma con fecha, IP, navegador, "
+            "huella y el texto de conformidad. Exige `acepto` = true y los campos obligatorios llenos. Ya firmado y vigente: 409."
+        ),
+    )
+    def post(self, request, codigo):
+        datos = validar_entrada(FirmarDocumentoSerializer, request.data)
+        sesion = request.user
+        item = firmar_mi_documento(
+            RepoPostulacionORM(), DocumentosExpedienteORM(), expediente_id=sesion.expediente_id, cedula=sesion.cedula,
+            codigo=codigo, ip=ip_del_cliente(request), user_agent=request.META.get('HTTP_USER_AGENT', ''),
+            acepta=datos['acepto'], ahora=ahora(),
+        )
+        auditar_postulante(
+            request, 'POSTULANTE_DOCUMENTO_FIRMADO', sesion.cedula, sesion.expediente_id,
+            {'documento': codigo, 'sha256': (item.get('firma') or {}).get('sha256')},
+        )
+        return sin_cache(ok(item, 'Documento firmado.'))
+
+
+class Ventana2DocumentoArchivoView(VistaPostulante):
+    @extend_schema(
+        tags=TAG, summary='Mi documento firmado (PDF)', responses={(200, 'application/pdf'): OpenApiTypes.BINARY, **ERRORES},
+        description="Solo el firmado y vigente de mi propio expediente; 404 si no lo hay. Queda en la bitácora de descargas.",
+    )
+    def get(self, request, codigo):
+        sesion = request.user
+        clave, documento_id = mi_documento_firmado(
+            RepoPostulacionORM(), DocumentosExpedienteORM(), expediente_id=sesion.expediente_id, cedula=sesion.cedula,
+            codigo=codigo, ahora=ahora(),
+        )
+        return respuesta_archivo(
+            SeaweedFSStorage(), clave, cache='private, no-store', mime='application/pdf',
+            request=request, recurso='documento_firmado', recurso_id=documento_id,
+        )

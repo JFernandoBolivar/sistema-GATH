@@ -6,12 +6,28 @@ import { formatearFechaHora } from "../../domain/expediente";
 import { CuentaRegresiva } from "../cuenta-regresiva";
 import { FormularioVentana2 } from "./formulario-ventana2";
 
+/** Lo que se pide, redactado desde las secciones reales; los documentos solo se mencionan si hay alguno por completar o firmar. */
+function temasDeLaBienvenida(faltantes: MiExpedienteDTO["faltantesVentana2"]): string[] {
+  const temas = [
+    "tu grupo familiar", "tu vivienda", "tu salud", "tus tallas", "tus estudios", "tus cursos",
+    "tu experiencia en la Administración Pública", "tus idiomas y RIF", "una foto para tu carnet",
+  ];
+  if (faltantes.some((f) => f.seccion === "documentos")) temas.push("tus documentos por firmar");
+  return temas;
+}
+
+function listaNatural(items: string[]): string {
+  if (items.length <= 1) return items.join("");
+  return `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}`;
+}
+
 /** Bienvenida de la Ventana 2: felicita, explica qué falta y el plazo, y muestra el formulario por pasos. */
 export function InicioVentana2({ vista, catalogos }: { vista: MiExpedienteDTO; catalogos: CatalogosVentana2 }) {
   const { expediente, postulante } = vista;
   const nombre = postulante.nombres.split(" ")[0] || "postulante";
   const avance = calcularAvance(vista.faltantesVentana2);
   const nota = expediente.ultimaObservacion;
+  const temas = temasDeLaBienvenida(vista.faltantesVentana2);
 
   return (
     <div className="flex flex-col gap-5">
@@ -28,7 +44,7 @@ export function InicioVentana2({ vista, catalogos }: { vista: MiExpedienteDTO; c
               Postulación N.º <span className="font-mono font-medium text-foreground">{expediente.numero}</span>
             </p>
             <p className="mt-3 text-base text-pretty">
-              Para terminar tu expediente necesitamos algunos datos: tu grupo familiar, tu vivienda, tu salud, tus tallas y una foto para tu carnet.
+              Para terminar tu expediente necesitamos {listaNatural(temas)}.
               {avance.todoCompleto
                 ? " Ya tienes todo completo: revisa y envía."
                 : ` Te faltan ${avance.total - avance.completas} de ${avance.total} secciones.`}{" "}

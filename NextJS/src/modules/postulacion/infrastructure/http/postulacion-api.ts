@@ -100,3 +100,14 @@ export async function reenviarFotoPostulante(token: string, metodo: "GET" | "POS
   if (ip) cabeceras["X-Forwarded-For"] = ip;
   return fetch(`${BASE}ventana2/foto/`, { method: metodo, headers: cabeceras, body: formulario, cache: "no-store" });
 }
+
+/**
+ * Pasa tal cual el PDF de un documento del propio postulante (`vista-previa` = su planilla prellenada; `archivo` = la firmada).
+ * Solo para el Route Handler `/postulacion/documento/[codigo]`: el token nunca llega al navegador.
+ */
+export async function reenviarDocumentoPostulante(token: string, codigo: string, tipo: "vista-previa" | "archivo"): Promise<Response> {
+  const cabeceras: Record<string, string> = { Authorization: `Bearer ${token}` };
+  const ip = await ipDelCliente().catch(() => null);
+  if (ip) cabeceras["X-Forwarded-For"] = ip;
+  return fetch(`${BASE}ventana2/documentos/${encodeURIComponent(codigo)}/${tipo}/`, { headers: cabeceras, cache: "no-store" });
+}

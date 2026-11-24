@@ -401,6 +401,18 @@ def _normalizar_codigo(codigo) -> str:
     return codigo
 
 
+def _normalizar_fecha(valor, ruta: str) -> str:
+    """Acepta AAAA-MM-DD (campo de fecha del navegador) o DD/MM/AAAA y devuelve DD/MM/AAAA; 400 si no es una fecha real."""
+    from datetime import datetime
+    texto = str(valor).strip()
+    for formato in ('%Y-%m-%d', '%d/%m/%Y'):
+        try:
+            return datetime.strptime(texto, formato).strftime('%d/%m/%Y')
+        except ValueError:
+            continue
+    _err('Indique una fecha válida (día/mes/año).', ruta)
+
+
 def validar_valores_propios(campos_propios: list[dict], valores: dict | None) -> dict:
     """Valida los valores que el postulante dio a los campos propios; devuelve {`propio.clave`: valor}."""
     valores = valores or {}
@@ -420,5 +432,7 @@ def validar_valores_propios(campos_propios: list[dict], valores: dict | None) ->
             v = 'SI' if str(v).upper() in ('SI', 'TRUE') else 'NO'
         elif c['tipo'] == 'opcion' and v not in c.get('opciones', []):
             _err('Elija una de las opciones.', ruta)
+        elif c['tipo'] == 'fecha':
+            v = _normalizar_fecha(v, ruta)
         salida['propio.' + clave] = _texto(str(v), ruta, MAX_TEXTO)
     return salida

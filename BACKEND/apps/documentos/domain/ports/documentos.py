@@ -5,6 +5,7 @@ from apps.documentos.domain.entities.documentos import (
     DocumentoGenerado,
     FirmaDocumento,
     Plantilla,
+    ValoresDocumento,
     VersionPlantilla,
 )
 
@@ -28,15 +29,20 @@ class RepoDocumentos(Protocol):
     def listar_generados(self, sujeto_tipo: str, sujeto_id: str) -> list[DocumentoGenerado]: ...
     def guardar_firma(self, datos: dict) -> FirmaDocumento: ...
     def firmas_de(self, documento_id: str) -> list[FirmaDocumento]: ...
+    def vincular_trabajador(self, sujeto_tipo: str, sujeto_id: str, cedula: str) -> int: ...
+    def documentos_de_trabajador(self, cedula: str) -> list[DocumentoGenerado]: ...
+    def guardar_valores(self, sujeto_tipo: str, sujeto_id: str, plantilla_id: str, valores: dict) -> ValoresDocumento: ...
+    def valores_de(self, sujeto_tipo: str, sujeto_id: str) -> dict[str, dict]: ...
 
 
 class ProveedorDatosDocumento(Protocol):
     """Entrega los datos conocidos del sujeto (postulante/trabajador) con las claves del catálogo de variables.
 
-    La integración real con postulación/personal es una etapa posterior; las pruebas usan uno falso.
+    La implementación real vive en `postulacion.infrastructure` (el expediente); las pruebas de la plantilla usan uno falso.
+    Con `con_foto=False` no se descarga la imagen (listados): el dict trae igual `_foto_sha256` (huella de la foto).
     """
 
-    def datos_de(self, sujeto_tipo: str, sujeto_id: str) -> dict: ...
+    def datos_de(self, sujeto_tipo: str, sujeto_id: str, con_foto: bool = True) -> dict: ...
 
 
 class AlmacenArchivos(Protocol):

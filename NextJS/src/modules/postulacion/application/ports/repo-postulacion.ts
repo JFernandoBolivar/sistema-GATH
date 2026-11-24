@@ -1,4 +1,5 @@
 import type { ValoresVentana1 } from "../../domain/ventana1";
+import type { DocumentoExpedienteDTO } from "@/modules/documentos/domain/lib/documentos-expediente";
 import type { CatalogosVentana2 } from "../../domain/ventana2";
 import type { EnlaceValidoDTO, EnvioDTO, MiExpedienteDTO, SesionInvitadoDTO, Ventana2DTO } from "../dtos/postulacion-dto";
 
@@ -16,4 +17,10 @@ export interface RepoPostulacion {
   /** Guarda UNA o varias secciones del borrador de la Ventana 2 (las enviadas reemplazan a las guardadas). */
   guardarVentana2(token: string, cuerpo: Record<string, unknown>): Promise<Ventana2DTO>;
   catalogosVentana2(token: string, estadoId?: number, municipioId?: number): Promise<CatalogosVentana2>;
+  /** Documentos de la Ventana 2 con su estado, sus campos propios y mis valores. */
+  listarDocumentos(token: string): Promise<DocumentoExpedienteDTO[]>;
+  /** Guarda los campos propios de UN documento; `firmaInvalidada` avisa si el cambio deshizo la firma. */
+  guardarCamposDocumento(token: string, codigo: string, valores: Record<string, string>): Promise<DocumentoExpedienteDTO>;
+  /** Firma por clic de conformidad (`acepto` = la casilla). */
+  firmarDocumento(token: string, codigo: string, acepto: boolean): Promise<DocumentoExpedienteDTO>;
 }

@@ -13,7 +13,7 @@ from apps.postulacion.application.use_cases.transiciones import aplicar_transici
 from apps.postulacion.domain.entities.expediente import ExpedientePostulacion
 from apps.postulacion.domain.entities.postulante import Postulante, TransicionRegistrada
 from apps.postulacion.domain.errores import Ventana2Incompleta
-from apps.postulacion.domain.ports.repos import CatalogosVentana2, RepoPostulacion
+from apps.postulacion.domain.ports.repos import CatalogosVentana2, DocumentosDelExpediente, RepoPostulacion
 from apps.postulacion.domain.services.datos_ventana import campos_obligatorios_faltantes, validar_datos_ventana1
 from apps.postulacion.domain.services.datos_ventana2 import faltantes_ventana2
 from apps.postulacion.domain.services.maquina_estados import Actor
@@ -59,8 +59,12 @@ def fecha_de(valor) -> date | None:
 
 def faltantes_de(
     exp: ExpedientePostulacion, cedula: str, catalogos: CatalogosVentana2 | None, ahora: datetime,
+    documentos: DocumentosDelExpediente | None = None,
 ) -> list[dict]:
-    """Lo que impide enviar la Ventana 2: huecos del esquema, la foto y, con catálogos, lo que no cuadra con ellos."""
+    """
+    Lo que impide enviar la Ventana 2: huecos del esquema, la foto, lo que no cuadra con los catálogos y (con `documentos`) los
+    documentos de la Ventana 2 con campos obligatorios sin llenar o sin firmar (`seccion` = `documentos`).
+    """
     faltan = faltantes_ventana2(exp.datos_ventana2, exp.tiene_foto)
     if catalogos is not None:
         errores = catalogos.errores(
@@ -72,11 +76,14 @@ def faltantes_de(
             {'seccion': ruta.split('.')[0], 'campo': ruta, 'mensaje': mensaje}
             for ruta, mensaje in errores.items() if ruta not in ya
         ]
+    if documentos is not None:
+        faltan += documentos.faltantes(exp.id)
     return faltan
 
 
 def consultar_mi_expediente(
     repo: RepoPostulacion, *, expediente_id: str, cedula: str, ahora: datetime | None = None,
+    documentos: DocumentosDelExpediente | None = None,
 ) -> VistaMiExpediente:
     exp = obtener_expediente(repo, expediente_id)
     postulante = _propio(repo, exp, cedula)
@@ -90,6 +97,8 @@ def consultar_mi_expediente(
     faltan2: list[dict] = []
     if exp.ventana == 2:
         faltan2 = faltantes_ventana2(exp.datos_ventana2, exp.tiene_foto)
+        if documentos is not None and exp.estado == E.CONSOLIDANDO:
+            faltan2 += documentos.faltantes(exp.id)
         pendientes = [f['campo'] for f in faltan2]
     return VistaMiExpediente(exp, postulante, ultima, pendientes, faltan2)
 
@@ -151,6 +160,7 @@ def guardar_borrador(
 def enviar_expediente(
     repo: RepoPostulacion, config: LectorConfiguracion, *, expediente_id: str, cedula: str,
     ahora: datetime | None = None, notificador: Notificador | None = None, catalogos: CatalogosVentana2 | None = None,
+    documentos: DocumentosDelExpediente | None = None,
 ) -> ExpedientePostulacion:
     """
     EN_CAPTURA|EN_CORRECCION_DATOS -> ENVIADO_CAPTACION o CONSOLIDANDO -> EN_REVISION_FINAL, con historial.
@@ -173,7 +183,7 @@ def enviar_expediente(
                     f"Complete los datos obligatorios antes de enviar: {', '.join(faltan)}.", campo='datos_ventana1',
                 )
         if exp.ventana == 2:
-            faltan = faltantes_de(exp, cedula, catalogos, ahora)
+            faltan = faltantes_de(exp, cedula, catalogos, ahora, documentos)
             if faltan:
                 raise Ventana2Incompleta(faltan)
         guardado, _ = aplicar_transicion_expediente(

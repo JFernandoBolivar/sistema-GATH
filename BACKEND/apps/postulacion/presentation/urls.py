@@ -7,6 +7,8 @@ from apps.postulacion.presentation.views.captacion_views import (
     BandejaView,
     EnviarEnlaceView,
     ContactadoView,
+    DocumentoExpedienteArchivoView,
+    DocumentosExpedienteView,
     ExpedienteDetalleView,
     FotoExpedienteView,
     InformePsicofisicoView,
@@ -27,6 +29,11 @@ from apps.postulacion.presentation.views.postulante_views import (
     BorradorView,
     CambiarClaveView,
     EnviarView,
+    Ventana2DocumentoArchivoView,
+    Ventana2DocumentoCamposView,
+    Ventana2DocumentoFirmarView,
+    Ventana2DocumentosView,
+    Ventana2DocumentoVistaPreviaView,
     MiExpedienteView,
     Ventana2CatalogosView,
     Ventana2FotoView,
@@ -54,6 +61,22 @@ urlpatterns = [
     path('ventana2/', Ventana2View.as_view(), name='postulacion_ventana2'),
     path('ventana2/catalogos/', Ventana2CatalogosView.as_view(), name='postulacion_ventana2_catalogos'),
     path('ventana2/foto/', Ventana2FotoView.as_view(), name='postulacion_ventana2_foto'),
+    path('ventana2/documentos/', Ventana2DocumentosView.as_view(), name='postulacion_ventana2_documentos'),
+    path(
+        'ventana2/documentos/<str:codigo>/', Ventana2DocumentoCamposView.as_view(), name='postulacion_ventana2_documento',
+    ),
+    path(
+        'ventana2/documentos/<str:codigo>/vista-previa/', Ventana2DocumentoVistaPreviaView.as_view(),
+        name='postulacion_ventana2_documento_vista_previa',
+    ),
+    path(
+        'ventana2/documentos/<str:codigo>/firmar/', Ventana2DocumentoFirmarView.as_view(),
+        name='postulacion_ventana2_documento_firmar',
+    ),
+    path(
+        'ventana2/documentos/<str:codigo>/archivo/', Ventana2DocumentoArchivoView.as_view(),
+        name='postulacion_ventana2_documento_archivo',
+    ),
     # Captación (personal con permiso)
     path('postulantes/', AltaPostulanteView.as_view(), name='postulacion_alta'),
     path(
@@ -74,6 +97,14 @@ urlpatterns = [
     ),
     path('expedientes/<uuid:expediente_id>/asignar/', AsignarView.as_view(), name='postulacion_asignar'),
     path('expedientes/<uuid:expediente_id>/foto/', FotoExpedienteView.as_view(), name='postulacion_foto'),
+    path(
+        'expedientes/<uuid:expediente_id>/documentos/', DocumentosExpedienteView.as_view(),
+        name='postulacion_expediente_documentos',
+    ),
+    path(
+        'expedientes/<uuid:expediente_id>/documentos/<str:codigo>/archivo/', DocumentoExpedienteArchivoView.as_view(),
+        name='postulacion_expediente_documento_archivo',
+    ),
     path(
         'expedientes/<uuid:expediente_id>/psicofisico/', PsicofisicoView.as_view(), name='postulacion_psicofisico',
     ),

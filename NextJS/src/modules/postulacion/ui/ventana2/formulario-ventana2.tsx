@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { FaltanteDTO, Ventana2DTO } from "../../application/dtos/postulacion-dto";
 import { RUTA_ACCESO_POSTULANTE } from "../../domain/acceso-ruta";
 import { calcularAvance, SECCIONES_VENTANA2, type CatalogosVentana2, type SeccionVentana2 } from "../../domain/ventana2";
 import { catalogosVentana2Action, guardarVentana2Action } from "../../infrastructure/actions/postulacion-actions";
 import type { ResultadoGuardado } from "./comun";
 import { IndicadorAvance } from "./indicador-avance";
+import { SeccionDocumentos } from "./seccion-documentos";
 import { SeccionCursos } from "./seccion-cursos";
 import { SeccionEstudios } from "./seccion-estudios";
 import { SeccionExperiencia } from "./seccion-experiencia";
@@ -43,7 +44,7 @@ export function FormularioVentana2({ datosIniciales, faltantesIniciales, tieneFo
   const indice = SECCIONES_VENTANA2.findIndex((s) => s.id === actual);
   const siguiente = () => ir(SECCIONES_VENTANA2[Math.min(indice + 1, SECCIONES_VENTANA2.length - 1)].id);
   const anterior = indice > 0 ? () => ir(SECCIONES_VENTANA2[indice - 1].id) : undefined;
-  const sesionCaida = () => { window.location.href = `${RUTA_ACCESO_POSTULANTE}?motivo=sesion`; };
+  const sesionCaida = useCallback(() => { window.location.href = `${RUTA_ACCESO_POSTULANTE}?motivo=sesion`; }, []);
 
   async function guardar(cuerpo: Record<string, unknown>): Promise<ResultadoGuardado> {
     const r = await guardarVentana2Action(cuerpo);
@@ -90,6 +91,9 @@ export function FormularioVentana2({ datosIniciales, faltantesIniciales, tieneFo
             onAnterior={anterior}
             onSesionCaida={sesionCaida}
           />
+        )}
+        {actual === "documentos" && (
+          <SeccionDocumentos onFaltantes={setFaltantes} onContinuar={siguiente} onAnterior={anterior} onSesionCaida={sesionCaida} />
         )}
         {actual === "revisar" && (
           <SeccionRevisar

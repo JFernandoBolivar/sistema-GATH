@@ -2,6 +2,7 @@
  * Casos de uso del postulante sobre su propio expediente. Todos reciben el token de Django
  * (leído en el servidor por `sesion-postulante.ts`): el expediente sale SIEMPRE de ese token.
  */
+import type { DocumentoExpedienteDTO } from "@/modules/documentos/domain/lib/documentos-expediente";
 import type { ValoresVentana1 } from "../../domain/ventana1";
 import type { CatalogosVentana2 } from "../../domain/ventana2";
 import type { EnlaceValidoDTO, EnvioDTO, MiExpedienteDTO, SesionInvitadoDTO, Ventana2DTO } from "../dtos/postulacion-dto";
@@ -64,4 +65,26 @@ export function activarConEnlace(
   claveNueva: string,
 ): Promise<void> {
   return repo.activarEnlace(tokenEnlace, cedula, claveNueva);
+}
+
+export function listarDocumentos(repo: RepoPostulacion, token: string): Promise<DocumentoExpedienteDTO[]> {
+  return repo.listarDocumentos(token);
+}
+
+export function guardarCamposDocumento(
+  repo: RepoPostulacion,
+  token: string,
+  codigo: string,
+  valores: Record<string, string>,
+): Promise<DocumentoExpedienteDTO> {
+  return repo.guardarCamposDocumento(token, codigo, valores);
+}
+
+export function firmarDocumento(
+  repo: RepoPostulacion,
+  token: string,
+  codigo: string,
+  acepto: boolean,
+): Promise<DocumentoExpedienteDTO> {
+  return repo.firmarDocumento(token, codigo, acepto);
 }

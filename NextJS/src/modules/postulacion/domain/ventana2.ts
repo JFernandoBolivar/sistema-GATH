@@ -46,6 +46,7 @@ export type SeccionVentana2 =
   | "experiencia"
   | "idiomas"
   | "foto"
+  | "documentos"
   | "revisar";
 
 export interface DefinicionSeccion {
@@ -65,6 +66,7 @@ export const SECCIONES_VENTANA2: readonly DefinicionSeccion[] = [
   { id: "experiencia", etiqueta: "Experiencia pública", seccionApi: "antecedentes" },
   { id: "idiomas", etiqueta: "Idiomas y RIF", seccionApi: "idiomas" },
   { id: "foto", etiqueta: "Foto", seccionApi: "foto" },
+  { id: "documentos", etiqueta: "Documentos", seccionApi: "documentos" },
   { id: "revisar", etiqueta: "Revisar y enviar", seccionApi: "" },
 ];
 

@@ -48,6 +48,16 @@ class BorradorSerializer(serializers.Serializer):
     )
 
 
+class DocumentoCamposSerializer(serializers.Serializer):
+    """Solo documentación: los valores se validan contra los campos propios de la plantilla (tipo y obligatoriedad)."""
+
+    valores = serializers.DictField(help_text='{clave del campo propio: valor}. Los vacíos se aceptan mientras se llena.')
+
+
+class FirmarDocumentoSerializer(serializers.Serializer):
+    acepto = serializers.BooleanField(help_text='Casilla de conformidad: «Acepto y declaro». Sin ella no se firma.')
+
+
 class Ventana2Serializer(serializers.Serializer):
     """
     Solo documentación: el cuerpo del borrador de la Ventana 2 se valida en el dominio (rechaza claves desconocidas). Cada

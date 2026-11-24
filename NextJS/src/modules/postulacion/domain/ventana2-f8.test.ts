@@ -20,7 +20,7 @@ import { mapearCatalogosVentana2 } from "../infrastructure/mappers/mapper-postul
 describe("Ventana 2 ampliada (F-8): secciones y avance", () => {
   it("las secciones nuevas están entre las tallas y la foto, y el backend las llama estudios, cursos, antecedentes e idiomas", () => {
     expect(SECCIONES_VENTANA2.map((s) => s.id)).toEqual([
-      "familiares", "vivienda", "salud", "tallas", "estudios", "cursos", "experiencia", "idiomas", "foto", "revisar",
+      "familiares", "vivienda", "salud", "tallas", "estudios", "cursos", "experiencia", "idiomas", "foto", "documentos", "revisar",
     ]);
     expect(SECCIONES_VENTANA2.find((s) => s.id === "experiencia")?.seccionApi).toBe("antecedentes");
   });

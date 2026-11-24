@@ -32,7 +32,7 @@ class ProveedorFalso:
     def __init__(self):
         self.llamadas = []
 
-    def datos_de(self, sujeto_tipo, sujeto_id):
+    def datos_de(self, sujeto_tipo, sujeto_id, con_foto=True):
         self.llamadas.append((sujeto_tipo, sujeto_id))
         datos = datos_ejemplo()
         datos['cedula'] = f'V-{sujeto_id}'

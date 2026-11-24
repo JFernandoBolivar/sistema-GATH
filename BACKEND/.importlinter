@@ -1214,6 +1214,7 @@ forbidden_modules =
     apps.autogestion
     apps.notificaciones
     apps.fe_de_vida
+    apps.documentos
 
 [importlinter:contract:apps-postulacion-presentacion-no-cruzado]
 name = apps.postulacion.presentation no importa de otras apps (B16)
@@ -1234,6 +1235,7 @@ forbidden_modules =
     apps.autogestion
     apps.notificaciones
     apps.fe_de_vida
+    apps.documentos
 allow_indirect_imports = True
 
 [importlinter:contract:postulacion-independiente]

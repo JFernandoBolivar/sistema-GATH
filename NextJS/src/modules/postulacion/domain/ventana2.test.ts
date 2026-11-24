@@ -19,7 +19,7 @@ const HOY = new Date("2026-11-24T12:00:00Z");
 describe("avance y faltantes de la Ventana 2", () => {
   it("sin faltantes todo está completo", () => {
     const a = calcularAvance([]);
-    expect(a).toMatchObject({ completas: 9, total: 9, porcentaje: 100, todoCompleto: true });
+    expect(a).toMatchObject({ completas: 10, total: 10, porcentaje: 100, todoCompleto: true });
   });
 
   it("marca incompletas las secciones con faltantes y calcula el porcentaje", () => {
@@ -27,8 +27,8 @@ describe("avance y faltantes de la Ventana 2", () => {
       { seccion: "vivienda", campo: "vivienda.estado_id", mensaje: "Falta el estado." },
       { seccion: "foto", campo: "foto", mensaje: "Falta la foto de carnet." },
     ]);
-    expect(a.completas).toBe(7);
-    expect(a.porcentaje).toBe(78);
+    expect(a.completas).toBe(8);
+    expect(a.porcentaje).toBe(80);
     expect(a.secciones.find((s) => s.id === "vivienda")?.completa).toBe(false);
     expect(a.secciones.find((s) => s.id === "foto")?.faltantes).toHaveLength(1);
     expect(a.todoCompleto).toBe(false);
@@ -37,6 +37,7 @@ describe("avance y faltantes de la Ventana 2", () => {
   it("lleva cada faltante a su sección", () => {
     expect(seccionDeFaltante({ seccion: "familiares", campo: "sin_familiares", mensaje: "" })).toBe("familiares");
     expect(seccionDeFaltante({ seccion: "tallas", campo: "tallas.talla_camisa_id", mensaje: "" })).toBe("tallas");
+    expect(seccionDeFaltante({ seccion: "documentos", campo: "documentos.OFERTA", mensaje: "" })).toBe("documentos");
   });
 });
 

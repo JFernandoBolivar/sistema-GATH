@@ -1,3 +1,7 @@
+import {
+  mapearDocumentoExpediente,
+  mapearDocumentosExpediente,
+} from "@/modules/documentos/infrastructure/mappers/mapper-documentos-expediente";
 import type { RepoPostulacion } from "../../application/ports/repo-postulacion";
 import { construirCuerpoBorrador } from "../../domain/ventana1";
 import { llamarPostulacion } from "../http/postulacion-api";
@@ -55,5 +59,26 @@ export const repoPostulacionApi: RepoPostulacion = {
     if (municipioId) params.set("municipio_id", String(municipioId));
     const consulta = params.size > 0 ? `?${params.toString()}` : "";
     return mapearCatalogosVentana2(await llamarPostulacion<unknown>(`ventana2/catalogos/${consulta}`, { token }));
+  },
+  async listarDocumentos(token) {
+    return mapearDocumentosExpediente(await llamarPostulacion<unknown>("ventana2/documentos/", { token }));
+  },
+  async guardarCamposDocumento(token, codigo, valores) {
+    return mapearDocumentoExpediente(
+      await llamarPostulacion<unknown>(`ventana2/documentos/${encodeURIComponent(codigo)}/`, {
+        metodo: "PUT",
+        token,
+        cuerpo: { valores },
+      }),
+    );
+  },
+  async firmarDocumento(token, codigo, acepto) {
+    return mapearDocumentoExpediente(
+      await llamarPostulacion<unknown>(`ventana2/documentos/${encodeURIComponent(codigo)}/firmar/`, {
+        metodo: "POST",
+        token,
+        cuerpo: { acepto },
+      }),
+    );
   },
 };

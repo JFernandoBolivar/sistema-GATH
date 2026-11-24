@@ -260,3 +260,40 @@ def valor_de(clave: str | None, datos: dict) -> str:
         return ''
     valor = datos.get(clave)
     return '' if valor is None or isinstance(valor, (list, bytes)) else str(valor)
+
+
+CLAVES_DEL_DIA = frozenset({'fecha_hoy', 'fecha_larga', 'dia', 'mes', 'anio'})
+
+
+def huella_datos(datos: dict, version_id: str) -> str:
+    """
+    Huella (sha256) de los datos que alimentan un documento, sin las fechas del día (cambian solas) y con la foto
+    reducida a su huella. Sirve para saber si lo firmado sigue vigente: si algún dato o la versión cambian, la huella cambia.
+    """
+    import hashlib
+    import json
+
+    base: dict = {}
+    for clave, valor in datos.items():
+        if clave in CLAVES_DEL_DIA or clave == 'foto':
+            continue
+        base[clave] = valor
+    foto = datos.get('foto')
+    if isinstance(foto, (bytes, bytearray)) and not base.get('_foto_sha256'):
+        base['_foto_sha256'] = hashlib.sha256(bytes(foto)).hexdigest()
+    base['_version'] = str(version_id)
+    return hashlib.sha256(json.dumps(base, sort_keys=True, ensure_ascii=False, default=str).encode('utf-8')).hexdigest()
+
+
+def enmascarar_ip(ip: str) -> str:
+    """Oculta la parte final de la IP para mostrarla como evidencia sin exponerla completa (190.12.•.• / 2001:db8:•)."""
+    ip = (ip or '').strip()
+    if not ip:
+        return ''
+    if ':' in ip:
+        partes = ip.split(':')
+        return ':'.join(partes[:2]) + ':•'
+    partes = ip.split('.')
+    if len(partes) != 4:
+        return '•'
+    return f'{partes[0]}.{partes[1]}.•.•'

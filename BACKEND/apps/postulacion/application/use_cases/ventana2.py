@@ -20,7 +20,7 @@ from apps.postulacion.application.use_cases.psicofisico import _borrar_si_existe
 from apps.postulacion.application.use_cases.transiciones import aplicar_transicion_expediente
 from apps.postulacion.domain.entities.expediente import ExpedientePostulacion
 from apps.postulacion.domain.errores import ConflictoConCodigo, DatosVentana2Invalidos
-from apps.postulacion.domain.ports.repos import CatalogosVentana2, RepoPostulacion
+from apps.postulacion.domain.ports.repos import CatalogosVentana2, DocumentosDelExpediente, RepoPostulacion
 from apps.postulacion.domain.services.datos_ventana2 import combinar_borrador, validar_datos_ventana2
 from apps.postulacion.domain.services.maquina_estados import Actor
 from apps.postulacion.domain.value_objects.estados import EstadoExpediente
@@ -66,18 +66,18 @@ def exigir_ventana2(exp: ExpedientePostulacion, ahora: datetime) -> None:
 
 def consultar_ventana2(
     repo: RepoPostulacion, catalogos: CatalogosVentana2, *, expediente_id: str, cedula: str,
-    ahora: datetime | None = None,
+    ahora: datetime | None = None, documentos: DocumentosDelExpediente | None = None,
 ) -> VistaVentana2:
     ahora = ahora or ahora_utc()
     exp = obtener_expediente(repo, expediente_id)
     _propio(repo, exp, cedula)
     exigir_ventana2(exp, ahora)
-    return VistaVentana2(exp, exp.datos_ventana2 or {}, faltantes_de(exp, cedula, catalogos, ahora))
+    return VistaVentana2(exp, exp.datos_ventana2 or {}, faltantes_de(exp, cedula, catalogos, ahora, documentos))
 
 
 def guardar_ventana2(
     repo: RepoPostulacion, config: LectorConfiguracion, catalogos: CatalogosVentana2, *, expediente_id: str,
-    cedula: str, datos: dict, ahora: datetime | None = None,
+    cedula: str, datos: dict, ahora: datetime | None = None, documentos: DocumentosDelExpediente | None = None,
 ) -> VistaVentana2:
     """
     Guarda el borrador: cada sección enviada REEMPLAZA a la anterior (las omitidas no cambian). Valida el esquema y que los
@@ -99,7 +99,7 @@ def guardar_ventana2(
             repo, config, expediente_id=exp.id, destino=E.CONSOLIDANDO, actor=Actor.postulante(cedula), ahora=ahora,
         )
         exp = repo.guardar_expediente(replace(exp, datos_ventana2=combinar_borrador(exp.datos_ventana2, limpio)))
-    return VistaVentana2(exp, exp.datos_ventana2, faltantes_de(exp, cedula, catalogos, ahora))
+    return VistaVentana2(exp, exp.datos_ventana2, faltantes_de(exp, cedula, catalogos, ahora, documentos))
 
 
 def subir_foto(

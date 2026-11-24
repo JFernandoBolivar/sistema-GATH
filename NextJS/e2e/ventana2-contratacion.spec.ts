@@ -211,6 +211,8 @@ async function postulanteCompletaTextoPorApi(request: APIRequestContext, cedula:
         direccion_exacta: "Calle de prueba E2E, casa 1",
       },
       salud: { grupo_sanguineo_id: base.grupos_sanguineos[0].id, alergias: [], patologias_cronicas: [], discapacidades: [] },
+      // F-8: al menos un estudio (el nivel académico más alto); cursos, experiencia e idiomas son opcionales.
+      estudios: [{ nivel_academico_id: base.niveles_academicos[0].id }],
       tallas: {
         talla_camisa_id: base.tallas.camisa[0].id,
         talla_pantalon_id: base.tallas.pantalon[0].id,
@@ -323,6 +325,24 @@ async function completarVentana2PorUI(page: Page) {
   await elegirPrimera(page, /^pantalón$/i);
   await elegirPrimera(page, /^calzado$/i);
   await page.getByRole("button", { name: /guardar y continuar/i }).click();
+
+  // Estudios (F-8, obligatorio): sin ninguno no deja continuar; con el nivel más alto sí.
+  await expect(page.getByRole("heading", { name: /tus estudios/i })).toBeVisible();
+  await page.getByRole("button", { name: /agregar estudio/i }).click();
+  await expect(page.getByTestId("tarjeta-estudio")).toHaveCount(1);
+  await elegirPrimera(page, /nivel académico/i);
+  await page.getByRole("button", { name: /guardar y continuar/i }).click();
+
+  // Cursos, experiencia pública e idiomas/RIF son opcionales: se declara que no aplican.
+  await expect(page.getByRole("heading", { name: /cursos y capacitaciones/i })).toBeVisible();
+  await page.getByLabel(/no tengo cursos/i).click();
+  await page.getByRole("button", { name: /guardar y continuar/i }).click();
+  await expect(page.getByRole("heading", { name: /experiencia en la administración pública/i })).toBeVisible();
+  await page.getByLabel(/no he trabajado en la administración pública/i).click();
+  await page.getByRole("button", { name: /guardar y continuar/i }).click();
+  await expect(page.getByRole("heading", { name: /^idiomas$/i })).toBeVisible();
+  await page.getByLabel(/no domino otros idiomas/i).click();
+  await page.getByRole("button", { name: /guardar y continuar/i }).click();
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -395,8 +415,12 @@ for (const { nombre, viewport, completoPorUI } of VISTAS) {
       if (viewport.width < 768) await sinDesbordeHorizontal(post);
       await post.getByRole("button", { name: /^continuar$/i }).click();
 
+      // Documentos (sin plantillas activas pendientes no hay nada que firmar): se continúa.
+      await expect(post.getByRole("heading", { name: /^documentos$/i })).toBeVisible();
+      await post.getByRole("button", { name: /^continuar$/i }).click();
+
       // Revisar y enviar.
-      await expect(post.getByTestId("avance-texto")).toContainText("5 de 5");
+      await expect(post.getByTestId("avance-texto")).toContainText("10 de 10");
       await expect(post.getByRole("button", { name: /enviar mis datos/i })).toBeEnabled();
       await post.getByRole("button", { name: /enviar mis datos/i }).click();
       await post.getByRole("alertdialog").getByRole("button", { name: /sí, enviar/i }).click();

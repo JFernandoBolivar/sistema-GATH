@@ -8,6 +8,7 @@ import { unstable_rethrow } from "next/navigation";
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { ApiHttpError, errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
+import type { DocumentoExpedienteDTO } from "@/modules/documentos/domain/lib/documentos-expediente";
 import { mensajeErrorContratacion, type ResultadoContratacion } from "../../domain/contratacion";
 import type {
   AltaPostulanteResultado,
@@ -135,6 +136,22 @@ export async function descargarInformePsicofisicoAction(
       base64: Buffer.from(await blob.arrayBuffer()).toString("base64"),
       nombre: `informe-psicofisico-${id.slice(0, 8)}.pdf`,
     };
+  });
+}
+
+/** Documentos del expediente con su estado y la evidencia de firma (permiso de la bandeja de Captación). */
+export async function listarDocumentosExpedienteAction(id: string): Promise<ResultadoAccion<DocumentoExpedienteDTO[]>> {
+  return ejecutar("listarDocumentosExpedienteAction", "No fue posible cargar los documentos.", () => captacionApi.documentos(id));
+}
+
+/** El PDF del documento viaja como base64 (las acciones no devuelven binarios); la descarga queda en la bitácora. */
+export async function descargarDocumentoExpedienteAction(
+  id: string,
+  codigo: string,
+): Promise<ResultadoAccion<{ base64: string; nombre: string }>> {
+  return ejecutar("descargarDocumentoExpedienteAction", "No fue posible descargar el documento.", async () => {
+    const blob = await captacionApi.documentoPdf(id, codigo);
+    return { base64: Buffer.from(await blob.arrayBuffer()).toString("base64"), nombre: `${codigo.toLowerCase()}-${id.slice(0, 8)}.pdf` };
   });
 }
 

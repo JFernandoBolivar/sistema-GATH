@@ -80,6 +80,8 @@ class DocumentoGeneradoModel(BaseModel):
     pdf_clave = models.CharField(max_length=200)
     pdf_sha256 = models.CharField(max_length=64)
     generado_por_id = models.IntegerField(null=True, blank=True)
+    huella_datos = models.CharField(max_length=64, blank=True, default='')
+    trabajador_cedula = models.CharField(max_length=20, blank=True, default='', db_index=True)
 
     class Meta:
         db_table = 'documentos_generado'
@@ -104,3 +106,18 @@ class FirmaDocumentoModel(BaseModel):
         ordering = ['firmado_en']
         constraints = [models.UniqueConstraint(
             fields=['documento', 'firmante_tipo', 'firmante_id'], name='uq_documentos_firma_firmante')]
+
+
+class ValoresDocumentoModel(BaseModel):
+    """Campos propios de una plantilla llenados por un sujeto (p. ej. el postulante en la Ventana 2). Sin FK a otra app."""
+
+    plantilla = models.ForeignKey(PlantillaDocumentoModel, on_delete=models.PROTECT, related_name='valores')
+    sujeto_tipo = models.CharField(max_length=40)
+    sujeto_id = models.CharField(max_length=64)
+    valores = models.JSONField(default=dict)
+
+    class Meta:
+        db_table = 'documentos_valores'
+        constraints = [models.UniqueConstraint(
+            fields=['plantilla', 'sujeto_tipo', 'sujeto_id'], name='uq_documentos_valores_sujeto')]
+        indexes = [models.Index(fields=['sujeto_tipo', 'sujeto_id'], name='ix_documentos_val_sujeto')]

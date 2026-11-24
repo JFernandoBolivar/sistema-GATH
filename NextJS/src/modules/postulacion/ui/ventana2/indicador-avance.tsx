@@ -20,7 +20,26 @@ export function IndicadorAvance({ avance, actual, onIr }: { avance: AvanceVentan
       <div role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={avance.porcentaje} aria-label="Avance de tus datos" className="h-2 w-full overflow-hidden rounded-full bg-muted">
         <div className="h-full bg-primary transition-[width]" style={{ width: `${avance.porcentaje}%` }} />
       </div>
-      <ol className="flex items-start">
+      {/* Teléfono: el paso actual con sus vecinos y un selector con todos los pasos (sin apretar 11 círculos). */}
+      <div className="flex items-center gap-2 sm:hidden">
+        <label htmlFor="ventana2-selector-paso" className="sr-only">Ir al paso</label>
+        <select
+          id="ventana2-selector-paso"
+          value={actual}
+          onChange={(e) => onIr(e.target.value as SeccionVentana2)}
+          className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+        >
+          {SECCIONES_VENTANA2.map((s, i) => {
+            const sec = avance.secciones.find((x) => x.id === s.id);
+            return (
+              <option key={s.id} value={s.id}>
+                {i + 1}. {s.etiqueta}{sec?.completa ? " (lista)" : sec ? " (pendiente)" : ""}
+              </option>
+            );
+          })}
+        </select>
+      </div>
+      <ol className="hidden items-start sm:flex">
         {SECCIONES_VENTANA2.map((s, i) => {
           const sec = avance.secciones.find((x) => x.id === s.id);
           const completa = sec?.completa ?? false;

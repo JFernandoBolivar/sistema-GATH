@@ -3,7 +3,7 @@ import hashlib
 import uuid
 from datetime import date
 
-from apps.documentos.domain.services.variables_documento import datos_de_hoy
+from apps.documentos.domain.services.variables_documento import datos_de_hoy, huella_datos
 from apps.documentos.domain.value_objects.esquema_documento import validar_valores_propios
 from apps.documentos.application.use_cases.gestionar_plantillas import contexto_de_render
 from core.domain.exceptions import ConflictError, NotFoundError
@@ -25,10 +25,18 @@ def _snapshot(datos: dict) -> dict:
     return salida
 
 
+def valores_propios_para_render(campos_propios: list, valores: dict | None, estricto: bool) -> dict:
+    """`{propio.clave: valor}`. No estricto: los obligatorios vacíos se aceptan (vista previa mientras se llena); los tipos sí se validan."""
+    if estricto:
+        return validar_valores_propios(campos_propios, valores)
+    return validar_valores_propios([{**c, 'obligatorio': False} for c in campos_propios], valores)
+
+
 def generar_documento(
     repo_plantillas, repo_documentos, proveedor, motor, almacen, *,
     plantilla_id: str, sujeto_tipo: str, sujeto_id: str, actor_id: int | None,
-    valores_propios: dict | None = None, hoy: date | None = None,
+    valores_propios: dict | None = None, hoy: date | None = None, trabajador_cedula: str = '',
+    estricto: bool = True,
 ):
     plantilla = repo_plantillas.obtener(plantilla_id)
     if plantilla is None:
@@ -38,7 +46,7 @@ def generar_documento(
         raise ConflictError('La plantilla no está activa y publicada.')
 
     datos = {**datos_de_hoy(hoy), **(proveedor.datos_de(sujeto_tipo, sujeto_id) or {})}
-    datos.update(validar_valores_propios(version.campos_propios, valores_propios))
+    datos.update(valores_propios_para_render(version.campos_propios, valores_propios, estricto))
 
     contexto = contexto_de_render(almacen, version.modo, version.definicion, version.campos_propios,
                                   version.fondo_clave, version.fondo_paginas)
@@ -48,4 +56,5 @@ def generar_documento(
     return repo_documentos.guardar_generado({
         'plantilla_id': plantilla_id, 'version_id': version.id, 'sujeto_tipo': sujeto_tipo, 'sujeto_id': str(sujeto_id),
         'datos_snapshot': _snapshot(datos), 'pdf_clave': clave, 'pdf_sha256': sha, 'generado_por_id': actor_id,
+        'huella_datos': huella_datos(datos, version.id), 'trabajador_cedula': trabajador_cedula or '',
     })

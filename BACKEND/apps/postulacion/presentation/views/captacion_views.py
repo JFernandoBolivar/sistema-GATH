@@ -1,4 +1,5 @@
 """Vistas de Captación (personal con permiso, token normal de empleado): alta del postulante y reposición de clave."""
+from django.http import HttpResponse
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -9,6 +10,10 @@ from apps.postulacion.application.use_cases.bandeja import (
     construir_filtros,
     detalle_para_captacion,
     listar_bandeja,
+)
+from apps.postulacion.application.use_cases.documentos_expediente import (
+    documento_para_captacion,
+    documentos_para_captacion,
 )
 from apps.postulacion.application.use_cases.enlace_activacion import enviar_enlace_activacion
 from apps.postulacion.application.use_cases.captacion import registrar_contacto, transicionar_captacion
@@ -23,6 +28,7 @@ from apps.postulacion.application.use_cases.psicofisico import (
     registrar_psicofisico,
 )
 from apps.postulacion.infrastructure.catalogos_ventana2_orm import CatalogosVentana2ORM
+from apps.postulacion.infrastructure.documentos_expediente_orm import DocumentosExpedienteORM
 from apps.postulacion.infrastructure.hasheador_django import HasheadorDjango
 from apps.postulacion.infrastructure.promotor_empleado_orm import PromotorEmpleadoORM
 from apps.postulacion.infrastructure.repositories.puestos_vacantes_orm import PuestosVacantesORM
@@ -53,6 +59,7 @@ from apps.postulacion.presentation.serializers.postulacion_serializers import (
 )
 from apps.postulacion.presentation.views._comun import (
     PERMISOS_DE_CAPTACION,
+    RUTA_BASE,
     ErroresConCodigoMixin,
     a_dict_contratacion,
     a_dict_credencial,
@@ -75,7 +82,7 @@ from core.domain.paginacion import Paginacion
 from core.infrastructure.providers import obtener_notificador
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
 from core.infrastructure.storage.validacion_archivo import MAX_BYTES_DOCUMENTO, PDF, clave_segura, validar_archivo
-from core.presentation.archivos import respuesta_archivo
+from core.presentation.archivos import registrar_descarga, respuesta_archivo
 from core.presentation.envelope import fail, ok
 from core.presentation.permissions import HasAnyPermission, HasPermission
 from core.presentation.schema import MensajeRespuestaSerializer
@@ -436,7 +443,7 @@ class AsignarView(ErroresConCodigoMixin, APIView):
         resultado = promover_postulante(
             RepoPostulacionORM(), configuracion(), PuestosVacantesORM(), PromotorEmpleadoORM(), obtener_notificador(),
             expediente_id=str(expediente_id), actor=actor_de_captacion(request),
-            usuario_id=quien_actua(request).usuario_id, ahora=ahora(),
+            usuario_id=quien_actua(request).usuario_id, ahora=ahora(), documentos=DocumentosExpedienteORM(),
         )
         p = resultado.promocion
         auditar_captacion(
@@ -459,4 +466,52 @@ class FotoExpedienteView(_VistaBandeja):
             request=request, recurso='foto_postulante', recurso_id=expediente_id,
         )
         auditar_captacion(request, 'FOTO_EXPEDIENTE_CONSULTADA', str(expediente_id), {'numero': numero})
+        return respuesta
+
+
+class DocumentosExpedienteView(_VistaBandeja):
+    @extend_schema(
+        tags=TAG, summary='Documentos del expediente con su estado y la evidencia de firma',
+        description=(
+            "Los documentos de la Ventana 2 (y, contratado el postulante, los de contratación) con `estado` (`pendiente_datos` | "
+            "`listo_para_revisar` | `firmado` | `generado`), `faltan` y, si hay firma vigente, `firma` = fecha, IP enmascarada, huella "
+            "sha256 y texto de conformidad. Mismo permiso de la bandeja (`postulacion.ver_bandeja`): son parte del expediente que "
+            "Captación revisa; el PDF se descarga por `documentos/<codigo>/archivo/` con bitácora."
+        ),
+        responses={200: OpenApiTypes.OBJECT, **ERRORES},
+    )
+    def get(self, request, expediente_id):
+        items = documentos_para_captacion(RepoPostulacionORM(), DocumentosExpedienteORM(), expediente_id=str(expediente_id))
+        for it in items:
+            it['archivo_url'] = f'{RUTA_BASE}/expedientes/{expediente_id}/documentos/{it["codigo"]}/archivo/'
+        return sin_cache(ok(items))
+
+
+class DocumentoExpedienteArchivoView(_VistaBandeja):
+    @extend_schema(
+        tags=TAG, summary='PDF de un documento del expediente (firmado, o la vista actual sin firmar)',
+        responses={(200, 'application/pdf'): OpenApiTypes.BINARY, **ERRORES},
+        description=(
+            "Con firma vigente (o ya generado al contratar) sirve el PDF guardado por streaming y deja la descarga en la bitácora (H-3). "
+            "Sin firma, genera la vista actual con los datos de hoy (cabecera `X-Documento-Firmado: no`); también queda auditada."
+        ),
+    )
+    def get(self, request, expediente_id, codigo):
+        resultado = documento_para_captacion(
+            RepoPostulacionORM(), DocumentosExpedienteORM(), expediente_id=str(expediente_id), codigo=codigo,
+        )
+        if isinstance(resultado, bytes):
+            registrar_descarga(request, 'documento_vista_actual', f'{expediente_id}:{codigo}')
+            respuesta = HttpResponse(resultado, content_type='application/pdf')
+            respuesta['Content-Disposition'] = f'inline; filename="{codigo}.pdf"'
+            respuesta['Cache-Control'] = 'private, no-store'
+            respuesta['X-Content-Type-Options'] = 'nosniff'
+            respuesta['X-Documento-Firmado'] = 'no'
+            return respuesta
+        clave, documento_id = resultado
+        respuesta = respuesta_archivo(
+            SeaweedFSStorage(), clave, cache='private, no-store', mime='application/pdf',
+            request=request, recurso='documento_expediente', recurso_id=documento_id,
+        )
+        respuesta['X-Documento-Firmado'] = 'si'
         return respuesta

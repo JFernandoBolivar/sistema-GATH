@@ -5,7 +5,7 @@ import Link from "next/link";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { ArrowLeft, Camera, ClipboardCheck, History, Undo2, KeyRound, Loader2, Mail, Stethoscope, UserRound } from "lucide-react";
+import { ArrowLeft, Camera, ClipboardCheck, FileText, History, Undo2, KeyRound, Loader2, Mail, Stethoscope, UserRound } from "lucide-react";
 import PageLayout from "@/components/layout/page-layout";
 import {
   AlertDialog,
@@ -44,6 +44,7 @@ import {
 import { BannerContacto } from "../components/banner-contacto";
 import { BarraAcciones } from "../components/barra-acciones";
 import { DialogoContratar, PanelExitoContratacion } from "../components/panel-contratacion";
+import { SeccionDocumentosExpediente } from "../components/seccion-documentos";
 import { SeccionFotoExpediente } from "../components/seccion-foto-expediente";
 import { SeccionVentana2 } from "../components/seccion-ventana2";
 import { DialogoMotivo } from "../components/dialogo-motivo";
@@ -286,6 +287,7 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
                 <TabsTrigger value="datos" className="min-h-10 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-3"><UserRound aria-hidden /> Datos</TabsTrigger>
                 {tieneVentana2 ? <TabsTrigger value="ventana2" className="min-h-10 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-3"><ClipboardCheck aria-hidden /> Datos de Ventana 2</TabsTrigger> : null}
                 {tieneVentana2 ? <TabsTrigger value="foto" className="min-h-10 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-3"><Camera aria-hidden /> Foto</TabsTrigger> : null}
+                {tieneVentana2 ? <TabsTrigger value="documentos" className="min-h-10 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-3"><FileText aria-hidden /> Documentos</TabsTrigger> : null}
                 <TabsTrigger value="psicofisico" className="min-h-10 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-3"><Stethoscope aria-hidden /> Psicofísico</TabsTrigger>
                 <TabsTrigger value="historial" className="min-h-10 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-3"><History aria-hidden /> Historial</TabsTrigger>
               </TabsList>
@@ -293,6 +295,7 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
               <TabsContent value="datos"><SeccionDatos detalle={detalle} /></TabsContent>
               <TabsContent value="ventana2"><SeccionVentana2 detalle={detalle} /></TabsContent>
               <TabsContent value="foto"><SeccionFotoExpediente foto={detalle.foto} /></TabsContent>
+              <TabsContent value="documentos"><SeccionDocumentosExpediente expedienteId={expedienteId} /></TabsContent>
               <TabsContent value="psicofisico">
                 <SeccionPsicofisico
                   psicofisico={detalle.psicofisico}

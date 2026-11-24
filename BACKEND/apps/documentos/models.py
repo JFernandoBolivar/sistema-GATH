@@ -3,6 +3,7 @@ from apps.documentos.infrastructure.models.documentos_models import (
     DocumentoGeneradoModel,
     FirmaDocumentoModel,
     PlantillaDocumentoModel,
+    ValoresDocumentoModel,
     VersionPlantillaDocumentoModel,
 )
 
@@ -11,4 +12,5 @@ __all__ = [
     'VersionPlantillaDocumentoModel',
     'DocumentoGeneradoModel',
     'FirmaDocumentoModel',
+    'ValoresDocumentoModel',
 ]

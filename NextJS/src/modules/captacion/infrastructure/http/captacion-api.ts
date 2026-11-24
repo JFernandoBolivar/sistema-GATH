@@ -1,4 +1,6 @@
 import { apiClient } from "@/shared/infrastructure/http/fetcher-api";
+import type { DocumentoExpedienteDTO } from "@/modules/documentos/domain/lib/documentos-expediente";
+import { mapearDocumentosExpediente } from "@/modules/documentos/infrastructure/mappers/mapper-documentos-expediente";
 import type { ApiResponse } from "@/shared/types/api-response";
 import type { ResultadoContratacion } from "../../domain/contratacion";
 import type {
@@ -103,4 +105,14 @@ export const captacionApi = {
   },
 
   informe: (id: string) => apiClient.getBlob(`${BASE}/expedientes/${id}/psicofisico/informe/`),
+
+  /** Documentos del expediente (Ventana 2 y, ya contratado, los de contratación) con estado y evidencia de firma. */
+  documentos: async (id: string): Promise<DocumentoExpedienteDTO[]> => {
+    const sobre = await apiClient.get<ApiResponse<unknown>>(`${BASE}/expedientes/${id}/documentos/`);
+    return mapearDocumentosExpediente(sobre.data);
+  },
+
+  /** PDF firmado vigente (o la vista actual sin firmar); el servidor deja la descarga en la bitácora. */
+  documentoPdf: (id: string, codigo: string) =>
+    apiClient.getBlob(`${BASE}/expedientes/${id}/documentos/${encodeURIComponent(codigo)}/archivo/`),
 };
