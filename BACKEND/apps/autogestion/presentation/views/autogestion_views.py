@@ -3,6 +3,7 @@ Vistas delgadas de Autogestión (Reglas B4, B7).
 Con Envelope unificado `ok()` / `fail()` y permisos PBAC.
 Compatibilidad 100% con la UI de referencia y la nueva arquitectura.
 """
+from core.presentation.archivos import registrar_descarga
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
@@ -397,6 +398,7 @@ class MiCarnetPdfView(APIView):
             return fail("El usuario no tiene expediente asociado.", status=404)
 
         pdf_bytes = obtener_mi_carnet_pdf(RepoPortalTrabajadorORM(), str(cedula))
+        registrar_descarga(request, 'carnet_pdf', cedula)
         respuesta = HttpResponse(pdf_bytes, content_type='application/pdf')
         respuesta['Content-Disposition'] = f'inline; filename="carnet_conatel_{cedula}.pdf"'
         respuesta['X-Content-Type-Options'] = 'nosniff'

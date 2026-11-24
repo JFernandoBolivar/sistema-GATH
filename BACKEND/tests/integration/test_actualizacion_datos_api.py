@@ -256,7 +256,7 @@ def test_flujo_completo_solicita_habilita_carga_envia_y_aprueba_parcial(trabajad
     empleado.refresh_from_db()
     assert empleado.telefono_movil == '+584245556677'          # aprobado
     assert empleado.telefono_habitacion == '02121111111'      # rechazado: intacto
-    assert empleado.profile.startswith(f'autogestion/soportes/{TRABAJADOR}/')  # foto aprobada
+    assert empleado.profile.startswith('autogestion/soportes/') and TRABAJADOR not in empleado.profile  # foto aprobada, clave opaca (H-2)
     assert DatosComplementariosTrabajadorModel.objects.get(cedula=TRABAJADOR).correo_alternativo == 'maria@gmail.com'
     familiar = EmployeefamilyModel.objects.get(employeecedula_id=TRABAJADOR)
     assert familiar.primer_nombre == 'LUCIA' and familiar.cedulaFamiliar == f'{TRABAJADOR}-1'
@@ -317,6 +317,7 @@ def test_soportes_se_sirven_solo_al_dueno_y_a_bienestar(trabajador, analista, da
     assert propio.status_code == 200 and propio['Content-Type'] == 'application/pdf'
     assert b''.join(propio.streaming_content) == PDF and 'no-store' in propio['Cache-Control']
     assert analista.get(url).status_code == 200
+    assert AuditoriaLog.objects.filter(accion='DESCARGA_ARCHIVO', recurso_tipo='soporte_autogestion').count() == 2
     assert cliente(OTRO, PERMISOS_TRABAJADOR, 4).get(url).status_code == 404
     assert APIClient().get(url).status_code in (401, 403)
 
@@ -740,3 +741,24 @@ def test_acciones_solicitadas_en_seccion_de_lista(trabajador, analista, datos):
     assert rechazo.status_code == 400 and 'quitar' in rechazo.content.decode()
     mal = trabajador.post(f'{BASE}/solicitudes/', {'campos': ['familiar.@BORRAR'], 'motivo': 'Quiero agregar un familiar nuevo a mi grupo'}, format='json')
     assert mal.status_code == 400
+
+
+def test_soporte_nuevo_sin_cedula_y_soporte_viejo_sigue_descargandose(trabajador, analista, datos):
+    from apps.autogestion.infrastructure.models.actualizacion_models import SoporteDocumentalModel
+
+    sid = solicitar(trabajador, ('familiar',))
+    habilitar(analista, sid)
+    nuevo = data(trabajador.post(f'{BASE}/solicitudes/{sid}/soportes/', {
+        'seccion': 'familiar', 'tipo': 'ACTA_NACIMIENTO', 'file': SimpleUploadedFile('acta.pdf', PDF, 'application/pdf'),
+    }, format='multipart'))
+    clave_nueva = SoporteDocumentalModel.objects.get(pk=nuevo['id']).clave_s3
+    assert TRABAJADOR not in clave_nueva and sid not in clave_nueva and clave_nueva.count('/') == 2
+    # Un soporte previo con la clave antigua (guardada en la base, no se reconstruye) sigue sirviéndose.
+    vieja = f'autogestion/soportes/{TRABAJADOR}/{sid}/abc.pdf'
+    AlmacenFalso.objetos[vieja] = PDF
+    antiguo = SoporteDocumentalModel.objects.create(
+        origen_tipo='ACTUALIZACION', origen_id=sid, seccion='familiar', tipo='CONSTANCIA', clave_s3=vieja,
+        mime_real='application/pdf', tamano_bytes=len(PDF), sha256='0' * 64, subido_por=TRABAJADOR,
+    )
+    r = trabajador.get(f'{BASE}/soportes/{antiguo.id}/archivo/')
+    assert r.status_code == 200 and b''.join(r.streaming_content) == PDF

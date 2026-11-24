@@ -280,7 +280,10 @@ class Ventana2FotoView(VistaPostulante):
         clave = foto_propia(
             RepoPostulacionORM(), expediente_id=sesion.expediente_id, cedula=sesion.cedula, ahora=ahora(),
         )
-        return respuesta_archivo(SeaweedFSStorage(), clave, cache='private, no-store')
+        return respuesta_archivo(
+            SeaweedFSStorage(), clave, cache='private, no-store',
+            request=request, recurso='foto_postulante', recurso_id=sesion.expediente_id,
+        )
 
     @extend_schema(
         tags=TAG, summary='Subir (o reemplazar) mi foto de carnet', request={'multipart/form-data': FotoCarnetSerializer},

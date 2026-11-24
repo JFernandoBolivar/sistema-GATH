@@ -335,7 +335,10 @@ class InformePsicofisicoView(_VistaBandeja):
     )
     def get(self, request, expediente_id):
         r, numero = informe_de(RepoPostulacionORM(), expediente_id=str(expediente_id))
-        respuesta = respuesta_archivo(SeaweedFSStorage(), r.informe_clave, cache='private, no-store', mime='application/pdf')
+        respuesta = respuesta_archivo(
+            SeaweedFSStorage(), r.informe_clave, cache='private, no-store', mime='application/pdf',
+            request=request, recurso='informe_psicofisico', recurso_id=expediente_id,
+        )
         respuesta['Content-Disposition'] = f'attachment; filename="informe-psicofisico-{numero}.pdf"'
         auditar_captacion(request, 'INFORME_PSICOFISICO_CONSULTADO', str(expediente_id), {'numero': numero})
         return respuesta
@@ -405,6 +408,9 @@ class FotoExpedienteView(_VistaBandeja):
     )
     def get(self, request, expediente_id):
         clave, numero = foto_de_expediente(RepoPostulacionORM(), expediente_id=str(expediente_id))
-        respuesta = respuesta_archivo(SeaweedFSStorage(), clave, cache='private, no-store')
+        respuesta = respuesta_archivo(
+            SeaweedFSStorage(), clave, cache='private, no-store',
+            request=request, recurso='foto_postulante', recurso_id=expediente_id,
+        )
         auditar_captacion(request, 'FOTO_EXPEDIENTE_CONSULTADA', str(expediente_id), {'numero': numero})
         return respuesta

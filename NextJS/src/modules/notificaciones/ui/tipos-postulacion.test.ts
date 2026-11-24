@@ -30,4 +30,9 @@ describe("tipos de notificación del módulo postulación", () => {
   it("CARNET_PENDIENTE está en la bandeja de carnetización", () => {
     expect(TIPOS_POR_MODULO.carnetizacion).toContainEqual({ codigo: "CARNET_PENDIENTE", etiqueta: "Carnet por emitir" });
   });
+
+  it("CORREO_INSTITUCIONAL_PENDIENTE está en la bandeja de personal con etiqueta en español", () => {
+    expect(TIPOS_POR_MODULO.personal).toContainEqual({ codigo: "CORREO_INSTITUCIONAL_PENDIENTE", etiqueta: "Correo institucional por gestionar" });
+    expect(TIPOS_NOTIFICACION.map((t) => t.codigo)).toContain("CORREO_INSTITUCIONAL_PENDIENTE");
+  });
 });

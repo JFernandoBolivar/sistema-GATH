@@ -16,7 +16,9 @@ Qué se emite (el postulante no recibe campana: no tiene cuenta):
     (tarea crítica: el postulante no tiene cuenta, hay que llamarlo). Reabrir resuelve INGRESO_APROBADO / EXPEDIENTE_REVISION_FINAL;
     marcarlo contactado (endpoint `contactado`) o que el postulante envíe resuelve CONTACTAR_POSTULANTE.
   - CONTRATADO (promoción atómica)                                  -> CONTRATACION_COMPLETADA a `postulacion.ver_bandeja` y, si hay foto,
-    CARNET_PENDIENTE a `carnetizacion.emitir`; se cierran todos los avisos pendientes del expediente.
+    CARNET_PENDIENTE a `carnetizacion.emitir` y, si la cuenta no se creó por falta de correo institucional,
+    CORREO_INSTITUCIONAL_PENDIENTE a `personal.editar_personales` (módulo personal, ref `empleado`/cédula; lo resuelve
+    `identidad` al crearse la cuenta); se cierran todos los avisos pendientes del expediente.
   - Un usuario actúa sobre un expediente que esperaba su acción     -> `resolver_avisos`: el aviso compartido deja de estar
     pendiente para todos los que tienen el permiso (ENVIADO_CAPTACION, EN_REVISION_FINAL, EN_PRESUPUESTO,
     EN_DIRECCION_GENERAL, EN_CORRECCION_CARGO y APROBADO).
@@ -68,6 +70,13 @@ TIPO_CONTRATACION_COMPLETADA = 'CONTRATACION_COMPLETADA'
 TIPO_CARNET_PENDIENTE = 'CARNET_PENDIENTE'
 PERMISO_EMITIR_CARNET = 'carnetizacion.emitir'
 ENLACE_FICHA_TRABAJADOR = '/personal/consultar'
+TIPO_CORREO_INSTITUCIONAL_PENDIENTE = 'CORREO_INSTITUCIONAL_PENDIENTE'
+MODULO_PERSONAL = 'personal'
+REF_TIPO_EMPLEADO = 'empleado'
+# Quien puede editar la ficha del trabajador (PUT/PATCH de Gestión de Trabajadores, donde se carga el correo).
+PERMISO_EDITAR_FICHA = 'personal.editar_personales'
+ENLACE_FICHA_CEDULA = '/personal/consultar?cedula={cedula}'
+MOTIVOS_SIN_CORREO_INSTITUCIONAL = ('sin_correo_institucional', 'sin_correo')
 TIPO_CORREO_CORRECCION = 'POSTULACION_CORRECCION'
 TIPO_CORREO_VENTANA2 = 'POSTULACION_VENTANA2'
 TIPO_CORREO_FALTANTES = 'POSTULACION_FALTANTES'
@@ -103,7 +112,7 @@ def _quien(p: Postulante, exp: ExpedientePostulacion) -> str:
 
 def solicitudes_de_transicion(
     exp: ExpedientePostulacion, postulante: Postulante, origen: EstadoExpediente, destino: EstadoExpediente,
-    actor: Actor, asiento_id: str, motivo: str = '',
+    actor: Actor, asiento_id: str, motivo: str = '', datos_extra: dict | None = None,
 ) -> list[SolicitudNotificacion]:
     """Avisos de campana de este paso. `clave` = id del asiento: un reenvío tras corregir genera un aviso nuevo."""
     quien = _quien(postulante, exp)
@@ -171,6 +180,9 @@ def solicitudes_de_transicion(
                 titulo='Carnet pendiente', mensaje=f'{quien} ya tiene foto cargada y aún no tiene carnet: emítalo.',
                 **comunes,
             ))
+        extra = datos_extra or {}
+        if extra.get('cuenta_motivo') in MOTIVOS_SIN_CORREO_INSTITUCIONAL:
+            avisos.append(_aviso_correo_institucional(postulante, exp, extra, asiento_id))
         return avisos
     if destino == E.APROBADO:
         return [SolicitudNotificacion(
@@ -180,6 +192,30 @@ def solicitudes_de_transicion(
             **comunes,
         )]
     return []
+
+
+def _aviso_correo_institucional(postulante: Postulante, exp: ExpedientePostulacion, extra: dict, asiento_id: str):
+    nombre = f'{postulante.nombres} {postulante.apellidos}'.strip()
+    try:
+        fecha = datetime.fromisoformat(str(extra.get('contratado_el'))).strftime('%d/%m/%Y')
+    except (TypeError, ValueError):
+        fecha = 'la fecha de hoy'
+    puesto = extra.get('puesto_codigo') or ''
+    en_puesto = f' en el puesto {puesto}' if puesto else ''
+    personal = (
+        f' Dejó el correo personal {postulante.correo.strip()} como dato de contacto.'
+        if (postulante.correo or '').strip() else ''
+    )
+    return SolicitudNotificacion(
+        tipo=TIPO_CORREO_INSTITUCIONAL_PENDIENTE, permiso_destino=PERMISO_EDITAR_FICHA, modulo=MODULO_PERSONAL,
+        ref_tipo=REF_TIPO_EMPLEADO, ref_id=str(postulante.cedula), clave=asiento_id,
+        enlace=ENLACE_FICHA_CEDULA.format(cedula=postulante.cedula),
+        titulo='Correo institucional por gestionar',
+        mensaje=(
+            f'La contratación de {nombre} se completó el {fecha}{en_puesto}. Solicite a Tecnología la creación de su '
+            f'correo institucional y cárguelo en su ficha: al guardarlo se crea su cuenta de acceso.{personal}'
+        ),
+    )
 
 
 def _fecha_plazo(vence: datetime | None) -> str:
@@ -258,11 +294,12 @@ def correo_al_postulante(
 def programar_avisos(
     repo: RepoPostulacion, notificador: Notificador | None, *, exp: ExpedientePostulacion, postulante: Postulante,
     origen: EstadoExpediente, destino: EstadoExpediente, actor: Actor, asiento_id: str, motivo: str = '',
+    datos_extra: dict | None = None,
 ) -> None:
     """Llamar dentro de la transacción de la transición: los avisos salen al confirmarla."""
     if notificador is None:
         return
-    solicitudes = solicitudes_de_transicion(exp, postulante, origen, destino, actor, asiento_id, motivo)
+    solicitudes = solicitudes_de_transicion(exp, postulante, origen, destino, actor, asiento_id, motivo, datos_extra)
     resolver = tipos_a_resolver(origen, destino, actor)
     correo = correo_al_postulante(exp, postulante, origen, destino, actor, asiento_id, motivo)
     if not solicitudes and not resolver and correo is None:

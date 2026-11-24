@@ -224,4 +224,7 @@ class DocumentoFamiliarArchivoView(APIView):
         clave = obtener_clave_documento_familiar(
             RepoFamiliaresORM(), familiar_id=familiar_id, documento_id=documento_id,
         )
-        return respuesta_archivo(SeaweedFSStorage(), clave, cache='private, no-store')
+        return respuesta_archivo(
+            SeaweedFSStorage(), clave, cache='private, no-store',
+            request=request, recurso='documento_familiar', recurso_id=documento_id,
+        )

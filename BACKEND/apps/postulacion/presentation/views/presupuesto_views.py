@@ -99,8 +99,11 @@ def _detalle(request, expediente_id: str, area: str = 'presupuesto', permisos=PE
     ), area)
 
 
-def _descargar_pdf(clave: str, nombre: str):
-    respuesta = respuesta_archivo(SeaweedFSStorage(), clave, cache='private, no-store', mime='application/pdf')
+def _descargar_pdf(request, clave: str, nombre: str, recurso: str, expediente_id):
+    respuesta = respuesta_archivo(
+        SeaweedFSStorage(), clave, cache='private, no-store', mime='application/pdf',
+        request=request, recurso=recurso, recurso_id=expediente_id,
+    )
     respuesta['Content-Disposition'] = f'attachment; filename="{nombre}"'
     return respuesta
 
@@ -321,7 +324,9 @@ class PuntoCuentaDocumentoView(_VistaDescarga):
     )
     def get(self, request, expediente_id):
         punto, numero = documento_punto_cuenta(RepoPostulacionORM(), expediente_id=str(expediente_id), area=self.area)
-        respuesta = _descargar_pdf(punto.pdf_clave, f'punto-cuenta-{punto.numero or numero}.pdf')
+        respuesta = _descargar_pdf(
+            request, punto.pdf_clave, f'punto-cuenta-{punto.numero or numero}.pdf', 'punto_cuenta', expediente_id,
+        )
         auditar_captacion(request, 'PUNTO_CUENTA_INGRESO_CONSULTADO', str(expediente_id), {'numero': punto.numero})
         return respuesta
 
@@ -333,6 +338,8 @@ class ConstanciaAdjuntoView(_VistaDescarga):
     )
     def get(self, request, expediente_id):
         c, numero = adjunto_constancia(RepoPostulacionORM(), expediente_id=str(expediente_id), area=self.area)
-        respuesta = _descargar_pdf(c.adjunto_clave, f'constancia-presupuestaria-{numero}.pdf')
+        respuesta = _descargar_pdf(
+            request, c.adjunto_clave, f'constancia-presupuestaria-{numero}.pdf', 'constancia_presupuestaria', expediente_id,
+        )
         auditar_captacion(request, 'CONSTANCIA_ADJUNTO_CONSULTADO', str(expediente_id), {'numero': numero})
         return respuesta

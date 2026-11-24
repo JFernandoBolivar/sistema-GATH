@@ -1,6 +1,7 @@
 """
 Servicio autenticado de archivos de MEDIA_ROOT en Core Presentation (B0.7, B26).
 """
+from core.presentation.archivos import registrar_descarga
 import mimetypes
 from pathlib import Path
 
@@ -93,6 +94,7 @@ def servir_archivo_media(request, ruta):
     except OSError:
         raise Http404("Archivo no encontrado.")
 
+    registrar_descarga(request, 'media', ruta)
     respuesta = FileResponse(
         manejador,
         as_attachment=como_adjunto,

@@ -53,6 +53,7 @@ from core.domain.exceptions import NotFoundError, ValidationError
 from core.domain.ports import FileStorage
 
 MAX_SOPORTES_POR_SECCION = 10
+PREFIJO_CLAVE_SOPORTES = 'autogestion/soportes'
 MAX_CAMBIOS = 60
 
 
@@ -332,7 +333,8 @@ def adjuntar_soporte(
     elif len(existentes) >= MAX_SOPORTES_POR_SECCION:
         raise ValidationError(f"Máximo {MAX_SOPORTES_POR_SECCION} soportes por sección.")
 
-    clave = f"autogestion/soportes/{cedula}/{solicitud.id}/{uuid.uuid4().hex}{extension}"
+    # H-2: clave opaca, sin cédula ni datos personales (la relación vive en la base, no en la ruta).
+    clave = f"{PREFIJO_CLAVE_SOPORTES}/{uuid.uuid4().hex}{extension}"  # mismo patrón que `clave_segura`
     almacen.subir(clave, contenido, mime)
     soporte = repo_soportes.agregar(SoporteDocumental(
         id='', origen_tipo=ORIGEN_ACTUALIZACION, origen_id=solicitud.id, seccion=seccion, tipo=tipo_permitido.codigo,

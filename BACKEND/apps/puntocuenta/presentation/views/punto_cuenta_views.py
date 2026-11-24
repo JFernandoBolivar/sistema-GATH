@@ -113,7 +113,10 @@ class PuntoCuentaDocumentoArchivoView(APIView):
                 # se registra y sube al handler como error de servidor.
                 logger.exception('No se pudo generar o guardar el PDF del punto de cuenta %s', dto.id)
                 raise
-        return respuesta_archivo(SeaweedFSStorage(), dto.documento_pdf_clave, cache='private, no-store')
+        return respuesta_archivo(
+            SeaweedFSStorage(), dto.documento_pdf_clave, cache='private, no-store',
+            request=request, recurso='punto_cuenta', recurso_id=dto.id,
+        )
 
 
 class PuntoCuentaConfiguracionView(APIView):

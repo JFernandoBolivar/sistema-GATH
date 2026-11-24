@@ -75,7 +75,7 @@ from core.domain.configuracion import (
 from core.domain.exceptions import ConflictError, NotFoundError, PermissionDeniedError
 from core.infrastructure.providers import obtener_lector_configuracion, obtener_notificador
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
-from core.presentation.archivos import respuesta_archivo
+from core.presentation.archivos import registrar_descarga, respuesta_archivo
 from core.presentation.envelope import ok
 from core.presentation.permissions import usuario_tiene_permiso
 from core.presentation.schema import MensajeRespuestaSerializer
@@ -191,6 +191,7 @@ class EvidenciaRevisionView(APIView):
             auditar(request, 'EVIDENCIA_CONSULTADA', str(solicitud_id), None, None)
             respuesta = respuesta_archivo(
                 SeaweedFSStorage(), evidencia.clave, cache='private, no-store', mime=evidencia.mime or None,
+                request=request, recurso='evidencia_fe_de_vida', recurso_id=solicitud_id,
             )
         respuesta['Content-Disposition'] = 'inline'
         return respuesta
@@ -432,7 +433,10 @@ class ConstanciaBienestarView(APIView):
         if constancia is None or not constancia.clave_pdf:
             raise NotFoundError("La constancia aún no está disponible.")
         auditar(request, 'CONSTANCIA_IMPRESA', str(solicitud_id), None, {'numero': constancia.numero})
-        respuesta = respuesta_archivo(SeaweedFSStorage(), constancia.clave_pdf, cache='private, no-store')
+        respuesta = respuesta_archivo(
+            SeaweedFSStorage(), constancia.clave_pdf, cache='private, no-store',
+            request=request, recurso='constancia_fe_de_vida', recurso_id=solicitud_id,
+        )
         respuesta['Content-Disposition'] = f'inline; filename="{NOMBRE_CONSTANCIA}"'
         return respuesta
 
@@ -454,6 +458,7 @@ class PlanillaView(APIView):
             {'proceso': datos['proceso']['nombre'], 'constancia': datos['constancia']['numero']},
         )
         pdf = generar_planilla_pdf(datos)
+        registrar_descarga(request, 'planilla_fe_de_vida', solicitud_id)
         respuesta = HttpResponse(pdf, content_type='application/pdf')
         respuesta['Content-Disposition'] = f'attachment; filename="planilla-{datos["persona"]["cedula"]}.pdf"'
         respuesta['Cache-Control'] = 'private, no-store'

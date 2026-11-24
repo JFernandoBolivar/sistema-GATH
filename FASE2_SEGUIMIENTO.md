@@ -45,11 +45,11 @@ Cómo actualizar: cambiar el ícono de la columna **Estado**, la **Fecha** del �
 | A · Carnet: corrección de impresión | 9 | 0 | 0 | 9 | 0 |
 | B · Carnet: funciones faltantes | 11 | 0 | 0 | 11 | 0 |
 | C · Decisiones para Captación | 10 | 0 | 0 | 9 | 1 |
-| D · Captación Ventana 1 (E-3) | 9 | 0 | 0 | 9 | 0 |
+| D · Captación Ventana 1 (E-3) | 10 | 1 | 0 | 9 | 0 |
 | E · Presupuesto y Dirección General (E-4) | 7 | 0 | 0 | 7 | 0 |
-| F · Documentos digitales (E-5) | 7 | 6 | 0 | 0 | 1 |
+| F · Documentos digitales (E-5) | 7 | 5 | 0 | 1 | 1 |
 | G · Ventana 2 y asignación de cargo (E-6) | 6 | 0 | 0 | 6 | 0 |
-| H · Transversales / deuda técnica | 13 | 7 | 0 | 6 | 0 |
+| H · Transversales / deuda técnica | 13 | 5 | 0 | 8 | 0 |
 | I · Sincronización con nómina (E-9) | 1 | 0 | 0 | 0 | 1 |
 | K · Hallazgos de auditoría (opencode) | 16 | 0 | 0 | 16 | 0 |
 | J · Documentación del plan | 2 | 2 | 0 | 0 | 0 |
@@ -128,6 +128,7 @@ Cómo actualizar: cambiar el ícono de la columna **Estado**, la **Fecha** del �
 | D-7 | Bandeja de Captación: alta de postulante, verificación, devolución, rechazo | ✅ Completado | 2026-11-21 | backend `3966b354` + pantallas `4780950e` (bandeja, nuevo postulante, detalle con acciones del backend) |
 | D-8 | Registro del resultado del test psicofísico | ✅ Completado | 2026-11-21 | backend `3966b354` + pantalla `4780950e` (registro APTO/NO_APTO e informe PDF) |
 | D-9 | Notificaciones del flujo (expediente recibido, observado) | ✅ Completado | 2026-11-21 | `3966b354`: avisos RECIBIDO, REVISION_FINAL y EN_PRESUPUESTO con bandeja compartida, etiquetas en la campana; correo al postulante (devolver, Ventana 2, rechazo) en `392cee9e` |
+| D-10 | Entrega del acceso a distancia: enlace de activación de un solo uso por correo (sin contraseña), vence en 48 h configurable, exige la cédula, el postulante crea su contraseña; reenviar invalida el anterior; recordatorio de confirmar el correo por teléfono | ⬜ Pendiente | 2026-11-24 | aprobado por el usuario; alternativa a la entrega en persona |
 
 ## E · Presupuesto y Dirección General (E-4)
 
@@ -151,7 +152,7 @@ Cómo actualizar: cambiar el ícono de la columna **Estado**, la **Fecha** del �
 | F-4 | Planillas prellenadas: Oferta de Servicios, Caja de Ahorro, HCM | ⬜ Pendiente | | depende de F-3 |
 | F-5 | Contrato, Notificación de Itinerancia, Declaración jurada, Autorización de datos | ⬜ Pendiente | | |
 | F-6 | Firma por clic de conformidad con evidencia | ⬜ Pendiente | | depende de C-5 |
-| F-7 | Descarga autenticada con registro en bitácora | ⬜ Pendiente | | ver H-3 |
+| F-7 | Descarga autenticada con registro en bitácora | ✅ Completado | 2026-11-24 | el mecanismo es H-3 (`respuesta_archivo(request=, recurso=)`); los documentos de F deben usarlo al crearse |
 
 ## G · Ventana 2 y asignación de cargo (E-6)
 
@@ -169,8 +170,8 @@ Cómo actualizar: cambiar el ícono de la columna **Estado**, la **Fecha** del �
 | ID | Tarea | Estado | Fecha | Nota |
 |---|---|---|---|---|
 | H-1 | SeaweedFS: `sw_s3` del `compose.yml` real sin `identities.json` (S3 sin autenticación) | ✅ Completado | | prioridad alta. Contenido: `sw_s3` no publica puertos al host, solo red interna; el riesgo es defensa en profundidad. Añadir `identities.json` + `-s3.config`, montarlo de solo lectura y alinear `S3_ACCESS_KEY`/`S3_SECRET_KEY` del backend · `97daab51`: `sw_s3` con `identities.json` (generado con `infra-fase2/seaweedfs/generar-identidades.sh`). `a8894e00`: ya no es manual; `sw_s3` genera `identities.json` al arrancar desde las claves de `BACKEND/.env` (sin claves no arranca). Para desplegar basta `docker compose up -d` |
-| H-2 | Claves de soportes de autogestión sin cédula (`autogestion/soportes/{cedula}/…` → `clave_segura`) | ⬜ Pendiente | | |
-| H-3 | Bitácora de descargas de archivos (quién, qué, cuándo) | ⬜ Pendiente | | |
+| H-2 | Claves de soportes de autogestión sin cédula (`autogestion/soportes/{cedula}/…` → `clave_segura`) | ✅ Completado | 2026-11-24 | soportes nuevos con clave opaca; los viejos siguen descargándose. **En producción falta correr** `python manage.py migrar_claves_soportes` (en seco) y luego `--aplicar` (copia, actualiza soporte + `Employee.profile/foto_objeto`, y solo después borra). Las demás claves del código ya eran opacas |
+| H-3 | Bitácora de descargas de archivos (quién, qué, cuándo) | ✅ Completado | 2026-11-24 | `AuditoriaLog` con acción `DESCARGA_ARCHIVO` (quién, recurso, IP, resultado; sin clave ni contenido), en todas las vistas que sirven archivos protegidos; consulta en `/auditoria` (filtro de acción) con `auditoria.ver_logs` |
 | H-4 | Bandeja compartida: cuando alguien atiende un caso avisado a varias cuentas (envío por permiso), marcar como atendidas las copias de los demás («el primero que actúa la resuelve», propuesta §5.6) | ✅ Completado | 2026-11-20 | `32bc0ac5`: `Notificador.resolver_avisos(ref_tipo, ref_id, por_cedula, tipo=None)`; falta llamarlo desde Captación/Presupuesto cuando existan (D/E) |
 | H-5 | Notificaciones en tiempo real (SSE) | ⬜ Pendiente | | opcional |
 | H-6 | Separar colas de Celery (docs, mail, maint) | ⬜ Pendiente | | baja prioridad |
@@ -225,6 +226,7 @@ Cómo actualizar: cambiar el ícono de la columna **Estado**, la **Fecha** del �
 
 | Fecha | Cambio |
 |---|---|
+| 2026-11-24 | H-2 y H-3 completos y aviso a RRHH al contratar sin correo institucional (`CORREO_INSTITUCIONAL_PENDIENTE` a `personal.editar_personales`, enlace a la ficha; se cierra solo al cargar el correo y crearse la cuenta). Workers Sonnet en paralelo. Backend 3429 ✅, import-linter 109 ✅. Pendiente de producción: `migrar_claves_soportes`. Aprobado D-10 (enlace de activación por correo). |
 | 2026-11-24 | **Bloque G completo** (6/6). Backend `0d16ddf6` (worker Sonnet): Ventana 2 (familiares, vivienda, salud, tallas y foto sin EXIF con clave opaca), reapertura con credencial nueva y tarea «Contactar al postulante» con escalamiento (`captacion.horas_escalamiento_contacto`, 48 h), revisión final, promoción atómica por el puerto `PromotorEmpleado` y `Employee.foto_objeto/foto_actualizada/origen_expediente` (migraciones `postulacion.0006`, `personal.0004` por SQL, `configuracion.0016`, aplicadas en desarrollo). Frontend (worker Sonnet): Ventana 2 paso a paso, pestaña «Por contactar», «Ya lo contacté», datos y foto en Captación, panel de contratación. Auditoría: el botón «Contratar» no salía (faltaba en `acciones[]`), una contratación nueva quedaba marcada «Reingreso», «Reponer credencial» se ofrecía fuera de una ventana abierta (ahora 409 `SIN_VENTANA_ABIERTA`), texto con género («fue contratado»), doble «×» en el buscador compartido y tres fallos de la E2E. Backend 3412 ✅, frontend 393 de los módulos tocados ✅, E2E Ventana 2 + Captación ✅ (escritorio y 390x844). **Limpieza tras la E2E:** cada contratación crea un Employee real y ocupa un puesto; en desarrollo hay muy pocas vacantes, así que tras correrla hay que borrar los Employee «Prueba Ventana Dos» con `origen_expediente` y devolver su puesto a VACANTE (script en la sesión; quedó en 0). Decisiones del worker: el correo personal del postulante queda como alternativo y la cuenta se crea cuando RRHH asigne el institucional; reingreso de un activo → 409. |
 | 2026-11-24 | **Bloque E completo** (7/7). Pantallas de Presupuesto y Dirección General (commit `7316d5fa`, GitHub ✅). Worker Sonnet; en la auditoría: los listados decían «Cargo sin texto» (ahora se guardan los nombres del catálogo al abrir hacia Presupuesto) y la E2E dependía de corridas anteriores (ahora busca vacantes libres; escritorio aprueba y móvil rechaza). Nota de pruebas: tras aprobar, la reserva queda ACTIVA por diseño hasta el bloque G; en desarrollo solo hay 2 propuestas distintas con vacantes, así que antes de repetir la E2E hay que liberar las reservas de prueba: `R.objects.filter(estado='ACTIVA', expediente__creado_por='99000990').update(estado='LIBERADA')` (modelo `postulacion.ReservaPuestoModel`). Frontend 1522 ✅, backend 626 de postulación ✅. |
 | 2026-11-24 | Backend del bloque E (commit `352af7c3`, GitHub ✅). Worker Sonnet; suite 3285 ✅; probado en vivo de punta a punta (Captación → Presupuesto reserva + constancia → Punto de Cuenta 0001-2026 en PDF → aprobación de Dirección General). Corregido en la auditoría: el PDF decía «emitido por N/A». Migración postulacion 0005 aplicada en desarrollo; la reserva de prueba del puesto 107807 se liberó a mano y se borraron 33 avisos de prueba. Sigue: pantallas de Presupuesto y Dirección General. |

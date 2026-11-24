@@ -2,6 +2,7 @@
 Vistas delgadas de Pasivos (Reglas B4, B7).
 Con Envelope unificado `ok()` / `fail()` y permiso `pasivos.ver`.
 """
+from core.presentation.archivos import registrar_descarga
 import uuid
 
 from django.db import transaction
@@ -190,6 +191,7 @@ class PasivoDetallePdfView(APIView):
         repo = RepoPasivosORM()
         dto = obtener_pasivo_por_cedula(repo, cedula=cedula)
         pdf_bytes = construir_pdf_expediente_pasivo(dto)
+        registrar_descarga(request, 'expediente_pasivo_pdf', cedula)
         return _respuesta_pdf(pdf_bytes, f"expediente-pasivo-{cedula}.pdf")
 
 

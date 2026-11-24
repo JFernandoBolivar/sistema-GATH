@@ -1,4 +1,5 @@
 """Vistas REST de credenciales externas y temporales (O45-A)."""
+from core.presentation.archivos import registrar_descarga
 from datetime import datetime, time
 
 from django.http import HttpResponse
@@ -172,6 +173,7 @@ class CredencialExternaPdfView(APIView):
     @extend_schema(tags=['Carnetización'], summary='Descargar credencial externa/temporal en PDF')
     def get(self, request, credencial_id: str):
         pdf = generar_pdf_credencial_externa(RepoCredencialesExternasORM(), credencial_id)
+        registrar_descarga(request, 'credencial_externa_pdf', credencial_id)
         response = HttpResponse(pdf, content_type='application/pdf')
         response['Content-Disposition'] = f'inline; filename="credencial_{credencial_id}.pdf"'
         response['X-Content-Type-Options'] = 'nosniff'
@@ -196,6 +198,7 @@ class CredencialesLotePdfView(APIView):
             RepoCredencialesExternasORM(), serializer.validated_data['ids'],
             serializer.validated_data.get('modo_duplex', SIN_ESPEJO),
         )
+        registrar_descarga(request, 'credencial_externa_lote_pdf', '')
         response = HttpResponse(pdf, content_type='application/pdf')
         response['Content-Disposition'] = 'attachment; filename="lote_credenciales.pdf"'
         response['X-Content-Type-Options'] = 'nosniff'

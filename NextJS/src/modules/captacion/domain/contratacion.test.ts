@@ -16,9 +16,12 @@ describe("texto de la cuenta tras contratar", () => {
     expect(t.tono).toBe("atencion");
     expect(t.detalle).toMatch(/cuando RRHH asigne el correo institucional/);
     expect(t.detalle).toMatch(/a@ejemplo\.invalid/);
+    expect(t.detalle).toMatch(/Se avisó a RRHH para que gestione el correo institucional con Tecnología/);
   });
   it("sin correo, ya existía, reactivada y desconocido", () => {
     expect(textoCuenta(cuenta({ motivo: "sin_correo" })).detalle).toMatch(/ningún correo/);
+    expect(textoCuenta(cuenta({ motivo: "sin_correo" })).detalle).toMatch(/Se avisó a RRHH/);
+    expect(textoCuenta(cuenta({ motivo: "ya_existia" })).detalle).not.toMatch(/Se avisó a RRHH/);
     expect(textoCuenta(cuenta({ motivo: "ya_existia" })).titulo).toBe("Ya tenía cuenta");
     expect(textoCuenta(cuenta({ reactivada: true })).titulo).toBe("Cuenta reactivada");
     expect(textoCuenta(cuenta({ motivo: "otro_motivo" })).detalle).toMatch(/otro motivo/);

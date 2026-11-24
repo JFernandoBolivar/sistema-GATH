@@ -2,6 +2,7 @@
 Vistas delgadas de Carnetización (Reglas B4, B7, O44 - E3).
 Con Envelope unificado `ok()` / `fail()` y permisos PBAC.
 """
+from core.presentation.archivos import registrar_descarga
 import logging
 import uuid
 
@@ -150,6 +151,7 @@ class CarnetPdfView(APIView):
         # ?formato=imprenta: sangrado y marcas de corte para reimprimir en la imprenta (B-3).
         imprenta = (request.query_params.get('formato') or '').strip().lower() == 'imprenta'
         pdf_bytes = generar_pdf_carnet(repo, carnet_id=carnet_id, imprenta=imprenta)
+        registrar_descarga(request, 'carnet_pdf', carnet_id)
         response = HttpResponse(pdf_bytes, content_type='application/pdf')
         sufijo = '_imprenta' if imprenta else ''
         response['Content-Disposition'] = f'inline; filename="carnet_{carnet_id}{sufijo}.pdf"'
@@ -244,6 +246,7 @@ class LoteCarnetsPdfView(APIView):
             )
         except Exception:  # noqa: BLE001 - la auditoría no debe tumbar la impresión
             logging.getLogger('security_backend').exception('No se pudo auditar el lote de carnets')
+        registrar_descarga(request, 'carnet_lote_pdf', '')
         response = HttpResponse(pdf, content_type='application/pdf')
         response['Content-Disposition'] = 'attachment; filename="lote_carnets_trabajadores.pdf"'
         return response
@@ -988,6 +991,7 @@ class CarnetGenerarView(APIView):
             _auditar_solicitud(request, 'carnetizacion.solicitud_aprobada', solicitud_aprobada)
 
         # O46-A: el endpoint debe devolver el PDF binario, no un sobre JSON en base64.
+        registrar_descarga(request, 'carnet_pdf', cedula)
         response = HttpResponse(emision.pdf, content_type='application/pdf')
         sufijo = '_imprenta' if imprenta else ''
         response['Content-Disposition'] = f'attachment; filename="carnet_{cedula}{sufijo}.pdf"'

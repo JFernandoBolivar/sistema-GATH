@@ -258,6 +258,9 @@ class MiConstanciaView(APIView):
             cedula=cedula_de_sesion(request),
         )
         auditar(request, 'CONSTANCIA_DESCARGADA', str(solicitud_id), None, {'numero': constancia.numero})
-        respuesta = respuesta_archivo(SeaweedFSStorage(), constancia.clave_pdf, cache='private, no-store')
+        respuesta = respuesta_archivo(
+            SeaweedFSStorage(), constancia.clave_pdf, cache='private, no-store',
+            request=request, recurso='constancia_fe_de_vida', recurso_id=solicitud_id,
+        )
         respuesta['Content-Disposition'] = f'attachment; filename="{NOMBRE_CONSTANCIA}"'
         return respuesta

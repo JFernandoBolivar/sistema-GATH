@@ -38,6 +38,7 @@ export const TIPOS_POR_MODULO: Record<ModuloNotificaciones, TipoNotificacion[]> 
     { codigo: "movimiento.cambio_estatus", etiqueta: "Cambio de estatus" },
     { codigo: "movimiento.egreso", etiqueta: "Egreso de personal" },
     { codigo: "movimiento.sobreviviente", etiqueta: "Alta de sobreviviente" },
+    { codigo: "CORREO_INSTITUCIONAL_PENDIENTE", etiqueta: "Correo institucional por gestionar" },
   ],
   carnetizacion: [
     { codigo: "autogestion.foto_aprobada", etiqueta: "Reemisión de carnet" },

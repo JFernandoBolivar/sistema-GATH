@@ -5,6 +5,7 @@ Ambas rutas exigen sesión y solo responden al usuario que pidió la exportació
 (otro usuario recibe 404, igual que un id inexistente). La descarga se sirve por
 streaming desde Django: el navegador nunca recibe una URL del almacén de objetos.
 """
+from core.presentation.archivos import registrar_descarga
 from datetime import datetime, timezone
 
 from django.http import StreamingHttpResponse
@@ -57,6 +58,7 @@ class DescargarExportacionView(APIView):
             RepoExportacionesORM(), SeaweedFSStorage(), trabajo_id, request.user.pk,
             datetime.now(timezone.utc),
         )
+        registrar_descarga(request, 'exportacion', trabajo_id)
         respuesta = StreamingHttpResponse(flujo, content_type=TIPO_CONTENIDO[trabajo.formato])
         respuesta['Content-Disposition'] = f'attachment; filename="{trabajo.nombre_archivo}"'
         respuesta['Content-Length'] = str(trabajo.tamano_bytes)

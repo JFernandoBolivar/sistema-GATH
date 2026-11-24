@@ -22,6 +22,8 @@ export interface ResultadoContratacion {
 /** Destino de la acción de contratar en `acciones[]`. */
 export const DESTINO_CONTRATADO = "CONTRATADO";
 
+const AVISO_RRHH_CORREO = "Se avisó a RRHH para que gestione el correo institucional con Tecnología.";
+
 /** Qué explica la cuenta tras contratar, según `cuenta.motivo`. */
 export function textoCuenta(c: CuentaContratacion): { titulo: string; detalle: string; tono: "exito" | "atencion" | "info" } {
   if (c.creada) {
@@ -40,13 +42,13 @@ export function textoCuenta(c: CuentaContratacion): { titulo: string; detalle: s
     case "sin_correo_institucional":
       return {
         titulo: "La cuenta aún no se crea",
-        detalle: `La cuenta se creará cuando RRHH asigne el correo institucional.${c.correoAlternativo ? ` Mientras tanto queda registrado el correo personal ${c.correoAlternativo}.` : ""}`,
+        detalle: `La cuenta se creará cuando RRHH asigne el correo institucional.${c.correoAlternativo ? ` Mientras tanto queda registrado el correo personal ${c.correoAlternativo}.` : ""} ${AVISO_RRHH_CORREO}`,
         tono: "atencion",
       };
     case "sin_correo":
       return {
         titulo: "La cuenta aún no se crea",
-        detalle: "El trabajador no tiene ningún correo registrado. Cuando RRHH registre su correo institucional se podrá crear la cuenta.",
+        detalle: `El trabajador no tiene ningún correo registrado. Cuando RRHH registre su correo institucional se podrá crear la cuenta. ${AVISO_RRHH_CORREO}`,
         tono: "atencion",
       };
     case "ya_existia":

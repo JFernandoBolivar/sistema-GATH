@@ -61,6 +61,10 @@ from core.infrastructure.providers import obtener_lector_configuracion, obtener_
 
 logger = logging.getLogger('gath.identidad')
 
+TIPO_CORREO_INSTITUCIONAL_PENDIENTE = 'CORREO_INSTITUCIONAL_PENDIENTE'  # lo emite postulacion al contratar
+REF_TIPO_EMPLEADO = 'empleado'
+POR_SISTEMA = 'sistema'
+
 
 def aprovisionar_por_cedula(cedula: str, permitir_pasivo: bool = False):
     """Alta automática de la cuenta de `cedula` si corresponde (idempotente)."""
@@ -204,9 +208,26 @@ def alta_de_cuenta_al_cargar_correo(sender, instance, **kwargs):
         with transaction.atomic():
             # RRHH asignó un correo en Gestión de Trabajadores: activo o pasivo, la cuenta se crea ya
             # (idempotente: si ya existe no hace nada).
-            aprovisionar_por_cedula(str(instance.cedulaidentidad), permitir_pasivo=True)
+            cuenta = aprovisionar_por_cedula(str(instance.cedulaidentidad), permitir_pasivo=True)
     except Exception:  # noqa: BLE001
         logger.exception('no se pudo evaluar el alta de cuenta de %s', instance.cedulaidentidad)
+        return
+    if cuenta is not None:
+        cedula = str(instance.cedulaidentidad)
+        # El aviso «correo institucional pendiente» (lo emite la contratación) deja de estarlo: tras el commit.
+        transaction.on_commit(lambda: _resolver_aviso_correo_pendiente(cedula))
+
+
+def _resolver_aviso_correo_pendiente(cedula: str) -> None:
+    """Cierra para todos el aviso a RRHH de que faltaba el correo institucional. Un fallo nunca rompe el guardado."""
+    try:
+        notificador = obtener_notificador()
+        if notificador is not None:
+            notificador.resolver_avisos(
+                REF_TIPO_EMPLEADO, cedula, por_cedula=POR_SISTEMA, tipo=TIPO_CORREO_INSTITUCIONAL_PENDIENTE,
+            )
+    except Exception:  # noqa: BLE001
+        logger.exception('no se pudo resolver el aviso de correo institucional pendiente de %s', cedula)
 
 
 @receiver(cargo_movimiento_ejecutado, dispatch_uid='identidad_ciclo_de_vida_por_movimiento')

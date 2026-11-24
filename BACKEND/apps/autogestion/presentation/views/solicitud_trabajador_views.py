@@ -273,7 +273,10 @@ class SoporteArchivoView(APIView):
             RepoSoportesORM(), str(soporte_id), str(getattr(request.user, 'cedula_id', '') or ''),
             usuario_tiene_permiso(request.user, 'bienestar.ver_solicitudes'),
         )
-        return respuesta_archivo(SeaweedFSStorage(), soporte.clave_s3, cache='private, no-store')
+        return respuesta_archivo(
+            SeaweedFSStorage(), soporte.clave_s3, cache='private, no-store',
+            request=request, recurso='soporte_autogestion', recurso_id=soporte_id,
+        )
 
 
 class SeccionesView(APIView):

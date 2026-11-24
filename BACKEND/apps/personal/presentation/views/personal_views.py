@@ -18,7 +18,7 @@ from core.infrastructure.storage.validacion_archivo import (
     clave_segura,
     validar_archivo,
 )
-from core.presentation.archivos import respuesta_archivo
+from core.presentation.archivos import registrar_descarga, respuesta_archivo
 from core.presentation.audit import origen_de_peticion, registrar_auditoria
 from core.presentation.envelope import fail, ok
 from core.presentation.permissions import HasPermission, usuario_tiene_permiso
@@ -232,6 +232,7 @@ class EmpleadoDetallePdfView(APIView):
             dto, usuario_nombre=_quien_genera(request.user), foto_bytes=_foto_para_pdf(dto),
             historial_cargos=historial_cargos_de(cedula),
         )
+        registrar_descarga(request, 'expediente_empleado_pdf', cedula)
         return _respuesta_pdf(pdf_bytes, f"expediente-empleado-{cedula}.pdf")
 
 
@@ -271,7 +272,10 @@ class EmpleadoFotoView(APIView):
         if not es_propia and not any(usuario_tiene_permiso(request.user, c) for c in self._CODIGOS_VER_FOTO):
             return fail("No posee permiso para ver la fotografía de este trabajador.", status=403)
         clave = obtener_clave_foto(RepoPersonalORM(), cedula=cedula)
-        return respuesta_archivo(SeaweedFSStorage(), clave, cache='private, max-age=86400')
+        return respuesta_archivo(
+            SeaweedFSStorage(), clave, cache='private, max-age=86400',
+            request=request, recurso='foto_trabajador', recurso_id=cedula,
+        )
 
     @extend_schema(tags=['Personal'], summary='Subir o actualizar foto de perfil de empleado')
     def post(self, request, cedula: str):

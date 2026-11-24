@@ -145,25 +145,37 @@ def test_asignar_crea_al_trabajador_con_todo_y_cierra_el_expediente(m2, captacio
     tipos = {a.tipo: a for a in Notificador.emitidas}
     assert tipos['CONTRATACION_COMPLETADA'].permiso_destino == 'postulacion.ver_bandeja'
     assert tipos['CARNET_PENDIENTE'].permiso_destino == 'carnetizacion.emitir'
+    assert 'CORREO_INSTITUCIONAL_PENDIENTE' not in tipos   # la cuenta se creó: nada que gestionar con Tecnología
     # no se puede asignar dos veces
     r = asignar(captacion, exp)
     assert r.status_code == 409 and codigo(r) == 'EXPEDIENTE_FINAL'
 
 
-def test_sin_correo_no_se_crea_cuenta_y_se_dice_por_que(m2, captacion):
+def test_sin_correo_no_se_crea_cuenta_y_se_dice_por_que(m2, captacion, django_capture_on_commit_callbacks):
     exp = listo_para_asignar(m2, correo='')
-    r = asignar(captacion, exp)
+    Notificador.emitidas.clear()
+    with django_capture_on_commit_callbacks(execute=True):
+        r = asignar(captacion, exp)
+    aviso = {a.tipo: a for a in Notificador.emitidas}['CORREO_INSTITUCIONAL_PENDIENTE']
+    assert (aviso.permiso_destino, aviso.modulo, aviso.ref_tipo, aviso.ref_id) == (
+        'personal.editar_personales', 'personal', 'empleado', CEDULA)
+    assert aviso.enlace == f'/personal/consultar?cedula={CEDULA}' and 'correo personal' not in aviso.mensaje
+    assert 'Solicite a Tecnología' in aviso.mensaje and 'A-001' in aviso.mensaje
     assert r.status_code == 200, r.content
     assert datos(r)['cuenta'] == {'creada': False, 'reactivada': False, 'motivo': 'sin_correo', 'correo': '',
                                   'correo_alternativo': '', 'dias_vigencia_clave_inicial': None, 'entrega': None}
     assert EmployeeModel.objects.get(cedulaidentidad=CEDULA).correo is None and not CuentaModel.objects.filter(cedula_id=CEDULA).exists()
 
 
-def test_un_correo_personal_queda_como_alternativo_y_la_cuenta_espera_al_institucional(m2, captacion):
+def test_un_correo_personal_queda_como_alternativo_y_la_cuenta_espera_al_institucional(m2, captacion, django_capture_on_commit_callbacks):
     from apps.autogestion.infrastructure.models.actualizacion_models import DatosComplementariosTrabajadorModel
 
     exp = listo_para_asignar(m2, correo='ana@ejemplo.invalid')
-    r = asignar(captacion, exp)
+    Notificador.emitidas.clear(), Notificador.resueltas.clear()
+    with django_capture_on_commit_callbacks(execute=True):
+        r = asignar(captacion, exp)
+    aviso = {a.tipo: a for a in Notificador.emitidas}['CORREO_INSTITUCIONAL_PENDIENTE']
+    assert 'ana@ejemplo.invalid' in aviso.mensaje and 'dato de contacto' in aviso.mensaje
     assert r.status_code == 200, r.content
     assert datos(r)['cuenta']['creada'] is False and datos(r)['cuenta']['motivo'] == 'sin_correo_institucional'
     assert datos(r)['cuenta']['correo_alternativo'] == 'ana@ejemplo.invalid'
@@ -391,3 +403,36 @@ def test_no_se_repone_la_credencial_sin_una_ventana_abierta(m2, captacion):
     r = captacion.post(f'{BASE}/expedientes/{exp}/reponer-credencial/', {}, format='json')
     assert r.status_code == 409 and codigo(r) == 'SIN_VENTANA_ABIERTA'
     assert CredencialPostulanteModel.objects.filter(expediente_id=exp, revocada=False).count() <= 1
+
+
+def test_al_cargar_el_correo_institucional_se_crea_la_cuenta_y_se_resuelve_el_aviso(
+    m2, captacion, monkeypatch, django_capture_on_commit_callbacks,
+):
+    exp = listo_para_asignar(m2, correo='')
+    assert asignar(captacion, exp).status_code == 200
+    monkeypatch.setattr('apps.identidad.infrastructure.receivers.obtener_notificador', lambda: Notificador())
+    Notificador.resueltas.clear()
+    with django_capture_on_commit_callbacks(execute=True):
+        empleado = EmployeeModel.objects.get(cedulaidentidad=CEDULA)
+        empleado.correo = 'ana.perez@conatel.gob.ve'
+        empleado.save()
+    assert CuentaModel.objects.filter(cedula_id=CEDULA).exists()
+    assert ('empleado', CEDULA, 'sistema', 'CORREO_INSTITUCIONAL_PENDIENTE') in Notificador.resueltas
+
+
+def test_un_fallo_al_resolver_el_aviso_no_rompe_el_guardado_de_la_ficha(
+    m2, captacion, monkeypatch, django_capture_on_commit_callbacks,
+):
+    class Roto(Notificador):
+        def resolver_avisos(self, *a, **k):
+            raise RuntimeError('boom')
+
+    exp = listo_para_asignar(m2, correo='')
+    assert asignar(captacion, exp).status_code == 200
+    monkeypatch.setattr('apps.identidad.infrastructure.receivers.obtener_notificador', lambda: Roto())
+    with django_capture_on_commit_callbacks(execute=True):
+        empleado = EmployeeModel.objects.get(cedulaidentidad=CEDULA)
+        empleado.correo = 'ana.perez@conatel.gob.ve'
+        empleado.save()
+    assert EmployeeModel.objects.get(cedulaidentidad=CEDULA).correo == 'ana.perez@conatel.gob.ve'
+    assert CuentaModel.objects.filter(cedula_id=CEDULA).exists()
