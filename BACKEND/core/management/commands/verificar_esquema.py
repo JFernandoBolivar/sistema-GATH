@@ -47,7 +47,7 @@ BLOQUEA = "BLOQUEA"
 
 
 def _normalizar_rol(nombre: str) -> str:
-    return " ".join(str(nombre or "").strip().upper().replace("BIENSTAR", "BIENESTAR").split())
+    return " ".join(str(nombre or "").strip().upper().split())
 
 
 class Command(BaseCommand):

@@ -7,7 +7,11 @@ import type {
   FiltrosNotificaciones,
   RepoNotificaciones,
 } from "../../domain/ports/repo-notificaciones";
-import type { NotificacionDTO, PaginaNotificacionesDTO } from "../dtos/notificacion-dto";
+import type {
+  EstadoBandejaDTO,
+  NotificacionDTO,
+  PaginaNotificacionesDTO,
+} from "../dtos/notificacion-dto";
 
 /** Tamaño de página por defecto y techo (el servidor también lo acota a 50). */
 export const LIMITE_PREDETERMINADO = 10;
@@ -53,6 +57,16 @@ export async function contarNoLeidas(
   modulo?: ModuloNotificaciones,
 ): Promise<number> {
   return Math.max(await repo.contarNoLeidas(modulo), 0);
+}
+
+export async function consultarEstadoBandeja(repo: RepoNotificaciones): Promise<EstadoBandejaDTO> {
+  const e = await repo.consultarEstado();
+  const noLeidas = Math.max(e.noLeidas, 0);
+  return {
+    noLeidas,
+    ultimaActualizacion: e.ultimaActualizacion,
+    huella: `${noLeidas}|${e.ultimaActualizacion ?? ""}`,
+  };
 }
 
 export async function marcarNotificacionLeida(repo: RepoNotificaciones, id: string): Promise<void> {

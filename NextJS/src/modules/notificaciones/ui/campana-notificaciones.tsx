@@ -11,16 +11,14 @@ import { VistaCargando, VistaError, VistaVacia } from "@/shared/ui/components/vi
 import { cn } from "@/lib/utils";
 import type { ModuloNotificaciones } from "../domain/entities/notificacion";
 import {
-  contarNoLeidasAction,
   listarNotificacionesAction,
   marcarLeidaAction,
   marcarTodasLeidasAction,
 } from "../infrastructure/actions/notificaciones-actions";
+import { useEstadoNotificaciones } from "./estado-notificaciones";
 import { textoConteo } from "./formato-notificacion";
 import { NotificacionItem } from "./notificacion-item";
 import {
-  INTERVALO_SONDEO_MS,
-  claveConteo,
   claveRecientes,
   desenvolver,
   esClaveDeNotificaciones,
@@ -59,16 +57,7 @@ function CampanaActiva({ variante = "clara", className, modulo, rutaBandeja }: P
   const [pendiente, startTransition] = useTransition();
   const { mutate } = useSWRConfig();
 
-  const { data: noLeidas = 0 } = useSWR(
-    claveConteo(),
-    async () => desenvolver(await contarNoLeidasAction()),
-    {
-      refreshInterval: INTERVALO_SONDEO_MS,
-      refreshWhenHidden: false,
-      revalidateOnFocus: true,
-      shouldRetryOnError: false,
-    },
-  );
+  const { noLeidas } = useEstadoNotificaciones();
 
   const {
     data: recientes,

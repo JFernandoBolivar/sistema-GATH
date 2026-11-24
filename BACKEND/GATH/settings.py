@@ -326,6 +326,37 @@ CELERY_BROKER_TRANSPORT_OPTIONS = {'confirm_publish': True, 'socket_timeout': 5}
 CELERY_BROKER_CONNECTION_TIMEOUT = 5
 CELERY_TASK_PUBLISH_RETRY_POLICY = {'max_retries': 1, 'interval_start': 0, 'interval_step': 0.2, 'interval_max': 0.5}
 CELERY_BROKER_CONNECTION_MAX_RETRIES = 1
+# H-6: colas separadas. Con CELERY_COLAS_SEPARADAS=1 cada tarea va a su cola
+# (`mail`, `docs`, `maint`; el resto queda en la cola por defecto `gath`) y hay que
+# levantar un worker por cola (ver compose.example.yml). Sin el flag (por defecto)
+# no hay rutas y todo corre en `gath`, como en un despliegue con un solo worker.
+# Toda tarea nueva debe añadirse aquí (lo verifica tests/unit/core/test_colas_celery.py).
+CELERY_COLAS_SEPARADAS = config('CELERY_COLAS_SEPARADAS', default=False, cast=bool)
+CELERY_RUTAS_POR_COLA = {
+    # Correo / outbox.
+    'notificaciones.enviar_correo_outbox': {'queue': 'mail'},
+    'notificaciones.reprocesar_outbox': {'queue': 'mail'},
+    'identidad.solicitar_recuperacion_password': {'queue': 'mail'},
+    # Generación de documentos / exportaciones (PDF, Excel, carnets).
+    'exportaciones.generar': {'queue': 'docs'},
+    # Vencimientos, limpiezas y barridos programados.
+    'autogestion.expirar_ventanas': {'queue': 'maint'},
+    'autogestion.avisar_ventanas_por_expirar': {'queue': 'maint'},
+    'cargos.procesar_vencimientos_prestamos': {'queue': 'maint'},
+    'configuracion.purgar_retencion': {'queue': 'maint'},
+    'core.metricas_cola': {'queue': 'maint'},
+    'exportaciones.purgar': {'queue': 'maint'},
+    'fe_de_vida.cerrar_procesos_vencidos': {'queue': 'maint'},
+    'fe_de_vida.enviar_recordatorios': {'queue': 'maint'},
+    'identidad.sincronizar_cuentas_trabajadores': {'queue': 'maint'},
+    'identidad.vencer_claves_iniciales_antiguas': {'queue': 'maint'},
+    'postulacion.liberar_reservas_vencidas': {'queue': 'maint'},
+    # Cola por defecto (explícitas para que el test detecte tareas sin clasificar).
+    'core.ping': {'queue': 'gath'},
+    'configuracion.aplicar_correo_acceso_lote': {'queue': 'gath'},
+    'identidad.restablecer_acceso_en_bloque': {'queue': 'gath'},
+}
+CELERY_TASK_ROUTES = dict(CELERY_RUTAS_POR_COLA) if CELERY_COLAS_SEPARADAS else {}
 # Tareas periódicas (beat): lista estática en código, sin tablas (django-celery-beat
 # se evalúa cuando haya calendarios editables desde la UI).
 from celery.schedules import crontab  # noqa: E402

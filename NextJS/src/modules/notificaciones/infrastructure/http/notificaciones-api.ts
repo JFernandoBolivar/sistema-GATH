@@ -49,6 +49,10 @@ export const notificacionesApi = {
     ),
   contar: (modulo?: string) =>
     apiClient.get<ApiResponse<{ no_leidas: number }>>(`${BASE}/conteo/${queryParams({ modulo })}`),
+  estado: () =>
+    apiClient.get<ApiResponse<{ no_leidas: number; ultima_actualizacion: string | null }>>(
+      `${BASE}/estado/`,
+    ),
   marcarLeida: (id: string) =>
     apiClient.post<ApiResponse<{ id: string; leida: boolean }>>(`${BASE}/${id}/leer/`),
   marcarTodasLeidas: (modulo?: string) =>

@@ -9,6 +9,10 @@ export const repoNotificacionesApi: RepoNotificaciones = {
   async contarNoLeidas(modulo) {
     return (await notificacionesApi.contar(modulo)).data.no_leidas;
   },
+  async consultarEstado() {
+    const { no_leidas, ultima_actualizacion } = (await notificacionesApi.estado()).data;
+    return { noLeidas: no_leidas, ultimaActualizacion: ultima_actualizacion };
+  },
   async marcarLeida(id) {
     await notificacionesApi.marcarLeida(id);
   },

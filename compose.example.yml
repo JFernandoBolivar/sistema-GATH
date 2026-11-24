@@ -15,7 +15,7 @@ services:
     ports:
       - "5400:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d SIGEP"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d gath"]
       interval: 5s
       timeout: 5s
       retries: 9
@@ -40,6 +40,31 @@ services:
       postgres:
         condition: service_healthy
     restart: always
+
+  # ── H-6 · Colas de Celery separadas (opcional) ──────────────────────────────
+  # Por defecto (sin CELERY_COLAS_SEPARADAS) TODO corre en la cola `gath` con un solo
+  # worker: `celery -A GATH worker -Q gath`. Para separar, ponga
+  # CELERY_COLAS_SEPARADAS=1 en BACKEND/.env (en worker, beat y django: los tres
+  # deben coincidir porque enrutan al publicar) y levante un worker por cola:
+  #   celery -A GATH worker -Q mail        -n mail@%h   # correo / outbox
+  #   celery -A GATH worker -Q docs        -n docs@%h   # PDF, carnets, exportaciones
+  #   celery -A GATH worker -Q maint,gath  -n maint@%h  # vencimientos, limpiezas + cola por defecto
+  # Descomente y adapte (misma imagen/env que `django`, ver compose.yml):
+  # celery_mail:
+  #   image: gath-backend:latest
+  #   env_file: [./BACKEND/.env]
+  #   environment: {SKIP_MIGRATE: "1"}
+  #   command: ["celery", "-A", "GATH", "worker", "-Q", "mail", "-n", "mail@%h", "-l", "info"]
+  # celery_docs:
+  #   image: gath-backend:latest
+  #   env_file: [./BACKEND/.env]
+  #   environment: {SKIP_MIGRATE: "1"}
+  #   command: ["celery", "-A", "GATH", "worker", "-Q", "docs", "-n", "docs@%h", "-l", "info"]
+  # celery_maint:
+  #   image: gath-backend:latest
+  #   env_file: [./BACKEND/.env]
+  #   environment: {SKIP_MIGRATE: "1"}
+  #   command: ["celery", "-A", "GATH", "worker", "-Q", "maint,gath", "-n", "maint@%h", "-l", "info"]
 
   nestjs:
     container_name: NestFS

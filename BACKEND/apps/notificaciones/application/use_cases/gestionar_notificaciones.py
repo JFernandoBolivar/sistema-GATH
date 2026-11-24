@@ -2,6 +2,7 @@
 Casos de uso de la bandeja del propio usuario. Zero-IDOR: la cédula siempre la aporta la sesión
 (la vista), y el repositorio filtra SIEMPRE por ella; una notificación ajena es indistinguible de una inexistente.
 """
+import hashlib
 from datetime import date, datetime
 
 from apps.notificaciones.domain.entities.notificacion import Notificacion
@@ -66,3 +67,12 @@ def marcar_todas_leidas(repo: RepoNotificaciones, cache: CacheConteo, cedula: st
     if marcadas:
         cache.invalidar(cedula)
     return marcadas
+
+
+def estado_bandeja(repo: RepoNotificaciones, cedula: str) -> tuple[dict, str]:
+    """Estado liviano para el sondeo: (datos, etag). El ETag es un hash débil de la huella de la bandeja."""
+    e = repo.estado(cedula)
+    ultima = e.ultima_actualizacion.isoformat() if e.ultima_actualizacion else None
+    huella = f'{e.no_leidas}|{e.total}|{ultima}'
+    etag = 'W/"' + hashlib.sha256(huella.encode()).hexdigest()[:24] + '"'
+    return {'no_leidas': e.no_leidas, 'ultima_actualizacion': ultima}, etag

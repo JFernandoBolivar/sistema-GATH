@@ -23,3 +23,10 @@ export interface PaginaNotificacionesDTO {
 /** Resultado uniforme de las Server Actions del módulo. */
 export type ResultadoNotificacion<T = undefined> =
   { ok: true; mensaje: string; datos: T } | { ok: false; mensaje: string };
+
+/** Estado de la bandeja para el sondeo; `huella` cambia si llega, se lee o se atiende un aviso. */
+export interface EstadoBandejaDTO {
+  noLeidas: number;
+  ultimaActualizacion: string | null;
+  huella: string;
+}

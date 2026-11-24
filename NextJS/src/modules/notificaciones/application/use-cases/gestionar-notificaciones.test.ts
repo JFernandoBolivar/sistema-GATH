@@ -3,6 +3,7 @@ import type { NotificacionEntity } from "../../domain/entities/notificacion";
 import { enlaceInterno } from "../../domain/entities/notificacion";
 import type { RepoNotificaciones } from "../../domain/ports/repo-notificaciones";
 import {
+  consultarEstadoBandeja,
   contarNoLeidas,
   listarNotificaciones,
   marcarNotificacionLeida,
@@ -31,6 +32,9 @@ function repoFalso(sobre: Partial<RepoNotificaciones> = {}): RepoNotificaciones 
       .fn()
       .mockResolvedValue({ total: 1, limite: 20, desplazamiento: 0, resultados: [notif()] }),
     contarNoLeidas: vi.fn().mockResolvedValue(3),
+    consultarEstado: vi
+      .fn()
+      .mockResolvedValue({ noLeidas: 3, ultimaActualizacion: "2026-11-24T10:00:00Z" }),
     marcarLeida: vi.fn().mockResolvedValue(undefined),
     marcarTodasLeidas: vi.fn().mockResolvedValue(3),
     ...sobre,
@@ -112,5 +116,20 @@ describe("marcarTodasLeidas", () => {
     const repo = repoFalso();
     expect(await marcarTodasLeidas(repo, "personal")).toBe(3);
     expect(repo.marcarTodasLeidas).toHaveBeenCalledWith("personal");
+  });
+});
+
+describe("consultarEstadoBandeja", () => {
+  it("devuelve el contador y una huella que cambia con el estado", async () => {
+    const a = await consultarEstadoBandeja(repoFalso());
+    expect(a).toEqual({
+      noLeidas: 3,
+      ultimaActualizacion: "2026-11-24T10:00:00Z",
+      huella: "3|2026-11-24T10:00:00Z",
+    });
+    const b = await consultarEstadoBandeja(
+      repoFalso({ consultarEstado: vi.fn().mockResolvedValue({ noLeidas: -1, ultimaActualizacion: null }) }),
+    );
+    expect(b).toEqual({ noLeidas: 0, ultimaActualizacion: null, huella: "0|" });
   });
 });

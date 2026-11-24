@@ -2,18 +2,12 @@
 
 /**
  * Número de notificaciones sin leer junto al ítem «Notificaciones» del menú lateral (QA 2026-11-03).
- * Usa la misma clave SWR que la campana: comparten el dato y no suman consultas al servidor.
+ * Comparte con la campana el sondeo único del estado (`useEstadoNotificaciones`).
  */
-import useSWR from "swr";
 import { SidebarMenuBadge } from "@/components/ui/sidebar";
 import type { ModuloNotificaciones } from "../domain/entities/notificacion";
-import { contarNoLeidasAction } from "../infrastructure/actions/notificaciones-actions";
-import {
-  INTERVALO_SONDEO_MS,
-  claveConteo,
-  desenvolver,
-  usePuedeVerNotificaciones,
-} from "./notificaciones-swr";
+import { useEstadoNotificaciones } from "./estado-notificaciones";
+import { usePuedeVerNotificaciones } from "./notificaciones-swr";
 
 /** Bandeja de cada menú → módulo de notificaciones que muestra su campana. */
 const MODULO_POR_RUTA: Record<string, ModuloNotificaciones> = {
@@ -38,16 +32,7 @@ export function ContadorMenuNotificaciones({ modulo }: { modulo: ModuloNotificac
 function ContadorActivo({ modulo }: { modulo: ModuloNotificaciones }) {
   // La lectura es por usuario: el módulo del shell ya no filtra el contador.
   void modulo;
-  const { data: noLeidas = 0 } = useSWR(
-    claveConteo(),
-    async () => desenvolver(await contarNoLeidasAction()),
-    {
-      refreshInterval: INTERVALO_SONDEO_MS,
-      refreshWhenHidden: false,
-      revalidateOnFocus: true,
-      shouldRetryOnError: false,
-    },
-  );
+  const { noLeidas } = useEstadoNotificaciones();
   if (!noLeidas) return null;
   return (
     <SidebarMenuBadge

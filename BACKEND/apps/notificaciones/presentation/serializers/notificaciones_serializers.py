@@ -29,6 +29,11 @@ class ConteoNoLeidasSerializer(serializers.Serializer):
     no_leidas = serializers.IntegerField()
 
 
+class EstadoNotificacionesSerializer(serializers.Serializer):
+    no_leidas = serializers.IntegerField()
+    ultima_actualizacion = serializers.DateTimeField(allow_null=True)
+
+
 class MarcadaLeidaSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     leida = serializers.BooleanField()

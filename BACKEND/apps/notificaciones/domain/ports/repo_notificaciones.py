@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from typing import Protocol
 
 from apps.notificaciones.domain.entities.notificacion import Notificacion
@@ -17,6 +17,15 @@ class FiltroNotificaciones:
     hasta: date | None = None
 
 
+@dataclass(frozen=True)
+class EstadoBandeja:
+    """Huella barata de la bandeja del usuario: cambia si llega, se lee o se atiende un aviso."""
+
+    no_leidas: int
+    total: int
+    ultima_actualizacion: datetime | None
+
+
 class RepoNotificaciones(Protocol):
     def crear_muchas(self, notificaciones: list[Notificacion]) -> int:
         """Inserta ignorando las que ya existen por (destinatario, clave_unica). Devuelve cuántas se crearon."""
@@ -27,6 +36,10 @@ class RepoNotificaciones(Protocol):
     ) -> tuple[list[Notificacion], int]: ...
 
     def contar_no_leidas(self, cedula: str, modulo: str | None = None) -> int: ...
+
+    def estado(self, cedula: str) -> EstadoBandeja:
+        """Una sola consulta agregada sobre las notificaciones del destinatario."""
+        ...
 
     def marcar_leida(self, cedula: str, notificacion_id: str, ahora) -> bool:
         """True si la notificación existe y es del destinatario (aunque ya estuviera leída); False si no."""

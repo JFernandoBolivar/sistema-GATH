@@ -4,10 +4,12 @@ import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import type { ModuloNotificaciones } from "../../domain/entities/notificacion";
 import type { FiltrosNotificaciones } from "../../domain/ports/repo-notificaciones";
 import type {
+  EstadoBandejaDTO,
   PaginaNotificacionesDTO,
   ResultadoNotificacion,
 } from "../../application/dtos/notificacion-dto";
 import {
+  consultarEstadoBandeja,
   contarNoLeidas,
   listarNotificaciones,
   marcarNotificacionLeida,
@@ -45,6 +47,13 @@ export async function contarNoLeidasAction(
 ): Promise<ResultadoNotificacion<number>> {
   return ejecutar("", "No se pudo consultar el número de notificaciones.", () =>
     contarNoLeidas(repoNotificacionesApi, modulo),
+  );
+}
+
+/** Sondeo H-5: una consulta agregada en el backend (ETag/304 aplican entre Next y Django). */
+export async function consultarEstadoAction(): Promise<ResultadoNotificacion<EstadoBandejaDTO>> {
+  return ejecutar("", "No se pudo consultar el estado de las notificaciones.", () =>
+    consultarEstadoBandeja(repoNotificacionesApi),
   );
 }
 

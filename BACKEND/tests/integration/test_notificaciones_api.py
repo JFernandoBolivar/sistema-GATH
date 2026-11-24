@@ -363,3 +363,56 @@ def test_con_el_ajuste_activado_bienestar_tambien_recibe_correo_de_acceso(mundo,
     assert r.status_code == 201, r.content
     assert EventoOutboxModel.objects.filter(destinatario=f'{ANALISTA}@conatel.gob.ve', destinatario_cedula=ANALISTA).count() == 1
     assert not EventoOutboxModel.objects.filter(destinatario_cedula=TRABAJADOR).exists()
+
+
+# ─── Estado liviano para el sondeo (H-5) ─────────────────────────────────────────────────────────
+
+def _estado(c, **cab):
+    return c.get(f'{BASE}/estado/', **cab)
+
+
+def test_estado_devuelve_contador_y_etag_estable_sin_cambios(db):
+    crear(TRABAJADOR, 2)
+    c = cliente(TRABAJADOR)
+    r1, r2 = _estado(c), _estado(c)
+    assert r1.status_code == 200
+    assert data(r1)['no_leidas'] == 2 and data(r1)['ultima_actualizacion']
+    assert r1['ETag'] == r2['ETag']
+    assert r1['Cache-Control'] == 'private, no-cache'
+
+
+def test_estado_etag_cambia_al_llegar_o_leerse_un_aviso(db):
+    crear(TRABAJADOR, 1)
+    c = cliente(TRABAJADOR)
+    e0 = _estado(c)['ETag']
+    crear(TRABAJADOR, 1)
+    e1 = _estado(c)['ETag']
+    assert e1 != e0
+    assert c.post(f'{BASE}/leer-todas/').status_code == 200
+    r = _estado(c)
+    assert r['ETag'] != e1 and data(r)['no_leidas'] == 0
+
+
+def test_estado_responde_304_sin_cuerpo_con_if_none_match(db):
+    crear(TRABAJADOR, 1)
+    c = cliente(TRABAJADOR)
+    etag = _estado(c)['ETag']
+    r = _estado(c, HTTP_IF_NONE_MATCH=etag)
+    assert r.status_code == 304 and not r.content and r['ETag'] == etag
+    assert _estado(c, HTTP_IF_NONE_MATCH='W/"otro"').status_code == 200
+
+
+def test_estado_es_solo_de_la_cuenta_y_exige_sesion_y_permiso(db):
+    crear(TRABAJADOR, 3)
+    crear(OTRO, 1)
+    assert data(_estado(cliente(OTRO)))['no_leidas'] == 1
+    assert _estado(cliente(TRABAJADOR, permisos=())).status_code == 403
+    assert _estado(APIClient()).status_code in (401, 403)
+
+
+def test_estado_vacio_y_numero_de_consultas_acotado(db, django_assert_max_num_queries):
+    c = cliente(TRABAJADOR)
+    assert data(_estado(c)) == {'no_leidas': 0, 'ultima_actualizacion': None}
+    crear(TRABAJADOR, 5)
+    with django_assert_max_num_queries(2):
+        assert _estado(c).status_code == 200

@@ -35,6 +35,13 @@ export function enlaceInterno(enlace: string | null | undefined): string | null 
   return valor;
 }
 
+/** Huella liviana de la bandeja del usuario (sondeo H-5). */
+export interface EstadoBandejaEntity {
+  noLeidas: number;
+  /** ISO de la última llegada/lectura/atención; `null` si no hay avisos. */
+  ultimaActualizacion: string | null;
+}
+
 /** Bandeja a la que pertenece una notificación; cada módulo solo muestra las suyas. */
 export type ModuloNotificaciones =
   "autogestion" | "personal" | "pasivos" | "carnetizacion" | "seguridad" | "postulacion";

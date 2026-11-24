@@ -8,12 +8,12 @@ const PERMISO_AUTOGESTION = "autogestion.ver_propio";
 /** Todas las claves SWR del módulo empiezan por este prefijo para poder refrescarlas juntas. */
 export const PREFIJO_CLAVES = "notificaciones/";
 /** Clave única por usuario: la campana, el menú y la página comparten el mismo dato en todos los módulos. */
-export const claveConteo = () => `${PREFIJO_CLAVES}conteo`;
+export const claveEstado = () => `${PREFIJO_CLAVES}estado`;
 export const claveRecientes = () => `${PREFIJO_CLAVES}recientes`;
 export const claveBandeja = (filtros: object) => `${PREFIJO_CLAVES}bandeja/${JSON.stringify(filtros)}`;
 
-/** Intervalo del sondeo del contador (ms). Además se revalida al recuperar el foco. */
-export const INTERVALO_SONDEO_MS = 60_000;
+/** Intervalo del sondeo del estado (ms), solo con la pestaña visible. Además se revalida al volver a ella o al recuperar la red. */
+export const INTERVALO_SONDEO_MS = 15_000;
 
 export const esClaveDeNotificaciones = (clave: unknown): boolean =>
   typeof clave === "string" && clave.startsWith(PREFIJO_CLAVES);

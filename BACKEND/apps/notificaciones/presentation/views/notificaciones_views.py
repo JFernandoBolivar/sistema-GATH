@@ -13,6 +13,7 @@ from apps.notificaciones.application.use_cases.correo_outbox import resumen_fall
 from apps.notificaciones.application.use_cases.gestionar_notificaciones import (
     LIMITE_PREDETERMINADO,
     conteo_no_leidas,
+    estado_bandeja,
     listar_notificaciones,
     marcar_leida,
     marcar_todas_leidas,
@@ -22,6 +23,7 @@ from apps.notificaciones.infrastructure.repositories.repo_notificaciones_orm imp
 from apps.notificaciones.infrastructure.repositories.repo_outbox_orm import RepoOutboxORM
 from apps.notificaciones.presentation.serializers.notificaciones_serializers import (
     ConteoNoLeidasSerializer,
+    EstadoNotificacionesSerializer,
     ListaNotificacionesSerializer,
     MarcadaLeidaSerializer,
     MarcadasLeidasSerializer,
@@ -115,6 +117,35 @@ class ConteoNoLeidasView(APIView):
     def get(self, request):
         total = conteo_no_leidas(RepoNotificacionesORM(), CacheConteoDjango(), _cedula_de_sesion(request), request.query_params.get('modulo', ''))
         return ok({'no_leidas': total})
+
+
+def _etag_coincide(cabecera: str | None, etag: str) -> bool:
+    if not cabecera:
+        return False
+    if cabecera.strip() == '*':
+        return True
+    debil = lambda v: v.strip().removeprefix('W/')  # noqa: E731
+    return any(debil(c) == debil(etag) for c in cabecera.split(','))
+
+
+class EstadoNotificacionesView(APIView):
+    permission_classes = PERMISOS
+
+    @extend_schema(
+        tags=TAG, summary='Estado liviano de la bandeja (sondeo casi en tiempo real, con ETag/304)',
+        description='Devuelve {no_leidas, ultima_actualizacion}. Incluye la cabecera ETag; con If-None-Match igual responde 304 sin cuerpo.',
+        responses={200: EstadoNotificacionesSerializer, 304: None, **ERRORES},
+    )
+    def get(self, request):
+        datos, etag = estado_bandeja(RepoNotificacionesORM(), _cedula_de_sesion(request))
+        if _etag_coincide(request.headers.get('If-None-Match'), etag):
+            respuesta = ok()  # 304: sin cuerpo (B9: toda respuesta nace del sobre)
+            respuesta.status_code, respuesta.data = 304, None
+        else:
+            respuesta = ok(datos)
+        respuesta['ETag'] = etag
+        respuesta['Cache-Control'] = 'private, no-cache'
+        return respuesta
 
 
 class LeerNotificacionView(APIView):

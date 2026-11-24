@@ -32,3 +32,11 @@ def test_verificar_esquema_estricto_falla_si_hay_avisos():
     assert informe["bloqueantes"] == 0
     assert informe["avisos"] >= 1
     assert informe["apto"] is False
+
+
+def test_verificar_esquema_ya_no_tolera_la_errata_bienstar():
+    """H-10: la errata «BIENSTAR» se corrigió en producción; ya no se normaliza."""
+    from core.management.commands.verificar_esquema import _normalizar_rol
+
+    assert _normalizar_rol("  bienestar   social ") == "BIENESTAR SOCIAL"
+    assert _normalizar_rol("BIENSTAR SOCIAL") == "BIENSTAR SOCIAL"

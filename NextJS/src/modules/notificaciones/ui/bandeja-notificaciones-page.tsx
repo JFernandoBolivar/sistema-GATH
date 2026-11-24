@@ -14,16 +14,15 @@ import type { ModuloNotificaciones } from "../domain/entities/notificacion";
 import type { NotificacionDTO } from "../application/dtos/notificacion-dto";
 import type { FiltrosNotificaciones } from "../domain/ports/repo-notificaciones";
 import {
-  contarNoLeidasAction,
   listarNotificacionesAction,
   marcarLeidaAction,
   marcarTodasLeidasAction,
 } from "../infrastructure/actions/notificaciones-actions";
 import { ComboboxTipoNotificacion } from "./combobox-tipo-notificacion";
+import { useEstadoNotificaciones } from "./estado-notificaciones";
 import { NotificacionItem } from "./notificacion-item";
 import {
   claveBandeja,
-  claveConteo,
   desenvolver,
   esClaveDeNotificaciones,
   usePuedeAbrirEnlace,
@@ -92,12 +91,7 @@ export default function BandejaNotificacionesPage({ modulo }: Props) {
   const tipos = TIPOS_NOTIFICACION;
 
   // Contador global de no leídas: alimenta el chip de la cabecera y el botón masivo.
-  const { data: noLeidas } = useSWR(
-    claveConteo(),
-    async () => desenvolver(await contarNoLeidasAction()),
-    { revalidateOnFocus: false },
-  );
-  const totalNoLeidas = typeof noLeidas === "number" ? noLeidas : 0;
+  const { noLeidas: totalNoLeidas } = useEstadoNotificaciones();
 
   // Búsqueda con retardo: no se consulta al servidor en cada pulsación.
   useEffect(() => {

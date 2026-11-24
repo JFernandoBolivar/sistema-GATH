@@ -10,7 +10,7 @@ configure({ asyncUtilTimeout: 5000 });
 vi.setConfig({ testTimeout: 20_000 });
 
 const acciones = vi.hoisted(() => ({
-  contarNoLeidasAction: vi.fn(),
+  consultarEstadoAction: vi.fn(),
   listarNotificacionesAction: vi.fn(),
   marcarLeidaAction: vi.fn(),
   marcarTodasLeidasAction: vi.fn(),
@@ -54,9 +54,16 @@ vi.mock("next-auth/react", () => ({
   useSession: () => ({ data: { user: { permisos: sesion.permisos } } }),
 }));
 
+import { reiniciarSondeoNotificaciones } from "./estado-notificaciones";
 import { CampanaNotificaciones } from "./campana-notificaciones";
 import BandejaNotificacionesPage from "./bandeja-notificaciones-page";
-import { claveBandeja, claveConteo, claveRecientes } from "./notificaciones-swr";
+import { claveBandeja, claveEstado, claveRecientes } from "./notificaciones-swr";
+
+const est = (noLeidas: number, ultima = "2026-11-24T10:00:00Z") => ({
+  noLeidas,
+  ultimaActualizacion: ultima,
+  huella: `${noLeidas}|${ultima}`,
+});
 
 const ID = (i: number) => `${String(i).padStart(8, "0")}-1111-4111-8111-111111111111`;
 
@@ -94,9 +101,10 @@ function Envoltorio({ children }: { children: ReactNode }) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  reiniciarSondeoNotificaciones();
   sesion.permisos = ["notificaciones.ver_propias"];
   window.history.replaceState({}, "", "/");
-  acciones.contarNoLeidasAction.mockResolvedValue({ ok: true, mensaje: "", datos: 2 });
+  acciones.consultarEstadoAction.mockResolvedValue({ ok: true, mensaje: "", datos: est(2) });
   acciones.listarNotificacionesAction.mockResolvedValue(pagina([n()]));
   acciones.marcarLeidaAction.mockResolvedValue({ ok: true, mensaje: "", datos: undefined });
   acciones.marcarTodasLeidasAction.mockResolvedValue({ ok: true, mensaje: "", datos: 2 });
@@ -132,7 +140,7 @@ function elegirEstado(
 
 describe("Claves compartidas de notificaciones", () => {
   it("son las mismas para todos los módulos (lectura por usuario)", () => {
-    expect(claveConteo()).toBe("notificaciones/conteo");
+    expect(claveEstado()).toBe("notificaciones/estado");
     expect(claveRecientes()).toBe("notificaciones/recientes");
     expect(claveBandeja({ limite: 10 })).toBe(
       'notificaciones/bandeja/{"limite":10}',
@@ -171,14 +179,14 @@ describe("CampanaNotificaciones", () => {
       await screen.findByRole("button", { name: "Notificaciones: 2 notificaciones sin leer" }),
     ).toBeDefined();
     expect(screen.getByRole("status").textContent).toBe("2 notificaciones sin leer");
-    expect(acciones.contarNoLeidasAction).toHaveBeenCalledWith();
+    expect(acciones.consultarEstadoAction).toHaveBeenCalledWith();
   });
 
   it("sin el permiso no se muestra ni se consulta nada", () => {
     sesion.permisos = ["autogestion.ver_propio"];
     const { container } = render(campana(), { wrapper: Envoltorio });
     expect(container.innerHTML).toBe("");
-    expect(acciones.contarNoLeidasAction).not.toHaveBeenCalled();
+    expect(acciones.consultarEstadoAction).not.toHaveBeenCalled();
   });
 
   it("muestra como máximo las 4 últimas no leídas del módulo", async () => {
@@ -213,7 +221,7 @@ describe("CampanaNotificaciones", () => {
     });
     await user.click(await screen.findByRole("button", { name: /Notificaciones: 2/ }));
     expect(await screen.findByText("Ventana habilitada")).toBeDefined();
-    acciones.contarNoLeidasAction.mockResolvedValue({ ok: true, mensaje: "", datos: 0 });
+    acciones.consultarEstadoAction.mockResolvedValue({ ok: true, mensaje: "", datos: est(0) });
     await user.click(screen.getByRole("button", { name: /Marcar todas como leídas/ }));
     await waitFor(() => expect(acciones.marcarTodasLeidasAction).toHaveBeenCalledWith());
     await waitFor(() =>
@@ -421,7 +429,7 @@ describe("BandejaNotificacionesPage", () => {
 
   it("CampanaNotificaciones (Punto 10): panel tiene max-h, scroll interno y pie Ver todas fijo sin solapamiento", async () => {
     const user = userEvent.setup();
-    acciones.contarNoLeidasAction.mockResolvedValue({ exito: true, datos: 3 });
+    acciones.consultarEstadoAction.mockResolvedValue({ ok: true, mensaje: "", datos: est(3) });
     acciones.listarNotificacionesAction.mockResolvedValue(
       pagina([
         n({ id: "n-1", titulo: "Notificación 1" }),

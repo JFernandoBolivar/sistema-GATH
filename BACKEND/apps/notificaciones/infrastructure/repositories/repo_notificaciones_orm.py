@@ -1,8 +1,8 @@
-from django.db.models import Q, Value
+from django.db.models import Count, Max, Q, Value
 from django.db.models.functions import Coalesce
 
 from apps.notificaciones.domain.entities.notificacion import Notificacion
-from apps.notificaciones.domain.ports.repo_notificaciones import FiltroNotificaciones
+from apps.notificaciones.domain.ports.repo_notificaciones import EstadoBandeja, FiltroNotificaciones
 from apps.notificaciones.infrastructure.mappers.mapper_notificaciones import notificacion_a_entidad
 from apps.notificaciones.infrastructure.models.notificacion_model import NotificacionModel
 
@@ -61,6 +61,14 @@ class RepoNotificacionesORM:
         if modulo:
             qs = qs.filter(modulo=modulo)
         return qs.count()
+
+    def estado(self, cedula: str) -> EstadoBandeja:
+        agg = NotificacionModel.objects.filter(destinatario_cedula=cedula).aggregate(
+            total=Count('pk'), no_leidas=Count('pk', filter=Q(leida=False)),
+            creada=Max('created_at'), lectura=Max('fecha_lectura'), atendida=Max('fecha_atendida'),
+        )
+        marcas = [m for m in (agg['creada'], agg['lectura'], agg['atendida']) if m is not None]
+        return EstadoBandeja(no_leidas=agg['no_leidas'], total=agg['total'], ultima_actualizacion=max(marcas) if marcas else None)
 
     def marcar_leida(self, cedula, notificacion_id, ahora) -> bool:
         qs = _por_id(cedula, notificacion_id)

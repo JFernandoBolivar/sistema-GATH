@@ -1,4 +1,8 @@
-import type { ModuloNotificaciones, PaginaNotificacionesEntity } from "../entities/notificacion";
+import type {
+  EstadoBandejaEntity,
+  ModuloNotificaciones,
+  PaginaNotificacionesEntity,
+} from "../entities/notificacion";
 
 export interface FiltrosNotificaciones {
   /** Opcional: filtra una bandeja concreta. Sin él, todas las notificaciones del usuario. */
@@ -18,6 +22,8 @@ export interface FiltrosNotificaciones {
 export interface RepoNotificaciones {
   listar(filtros: FiltrosNotificaciones): Promise<PaginaNotificacionesEntity>;
   contarNoLeidas(modulo?: ModuloNotificaciones): Promise<number>;
+  /** Estado barato para el sondeo: contador + marca de última actualización. */
+  consultarEstado(): Promise<EstadoBandejaEntity>;
   marcarLeida(id: string): Promise<void>;
   /** Marca todas las del usuario (o solo las del módulo indicado). Devuelve cuántas se marcaron. */
   marcarTodasLeidas(modulo?: ModuloNotificaciones): Promise<number>;
