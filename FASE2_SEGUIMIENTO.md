@@ -4,7 +4,7 @@ Rama: `feature/fase2-captacion-carnet` · Creado: 2026-11-20 · Referencia: `FAS
 
 ## ▶ Cómo continuar (actualizado 2026-11-22)
 
-**Dónde quedamos:** bloques A, B, K (carnet), C (decisiones), D (Captación Ventana 1), E (Presupuesto y Dirección General) y **G (Ventana 2 y contratación atómica, 2026-11-24) completos**: el circuito de ingreso funciona de punta a punta, del alta del postulante hasta la ficha del trabajador. **Siguiente:** pendientes de H (H-2 soportes con cédula en la ruta, H-3 bitácora de descargas…), J (actualizar la propuesta) y decidir C-9. F espera los PDF oficiales (F-3).
+**Dónde quedamos:** bloques A, B, K (carnet), C (decisiones), D (Captación Ventana 1), E (Presupuesto y Dirección General) y **G (Ventana 2 y contratación atómica, 2026-11-24) completos**: el circuito de ingreso funciona de punta a punta, del alta del postulante hasta la ficha del trabajador. **Siguiente:** decidir C-9; el despliegue (migraciones, `migrar_claves_soportes`, push a GitLab, integración en QA). H y J están completos (la propuesta y su HTML ya reflejan lo construido). F espera los PDF oficiales (F-3).
 
 **Código:** rama `feature/fase2-captacion-carnet` en GitHub (`git fetch github && git checkout feature/fase2-captacion-carnet`). GitLab (`origin`) sigue sin resolver DNS: subir ahí cuando vuelva (`git push origin feature/fase2-captacion-carnet`). Nunca push a `dev` ni `qa`.
 
@@ -52,7 +52,7 @@ Cómo actualizar: cambiar el ícono de la columna **Estado**, la **Fecha** del �
 | H · Transversales / deuda técnica | 13 | 0 | 0 | 13 | 0 |
 | I · Sincronización con nómina (E-9) | 1 | 0 | 0 | 0 | 1 |
 | K · Hallazgos de auditoría (opencode) | 16 | 0 | 0 | 16 | 0 |
-| J · Documentación del plan | 2 | 2 | 0 | 0 | 0 |
+| J · Documentación del plan | 2 | 0 | 0 | 2 | 0 |
 
 ---
 
@@ -217,8 +217,8 @@ Cómo actualizar: cambiar el ícono de la columna **Estado**, la **Fecha** del �
 
 | ID | Tarea | Estado | Fecha | Nota |
 |---|---|---|---|---|
-| J-1 | Actualizar `FASE2_PROPUESTA_TECNICA.md` (§1, §4.6, §7.1, §12.6, §13 describen un estado que ya no existe) y marcar §4.7/E-9 como pendiente de definición | ⬜ Pendiente | | |
-| J-2 | Corregir en `Propuesta_Fase2_GATH.html` la sección de nómina (escritura directa / SIGESP) | ⬜ Pendiente | | |
+| J-1 | Actualizar `FASE2_PROPUESTA_TECNICA.md` (§1, §4.6, §7.1, §12.6, §13 describen un estado que ya no existe) y marcar §4.7/E-9 como pendiente de definición | ✅ Completado | 2026-11-24 | Sección «Estado de implementación» y «Historial de revisiones»; decisiones C-1…C-10 con sus parámetros `captacion.*`; máquina de 17 estados / 24 transiciones y tabla verificadas contra `maquina_estados.py`; §5.1 con los modelos reales (sin FK entre módulos; `origen_expediente` UUID); catálogo de avisos (§5.6) con los 11 tipos emitidos; sondeo de 15 s vs SSE; §7 por permisos `postulacion.*`; §12 con almacén de un bucket, H-1/H-2/H-3, colas H-6, tareas y H-7; §13 con rutas y gating reales; §4.7/E-9 marcados sin implementar y por definir. Mermaid validado (9 bloques) |
+| J-2 | Corregir en `Propuesta_Fase2_GATH.html` la sección de nómina (escritura directa / SIGESP) | ✅ Completado | 2026-11-24 | La sección de nómina pasa a «diseño pendiente de definición» (sin SIGESP ni escritura directa) y la HTML se actualizó con el mismo contenido sustancial: estado, decisiones, flujo, 17 estados, credenciales con enlace de activación, modelos, permisos, notificaciones, seguridad de archivos y operación, historial. Etiquetas balanceadas y 10 diagramas mermaid válidos |
 
 ---
 
@@ -226,6 +226,7 @@ Cómo actualizar: cambiar el ícono de la columna **Estado**, la **Fecha** del �
 
 | Fecha | Cambio |
 |---|---|
+| 2026-11-24 | **J-1 y J-2 cerrados** (bloque J 2/2): `FASE2_PROPUESTA_TECNICA.md` y `Propuesta_Fase2_GATH.html` actualizados a lo realmente construido, con el estado de implementación, las decisiones C-1…C-10 con sus parámetros, el flujo, los modelos, los avisos, la seguridad de archivos y la operación. Correcciones por diferir del código: 17 estados y 24 transiciones (no 16; DIFERIDO→EN_CORRECCION_CARGO no existe); contratación por `asignar/`; el test psicofísico solo registra resultado e informe; la propuesta usaba claves foráneas entre módulos y el código usa identificadores; almacén de un bucket con prefijos y una identidad S3; colas `mail`/`docs`/`maint`/`gath` con resultados y caché en Redis y beat estático (no `django-db`/`django-celery-beat`); autorización por permiso (no `CAPACIDADES`/`Rol.codigo`); catálogo de avisos con 11 tipos (los demás del diseño no se emiten). Hallazgo: la tarea de purga de rechazados no existe (solo el parámetro de retención). Diagramas mermaid validados con el analizador de mermaid 11. Worker Sonnet. |
 | 2026-11-24 | **Bloque H completo** (13/13): H-5 avisos casi en tiempo real (sondeo de 15 s con la pestaña visible, sin SSE porque el backend es WSGI/`runserver`), H-6 colas de Celery (desactivadas por defecto, `CELERY_COLAS_SEPARADAS=1`), H-7 `BACKEND/scripts/verificar_migraciones.sh` (todas las migraciones aplican desde cero y revierten), H-9 y H-10. **Hallazgo:** `cargos.procesar_vencimientos_prestamos` nunca se registraba en el worker (faltaba el import en `apps/cargos/infrastructure/tasks/__init__.py`): el beat la enviaba y no corría. Corregido en esta rama; al desplegar, la primera corrida procesará de una vez los préstamos de cargo atrasados. Backend 3477 ✅, frontend 1606 ✅. |
 | 2026-11-24 | **H-6, H-7, H-9 y H-10 cerrados** (infraestructura): colas de Celery separadas tras `CELERY_COLAS_SEPARADAS`, script `verificar_migraciones.sh` (migrate desde cero y reversas OK en postgres desechable), BD de ejemplo `gath`, fin de la tolerancia a «BIENSTAR» en `verificar_esquema`. Corregido de paso el registro de la tarea de préstamos de cargos en el worker |
 | 2026-11-24 | **D-10 completo**: entrega del acceso a distancia con enlace de activación por correo (sin contraseña). Migraciones `postulacion.0007`, `configuracion.0017` aplicadas en desarrollo. Auditoría: botón del correo «Crear mi contraseña», el token se retira del outbox al enviarse o fallar, correo de faltantes coherente con la entrega por correo. Probado en vivo con un enlace real (escritorio y 390x844): cédula errónea rechazada, contraseña creada, entra al formulario, enlace reusado → «ya se usó». Backend 3466 ✅, frontend 1600 ✅, E2E activación 5/5 ✅. |

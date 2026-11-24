@@ -207,6 +207,11 @@
     color:var(--ink); line-height:1.5; margin:1rem 0;
   }
 
+  .card ul{margin:.5rem 0 .4rem 1.1rem; padding:0; font-size:.88rem; color:var(--muted);}
+  .card li{margin-bottom:.35rem;}
+  .card h4{font-size:1rem;}
+  .callout{border-left:3px solid var(--warn); background:var(--warn-soft); padding:.8rem 1rem; border-radius:0 8px 8px 0; margin:1.2rem 0; font-size:.88rem; max-width:52em;}
+  .callout p{margin:0; max-width:none;}
   footer{
     border-top:1px solid var(--line); padding-top:1.5rem; margin-top:3rem;
     font-size:.8rem; color:var(--muted); max-width:46em;
@@ -226,24 +231,29 @@
   <aside class="toc">
     <div class="toc-brand"><span class="mark">GATH</span><strong>Fase 2</strong></div>
     <nav>
+      <a href="#estado">00 · Estado de implementación</a>
       <a href="#objeto">01 · Qué se busca con la Fase 2</a>
       <a href="#diagnostico">02 · Diagnóstico del proceso actual</a>
       <a href="#hallazgos">03 · Decisiones estructurales</a>
       <a class="section-divider">Diagramas de flujo y lógica</a>
       <a href="#flujo-onboarding">Flujo macro del onboarding digital</a>
-      <a href="#estados">Ciclo de vida del expediente (16)</a>
+      <a href="#estados">Ciclo de vida del expediente (17)</a>
       <a href="#credenciales">Credenciales y dos ventanas</a>
       <a href="#vacantes">Vacantes y asignación de cargo</a>
       <a href="#autogestion">Autogestión y aprobación</a>
       <a href="#carnetizacion">Carnet de dos caras</a>
-      <a href="#sincronizacion">Sincronización GATH ➔ SIGESP</a>
+      <a href="#sincronizacion">Sincronización con nómina (por definir)</a>
       <a class="section-divider">Estructura funcional y gobernanza</a>
       <a href="#modelo-datos">Estructura de información del sistema</a>
       <a href="#autorizacion">Roles y matriz de permisos</a>
       <a href="#documentos">Documentos y planillas digitales</a>
+      <a href="#notificaciones">Notificaciones y avisos</a>
       <a href="#infraestructura">Arquitectura e infraestructura</a>
+      <a href="#seguridad">Seguridad de archivos y operación</a>
+      <a href="#decisiones">Decisiones tomadas</a>
       <a href="#gobernanza">Gobernanza y criterios de operación</a>
       <a href="#modulos">Los 4 módulos principales</a>
+      <a href="#revisiones">Historial de revisiones</a>
     </nav>
     <div class="toc-foot">Propuesta basada en el levantamiento operativo de Captación, Presupuesto, Bienestar Social y la arquitectura del Sistema GATH.</div>
   </aside>
@@ -252,15 +262,78 @@
     <div class="masthead">
       <span class="eyebrow">Conatel en línea — Sistema GATH</span>
       <h1>Propuesta Técnica y Funcional · Fase 2</h1>
-      <p class="lede">Hoy el ingreso de personal ocurre en papel, los datos se transcriben cuatro veces a mano y el expediente envejece porque el trabajador no puede proponer sus propios cambios. Esta guía detalla la transformación de GATH para conducir el proceso completo: desde la postulación digital y la ruta de aprobación, hasta la asignación atómica del cargo, la autogestión y la sincronización con nómina.</p>
+      <p class="lede">Hoy el ingreso de personal ocurre en papel, los datos se transcriben cuatro veces a mano y el expediente envejece porque el trabajador no puede proponer sus propios cambios. Esta guía detalla la transformación de GATH para conducir el proceso completo: desde la postulación digital y la ruta de aprobación, hasta la asignación atómica del cargo, la autogestión y el carnet. La sincronización con nómina queda por definir. <strong>Estado actualizado al 24 de noviembre de 2026.</strong></p>
       <div class="statrow">
         <div class="stat"><div class="n">4</div><div class="l">módulos principales integrados</div></div>
-        <div class="stat"><div class="n">16</div><div class="l">estados en el ciclo del expediente</div></div>
+        <div class="stat"><div class="n">17</div><div class="l">estados en el ciclo del expediente</div></div>
         <div class="stat"><div class="n">2</div><div class="l">ventanas de acceso para el postulante</div></div>
-        <div class="stat"><div class="n">0</div><div class="l">transcripciones manuales en planillas</div></div>
-        <div class="stat"><div class="n">6</div><div class="l">formatos oficiales prellenados</div></div>
+        <div class="stat"><div class="n">24</div><div class="l">transiciones controladas con permiso y auditoría</div></div>
+        <div class="stat"><div class="n">1 de 6</div><div class="l">formatos oficiales ya emitidos; el resto espera los PDF oficiales</div></div>
       </div>
     </div>
+
+    <!-- ============ ESTADO DE IMPLEMENTACION ============ -->
+    <section id="estado">
+      <div class="section-head">
+        <span class="kicker">00 · Estado de implementación · 24 de noviembre de 2026</span>
+        <h2>Qué está construido y qué falta</h2>
+        <p>El circuito de ingreso funciona de punta a punta: desde el alta del postulante hasta la ficha del trabajador contratado. El carnet de dos caras ya está en operación. Esta versión del documento describe lo <strong>realmente construido</strong>; donde difiere del diseño original, así se indica.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Bloque</th><th>Alcance</th><th>Estado</th></tr></thead>
+          <tbody>
+            <tr><td><strong>A · Carnet: lo diseñado = lo impreso</strong></td><td>Un solo dibujador de cara, biblioteca de medios, rotación y opacidad, plantilla según la condición real, solicitudes de carnet.</td><td><span class="pill pill-ok">Completo 9/9</span></td></tr>
+            <tr><td><strong>B · Carnet: funciones faltantes</strong></td><td>Vista previa PDF, fondo por cara, formato imprenta (sangrado y marcas de corte), PDF guardado, ciclo físico, lote de trabajadores, plantilla heredada LEGACY.</td><td><span class="pill pill-ok">Completo 11/11</span></td></tr>
+            <tr><td><strong>K · Hallazgos de auditoría del carnet</strong></td><td>Orden dúplex del lote, color por nómina real, reglas de uso de plantilla, límites de imagen, diseñador sin pérdida de trabajo.</td><td><span class="pill pill-ok">Completo 16/16</span></td></tr>
+            <tr><td><strong>C · Decisiones de Captación</strong></td><td>Reingreso, disponibilidad, vigencias, firma, psicofísico, retención, roles, espera del diferido.</td><td><span class="pill pill-ok">9 de 10</span> <span class="pill pill-partial">C-9 por aclarar</span></td></tr>
+            <tr><td><strong>D · Captación, Ventana 1</strong></td><td>Postulante, máquina de 17 estados, credencial, sesión de invitado, bandeja, psicofísico, enlace de activación por correo.</td><td><span class="pill pill-ok">Completo 10/10</span></td></tr>
+            <tr><td><strong>E · Presupuesto y Dirección General</strong></td><td>Vacantes, reserva de puesto, constancia presupuestaria, Punto de Cuenta de ingreso, aprobación, vencimientos automáticos.</td><td><span class="pill pill-ok">Completo 7/7</span></td></tr>
+            <tr><td><strong>G · Ventana 2 y contratación</strong></td><td>Familiares, vivienda, salud, tallas, foto, revisión final y promoción atómica del cargo.</td><td><span class="pill pill-ok">Completo 6/6</span></td></tr>
+            <tr><td><strong>H · Transversales</strong></td><td>SeaweedFS con identidades, claves opacas, bitácora de descargas, bandeja compartida, avisos casi en tiempo real, colas de Celery, verificación de migraciones.</td><td><span class="pill pill-ok">Completo 13/13</span></td></tr>
+            <tr><td><strong>F · Documentos digitales</strong></td><td>Planillas prellenadas (Oferta, Caja de Ahorro, HCM), contrato, firma por clic.</td><td><span class="pill pill-partial">Pendiente: espera los PDF oficiales</span></td></tr>
+            <tr><td><strong>I · Sincronización con nómina</strong></td><td>Eventos, homologación de catálogos, despacho y conciliación.</td><td><span class="pill pill-gap">Fuera de alcance: sistema destino por definir</span></td></tr>
+            <tr><td><strong>J · Documentación del plan</strong></td><td>Este documento y la propuesta técnica.</td><td><span class="pill pill-ok">Completo 2/2</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="grid-3" style="margin-top:1.4rem;">
+        <div class="card">
+          <span class="pill pill-partial">Qué queda</span>
+          <h4 style="margin-top:.8rem;">Pendiente de construcción</h4>
+          <ul>
+            <li><strong>Documentos (bloque F).</strong> La Ventana 2 ya captura los datos, pero aún no emite planillas, contrato ni firma. Espera los PDF oficiales de HCM, Caja de Ahorro y Oferta de Servicios.</li>
+            <li><strong>C-9.</strong> ¿Puede un jubilado o pensionado volver a postularse? Provisionalmente sí; solo se rechaza a quien está activo.</li>
+            <li><strong>Nómina (bloque I).</strong> Fuera de alcance hasta conocer el sistema destino.</li>
+            <li><strong>Purga de rechazados.</strong> El plazo de retención es un parámetro; la tarea de purga aún no existe.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <span class="pill pill-info">Antes de desplegar</span>
+          <h4 style="margin-top:.8rem;">Pendiente de despliegue</h4>
+          <ul>
+            <li><strong>Migraciones</strong> de la rama (postulación, personal, configuración, identidad, notificaciones y carnetización).</li>
+            <li><strong>Soportes de autogestión</strong> a claves opacas en producción: <span class="mono">migrar_claves_soportes</span> en seco y luego aplicar.</li>
+            <li><strong>Plantilla heredada del carnet:</strong> verificarla en producción antes de desplegar.</li>
+            <li><strong>Código:</strong> subir la rama a GitLab e integrarla en QA (el ambiente actual se construye desde otra rama).</li>
+            <li><strong>Colas de Celery separadas:</strong> opcional, se activa con un indicador y un worker por cola.</li>
+            <li><strong>Roles:</strong> asignar Captación, Presupuesto y Dirección General a las personas.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <span class="pill pill-ok">Verificación</span>
+          <h4 style="margin-top:.8rem;">Respaldo de calidad</h4>
+          <ul>
+            <li><strong>3477</strong> pruebas de backend y <strong>109</strong> contratos de arquitectura.</li>
+            <li><strong>1606</strong> pruebas de frontend.</li>
+            <li>Recorridos de extremo a extremo (escritorio y teléfono) del postulante, Captación y carnet.</li>
+            <li>Todas las migraciones se aplican desde cero y se revierten sin fallos.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
 
     <!-- ============ QUE SE BUSCA ============ -->
     <section id="objeto">
@@ -277,7 +350,7 @@
         </div>
         <div class="card">
           <span class="pill pill-ok">Con la Fase 2</span>
-          <p style="margin-top:.8rem; font-size:.9rem;">El sistema gestiona todo el ciclo: da de alta la postulación, habilita el llenado digital de planillas precargadas, enruta aprobaciones entre Captación, Presupuesto y Dirección General, asigna el cargo atómicamente y sincroniza con Nómina.</p>
+          <p style="margin-top:.8rem; font-size:.9rem;">El sistema gestiona el ciclo: da de alta la postulación, captura los datos del postulante, enruta aprobaciones entre Captación, Presupuesto y Dirección General y asigna el cargo atómicamente. Las planillas precargadas y la sincronización con nómina son los dos frentes que quedan abiertos.</p>
         </div>
       </div>
 
@@ -285,7 +358,7 @@
         <div class="rule">
           <div class="icon">👤</div>
           <h4>Onboarding Digital</h4>
-          <p>Credencial temporal por cédula y contraseña para que el postulante cargue sus datos y realice la evaluación psicofísica sin usar papel.</p>
+          <p>Acceso del postulante por cédula y contraseña (entregada en persona o por un enlace de activación enviado al correo) para cargar sus datos sin usar papel. El test psicofísico se aplica fuera del sistema y Captación registra su resultado.</p>
         </div>
         <div class="rule">
           <div class="icon">🏢</div>
@@ -295,7 +368,7 @@
         <div class="rule">
           <div class="icon">📝</div>
           <h4>Planillas Precargadas</h4>
-          <p>Generación automática de HCM, Oferta de Servicios y Caja de Ahorro con los datos ya registrados en el expediente.</p>
+          <p>Generación automática de HCM, Oferta de Servicios y Caja de Ahorro con los datos ya registrados en el expediente. <em>Pendiente: espera los PDF oficiales.</em></p>
         </div>
         <div class="rule">
           <div class="icon">🔄</div>
@@ -350,7 +423,7 @@ flowchart TD
             <tr><td><strong>Expediente físico circulante</strong></td><td>No hay manera de saber en qué etapa está un caso sin preguntar oficina por oficina.</td><td><span class="pill pill-ok">Bandejas y trazabilidad</span></td></tr>
             <tr><td><strong>Verificación manual de vacantes</strong></td><td>El sistema ya tiene el dato, pero la consulta se hace en hojas de cálculo externas.</td><td><span class="pill pill-ok">Consulta nativa y bloqueo</span></td></tr>
             <tr><td><strong>Expediente desactualizado</strong></td><td>El trabajador no puede reportar cambios; los datos envejecen en el tiempo.</td><td><span class="pill pill-ok">Autogestión con aprobación</span></td></tr>
-            <tr><td><strong>Doble carga en Nómina</strong></td><td>Riesgo de pagos erróneos por retrasos en la carga manual de movimientos hacia nómina.</td><td><span class="pill pill-ok">Outbox transaccional</span></td></tr>
+            <tr><td><strong>Doble carga en Nómina</strong></td><td>Riesgo de pagos erróneos por retrasos en la carga manual de movimientos hacia nómina.</td><td><span class="pill pill-partial">Diseño listo; nómina por definir</span></td></tr>
           </tbody>
         </table>
       </div>
@@ -388,51 +461,57 @@ flowchart TD
       <div class="section-head">
         <span class="kicker">04 · Diagramas de flujo</span>
         <h2>Flujo del onboarding digital por carriles de responsabilidad</h2>
-        <p>Secuencia coordinada de principio a fin entre el Postulante, Captación, Presupuesto y Dirección General.</p>
+        <p>Secuencia coordinada de principio a fin entre el Postulante, Captación, Presupuesto y Dirección General. Los pasos punteados no están construidos todavía.</p>
       </div>
 
       <div class="diagram-wrap">
         <pre class="mermaid">
 flowchart TD
-  START["Inicio: Captación pre-registra postulante"] --> INV["Captación valida cédula<br/>y entrega contraseña temporal (Ventana 1)"]
+  START["Inicio: Captación pre-registra postulante"] --> INV["Captación valida que la cédula no sea de un trabajador activo<br/>y entrega el acceso (Ventana 1):<br/>en persona o enlace de activación por correo"]
   INV --> P1["Postulante accede con cédula y contraseña<br/>(cambio de clave obligatorio)"]
-  P1 --> P2["Postulante registra datos básicos<br/>y realiza evaluación psicofísica"]
+  P1 --> P2["Postulante registra sus datos básicos"]
   P2 --> P3["Postulante envía expediente<br/>(estado: ENVIADO_CAPTACION)"]
-  P3 --> V1{"Captación: ¿Datos corroborados<br/>y test aprobado?"}
+  P3 --> VPSI["Captación registra el resultado del test psicofísico<br/>(APTO o NO_APTO + informe PDF)<br/>el test se aplica fuera del sistema"]
+  VPSI --> V1{"Captación: ¿Datos corroborados<br/>y test aprobado?"}
+  V1 -- Faltan datos --> VC["EN_CORRECCION_DATOS<br/>(devuelve con observaciones)"]
+  VC --> P3
   V1 -- No --> VR["RECHAZADO_CAPTACION<br/>(revoca credencial, conserva auditoría)"]
   VR --> FINR["Fin: No contratado"]
-  V1 -- Sí --> VOK["Captación abre expediente<br/>propone cargo y oficina<br/>(genera Solicitud de Personal)"]
-  VOK --> PR1{"Presupuesto:<br/>¿Existe vacante en esa oficina?<br/>(lo resuelve el sistema)"}
+  V1 -- Sí --> VOK["Captación abre expediente<br/>propone cargo y oficina<br/>(solicitud de personal)"]
+  VOK --> PR1{"Presupuesto:<br/>¿Existe puesto vacante en esa oficina?<br/>(lo resuelve el sistema)"}
   PR1 -- No hay --> PRNEW{"¿Presupuesto autoriza<br/>crear código nuevo?"}
   PRNEW -- Sí --> PRCOD["Presupuesto genera código de cargo"]
-  PRNEW -- No procede --> PRERR["EN_CORRECCION_CARGO<br/>(Notifica desaprobación y motivo a Captación)"]
+  PRNEW -- No procede --> PRERR["EN_CORRECCION_CARGO<br/>(devuelve a Captación con el motivo)"]
   PRERR --> VOK
   PR1 -- Sí --> PR2
-  PRCOD --> PR2{"Presupuesto: ¿Hay disponibilidad<br/>presupuestaria o aprueba trámite?"}
-  PR2 -- No / Desaprobado --> PRDIF["DIFERIDO_PRESUPUESTO<br/>(Notifica a Captación de desaprobación<br/>con motivo y queda en cola de espera)"]
-  PRDIF -.->|"se libera partida"| PR2
-  PRDIF -->|"Captación reasigna o desiste"| VOK
-  PR2 -- Sí --> PROK["Presupuesto reserva puesto,<br/>registra constancia y emite Punto de Cuenta"]
+  PRCOD --> PR2{"Presupuesto: ¿Hay disponibilidad<br/>presupuestaria?<br/>(gestión externa, se registra)"}
+  PR2 -- No --> PRDIF["DIFERIDO_PRESUPUESTO<br/>(libera la reserva, espera hasta 90 días)"]
+  PRDIF -.->|"se libera partida: Presupuesto retoma"| PR1
+  PRDIF -.->|"caduca la espera"| DES["DESISTIDO"]
+  DES --> FINR
+  PR2 -- Sí --> PROK["Presupuesto reserva puesto (30 días),<br/>registra constancia y emite Punto de Cuenta"]
   PROK --> DG1{"Dirección General:<br/>¿Aprueba Punto de Cuenta?"}
   DG1 -- No --> DGNO["RECHAZADO_DIRECCION<br/>(libera reserva del puesto)"]
   DGNO --> FINR
   DG1 -- Sí --> DGOK["Punto de Cuenta aprobado<br/>(estado: APROBADO)"]
-  DGOK --> RE["Captación reabre Ventana 2<br/>(genera nueva contraseña temporal y contacta)"]
-  RE --> P5["Postulante accede a Ventana 2:<br/>carga grupo familiar, salud, vivienda y tallas"]
-  P5 --> P6["Postulante revisa planillas prellenadas,<br/>conforma recaudos y sube foto de carnet"]
-  P6 --> P7["Postulante envía consolidación<br/>(estado: EN_REVISION_FINAL)"]
-  P7 --> C1{"Captación: ¿Expediente completo<br/>y planillas conformes?"}
-  C1 -- No --> P5
-  C1 -- Sí --> C2["Captación genera Contrato<br/>y ejecuta ASIGNACIÓN DE CARGO"]
-  C2 --> C3["Transacción atómica de asignación:<br/>1. Bloquea puesto vacante<br/>2. Crea registro de Empleado activo<br/>3. Asigna titularidad oficial del cargo<br/>4. Asienta movimiento de INGRESO<br/>5. Habilita acceso a Autogestión<br/>6. Encola sincronización con Nómina"]
-  C3 --> CARN["Carnetización emite carnet de 2 caras"]
-  C3 --> ETL["Worker despacha evento a SIGESP-Nómina"]
+  DGOK --> RE["Captación reabre Ventana 2<br/>(acceso nuevo y tarea: contactar al postulante)"]
+  RE --> P5["Postulante accede a Ventana 2:<br/>carga grupo familiar, vivienda, salud, tallas<br/>y contacto de emergencia"]
+  P5 --> P6["Postulante sube la foto de carnet"]
+  P5 -.-> PLAN["Planillas prellenadas y firma por clic<br/>(pendiente: bloque de documentos)"]
+  PLAN -.-> P6
+  P6 --> P7["Postulante envía<br/>(estado: EN_REVISION_FINAL)"]
+  P7 --> C1{"Captación: ¿Expediente conforme?"}
+  C1 -- No --> CF["Observa faltantes<br/>(vuelve a CONSOLIDANDO)"]
+  CF --> P5
+  C1 -- Sí --> C2["LISTO_PARA_ASIGNAR<br/>Captación ejecuta la ASIGNACIÓN DE CARGO"]
+  C2 --> C3["Transacción atómica de asignación:<br/>1. Revalida reserva y puesto<br/>2. Crea el Empleado (o reutiliza el existente en un reingreso)<br/>3. Copia familiares, vivienda, salud y tallas<br/>4. Asigna el puesto y asienta el movimiento de INGRESO<br/>5. Crea la cuenta del sistema si el correo es institucional<br/>6. Consume la reserva y cierra el expediente en CONTRATADO"]
+  C3 --> CARN["Carnetización emite carnet de 2 caras<br/>(aviso: carnet pendiente)"]
   C3 --> AG["Ficha activa en portal de Autogestión"]
+  C3 -.-> ETL["Sincronización con nómina<br/>(fuera de alcance: sistema destino por definir)"]
   CARN --> FIN["Trabajador activo incorporado"]
-  ETL --> FIN
   AG --> FIN
         </pre>
-        <p class="cap">Ruta completa del onboarding con separación estricta de tareas y transacción atómica de asignación.</p>
+        <p class="cap">Ruta completa del onboarding con separación estricta de tareas y transacción atómica de asignación. Un diferido que se libera vuelve a Presupuesto; la contratación se ejecuta por su propia acción de asignación, no como una transición más.</p>
       </div>
     </section>
 
@@ -441,7 +520,7 @@ flowchart TD
       <div class="section-head">
         <span class="kicker">04 · Diagramas de flujo</span>
         <h2>Ciclo de vida del expediente de postulación</h2>
-        <p>16 estados rigurosamente controlados. Toda transición requiere rol autorizado, validación previa y registra un historial de auditoría permanente.</p>
+        <p>17 estados y 24 transiciones rigurosamente controladas. Toda transición requiere un permiso o ser el propio postulante o el sistema, cumple sus guardas y registra un historial de auditoría permanente. (El diagrama original decía 16 estados: contaba mal.)</p>
       </div>
 
       <div class="diagram-wrap">
@@ -452,7 +531,7 @@ stateDiagram-v2
     PRE_REGISTRADO --> EN_CAPTURA : Postulante ingresa (Ventana 1)
     PRE_REGISTRADO --> EXPIRADO : Vence sin uso
 
-    EN_CAPTURA --> ENVIADO_CAPTACION : Postulante envía datos y test
+    EN_CAPTURA --> ENVIADO_CAPTACION : Postulante envía sus datos
     EN_CAPTURA --> EXPIRADO : Vence ventana
 
     ENVIADO_CAPTACION --> EN_CORRECCION_DATOS : Captación devuelve con observaciones
@@ -460,12 +539,11 @@ stateDiagram-v2
     ENVIADO_CAPTACION --> RECHAZADO_CAPTACION : Test no aprobado o datos falsos
     ENVIADO_CAPTACION --> EN_PRESUPUESTO : Captación abre expediente
 
-    EN_PRESUPUESTO --> EN_CORRECCION_CARGO : Sin vacante / No procede crear (notifica motivo a Captación)
+    EN_PRESUPUESTO --> EN_CORRECCION_CARGO : Sin vacante o no procede crear (motivo a Captación)
     EN_CORRECCION_CARGO --> EN_PRESUPUESTO : Captación cambia cargo u oficina
-    EN_PRESUPUESTO --> DIFERIDO_PRESUPUESTO : Sin disponibilidad o no aprobado (notifica motivo a Captación)
+    EN_PRESUPUESTO --> DIFERIDO_PRESUPUESTO : Sin disponibilidad (motivo a Captación)
     DIFERIDO_PRESUPUESTO --> EN_PRESUPUESTO : Se libera partida presupuestaria
-    DIFERIDO_PRESUPUESTO --> EN_CORRECCION_CARGO : Captación ajusta propuesta
-    DIFERIDO_PRESUPUESTO --> DESISTIDO : Caduca la espera
+    DIFERIDO_PRESUPUESTO --> DESISTIDO : Caduca la espera (90 días)
     EN_PRESUPUESTO --> EN_DIRECCION_GENERAL : Puesto reservado y Punto de Cuenta emitido
 
     EN_DIRECCION_GENERAL --> RECHAZADO_DIRECCION : No aprueba (libera reserva)
@@ -477,7 +555,7 @@ stateDiagram-v2
     EN_REVISION_FINAL --> LISTO_PARA_ASIGNAR : Expediente conforme
 
     LISTO_PARA_ASIGNAR --> CONTRATADO : Asignación atómica de cargo
-    LISTO_PARA_ASIGNAR --> EN_PRESUPUESTO : Reserva vencida (re-reservar)
+    LISTO_PARA_ASIGNAR --> EN_PRESUPUESTO : El puesto se perdió (reserva vencida)
 
     CONTRATADO --> [*]
     RECHAZADO_CAPTACION --> [*]
@@ -485,7 +563,7 @@ stateDiagram-v2
     EXPIRADO --> [*]
     DESISTIDO --> [*]
         </pre>
-        <p class="cap"><strong>Estados terminales:</strong> CONTRATADO, RECHAZADO_CAPTACION, RECHAZADO_DIRECCION, EXPIRADO, DESISTIDO. Los expedientes que llegan a un estado final quedan cerrados y ya no se pueden modificar.</p>
+        <p class="cap"><strong>Estados terminales:</strong> CONTRATADO, RECHAZADO_CAPTACION, RECHAZADO_DIRECCION, EXPIRADO, DESISTIDO. Los expedientes que llegan a un estado final quedan cerrados y ya no se pueden modificar. Los vencimientos (expirar una ventana, desistir un diferido, perder un puesto reservado) los ejecuta únicamente el sistema, cada 15 minutos.</p>
       </div>
 
       <div class="table-wrap" style="margin-top:1.4rem;">
@@ -493,15 +571,22 @@ stateDiagram-v2
           <thead><tr><th>Estado</th><th>Responsable</th><th>Descripción y salida</th></tr></thead>
           <tbody>
             <tr><td><span class="mono">PRE_REGISTRADO</span></td><td>Captación</td><td>Cédula registrada y credencial de Ventana 1 generada.</td></tr>
-            <tr><td><span class="mono">EN_CAPTURA</span></td><td>Postulante</td><td>Completando datos básicos y evaluación psicofísica.</td></tr>
-            <tr><td><span class="mono">ENVIADO_CAPTACION</span></td><td>Captación</td><td>Expediente enviado; Captación corrobora recaudos y test.</td></tr>
-            <tr><td><span class="mono">EN_PRESUPUESTO</span></td><td>Presupuesto</td><td>Verificación de vacante en sistema y disponibilidad presupuestaria.</td></tr>
-            <tr><td><span class="mono">EN_CORRECCION_CARGO</span></td><td>Captación</td><td>Sin vacante o código no autorizado. Presupuesto notifica desaprobación y motivo a Captación para reasignar.</td></tr>
-            <tr><td><span class="mono">DIFERIDO_PRESUPUESTO</span></td><td>Presupuesto / Captación</td><td>Sin disponibilidad o desaprobado por Presupuesto. Notifica motivo a Captación; en espera de partida o reajuste.</td></tr>
-            <tr><td><span class="mono">EN_DIRECCION_GENERAL</span></td><td>Dirección General</td><td>Punto de Cuenta formal en espera de aprobación de Máxima Autoridad.</td></tr>
-            <tr><td><span class="mono">APROBADO</span></td><td>Captación</td><td>Punto de Cuenta aprobado; habilita apertura de Ventana 2.</td></tr>
-            <tr><td><span class="mono">CONSOLIDANDO</span></td><td>Postulante</td><td>Carga de grupo familiar, planillas prellenadas y foto de carnet.</td></tr>
+            <tr><td><span class="mono">EN_CAPTURA</span></td><td>Postulante</td><td>Completando sus datos básicos.</td></tr>
+            <tr><td><span class="mono">ENVIADO_CAPTACION</span></td><td>Captación</td><td>Expediente enviado; Captación corrobora recaudos y registra el resultado del test psicofísico.</td></tr>
+            <tr><td><span class="mono">EN_CORRECCION_DATOS</span></td><td>Postulante</td><td>Captación devolvió observaciones; se reabre la ventana para corregir y reenviar.</td></tr>
+            <tr><td><span class="mono">EN_PRESUPUESTO</span></td><td>Presupuesto</td><td>Verificación de vacante en sistema, reserva del puesto y disponibilidad presupuestaria.</td></tr>
+            <tr><td><span class="mono">EN_CORRECCION_CARGO</span></td><td>Captación</td><td>Sin vacante o código no autorizado. Presupuesto devuelve con motivo para reasignar cargo u oficina.</td></tr>
+            <tr><td><span class="mono">DIFERIDO_PRESUPUESTO</span></td><td>Presupuesto</td><td>Sin disponibilidad presupuestaria. Cola de espera de hasta 90 días (parámetro); si se libera la partida, Presupuesto retoma; si caduca, pasa a DESISTIDO.</td></tr>
+            <tr><td><span class="mono">EN_DIRECCION_GENERAL</span></td><td>Dirección General</td><td>Punto de Cuenta formal en espera de aprobación de la máxima autoridad.</td></tr>
+            <tr><td><span class="mono">APROBADO</span></td><td>Captación</td><td>Punto de Cuenta aprobado; habilita la apertura de la Ventana 2.</td></tr>
+            <tr><td><span class="mono">CONSOLIDANDO</span></td><td>Postulante</td><td>Carga de grupo familiar, vivienda, salud, tallas, contacto de emergencia y foto de carnet.</td></tr>
+            <tr><td><span class="mono">EN_REVISION_FINAL</span></td><td>Captación</td><td>Captación revisa el expediente completo: da conforme o devuelve faltantes.</td></tr>
+            <tr><td><span class="mono">LISTO_PARA_ASIGNAR</span></td><td>Captación</td><td>Expediente conforme; solo falta ejecutar la asignación atómica del cargo. Si la reserva venció, vuelve a Presupuesto.</td></tr>
             <tr><td><span class="mono">CONTRATADO</span></td><td>Sistema</td><td>Transacción completada y nuevo trabajador activo registrado en el sistema.</td></tr>
+            <tr><td><span class="mono">RECHAZADO_CAPTACION</span></td><td>—</td><td>Terminal. Se conserva con motivo y auditoría; no se borra.</td></tr>
+            <tr><td><span class="mono">RECHAZADO_DIRECCION</span></td><td>—</td><td>Terminal. La Dirección General no aprobó el ingreso; se libera la reserva.</td></tr>
+            <tr><td><span class="mono">EXPIRADO</span></td><td>—</td><td>Terminal. La ventana del postulante venció sin que el expediente avanzara.</td></tr>
+            <tr><td><span class="mono">DESISTIDO</span></td><td>—</td><td>Terminal. Venció la espera de un expediente diferido.</td></tr>
           </tbody>
         </table>
       </div>
@@ -512,7 +597,18 @@ stateDiagram-v2
       <div class="section-head">
         <span class="kicker">04 · Diagramas de flujo</span>
         <h2>Credenciales temporales y las dos ventanas de acceso</h2>
-        <p>El postulante ingresa con cédula y una contraseña temporal generada por el sistema y entregada en persona por Captación.</p>
+        <p>El postulante ingresa con cédula y contraseña. El acceso se entrega de dos formas: en persona por Captación o mediante un enlace de activación enviado a su correo.</p>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <span class="pill pill-info">Entrega en persona</span>
+          <p style="margin-top:.8rem; font-size:.9rem;">El sistema genera una contraseña temporal aleatoria y Captación la entrega en el mismo acto en que recibe al postulante. Se muestra una sola vez.</p>
+        </div>
+        <div class="card">
+          <span class="pill pill-info">Enlace de activación por correo</span>
+          <p style="margin-top:.8rem; font-size:.9rem;">El correo trae un enlace de un solo uso, <strong>nunca una contraseña</strong>. El postulante debe escribir su cédula (segundo factor) y crear su propia contraseña. El enlace vence a las 48 horas (parámetro), se bloquea tras 5 cédulas equivocadas y, al reenviarlo, el anterior queda invalidado. En la base solo se guarda su huella (hash).</p>
+        </div>
       </div>
 
       <div class="diagram-wrap">
@@ -524,36 +620,51 @@ sequenceDiagram
     participant DB as Base de Datos
     actor POS as Postulante
 
-    Note over CAP,POS: VENTANA 1 — Datos Básicos y Test Psicofísico
-    CAP->>API: Da de alta postulante (cédula, nombres, cargo)
-    API->>DB: Valida cédula libre y crea Postulante + Credencial
-    API-->>CAP: Contraseña temporal (única visualización)
-    CAP-->>POS: Entrega en persona: cédula + contraseña temporal
-    POS->>API: Inicia sesión (cédula + contraseña)
-    API-->>POS: Sesión de invitado (debe_cambiar_password = true)
-    POS->>API: Cambio obligatorio de contraseña
-    POS->>API: Guarda borradores de datos básicos
-    POS->>API: Responde evaluación psicofísica
+    Note over CAP,POS: VENTANA 1 — Datos básicos
+    CAP->>API: Da de alta al postulante (cédula y nombres)
+    API->>DB: Valida que no sea trabajador activo y crea Postulante y Credencial
+    alt Entrega en persona
+        API-->>CAP: Contraseña temporal (única visualización)
+        CAP-->>POS: Cédula y contraseña temporal
+    else Enlace de activación por correo
+        API-->>POS: Correo con enlace de un solo uso (sin contraseña)
+        POS->>API: Activa con su cédula y crea su contraseña
+    end
+    POS->>API: Inicia sesión (cédula y contraseña)
+    API-->>POS: Sesión de invitado (máximo 2 horas, cambio de clave obligatorio)
+    POS->>API: Cambia su contraseña y guarda borradores de datos básicos
     POS->>API: Envía expediente a Captación
-    API->>API: Revoca sesión de Ventana 1
+    CAP->>API: Registra resultado e informe del test psicofísico
 
-    Note over CAP,POS: CREDENCIAL SUSPENDIDA (Revisiones de Presupuesto y Dirección General)
+    Note over CAP,POS: CREDENCIAL SUSPENDIDA (revisiones de Presupuesto y Dirección General)
 
-    Note over CAP,POS: VENTANA 2 — Consolidación para Contratación
-    CAP->>API: Reabre Ventana 2 tras aprobación de Dirección General
-    API->>DB: Nueva contraseña temporal (vigencia acotada)
-    API-->>CAP: Contraseña temporal + Alerta "Contactar postulante"
-    CAP-->>POS: Contacta por teléfono y entrega nueva contraseña
+    Note over CAP,POS: VENTANA 2 — Consolidación para la contratación
+    CAP->>API: Reabre Ventana 2 tras la aprobación de Dirección General
+    API->>DB: Nueva credencial (vigencia 15 días, parámetro)
+    API-->>CAP: Tarea crítica: contactar al postulante
+    CAP-->>POS: Lo contacta por teléfono y le entrega el acceso (persona o enlace)
     POS->>API: Inicia sesión y cambia contraseña
-    POS->>API: Carga grupo familiar, vivienda, salud y tallas
-    POS->>API: Solicita planillas prellenadas con sus datos
-    API-->>POS: Planillas precargadas listas para conformación
-    POS->>API: Sube planillas conformadas y foto de carnet
+    POS->>API: Carga grupo familiar, vivienda, salud, tallas y contacto de emergencia
+    POS->>API: Sube la foto de carnet (sin metadatos, clave opaca)
     POS->>API: Envía expediente consolidado
-    API->>API: Revocación definitiva de credencial de invitado
+    Note over CAP,POS: La credencial se revoca definitivamente al contratar
         </pre>
-        <p class="cap">Secuencia de acceso del postulante. Como no posee correo institucional, la notificación de reapertura genera una tarea prioritaria para Captación.</p>
+        <p class="cap">Secuencia de acceso del postulante. Como no posee correo institucional, la reapertura genera una tarea prioritaria para Captación que escala a las 48 horas si nadie la atiende. Las planillas prellenadas y su firma por clic están pendientes del bloque de documentos.</p>
       </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Correo al postulante (si dejó uno)</th><th>Cuándo se envía</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Correcciones</strong></td><td>Captación devuelve el expediente con observaciones: dice qué corregir y hasta cuándo.</td></tr>
+            <tr><td><strong>Ventana 2 abierta</strong></td><td>Dirección General aprueba y Captación reabre: «¡Tu ingreso fue aprobado!», con el plazo.</td></tr>
+            <tr><td><strong>Faltantes</strong></td><td>Captación observa faltantes en la revisión final y explica cómo recibe el nuevo acceso.</td></tr>
+            <tr><td><strong>Activación</strong></td><td>Captación envía el enlace de activación («Crear mi contraseña»).</td></tr>
+            <tr><td><strong>Rechazo</strong></td><td>Aviso cordial, sin el motivo interno.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout"><p>El correo personal del postulante es solo de cortesía: nunca es el único canal ni el medio de acceso. <strong>Ningún correo lleva jamás una contraseña ni la cédula</strong>; remiten al portal. La contraseña elegida exige al menos 10 caracteres con letras y números, y el acceso se bloquea 15 minutos tras 5 intentos fallidos.</p></div>
     </section>
 
     <!-- ============ VACANTES ============ -->
@@ -569,7 +680,7 @@ sequenceDiagram
 flowchart TD
   A["Expediente en revisión de Presupuesto<br/>(Cargo propuesto y Oficina)"] --> B["Consulta automática en el sistema:<br/>Verifica disponibilidad de puestos vacantes<br/>para la denominación y oficina solicitada"]
   B --> C{"¿Existe puesto vacante?"}
-  C -- Sí --> D["Reserva temporal del puesto en el sistema<br/>(bloqueo preventivo de la vacante)"]
+  C -- Sí --> D["Reserva temporal del puesto en el sistema<br/>(vigencia 30 días, una sola reserva por puesto)"]
   C -- No --> E{"¿Presupuesto autoriza<br/>crear código nuevo?"}
   E -- Sí --> F["Presupuesto genera código de cargo<br/>(habilita puesto vacante en estructura)"]
   F --> D
@@ -577,15 +688,14 @@ flowchart TD
   G --> VOK["Captación evalúa reasignar cargo/oficina"]
   D --> H{"Presupuesto:<br/>¿Disponibilidad presupuestaria?"}
   H -- Sí --> I["Registra Constancia Presupuestaria<br/>(declarado por, fecha, oficio de referencia)"]
-  H -- No / Desaprobado --> J["DIFERIDO_PRESUPUESTO<br/>(Libera reserva temporal)<br/>🔔 Notifica desaprobación y motivo a Captación"]
-  J -.->|"Se libera partida"| H
-  J --> VOK
+  H -- No --> J["DIFERIDO_PRESUPUESTO<br/>(Libera reserva temporal)"]
+  J -.->|"Se libera partida: Presupuesto retoma"| H
   I --> K["Emite Punto de Cuenta formal con correlativo<br/>(avanza a Dirección General)"]
   K --> L["Aprobación de Dirección General y conformación de recaudos"]
-  L --> M["Transacción Atómica de Asignación:<br/>1. Revalida disponibilidad del puesto vacante<br/>2. Da de alta al nuevo Empleado activo<br/>3. Asigna titularidad oficial del cargo<br/>4. Registra movimiento administrativo de INGRESO<br/>5. Habilita acceso al portal de Autogestión<br/>6. Encola sincronización con sistema de nóminas<br/>7. Cierra expediente en estado CONTRATADO"]
+  L --> M["Transacción Atómica de Asignación:<br/>1. Bloquea y revalida reserva y puesto<br/>2. Crea el Empleado (o reutiliza el existente en un reingreso)<br/>3. Copia familiares, vivienda, salud y tallas<br/>4. Asigna el puesto y registra el movimiento de INGRESO<br/>5. Crea la cuenta del sistema si el correo es institucional<br/>6. Consume la reserva y cierra el expediente en CONTRATADO"]
   M --> N["Trabajador activo en el sistema"]
         </pre>
-        <p class="cap">La vacante es una consulta directa en el sistema; la disponibilidad presupuestaria es una validación externa. Si Presupuesto no cuenta con disponibilidad o no aprueba por cualquier motivo, el sistema genera automáticamente una notificación a la bandeja de Captación detallando la desaprobación y las observaciones correspondientes.</p>
+        <p class="cap">La vacante es una consulta directa en el sistema; la disponibilidad presupuestaria es una validación externa. Si el puesto ya no está disponible al contratar, la asignación se rechaza completa, sin dejar nada a medias, y el expediente vuelve a Presupuesto. Si el correo del trabajador no es institucional, la contratación se completa igual y se avisa a RRHH para gestionar el correo institucional; el aviso se resuelve solo al cargarlo.</p>
       </div>
     </section>
 
@@ -644,6 +754,8 @@ sequenceDiagram
         <p class="cap">Mientras la solicitud no sea aprobada, los datos oficiales en la ficha activa del empleado permanecen intactos.</p>
       </div>
 
+      <div class="callout"><p>En el sistema construido, la solicitud recorre los estados SOLICITADA, HABILITADA, ENVIADA y APROBADA, APROBADA_PARCIAL o RECHAZADA, más DEVUELTA (Bienestar Social la regresa al trabajador con motivo para corregir) y EXPIRADA (con prórrogas de la ventana). Esta revisión del documento no re-audita el detalle de Autogestión.</p></div>
+
       <div class="table-wrap" style="margin-top:1.4rem;">
         <table>
           <thead><tr><th>Sección</th><th>¿Autogestionable?</th><th>Requisito</th></tr></thead>
@@ -671,11 +783,11 @@ sequenceDiagram
       <div class="diagram-wrap">
         <pre class="mermaid">
 flowchart LR
-  subgraph HOY["Estado Actual (Fase 1)"]
+  subgraph HOY["Estado anterior (Fase 1)"]
     H1["Plantilla rígida única<br/>(Una sola imagen de fondo)"] --> H2["Generador estático<br/>(Posiciones fijas en el sistema)"] --> H3["PDF de una sola cara"]
   end
 
-  subgraph PROP["Fase 2 (Propuesta)"]
+  subgraph PROP["Fase 2 (construido)"]
     P1["Catálogo de plantillas institucionales<br/>(Anverso y Reverso por tipo de personal)"]
     P2["Configuración visual de campos<br/>(Posiciones, fuentes y colores administrables)"]
     P3["Diseñador Web Visual<br/>(Arrastrar y soltar con vista previa)"]
@@ -686,7 +798,7 @@ flowchart LR
   end
 
   subgraph DATOS["Fuentes de Datos Dinámicas"]
-    D1["Foto oficial del trabajador"]
+    D1["Foto oficial del trabajador<br/>(la cargada en la Ventana 2)"]
     D2["Datos personales y número de cédula"]
     D3["Cargo, adscripción y tipo de personal"]
     D4["Código QR con validación de autenticidad"]
@@ -697,15 +809,44 @@ flowchart LR
         </pre>
         <p class="cap">Permite diseñar desde cero en web o cargar un PDF base ya diseñado por Imagen Institucional posicionando los datos variables encima.</p>
       </div>
+
+      <div class="grid-3">
+        <div class="card">
+          <span class="pill pill-ok">Lo diseñado = lo impreso</span>
+          <ul>
+            <li>Una sola función dibuja cada cara: el PDF individual, el de lote y la vista previa salen idénticos.</li>
+            <li>Imágenes de la biblioteca, rotación, opacidad, formas libres y esquinas redondeadas.</li>
+            <li>El PDF emitido se guarda y la reimpresión sale idéntica.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <span class="pill pill-ok">Impresión y ciclo físico</span>
+          <ul>
+            <li>Formato imprenta con sangrado de 2 mm y marcas de corte; dúplex configurable.</li>
+            <li>Lote de trabajadores con las páginas intercaladas (anverso y reverso de cada carnet).</li>
+            <li>Ciclo EMITIDO, IMPRESO, ENTREGADO y ANULADO con motivo; solicitudes de carnet desde Autogestión.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <span class="pill pill-info">Diseño según la nómina</span>
+          <ul>
+            <li>La credencial toma el color y el diseño de la <strong>nómina</strong> del titular. Alto Nivel es la nómina Funcionario (azul marino).</li>
+            <li>Contratados y pasantes <strong>no</strong> son tipos de credencial: usan el diseño de su nómina.</li>
+            <li>La maqueta heredada se conservó como plantilla v1 LEGACY, comparada contra el carnet original.</li>
+          </ul>
+        </div>
+      </div>
     </section>
 
     <!-- ============ SINCRONIZACION ============ -->
     <section id="sincronizacion">
       <div class="section-head">
         <span class="kicker">04 · Diagramas de flujo</span>
-        <h2>Sincronización directa desde GATH hacia SIGESP-Nómina</h2>
-        <p>Garantía de entrega automatizada. Cada movimiento administrativo se registra en la base de datos de GATH y viaja de forma directa hacia la base de datos de SIGESP (Nómina) con confirmación de entrega y conciliación diaria.</p>
+        <h2>Sincronización con el sistema de nómina: diseño pendiente de definición</h2>
+        <p>Garantía de entrega para cuando se conozca el sistema de nómina destino. Cada movimiento administrativo se registraría en GATH y se entregaría con reintentos, confirmación y conciliación diaria, sin escribir jamás directamente en las tablas del sistema ajeno.</p>
       </div>
+
+      <div class="callout"><p><strong>Fuera de alcance por ahora.</strong> El sistema de nómina destino está por definir y no se ha construido ninguna pieza de esta sincronización: ni la bandeja de eventos, ni la homologación de catálogos, ni el despacho, ni la conciliación. El diagrama es el <strong>patrón de diseño</strong> que se aplicará cuando se conozca el canal de entrega.</p></div>
 
       <div class="diagram-wrap">
         <pre class="mermaid">
@@ -720,16 +861,23 @@ flowchart TD
   end
 
   ORIG --> HOOK["Registro del movimiento en la base de datos de GATH"]
-  HOOK --> OB["Bandeja transaccional de eventos de nómina<br/>(Garantía de registro seguro)"]
-  OB --> W["Servicio automatizado de sincronización<br/>(Despacho en segundo plano con reintentos)"]
+  HOOK --> OB["Bandeja transaccional de eventos de nómina<br/>(se registra en la misma transacción)"]
+  OB --> W["Servicio de sincronización<br/>(despacho en segundo plano con reintentos)"]
   W --> MAP["Homologación de catálogos y conceptos de nómina"]
-  MAP --> SIGESP["Transmisión directa a la Base de Datos de SIGESP-Nómina"]
-  SIGESP --> OK["Movimiento registrado en SIGESP con acuse de recibido"]
-  OK --> CONC["Conciliación Diaria Automatizada<br/>Compara el personal activo en GATH vs SIGESP"]
-  W -.->|"Si la conexión está ocupada o no disponible"| RETRY["Reintento automático programado<br/>(El movimiento permanece en cola hasta transmitirse)"]
+  MAP --> CANAL{"Canal de entrega<br/>por definir con el sistema destino"}
+  CANAL -->|"A · preferido"| API["Interfaz del sistema destino<br/>idempotente por evento"]
+  CANAL -->|"B · aceptable"| STG["Esquema de intercambio propiedad de GATH"]
+  CANAL -->|"C · último recurso"| FILE["Archivo de intercambio con acuse"]
+  CANAL -->|"D · NO"| DIR["Escritura directa en tablas ajenas"]
+  API --> OK["Movimiento entregado con acuse de recibido"]
+  STG --> OK
+  FILE --> OK
+  OK --> CONC["Conciliación diaria automatizada"]
+  W -.->|"Si el destino no está disponible"| RETRY["Reintento automático programado<br/>(el movimiento permanece en cola)"]
   RETRY --> W
+  style DIR fill:#ffcdd2,stroke:#c62828
         </pre>
-        <p class="cap">La información viaja de forma directa y segura desde la base de datos de GATH hacia la base de datos de SIGESP, garantizando que todo movimiento aprobado se refleje en nómina sin requerir doble carga manual.</p>
+        <p class="cap">Patrón previsto: el evento nunca se pierde porque se registra junto con el cambio que lo origina. La escritura directa en las tablas de un sistema ajeno queda descartada. Los nombres de «SIGESP» o «SIGEP-Nómina» de versiones anteriores eran provisionales: el sistema destino aún no se ha definido.</p>
       </div>
     </section>
 
@@ -738,22 +886,28 @@ flowchart TD
       <div class="section-head">
         <span class="kicker">05 · Estructura de información</span>
         <h2>Módulos de información del sistema</h2>
-        <p>Organización funcional de los registros de talento humano, expedientes, documentos y sincronización institucional.</p>
+        <p>Organización funcional de los registros de talento humano, expedientes, documentos y avisos. Los módulos no se enlazan por claves foráneas: se referencian por identificadores, de modo que cada uno pueda retirarse sin afectar al resto.</p>
       </div>
 
       <div class="table-wrap">
         <table>
           <thead><tr><th>Área funcional</th><th>Componente de información</th><th>Datos gestionados</th><th>Propósito institucional</th></tr></thead>
           <tbody>
-            <tr><td rowspan="3"><strong>Captación y Postulación</strong></td><td><strong>Registro del Postulante</strong></td><td>Identidad, datos de contacto, nivel académico y perfil laboral.</td><td>Registro independiente de candidatos sin afectar la lista de trabajadores activos.</td></tr>
-            <tr><td><strong>Expediente Digital de Ingreso</strong></td><td>Número de expediente, estado del trámite, cargo propuesto y trazabilidad.</td><td>Control integral de fases de selección y evaluación psicofísica.</td></tr>
-            <tr><td><strong>Credenciales de Acceso Temporal</strong></td><td>Contraseñas temporales, ventanas habilitadas y control de vigencia.</td><td>Acceso acotado para carga de recaudos sin cuenta permanente.</td></tr>
-            <tr><td rowspan="2"><strong>Documentación y Planillas</strong></td><td><strong>Catálogo de Plantillas Oficiales</strong></td><td>Formatos institucionales homologados (HCM, Oferta, Punto de Cuenta, Caja de Ahorro).</td><td>Generación estandarizada y versionada de documentos oficiales.</td></tr>
-            <tr><td><strong>Registro de Documentos Emitidos</strong></td><td>Correlativo oficial, copia fiel de los datos, archivo PDF y verificación de autenticidad.</td><td>Historial seguro de documentos conformados para fines de auditoría.</td></tr>
-            <tr><td rowspan="2"><strong>Portal de Autogestión</strong></td><td><strong>Solicitudes de Actualización</strong></td><td>Empleado solicitante, secciones solicitadas, estado y ventana de atención.</td><td>Gestión de ventanas de actualización habilitadas por Bienestar Social.</td></tr>
+            <tr><td rowspan="7"><strong>Captación y Postulación</strong></td><td><strong>Registro del Postulante</strong></td><td>Identidad, datos de contacto y correo personal opcional.</td><td>Registro independiente de candidatos sin afectar la lista de trabajadores activos.</td></tr>
+            <tr><td><strong>Expediente Digital de Ingreso</strong></td><td>Número de expediente, estado del trámite, cargo y oficina propuestos, datos de Ventana 1 y 2, foto y vencimientos.</td><td>Control integral de fases; un solo expediente abierto por postulante.</td></tr>
+            <tr><td><strong>Historial del Expediente</strong></td><td>Cada transición: estado de origen y destino, quién la ejecutó (usuario, postulante o sistema), fecha y motivo.</td><td>Auditoría inmutable de todo cambio de estado.</td></tr>
+            <tr><td><strong>Credenciales y Enlaces de Activación</strong></td><td>Contraseña solo como huella, ventana, vigencia, control de intentos; enlaces de un solo uso solo como huella.</td><td>Acceso acotado para carga de recaudos sin cuenta permanente.</td></tr>
+            <tr><td><strong>Reserva de Puesto</strong></td><td>Puesto, expediente, vencimiento y estado (activa, liberada, consumida, vencida).</td><td>Impide que dos expedientes tomen el mismo puesto.</td></tr>
+            <tr><td><strong>Constancia Presupuestaria</strong></td><td>Quién la declaró (con nombre), fecha, referencia y adjunto PDF opcional.</td><td>Evidencia de la gestión externa de disponibilidad; el sistema no la calcula.</td></tr>
+            <tr><td><strong>Resultado Psicofísico</strong></td><td>Resultado (apto o no apto), fecha de aplicación, observaciones e informe PDF opcional.</td><td>Solo el resultado: el test se aplica fuera del sistema.</td></tr>
+            <tr><td rowspan="2"><strong>Documentación y Planillas</strong></td><td><strong>Punto de Cuenta de ingreso</strong></td><td>Número correlativo, PDF, estado (emitido, firmado, rechazado), puesto y constancia de referencia.</td><td>Instrumento que sube a la Dirección General; ya construido.</td></tr>
+            <tr><td><strong>Plantillas y registro de planillas</strong> <span class="pill pill-partial">pendiente</span></td><td>Formatos institucionales homologados (HCM, Oferta, Caja de Ahorro), copia fiel y archivo PDF.</td><td>Generación estandarizada y versionada; espera los PDF oficiales.</td></tr>
+            <tr><td rowspan="2"><strong>Portal de Autogestión</strong></td><td><strong>Solicitudes de Actualización</strong></td><td>Trabajador solicitante, secciones solicitadas, estado y ventana de atención.</td><td>Gestión de ventanas de actualización habilitadas por Bienestar Social.</td></tr>
             <tr><td><strong>Registro de Cambios Propuestos</strong></td><td>Campo modificado, valor anterior, valor propuesto y soporte probatorio digital.</td><td>Borrador comparativo para revisión y aprobación selectiva antes de impactar la ficha.</td></tr>
-            <tr><td rowspan="2"><strong>Integración con Nómina</strong></td><td><strong>Bandeja de Eventos de Nómina</strong></td><td>Tipo de movimiento (ingreso, traslado, suspensión), fecha y datos del funcionario.</td><td>Transmisión automática y asíncrona de movimientos a nómina.</td></tr>
-            <tr><td><strong>Homologación de Catálogos</strong></td><td>Equivalencias oficiales entre denominaciones de cargos, dependencias y conceptos.</td><td>Garantía de consistencia entre GATH y el sistema SIGESP-Nómina.</td></tr>
+            <tr><td rowspan="2"><strong>Ficha del trabajador</strong></td><td><strong>Procedencia del ingreso</strong></td><td>Identificador opaco del expediente de origen (sin vínculo directo con el módulo de postulación).</td><td>Trazabilidad de cómo entró cada trabajador.</td></tr>
+            <tr><td><strong>Foto de carnet</strong></td><td>Clave opaca del archivo y fecha de actualización.</td><td>La misma foto que cargó el postulante llega al carnet.</td></tr>
+            <tr><td rowspan="2"><strong>Integración con Nómina</strong> <span class="pill pill-gap">fuera de alcance</span></td><td><strong>Bandeja de Eventos de Nómina</strong></td><td>Tipo de movimiento, fecha y datos del funcionario.</td><td>Sin construir: el sistema de nómina destino está por definir.</td></tr>
+            <tr><td><strong>Homologación de Catálogos</strong></td><td>Equivalencias entre denominaciones de cargos, dependencias y conceptos.</td><td>Sin construir.</td></tr>
           </tbody>
         </table>
       </div>
@@ -764,24 +918,36 @@ flowchart TD
       <div class="section-head">
         <span class="kicker">05 · Estructura funcional</span>
         <h2>Roles y matriz de permisos en el sistema</h2>
-        <p>Control de acceso basado en responsabilidades formales. Cada dependencia cuenta con permisos estrictos sobre su etapa del proceso.</p>
+        <p>La autorización vive en el servidor y es por <strong>permiso</strong>, no por nombre de rol: cada acción exige su permiso o se deniega y se audita. Los roles son agrupaciones de permisos que el usuario asigna a las personas.</p>
       </div>
 
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Perfil institucional</th><th>Dependencia / Área</th><th>Atribuciones y acciones autorizadas</th></tr></thead>
+          <thead><tr><th>Perfil institucional</th><th>Dependencia / Área</th><th>Permisos y atribuciones</th></tr></thead>
           <tbody>
-            <tr><td><strong>Postulante</strong></td><td>Candidato externo</td><td>Acceso temporal a su propio expediente para carga de datos básicos, test psicofísico, familiares y planillas.</td></tr>
-            <tr><td><strong>Analista de Captación</strong></td><td>Gerencia de RRHH · Captación</td><td>Pre-registro de postulantes, entrega de credenciales, verificación de recaudos, propuesta de cargos y contratación formal.</td></tr>
-            <tr><td><strong>Analista de Presupuesto</strong></td><td>Gerencia de RRHH · Presupuesto</td><td>Verificación de vacantes, creación de códigos de cargo, reserva de puestos y emisión de Puntos de Cuenta.</td></tr>
-            <tr><td><strong>Dirección General</strong></td><td>Máxima Autoridad</td><td>Revisión y aprobación formal de Puntos de Cuenta para el ingreso de nuevo personal.</td></tr>
-            <tr><td><strong>Analista de Bienestar Social</strong></td><td>Gerencia de RRHH · Bienestar Social</td><td>Habilitación de ventanas de autogestión, revisión de diferencias y aprobación selectiva de cambios y recaudos.</td></tr>
-            <tr><td><strong>Trabajador Activo</strong></td><td>Todo el personal de CONATEL</td><td>Consulta permanente de su ficha integral de personal, solicitud de actualización y carga de recaudos.</td></tr>
-            <tr><td><strong>Analista de RRHH</strong></td><td>Gerencia de RRHH · Operaciones</td><td>Administración del personal activo y emisión de carnets institucionales de identificación.</td></tr>
-            <tr><td><strong>Administrador del Sistema</strong></td><td>Tecnología / Talento Humano</td><td>Configuración de plantillas oficiales, catálogo de cargos, supervisión de sincronización y conciliación con nómina.</td></tr>
+            <tr><td><strong>Postulante</strong></td><td>Candidato externo</td><td>No es un rol ni una cuenta: tiene una sesión de invitado acotada a su propio expediente para cargar sus datos básicos, familiares, vivienda, salud, tallas y foto.</td></tr>
+            <tr><td><strong>Captación</strong> <span class="pill pill-ok">rol nuevo</span></td><td>Gerencia de RRHH · Captación</td><td>Bandeja de expedientes, alta y reposición de credenciales, devolución y rechazo, registro del test psicofísico, apertura hacia Presupuesto, revisión final y asignación del cargo.</td></tr>
+            <tr><td><strong>Presupuesto</strong> <span class="pill pill-ok">ampliado</span></td><td>Gerencia de RRHH · Presupuesto</td><td>Solicitudes y vacantes, reserva de puestos, constancia de disponibilidad, devolución o diferimiento y emisión del Punto de Cuenta.</td></tr>
+            <tr><td><strong>Dirección General</strong> <span class="pill pill-ok">rol nuevo</span></td><td>Máxima Autoridad</td><td>Ver los ingresos pendientes y aprobar o rechazar (con motivo) el Punto de Cuenta del ingreso de nuevo personal.</td></tr>
+            <tr><td><strong>Bienestar Social</strong></td><td>Gerencia de RRHH · Bienestar Social</td><td>Habilitación de ventanas de autogestión, revisión de diferencias y aprobación selectiva de cambios y recaudos.</td></tr>
+            <tr><td><strong>Trabajador Activo</strong></td><td>Todo el personal de CONATEL</td><td>Consulta permanente de su ficha, solicitud de actualización, carga de recaudos y solicitud de carnet.</td></tr>
+            <tr><td><strong>Analista de RRHH</strong></td><td>Gerencia de RRHH · Operaciones</td><td>Administración del personal activo y emisión de carnets institucionales.</td></tr>
+            <tr><td><strong>Administrador del Sistema</strong></td><td>Tecnología / Talento Humano</td><td>Todo el catálogo de permisos: parámetros, plantillas de carnet, roles y supervisión.</td></tr>
           </tbody>
         </table>
       </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Quién</th><th>Permisos de postulación</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Captación</strong> (8)</td><td><span class="mono">ver_bandeja · crear_postulante · verificar · rechazar · registrar_psicofisico · abrir_expediente · revision_final · ver_auditoria</span></td></tr>
+            <tr><td><strong>Presupuesto</strong> (5)</td><td><span class="mono">ver_solicitudes · reservar_puesto · declarar_disponibilidad · devolver_solicitud · emitir_punto_cuenta</span></td></tr>
+            <tr><td><strong>Dirección General</strong> (2)</td><td><span class="mono">ver_ingresos · aprobar_ingreso</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="margin-top:1rem; font-size:.85rem; color:var(--muted);">Quien tenga el permiso de declarar disponibilidad presupuestaria puede registrarla; queda guardado su nombre como responsable. Los roles de Captación, Presupuesto y Dirección General se crean con sus permisos y el usuario los asigna a las personas.</p>
     </section>
 
     <!-- ============ DOCUMENTOS ============ -->
@@ -794,18 +960,60 @@ flowchart TD
 
       <div class="table-wrap">
         <table>
-          <thead><tr><th>#</th><th>Documento institucional</th><th>Momento de emisión</th><th>Tipo de formato</th><th>Datos precargados automáticamente</th></tr></thead>
+          <thead><tr><th>#</th><th>Documento institucional</th><th>Momento de emisión</th><th>Tipo de formato</th><th>Datos precargados automáticamente</th><th>Estado</th></tr></thead>
           <tbody>
-            <tr><td>1</td><td><strong>Punto de Cuenta</strong></td><td>Presupuesto → Dirección General</td><td>Documento oficial generado</td><td>Nombres, cédula, cargo, oficina, código de vacante, sueldo y referencia presupuestaria.</td></tr>
-            <tr><td>2</td><td><strong>Oferta de Servicios</strong></td><td>Ventana 2 (Postulante)</td><td>Formato oficial estampado</td><td>Identidad completa, dirección, teléfonos, nivel académico y cargo propuesto.</td></tr>
-            <tr><td>3</td><td><strong>Afiliación Caja de Ahorro</strong></td><td>Ventana 2 (Postulante)</td><td>Formato oficial estampado</td><td>Identidad, cargo, tipo de nómina y porcentaje de aporte seleccionado.</td></tr>
-            <tr><td>4</td><td><strong>Planilla HCM (Seguros Miranda)</strong></td><td>Ventana 2 (Postulante)</td><td>Formato oficial estampado</td><td>Titular + <strong>Grupo familiar completo</strong> (parentescos, cédulas, fechas de nacimiento).</td></tr>
-            <tr><td>5</td><td><strong>Notificación de Itinerancia</strong></td><td>Tras la Asignación del cargo</td><td>Documento oficial generado</td><td>Identidad, cargo, oficina de adscripción y fecha de inicio de actividades.</td></tr>
-            <tr><td>6</td><td><strong>Contrato de Trabajo</strong></td><td>Consolidación final</td><td>Documento oficial generado</td><td>Cláusulas legales, denominación del cargo, remuneración y período de vigencia.</td></tr>
+            <tr><td>1</td><td><strong>Punto de Cuenta</strong></td><td>Presupuesto → Dirección General</td><td>Documento oficial generado</td><td>Nombres, cédula, cargo, oficina, código del puesto y referencia presupuestaria.</td><td><span class="pill pill-ok">Construido</span></td></tr>
+            <tr><td>2</td><td><strong>Oferta de Servicios</strong></td><td>Ventana 2 (Postulante)</td><td>Formato oficial estampado</td><td>Identidad completa, dirección, teléfonos, nivel académico y cargo propuesto.</td><td><span class="pill pill-partial">Pendiente</span></td></tr>
+            <tr><td>3</td><td><strong>Afiliación Caja de Ahorro</strong></td><td>Ventana 2 (Postulante)</td><td>Formato oficial estampado</td><td>Identidad, cargo, tipo de nómina y porcentaje de aporte seleccionado.</td><td><span class="pill pill-partial">Pendiente</span></td></tr>
+            <tr><td>4</td><td><strong>Planilla HCM (Seguros Miranda)</strong></td><td>Ventana 2 (Postulante)</td><td>Formato oficial estampado</td><td>Titular + <strong>Grupo familiar completo</strong> (parentescos, cédulas, fechas de nacimiento).</td><td><span class="pill pill-partial">Pendiente</span></td></tr>
+            <tr><td>5</td><td><strong>Notificación de Itinerancia</strong></td><td>Tras la Asignación del cargo</td><td>Documento oficial generado</td><td>Identidad, cargo, oficina de adscripción y fecha de inicio de actividades.</td><td><span class="pill pill-partial">Pendiente</span></td></tr>
+            <tr><td>6</td><td><strong>Contrato de Trabajo</strong></td><td>Consolidación final</td><td>Documento oficial generado</td><td>Cláusulas legales, denominación del cargo, remuneración y período de vigencia.</td><td><span class="pill pill-partial">Pendiente</span></td></tr>
           </tbody>
         </table>
       </div>
-      <p style="margin-top:1rem; font-size:.85rem; color:var(--muted);">El mayor ahorro operativo se logra en la planilla de HCM, que hoy obliga a transcribir a mano a todos los beneficiarios familiares; al estar registrados previamente en el sistema, la planilla se emite 100% prellenada y lista para su conformación.</p>
+      <p style="margin-top:1rem; font-size:.85rem; color:var(--muted);">El mayor ahorro operativo se logra en la planilla de HCM, que hoy obliga a transcribir a mano a todos los beneficiarios familiares; al estar registrados previamente en el sistema, la planilla se emite 100% prellenada y lista para su conformación. <strong>Hoy la Ventana 2 ya captura el grupo familiar</strong>; falta estampar esos datos sobre el PDF oficial, que debe entregar el área usuaria. La firma del postulante será un clic de «acepto y declaro» con fecha, hora, IP y huella del documento.</p>
+    </section>
+
+    <!-- ============ NOTIFICACIONES ============ -->
+    <section id="notificaciones">
+      <div class="section-head">
+        <span class="kicker">05 · Estructura funcional</span>
+        <h2>Notificaciones y avisos del flujo</h2>
+        <p>Cada aviso se dirige a un <strong>permiso</strong>: le llega a todas las cuentas que lo tengan. El primero que actúa sobre un caso lo resuelve para todos: las demás copias pasan a «atendidas» (con el nombre de quien actuó) y salen del contador de la campana.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Aviso</th><th>Se emite cuando</th><th>Le llega a</th><th>Se resuelve cuando</th></tr></thead>
+          <tbody>
+            <tr><td><span class="mono">EXPEDIENTE_RECIBIDO</span></td><td>El postulante envía la Ventana 1 o su corrección.</td><td>Captación</td><td>Captación actúa sobre el expediente.</td></tr>
+            <tr><td><span class="mono">EXPEDIENTE_REVISION_FINAL</span></td><td>El postulante envía la Ventana 2.</td><td>Captación</td><td>Captación observa, da conforme o contrata.</td></tr>
+            <tr><td><span class="mono">EXPEDIENTE_EN_PRESUPUESTO</span></td><td>Captación abre hacia Presupuesto, o el puesto reservado se perdió.</td><td>Presupuesto</td><td>Presupuesto devuelve, difiere o emite el Punto de Cuenta.</td></tr>
+            <tr><td><span class="mono">EXPEDIENTE_CORRECCION_CARGO</span></td><td>Presupuesto devuelve por cargo u oficina, con el motivo.</td><td>Captación</td><td>Captación reabre hacia Presupuesto.</td></tr>
+            <tr><td><span class="mono">EXPEDIENTE_EN_DIRECCION</span></td><td>Presupuesto emite el Punto de Cuenta.</td><td>Dirección General</td><td>Dirección General aprueba o rechaza.</td></tr>
+            <tr><td><span class="mono">INGRESO_APROBADO</span></td><td>Dirección General aprueba.</td><td>Captación</td><td>Captación reabre la Ventana 2.</td></tr>
+            <tr><td><span class="mono">CONTACTAR_POSTULANTE</span> <span class="pill pill-gap">crítico</span></td><td>Se reabre la Ventana 2 o se observan faltantes.</td><td>Captación</td><td>Captación lo marca «ya lo contacté», el postulante envía o se contrata.</td></tr>
+            <tr><td><span class="mono">CONTACTO_ATRASADO</span></td><td>El contacto pendiente supera las 48 horas (parámetro), una sola vez por reapertura.</td><td>Captación</td><td>Igual que el anterior.</td></tr>
+            <tr><td><span class="mono">CONTRATACION_COMPLETADA</span></td><td>La asignación del cargo fue exitosa.</td><td>Captación</td><td>Informativo.</td></tr>
+            <tr><td><span class="mono">CARNET_PENDIENTE</span></td><td>El contratado ya tiene foto y aún no tiene carnet.</td><td>Quien emite carnets</td><td>Informativo.</td></tr>
+            <tr><td><span class="mono">CORREO_INSTITUCIONAL_PENDIENTE</span></td><td>Se contrató a alguien cuyo correo no es institucional.</td><td>RRHH (edición de fichas)</td><td><strong>Se resuelve solo</strong> al cargarse el correo y crearse la cuenta.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <span class="pill pill-info">Casi en tiempo real</span>
+          <h4 style="margin-top:.8rem;">Sondeo de 15 segundos con ETag</h4>
+          <p style="font-size:.88rem; margin-top:.4rem;">El navegador consulta un estado liviano cada 15 segundos, solo con la pestaña visible; si nada cambió, el servidor responde «sin cambios» sin cuerpo. Al volver a la ventana o recuperar la conexión se revalida, y el aviso emergente aparece únicamente si el estado cambió.</p>
+        </div>
+        <div class="card">
+          <span class="pill pill-partial">Por qué no SSE</span>
+          <h4 style="margin-top:.8rem;">Qué haría falta para tenerlo</h4>
+          <p style="font-size:.88rem; margin-top:.4rem;">El servidor trabaja con procesos síncronos: una conexión de transmisión continua ocuparía un proceso por cada usuario conectado y agotaría el servicio. Para SSE real se necesita servir la aplicación en modo asíncrono (ASGI) o un servicio de transmisión aparte, un canal de eventos entre procesos (Redis ya existe), un proxy sin almacenamiento en búfer y reconexión con identificador del último evento.</p>
+        </div>
+      </div>
+      <p style="margin-top:.4rem; font-size:.85rem; color:var(--muted);">El postulante no recibe campana (no tiene cuenta). Si dejó un correo personal, recibe los correos de cortesía descritos en la sección de credenciales, que nunca incluyen contraseña.</p>
     </section>
 
     <!-- ============ INFRAESTRUCTURA ============ -->
@@ -820,7 +1028,7 @@ flowchart TD
         <pre class="mermaid">
 flowchart TB
   BROWSER["Navegador del Usuario"] --> NGX["Punto de Entrada Seguro (HTTPS)<br/>Protección perimetral y cifrado"]
-  
+
   subgraph REDAPP["Servidores de Aplicación"]
     NGX --> APP["Plataforma Web y Portal de Usuarios"]
     NGX --> CORE["Motor de Negocio y Servicios GATH"]
@@ -828,29 +1036,76 @@ flowchart TB
   end
 
   subgraph REDTASK["Gestor de Procesos en Segundo Plano"]
-    CORE --> MQ["Cola Centralizada de Mensajería y Tareas"]
-    MQ --> WD["Generador de Documentos y Carnets"]
-    MQ --> WS["Sincronizador con Sistema de Nómina"]
-    MQ --> WM["Servicio de Notificaciones y Avisos"]
+    CORE --> MQ["Cola de mensajería (RabbitMQ)"]
+    MQ --> WD["Cola docs: PDF, carnets y exportaciones"]
+    MQ --> WM["Cola mail: correos y avisos"]
+    MQ --> WT["Cola maint: vencimientos y limpiezas"]
     BEAT["Programador de Tareas Periódicas"] --> MQ
   end
 
-  subgraph REDSW["Almacenamiento Centralizado de Documentos"]
-    CORE --> S3G["Gestor de Archivos y Fotografías"]
+  subgraph REDSW["Almacenamiento de Archivos (solo red interna)"]
+    CORE --> S3G["Puerta S3 con identidad de aplicación"]
     WD --> S3G
   end
 
-  subgraph REDDB["Base de Datos Institucional"]
+  subgraph REDDB["Datos y caché"]
     CORE --> PG[("Base de Datos Principal GATH")]
     WD --> PG
-    WS --> PG
     WM --> PG
+    WT --> PG
+    CORE --> RD[("Caché y resultados de tareas (Redis)")]
   end
 
-  WS --> SIGESP["Sistema SIGESP-Nómina Externo"]
+  NOM["Sistema de nómina<br/>(por definir, sin integrar)"]
+  CORE -.-> NOM
+  style NOM fill:#f5f5f5,stroke:#9e9e9e,stroke-dasharray: 5 5
         </pre>
-        <p class="cap">Topología de arquitectura en capas. El acceso de los usuarios interactúa exclusivamente con el punto de entrada protegido, manteniendo aislados los servicios de datos y almacenamiento.</p>
+        <p class="cap">Topología de arquitectura en capas. El acceso de los usuarios interactúa exclusivamente con el punto de entrada protegido; el almacenamiento y los servicios de mensajería no se publican al exterior. La separación de colas es opcional y se activa con un indicador de configuración.</p>
       </div>
+    </section>
+
+    <!-- ============ SEGURIDAD ============ -->
+    <section id="seguridad">
+      <div class="section-head">
+        <span class="kicker">05 · Seguridad y operación</span>
+        <h2>Seguridad de archivos y operación</h2>
+        <p>Cómo se protegen los documentos personales y qué tareas mantienen el sistema en orden sin intervención manual.</p>
+      </div>
+
+      <div class="rule-grid">
+        <div class="rule">
+          <div class="icon">🔑</div>
+          <h4>Claves opacas</h4>
+          <p>Todo archivo nuevo se guarda con un nombre aleatorio que no contiene la cédula; la correspondencia vive en la base de datos y hereda su control de acceso. Los soportes antiguos se migran con un comando en seco y luego aplicado.</p>
+        </div>
+        <div class="rule">
+          <div class="icon">📜</div>
+          <h4>Bitácora de descargas</h4>
+          <p>Cada descarga de un archivo protegido registra quién, qué, cuándo, desde dónde y con qué resultado, sin guardar el contenido. Se consulta en Auditoría y exige permiso.</p>
+        </div>
+        <div class="rule">
+          <div class="icon">🗄️</div>
+          <h4>Almacén autenticado</h4>
+          <p>SeaweedFS no se publica al exterior y exige una identidad de aplicación sin privilegios de administración, generada al arrancar desde las claves del servidor. Sin claves, no arranca.</p>
+        </div>
+        <div class="rule">
+          <div class="icon">🚪</div>
+          <h4>Servido siempre por el servidor</h4>
+          <p>El navegador nunca recibe la dirección del almacén: el servidor autentica, autoriza, entrega el archivo y deja el asiento en la bitácora.</p>
+        </div>
+        <div class="rule">
+          <div class="icon">⏱️</div>
+          <h4>Vencimientos automáticos</h4>
+          <p>Cada 15 minutos el sistema libera reservas vencidas, desiste los diferidos cuya espera caducó, expira ventanas de postulantes y escala los contactos atrasados.</p>
+        </div>
+        <div class="rule">
+          <div class="icon">✅</div>
+          <h4>Migraciones verificadas</h4>
+          <p>Un script aplica todas las migraciones desde cero en una base desechable y las revierte, para detectar fallos antes de desplegar. Resultado actual: sin fallos.</p>
+        </div>
+      </div>
+
+      <div class="callout"><p><strong>Hallazgo operativo:</strong> la tarea programada de préstamos de cargo (<span class="mono">cargos.procesar_vencimientos_prestamos</span>) nunca corría en el worker por un registro faltante. Quedó corregido; al desplegar, su primera corrida procesará de una vez los préstamos de cargo atrasados.</p></div>
     </section>
 
     <!-- ============ FRONTEND ============ -->
@@ -869,7 +1124,7 @@ sequenceDiagram
     participant MW as Control de Acceso Web
     participant API as Servicios Backend GATH
 
-    POS->>MW: Ingresa con Cédula y Contraseña temporal
+    POS->>MW: Ingresa con Cédula y Contraseña (o crea su contraseña desde el enlace del correo)
     MW->>API: Valida credencial, ventana activa y vigencia
     alt Credencial Válida
         API-->>MW: Sesión temporal de invitado (vigencia acotada)
@@ -883,8 +1138,36 @@ sequenceDiagram
         MW-->>POS: Mensaje informativo "Cédula o contraseña incorrecta"
     end
         </pre>
-        <p class="cap">Autenticación segura y acotada del postulante, garantizando que solo visualice los formularios asignados a su fase.</p>
+        <p class="cap">Autenticación segura y acotada del postulante, garantizando que solo visualice los formularios asignados a su fase. La sesión dura como máximo 2 horas, usa un proveedor propio separado del de los empleados y el error de acceso nunca revela si una cédula está registrada.</p>
       </div>
+    </section>
+
+    <!-- ============ DECISIONES ============ -->
+    <section id="decisiones">
+      <div class="section-head">
+        <span class="kicker">06 · Decisiones tomadas</span>
+        <h2>Decisiones del área usuaria y su efecto en el sistema</h2>
+        <p>Las preguntas abiertas de la propuesta original quedaron resueltas. Los valores marcados como parámetro se editan en <em>Gestión del sistema</em>, grupo «Captación», sin tocar código.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Decisión</th><th>Qué se decidió</th><th>Cómo quedó en el sistema</th></tr></thead>
+          <tbody>
+            <tr><td><strong>C-1 · Reingreso de un egresado</strong></td><td>La misma persona con un expediente nuevo: conserva su historial y no duplica la cédula.</td><td>Se reutiliza el trabajador existente; solo se rechaza el alta si la cédula pertenece a un trabajador activo.</td></tr>
+            <tr><td><strong>C-2 · Quién declara la disponibilidad</strong></td><td>Quien tenga el permiso de declararla (p. ej. administrador de Presupuesto o quien designe el usuario).</td><td>Queda registrado con su nombre.</td></tr>
+            <tr><td><strong>C-3 · Vigencia de las ventanas</strong></td><td>Parámetro configurable por ventana.</td><td><span class="mono">captacion.vigencia_ventana1_dias</span> y <span class="mono">…ventana2_dias</span> (15 días cada una por defecto).</td></tr>
+            <tr><td><strong>C-4 · Vigencia de la reserva de puesto</strong></td><td>Parámetro configurable; al vencer se libera sola.</td><td><span class="mono">captacion.vigencia_reserva_puesto_dias</span> (30 días).</td></tr>
+            <tr><td><strong>C-5 · Firma del postulante</strong></td><td>Clic de «acepto y declaro» con fecha, hora, IP y huella (sha256) del documento; sin firma electrónica certificada por ahora.</td><td>Decidido; se construye junto con los documentos digitales.</td></tr>
+            <tr><td><strong>C-6 · Test psicofísico</strong></td><td>Solo se carga el resultado y el informe; que sea obligatorio o no, parametrizable.</td><td><span class="mono">captacion.psicofisico_obligatorio</span> (sí por defecto).</td></tr>
+            <tr><td><strong>C-7 · Retención de rechazados</strong></td><td>Plazo parametrizable; el valor lo fija Consultoría Jurídica.</td><td><span class="mono">captacion.retencion_rechazados_meses</span> (24 por defecto). La tarea de purga aún no existe.</td></tr>
+            <tr><td><strong>C-8 · Roles</strong></td><td>Crear Captación, Presupuesto y Dirección General con sus permisos; el usuario los asigna a las personas.</td><td>Roles creados con sus permisos; ninguno asignado a personas por el sistema.</td></tr>
+            <tr><td><strong>C-9 · ¿Puede postularse un jubilado o pensionado?</strong></td><td><span class="pill pill-partial">Por aclarar</span> Provisionalmente sí.</td><td>Solo se rechaza a quien está activo. Falta confirmarlo con el área usuaria.</td></tr>
+            <tr><td><strong>C-10 · Espera de un expediente diferido</strong></td><td>Parámetro; pasado el plazo, el expediente se desiste.</td><td><span class="mono">captacion.espera_diferido_dias</span> (90 días).</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="margin-top:1rem; font-size:.85rem; color:var(--muted);">Parámetros añadidos durante la construcción: <span class="mono">captacion.horas_escalamiento_contacto</span> (48 horas: pasado ese tiempo el contacto pendiente escala) y <span class="mono">captacion.horas_vigencia_enlace_activacion</span> (48 horas, de 1 a 168: vigencia del enlace de activación).</p>
     </section>
 
     <!-- ============ GOBERNANZA ============ -->
@@ -899,9 +1182,9 @@ sequenceDiagram
         <table>
           <thead><tr><th>Aspecto institucional</th><th>Criterio establecido</th><th>Beneficio operativo</th></tr></thead>
           <tbody>
-            <tr><td><strong>Integración con SIGESP-Nómina</strong></td><td>Sincronización asíncrona automatizada (ETL transaccional).</td><td><span class="pill pill-ok">Sin doble carga</span> Los movimientos aprobados en la base de datos de GATH viajan automáticamente a la base de datos de SIGESP sin duplicar trabajo manual.</td></tr>
-            <tr><td><strong>Retención de no contratados</strong></td><td>Parámetro configurable por el Administrador según dictamen de Consultoría Jurídica.</td><td><span class="pill pill-ok">Gestión administrable</span> Permite a la institución ajustar el tiempo de conservación y la purga programada de recaudos.</td></tr>
-            <tr><td><strong>Reingreso de personal egresado</strong></td><td>Reactivación del expediente de empleado conservando su histórico de servicios.</td><td><span class="pill pill-ok">Trazabilidad histórica</span> Mantiene la continuidad de antecedentes laborales y administrativos del funcionario.</td></tr>
+            <tr><td><strong>Integración con nómina</strong></td><td>Patrón de entrega asíncrona con reintentos y conciliación; el sistema de nómina destino está por definir y nunca se escribirá directo en sus tablas.</td><td><span class="pill pill-partial">Pendiente de definición</span> Fuera de alcance hasta conocer el sistema destino y su canal de entrega.</td></tr>
+            <tr><td><strong>Retención de no contratados</strong></td><td>Parámetro configurable por el Administrador según dictamen de Consultoría Jurídica (24 meses por defecto). El expediente rechazado se conserva con su motivo y auditoría.</td><td><span class="pill pill-partial">Plazo listo, purga pendiente</span> Permite ajustar el tiempo de conservación; la tarea que purga los recaudos aún no se ha construido.</td></tr>
+            <tr><td><strong>Reingreso de personal egresado</strong></td><td>La misma persona con un expediente nuevo, conservando su histórico de servicios y sin duplicar la cédula.</td><td><span class="pill pill-ok">Trazabilidad histórica</span> Mantiene la continuidad de antecedentes laborales y administrativos del funcionario.</td></tr>
             <tr><td><strong>Diseño del carnet institucional</strong></td><td>Parametrización visual de anverso y reverso según las directrices de Imagen Institucional.</td><td><span class="pill pill-info">Flexibilidad de formato</span> Permite actualizar las plantillas vigentes sin alterar el motor de generación.</td></tr>
           </tbody>
         </table>
@@ -926,9 +1209,9 @@ sequenceDiagram
                 • <strong>Portal de postulación en dos ventanas:</strong> Carga de datos básicos, test psicofísico, familiares, tallas y foto.<br/>
                 • <strong>Verificación de vacantes y presupuesto:</strong> Consulta automática de puestos, reserva temporal y constancia presupuestaria.<br/>
                 • <strong>Punto de Cuenta formal:</strong> Emisión digital y ruta de aprobación ante la Dirección General.<br/>
-                • <strong>Planillas oficiales prellenadas:</strong> Emisión automática de HCM, Oferta de Servicios y Caja de Ahorro.<br/>
+                • <strong>Planillas oficiales prellenadas:</strong> Emisión automática de HCM, Oferta de Servicios y Caja de Ahorro <em>(pendiente: espera los PDF oficiales)</em>.<br/>
                 • <strong>Asignación formal del cargo:</strong> Contratación atómica y alta oficial del trabajador.<br/>
-                • <strong>Sincronización con Nómina:</strong> Despacho automático de movimientos administrativos desde la base de datos de GATH hacia la base de datos de SIGESP-Nómina.
+                • <strong>Sincronización con Nómina:</strong> Despacho automático de movimientos administrativos con reintentos y conciliación <em>(fuera de alcance: sistema destino por definir)</em>.
               </td>
               <td>Postulantes, Captación, Presupuesto, Dirección General y Nómina</td>
             </tr>
@@ -947,7 +1230,7 @@ sequenceDiagram
               <td>
                 • <strong>Catálogo de plantillas institucionales:</strong> Formatos oficiales de anverso y reverso según el tipo de personal.<br/>
                 • <strong>Diseñador visual de credenciales:</strong> Herramienta web interactiva para ajustar posiciones, fotos y textos variables.<br/>
-                • <strong>Generación e impresión:</strong> Emisión de carnets listos para imprimir con marcas de corte y código QR de validación.
+                • <strong>Generación e impresión:</strong> Emisión de carnets listos para imprimir con marcas de corte y código QR de validación, ciclo físico (emitido, impreso, entregado) y lote de trabajadores.
               </td>
               <td>Gerencia de RRHH e Identificación Institucional</td>
             </tr>
@@ -955,9 +1238,9 @@ sequenceDiagram
               <td><strong>4. Seguridad y Gestión de Usuarios</strong><br/><span style="font-size:.82rem; color:var(--muted);">(Administración de Cuentas, Perfiles y Auditoría)</span></td>
               <td>
                 • <strong>Gestión integral de cuentas de usuario:</strong> Creación, activación, suspensión y mantenimiento de cuentas institucionales para todas las dependencias.<br/>
-                • <strong>Control de acceso y asignación de roles:</strong> Matriz estricta de perfiles institucionales (Administrador, Captación, Presupuesto, Dirección General, Bienestar Social, Analista RRHH, Autogestión) con autorizaciones validadas en el servidor.<br/>
-                • <strong>Credenciales y sesiones temporales:</strong> Emisión de contraseñas de primer uso, control de intentos fallidos, vigencia acotada y revocación automática para postulantes.<br/>
-                • <strong>Historial de auditoría y trazabilidad:</strong> Registro inalterable de cada inicio de sesión, visto bueno, aprobación, fecha y usuario responsable.<br/>
+                • <strong>Control de acceso por permisos:</strong> Matriz de perfiles institucionales (Administrador, Captación, Presupuesto, Dirección General, Bienestar Social, Analista RRHH, Autogestión) con cada acción autorizada por permiso en el servidor.<br/>
+                • <strong>Credenciales y sesiones temporales:</strong> Contraseña de primer uso entregada en persona o enlace de activación de un solo uso, control de intentos fallidos, vigencia acotada y revocación para postulantes.<br/>
+                • <strong>Historial de auditoría y trazabilidad:</strong> Registro inalterable de cada inicio de sesión, aprobación, cambio de estado y descarga de archivos protegidos, con fecha y usuario responsable.<br/>
                 • <strong>Políticas de protección y seguridad:</strong> Bloqueo preventivo de cuentas, restablecimiento seguro de claves y resguardo cifrado de recaudos institucionales.
               </td>
               <td>Administradores del sistema, Auditoría Interna, Tecnología y Gerencia de RRHH</td>
@@ -967,8 +1250,27 @@ sequenceDiagram
       </div>
     </section>
 
+    <!-- ============ HISTORIAL ============ -->
+    <section id="revisiones">
+      <div class="section-head">
+        <span class="kicker">08 · Control de versiones</span>
+        <h2>Historial de revisiones</h2>
+        <p>Cambios de este documento a lo largo de la Fase 2.</p>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Fecha</th><th>Revisión</th></tr></thead>
+          <tbody>
+            <tr><td>Agosto de 2026</td><td>Versión original: propuesta técnica y funcional de la Fase 2 con diagramas de flujo, modelo de información, roles, infraestructura y decisiones pendientes.</td></tr>
+            <tr><td>24 de noviembre de 2026</td><td>El documento refleja lo realmente construido. Se agregó el estado de implementación y se reemplazaron las preguntas abiertas por las decisiones tomadas. Correcciones frente al diseño: 17 estados y 24 transiciones (no 16), la contratación se ejecuta por su propia acción de asignación, el test psicofísico solo registra resultado e informe, el acceso del postulante se entrega en persona o por enlace de activación, la cuenta del sistema solo se crea con correo institucional, el catálogo de avisos lista lo realmente emitido, los avisos casi en tiempo real usan sondeo en vez de SSE, el carnet toma el diseño de la nómina, y se documentan claves opacas, bitácora de descargas, colas de tareas y verificación de migraciones. La sincronización con nómina queda marcada como por definir y los documentos digitales como pendientes.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
     <footer>
-      Documento técnico y funcional de la Segunda Fase del Sistema GATH · Elaborado sobre el levantamiento de procesos de RRHH y el diseño arquitectural del sistema · Agosto de 2026.
+      Documento técnico y funcional de la Segunda Fase del Sistema GATH · Elaborado sobre el levantamiento de procesos de RRHH y el diseño arquitectural del sistema · Agosto de 2026 · Estado de implementación actualizado el 24 de noviembre de 2026.
     </footer>
   </main>
 </div>

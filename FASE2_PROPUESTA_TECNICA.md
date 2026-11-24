@@ -1,9 +1,70 @@
 # GATH — Fase 2
 
-## Onboarding digital, Autogestión, Carnetización de dos caras y Sincronización con SIGEP
+## Onboarding digital, Autogestión, Carnetización de dos caras y (por definir) Sincronización con nómina
 
-**Documento técnico** · CONATEL · rama `dev` · verificado sobre código el 21-08-2026
-Referencia base: `propuesta-gath.jpg` y `PLAN_RECONSTRUCCION_ONION.md`
+**Documento técnico** · CONATEL · rama `feature/fase2-captacion-carnet` · diseño verificado sobre código el 21-08-2026 · **estado de implementación actualizado el 24-11-2026**
+Referencia base: `propuesta-gath.jpg` y `PLAN_RECONSTRUCCION_ONION.md` · Seguimiento detallado: `FASE2_SEGUIMIENTO.md`
+
+---
+
+## Estado de implementación (24-11-2026)
+
+Este documento nació como propuesta (21-08-2026). Hoy el circuito de ingreso **funciona de punta a punta**, del alta del
+postulante hasta la ficha del trabajador contratado, y el carnet de dos caras está en operación. Donde lo construido
+difiere del diseño original, la sección correspondiente lo indica como **Implementado**; ante cualquier duda manda el
+código y, después, `FASE2_SEGUIMIENTO.md`.
+
+| Bloque (seguimiento) | Alcance | Estado |
+|---|---|---|
+| **A** · Carnet: lo diseñado = lo impreso | un solo dibujador de cara, biblioteca, rotación y opacidad, plantilla según la condición real, solicitudes de carnet | ✅ 9/9 |
+| **B** · Carnet: funciones faltantes | vista previa PDF, fondo por cara, formato imprenta (sangrado y marcas), PDF guardado, ciclo físico, lote de trabajadores, plantilla `LEGACY` | ✅ 11/11 |
+| **K** · Hallazgos de auditoría del carnet | orden dúplex del lote, color por nómina real, reglas de uso de plantilla, EXIF, límites de píxeles, etc. | ✅ 16/16 |
+| **C** · Decisiones de Captación | C-1…C-10 (ver §9) | ✅ 9/10 · C-9 por aclarar |
+| **D** · Captación, Ventana 1 | app `postulacion`, máquina de 17 estados, credencial, sesión de invitado, bandeja, psicofísico, enlace de activación | ✅ 10/10 |
+| **E** · Presupuesto y Dirección General | vacantes, reserva, constancia, Punto de Cuenta de ingreso, bandeja de Dirección General, vencimientos | ✅ 7/7 |
+| **G** · Ventana 2 y contratación | familiares, vivienda, salud, tallas, foto, revisión final, promoción atómica del cargo | ✅ 6/6 |
+| **H** · Transversales | SeaweedFS con identidades, claves opacas, bitácora de descargas, bandeja compartida, sondeo de avisos, colas de Celery, verificación de migraciones | ✅ 13/13 |
+| **F** · Documentos digitales | planillas prellenadas, contrato, firma por clic | ⬜ 5 tareas pendientes · ⏸ F-3 espera los PDF oficiales · ✅ F-7 (descarga con bitácora) |
+| **I** · Sincronización con nómina (E-9) | outbox, mapeo, despacho, conciliación | ⏸ **fuera de alcance**: el sistema de nómina destino está por definir |
+| **J** · Documentación del plan | este documento y `Propuesta_Fase2_GATH.html` | ✅ 2/2 |
+
+**Qué queda por hacer**
+
+- **Bloque F** (documentos digitales). Espera los PDF oficiales vigentes de HCM, Caja de Ahorro y Oferta de Servicios
+  (F-3, lo entrega el área usuaria). Mientras tanto la Ventana 2 *captura* los datos (familiares, vivienda, salud,
+  tallas, contacto de emergencia, foto) pero **no emite planillas, contrato ni firma**. El Punto de Cuenta de ingreso
+  sí existe: lo emite Presupuesto desde `apps/puntocuenta`.
+- **C-9** (¿un jubilado o pensionado puede volver a postularse?). Provisionalmente **sí**: solo se rechaza a quien está
+  ACTIVO. Falta confirmarlo con el área usuaria.
+- **Bloque I**. El sistema de nómina destino no está definido (no es SIGESP). §4.7, `OutboxSincronizacion` y
+  `MapeoCatalogo` quedan como **diseño sin implementar**; los nombres «SIGEP-Nómina» o «SIGESP» que aparecen en este
+  documento son provisionales.
+- **Purga de expedientes rechazados** (O-2). Existe el parámetro `captacion.retencion_rechazados_meses` (24 por
+  defecto) pero **no hay todavía la tarea programada que purga**: el expediente rechazado se conserva.
+
+**Pendiente de despliegue**
+
+1. **Migraciones** de esta rama: `postulacion` 0001–0007, `personal` 0004 (por SQL), `configuracion` 0013–0017,
+   `identidad` 0016, `notificaciones` 0003 y `carnetizacion` 0013–0022. Se aplican con `python manage.py migrate`;
+   `BACKEND/scripts/verificar_migraciones.sh` comprueba que todas se aplican desde cero y se revierten (H-7).
+2. **`python manage.py migrar_claves_soportes`** en producción: primero en seco y luego `--aplicar` (copia los soportes
+   de autogestión a claves opacas, actualiza el soporte y `Employee.profile/foto_objeto`, y solo después borra) (H-2).
+3. **`python manage.py verificar_plantilla_legacy`** en producción antes de desplegar el carnet (K-10), y cargar los
+   tres medios institucionales sin archivo desde la Biblioteca de Medios (B-9).
+4. **SeaweedFS con identidades** (H-1): `docker compose up -d` basta; `sw_s3` genera `identities.json` al arrancar desde
+   las claves de `BACKEND/.env` y no arranca sin ellas. Falta una prueba con S3 autenticado en el servidor real.
+5. **Código**: la rama está en GitHub; el push a GitLab (`origin`) sigue pendiente (el DNS de `gitlab.conatel.int` no
+   resolvía). **Integración en QA pendiente**: el ambiente actual se construye desde otra rama, de modo que los cambios
+   de la Fase 2 solo se ven en el entorno propio de la rama. Nunca se hace push directo a `dev` ni a `qa`.
+6. **Colas de Celery separadas** (H-6), opcional: `CELERY_COLAS_SEPARADAS=1` en el worker, el beat y Django (los tres
+   deben coincidir) y un worker por cola (§12.6).
+7. **Primera corrida de `cargos.procesar_vencimientos_prestamos`**: esta tarea nunca se registraba en el worker (faltaba
+   un import); al desplegar procesará de una vez los préstamos de cargo atrasados.
+8. **Datos de negocio**: asignar los roles `CAPTACION`, `PRESUPUESTO` y `DIRECCION_GENERAL` a las personas (C-8) y fijar
+   con Consultoría Jurídica el valor de `captacion.retencion_rechazados_meses`.
+
+Verificación al 24-11-2026: 3477 pruebas de backend, 109 contratos de `import-linter`, 1606 pruebas de frontend y los
+recorridos E2E de Playwright (escritorio y teléfono 390×844) de postulante, Captación y carnet.
 
 ---
 
@@ -21,7 +82,7 @@ Son cinco capacidades nuevas, en orden de dependencia:
 | 2 | **Expediente de Postulación** (postulante → captación → presupuesto → dirección general → contratación) | 1 |
 | 3 | **Documentos digitales** (Punto de Cuenta, Oferta de Servicios, HCM, Caja de Ahorro…) | 2 |
 | 4 | **Autogestión con ciclo de aprobación** | 1 |
-| 5 | **Carnet de dos caras con diseñador** y **ETL → SIGEP** | 2, 4 |
+| 5 | **Carnet de dos caras con diseñador** (✅) y **ETL a nómina** (⏸ fuera de alcance, destino por definir) | 2, 4 |
 
 **El documento del diagrama que no recordabas es el «Punto de Cuenta»** — aparece literalmente en
 `propuesta-gath.jpg`, en el nodo *«Abrir Expediente y Generar Punto de Cuenta»*. Es el instrumento
@@ -35,7 +96,7 @@ Este documento usa cuatro series de referencias cruzadas, más las del plan de r
 |---|---|---|
 | `H-1`…`H-3` | **Hallazgos** que condicionan el diseño entero | §0 |
 | `O-1`…`O-9` | **Observaciones** al diagrama `propuesta-gath.jpg` | §2 |
-| `DEC-1`…`DEC-12` | **Decisiones pendientes** que necesito de tu parte | §9 |
+| `DEC-1`…`DEC-12`, `C-1`…`C-10` | **Decisiones**: las `DEC` del diseño y las `C` del seguimiento (casi todas tomadas) | §9 |
 | `E-0`…`E-10` | **Etapas** de entrega | §10 |
 | `CRIT-nn` `ALTA-nn` `MED-nn` `D-0n` `B0.n` | hallazgos y decisiones **del `PLAN_RECONSTRUCCION_ONION.md`**, no de este documento | ese plan |
 
@@ -68,6 +129,8 @@ una mejora paralela. §7
 
 ## 1. Estado actual verificado
 
+> **Fotografía del 21-08-2026, previa a la implementación.** Describe de dónde se partió. Lo construido desde entonces
+> está en «Estado de implementación» y marcado como **Implementado** en cada sección.
 ### 1.1 Módulos existentes
 
 | App | Líneas | Qué hace hoy | Rol en Fase 2 |
@@ -130,37 +193,37 @@ Esto es lo que abarata la Fase 2:
    El almacenamiento pasa a **SeaweedFS por su puerta S3** detrás del puerto `AlmacenDeArchivos`
    (§12.2, §12.4).
 
-   ⚠️ **Además, hoy esto está roto en Docker.** `BACKEND/.env` define
-   `NESTJS_URL= http://localhost:5000/`, pero desde dentro del contenedor `django-App`
-   `localhost:5000` es Django mismo, no NestJS; y en `compose.yml` el servicio `django` **no está
-   en la red `file_manager`**, así que no alcanza al contenedor `NestFS` de ninguna forma. El valor
-   arrastra también un espacio inicial tras el `=`. Es un argumento más para migrar en vez de
-   remendar (§12.8).
+   ✅ **Resuelto.** El problema de Docker (`NESTJS_URL` apuntando a `localhost:5000`, servicio fuera de la red
+   `file_manager`) desapareció con el retiro de NestJS: el almacenamiento es SeaweedFS por su puerta S3 y no queda
+   rastro de `NESTJS_URL`. La clave opaca y `Employee.foto_objeto` se implementaron tal como se propuso (§5.5, §12.2).
 4. **Existe un único punto de escritura del historial de movimientos.**
    `registrar_historial_movimiento()` es el embudo por el que pasan ingresos, traslados, egresos y
    cambios de estatus. Es **el gancho natural del ETL**: un solo lugar donde emitir el evento. §4.7
 5. **Los roles del flujo ya están creados**: `ADMINISTRADOR`, `ANALISTA`, `PRESUPUESTO`,
+5. **Los roles del flujo ya están creados**: `ADMINISTRADOR`, `ANALISTA`, `PRESUPUESTO`,
    `BIENSTAR SOCIAL`, `RECEPCIONISTA`, `AUTOGESTION`.
-   ⚠️ `BIENSTAR SOCIAL` está **mal escrito en el código** (falta la «E» de *BIENESTAR*). Cualquier
-   comparación nueva debe usar el literal tal cual está en base de datos, o corregirse con migración
-   de datos. No lo «arregles» sólo en el código nuevo: dejarías dos nombres en circulación.
+   ✅ **Implementado:** se crearon además `CAPTACION` y `DIRECCION_GENERAL` (migración `identidad.0016` y
+   `seed_permisos`), y `PRESUPUESTO` recibió sus permisos `postulacion.*`. La errata `BIENSTAR SOCIAL` ya está
+   corregida en producción; no hay que tratarla como pendiente.
 6. **Generadores de PDF con estilos institucionales** en `RAC/services/pdf/` (`base_generator.py`,
    `templates/styles.py`, `components.py`). El Punto de Cuenta y las planillas se construyen sobre
    esa base.
 
 ### 1.4 Lo que **no existe** y hay que construir
 
-| Falta | Impacto en Fase 2 |
-|---|---|
-| **Notificaciones** — cero referencias en todo el backend | Bloquea los 4 avisos del flujo de autogestión y los 3 del onboarding |
-| **Máquina de estados / workflow** | Hoy no hay concepto de «expediente en trámite» |
-| **Permisos por rol en backend** | Bloqueante (H-3) |
-| **Cola de tareas** — `celery==5.3.4` en `requirements.txt` **sin broker ni app declarada** | Bloquea el ETL asíncrono. **Ya decidido: RabbitMQ** (§12.6) |
-| **Almacenamiento de objetos** — dos sistemas de ficheros sueltos, uno inalcanzable | **Ya decidido: SeaweedFS por gateway S3** (§12.2) |
-| **`boto3`** ausente en `requirements.txt` | Sin cliente S3 no hay acceso a SeaweedFS (§12.9) |
-| **Migraciones versionadas** — 0 archivos, `**/migrations/` está en `.gitignore` | **Bloqueante absoluto**: la Fase 2 agrega ~15 tablas. Sin línea base de migraciones no se puede tocar el esquema. Es la tarea B0.0 del plan de reconstrucción y precede a todo lo demás |
-| **Campo de foto en `Employee`** | La foto vive fuera de la base, sin metadatos ni versión |
-| **Tests** — 4 funciones en todo el backend | Una máquina de estados sin tests es una fuente de expedientes trabados |
+Estado al 24-11-2026 de cada carencia de agosto:
+
+| Falta (agosto) | Impacto en Fase 2 | Estado hoy |
+|---|---|---|
+| **Notificaciones** — cero referencias en todo el backend | Bloquea los avisos del flujo | ✅ `apps/notificaciones` con bandeja por permiso, correo por outbox y sondeo de 15 s (§5.6) |
+| **Máquina de estados / workflow** | No había «expediente en trámite» | ✅ `apps/postulacion`: 17 estados, 24 transiciones (§4.2) |
+| **Permisos por rol en backend** | Bloqueante (H-3) | ✅ Autorización por **permiso** (`HasPermission`, catálogo `modulo.accion`, fail-closed); ver `BACKEND/PERMISOS.md` (§7) |
+| **Cola de tareas** — `celery` sin broker ni app | Bloquea el ETL y los vencimientos | ✅ Celery 5.6.3 + RabbitMQ; resultados en Redis; beat estático (§12.6). El ETL sigue sin existir (bloque I) |
+| **Almacenamiento de objetos** | Dos sistemas de ficheros sueltos | ✅ SeaweedFS por gateway S3, con identidades (§12) |
+| **`boto3`** ausente | Sin cliente S3 no hay acceso | ✅ `boto3==1.35.36` |
+| **Migraciones versionadas** — 0 archivos | Bloqueante absoluto | ✅ Migraciones versionadas en cada app; el script `verificar_migraciones.sh` las prueba desde cero y en reversa |
+| **Campo de foto en `Employee`** | La foto vivía fuera de la base | ✅ `Employee.foto_objeto` y `foto_actualizada` (§5.5) |
+| **Tests** — 4 funciones en todo el backend | Una máquina de estados sin tests es una fuente de expedientes trabados | ✅ 3477 pruebas de backend, 1606 de frontend, E2E con Playwright |
 
 ---
 
@@ -168,6 +231,9 @@ Esto es lo que abarata la Fase 2:
 
 El diagrama de `propuesta-gath.jpg` es correcto en su secuencia macro. Estas son las brechas entre
 lo dibujado, lo que describes en el enunciado, y lo que el sistema puede sostener.
+
+> **Estado:** todas las observaciones quedaron resueltas en el diseño implementado, salvo O-8 (la sincronización con
+> nómina está fuera de alcance hasta definir el sistema destino) y la parte de planillas de O-1 (bloque F, pendiente).
 
 ### O-1 · Falta la segunda ventana de acceso del postulante
 El diagrama pone *«Generar Documentación Adicional: HCM, Oferta, Notif. Itenera, Caja de Ahorro»*
@@ -194,6 +260,10 @@ Dos razones:
 motivo y su auditoría, la credencial se revoca, y un trabajo programado **purga los datos sensibles**
 (resultados del test, documentos cargados) al cumplirse el plazo de retención que defina Consultoría
 Jurídica, conservando el asiento mínimo (cédula, fecha, motivo, quién decidió).
+
+> **Implementado en parte:** `RECHAZADO_CAPTACION` conserva el expediente con motivo y auditoría y revoca la credencial;
+> el plazo de retención es el parámetro `captacion.retencion_rechazados_meses` (C-7). **La tarea programada de purga
+> todavía no existe.**
 
 ### O-3 · Los dos rechazos vuelven al mismo nodo, sin distinguir corrección de desistimiento
 Ambas flechas *«Regresa a RRHH con Motivo de Rechazo»* apuntan a *«Abrir Expediente y Generar Punto
@@ -252,15 +322,20 @@ La infraestructura de instrumentos **ya existe** y es reutilizable: `TipoPregunt
 cuestionarios genérico. Lo que falta es el puntaje y el baremo. Nota: `RespuestasEncuesta.empleado`
 es FK a `Employee` — para el postulante hace falta un modelo paralelo o generalizar el sujeto.
 
+> **Resuelto de otra forma (C-6):** el test **no se responde en el sistema**. Se aplica fuera y Captación registra el
+> **resultado (APTO / NO_APTO) y el informe PDF** (`ResultadoPsicofisicoModel`, permiso `postulacion.registrar_psicofisico`).
+> La verificación de datos y el resultado del test son dos pasos distintos, como proponía esta observación. No se
+> reutilizó el motor de cuestionarios de Autogestión.
+
 ### O-8 · No aparece la sincronización con SIGEP
 Es un requisito central de tu enunciado — *«cada registro y actualización y movimiento de cargo,
 suspensión y etc debe de hacerse un ETL»* — y no está en el diagrama. Se incorpora como §4.7.
 
-⚠️ **Ambigüedad de nombres que hay que resolver antes de escribir código**: la base de datos local de
-GATH **ya se llama `SIGEP`** (`DJANGO_DB_NAME`, default `SIGEP`, en `BACKEND/SIGEP/settings.py:115`),
-y el módulo de configuración de Django también. El sistema de nóminas externo también se llama SIGEP.
-Son dos cosas distintas con el mismo nombre. En este documento: **`SIGEP-Nómina`** = sistema externo
-de nóminas; **`gath_db`** = base local. Recomiendo renombrar la base local.
+⚠️ **Sincronización con nómina: fuera de alcance por ahora.** El sistema de nómina destino **está por definir** (se
+descartó que sea SIGESP) y mientras no se conozca su canal no se diseña el mapeo ni el despacho. En este documento
+«SIGEP-Nómina» o «SIGESP» son nombres provisionales de ese sistema. La colisión de nombres que se detectó entonces
+(la base local se llamaba `SIGEP`) ya se resolvió: la base local de ejemplo se llama `gath` (`DJANGO_DB_NAME=gath`
+en `.env.example` y `compose.example.yml`, H-9) y el paquete de configuración de Django es `GATH`.
 
 ### O-9 · Colisión de cédula al registrarse
 `Employee.cedulaidentidad` es `unique=True`, y `correo` también. La cédula es la que importa: un
@@ -269,33 +344,40 @@ ex-empleado que repostula rompe el alta en el último paso, después de que la p
 porque el postulante ya no se identifica con él (§4.3): es un dato de contacto opcional, y sólo hay
 que resolver la colisión si trae uno y coincide con el de otro empleado.
 
-Queda por decidir qué pasa con el reingreso de un egresado: ¿nuevo expediente sobre el `Employee`
-existente, o expediente nuevo? (§9, DEC-4).
+✅ **Decidido (C-1):** el reingreso de un egresado es la **misma persona (`Employee` existente) con un expediente
+nuevo**: conserva su historial y no duplica la cédula. Solo se rechaza el alta si la cédula pertenece a un trabajador
+**ACTIVO** (`EMPLEADO_ACTIVO`). Lo que decide la regla es la condición real del trabajador, no su sola existencia.
 
 ---
 
 ## 3. Arquitectura de la Fase 2
 
-Cuatro apps nuevas, siguiendo la nomenclatura SCREAM del `PLAN_RECONSTRUCCION_ONION.md` (§0.3): la
-carpeta nombra el dominio, no la tecnología.
+Apps de la Fase 2 y su estado, siguiendo la nomenclatura SCREAM del `PLAN_RECONSTRUCCION_ONION.md` (§0.3): la carpeta
+nombra el dominio, no la tecnología.
 
 ```
 BACKEND/
 ├─ apps/
-│  ├─ postulacion/      ← NUEVO · expediente, postulante, test, decisiones
-│  ├─ documentos/       ← NUEVO · plantillas, generación, firma, Punto de Cuenta
-│  ├─ notificaciones/   ← NUEVO · bandeja, canales, preferencias
-│  ├─ sincronizacion/   ← NUEVO · outbox, mapeo, despacho a SIGEP-Nómina
-│  ├─ autogestion/      ← REESCRITA · ficha, solicitudes, cambios propuestos
-│  ├─ carnetizacion/    ← EXTENDIDA · dos caras, campos posicionables
-│  └─ personal/         ← RAC desmembrada (fase B4 del plan de reconstrucción)
-└─ core/                ← permisos, envelope, auditoría, puertos de archivos
+│  ├─ postulacion/      ← ✅ IMPLEMENTADO · postulante, expediente, credencial, reserva, constancia, psicofísico
+│  ├─ notificaciones/   ← ✅ IMPLEMENTADO · bandeja por permiso, outbox de correo, estado con ETag
+│  ├─ autogestion/      ← ✅ REESCRITA · solicitudes de actualización, cambios propuestos, aprobación parcial
+│  ├─ carnetizacion/    ← ✅ EXTENDIDA · dos caras, diseñador, ciclo físico, solicitudes, lote
+│  ├─ puntocuenta/      ← ✅ EXTENDIDA · proceso `ingreso_postulacion` (Punto de Cuenta de ingreso)
+│  ├─ personal/         ← ✅ recibe al trabajador promovido (`origen_expediente`, `foto_objeto`)
+│  ├─ identidad/        ← ✅ roles y permisos `postulacion.*`; cuentas de trabajadores
+│  ├─ configuracion/    ← ✅ parámetros del grupo «captacion»
+│  ├─ documentos/       ← ⬜ NO EXISTE todavía (bloque F: planillas, contrato, firma)
+│  └─ sincronizacion/   ← ⏸ NO EXISTE (bloque I: nómina por definir)
+└─ core/                ← permisos, envelope, auditoría, puertos (`Notificador`, almacén de archivos)
 ```
 
-Regla de dependencia (Onion, §0.3 del plan): `postulacion` puede depender de `personal` para
-**promover**, pero `personal` **no conoce** `postulacion`. La promoción se hace desde
-`postulacion.application.use_cases.promover_postulante`, invocando un puerto que `personal`
-implementa. Así el día que se retire el módulo de postulación, `personal` no se entera.
+Regla de dependencia (Onion, §0.3 del plan): `postulacion` puede depender de `personal` para **promover**, pero
+`personal` **no conoce** `postulacion`. ✅ **Implementado así:** la promoción es el caso de uso
+`postulacion.application.use_cases.promocion.promover_postulante`, que invoca el puerto `PromotorEmpleado`; el
+adaptador (`infrastructure/promotor_empleado_orm.py`) orquesta `personal`, `familiares`, `cargos` e `identidad` sin
+duplicar su lógica. A `Employee` solo le llega un identificador opaco (`origen_expediente`, UUID sin clave foránea).
+Los modelos de `postulacion` referencian datos de otras apps **por identificador, sin FK dura** (cargo, oficina, puesto,
+cédulas): así el día que se retire el módulo, el resto no se entera.
 
 ---
 
@@ -308,54 +390,55 @@ flowchart TD
     START([Inicio: Captación pre-registra al postulante]) --> INV
 
     subgraph CAP1["🟦 CAPTACIÓN · emisión de credencial"]
-        INV["Valida que la cédula no exista<br/>Genera contraseña temporal<br/>Ventana 1 · vence en N días"]
+        INV["Valida que la cédula no sea de un trabajador ACTIVO<br/>Genera la credencial · Ventana 1<br/>vence en 15 días (parámetro)"]
     end
 
-    INV -->|"credencial entregada en persona"| P1
+    INV -->|"entrega en persona<br/>o enlace de activación por correo"| P1
 
     subgraph POST1["🟩 POSTULANTE · Ventana 1"]
         P1["Accede con cédula + contraseña<br/>cambio de clave obligatorio"]
         P2["Registra datos básicos<br/>identidad · contacto · académico"]
-        P3["Realiza test psicofísico"]
         P4["Envía expediente<br/>estado: ENVIADO_CAPTACION"]
-        P1 --> P2 --> P3 --> P4
+        P1 --> P2 --> P4
     end
 
-    P4 --> V1
+    P4 --> VPSI
 
     subgraph CAP2["🟦 CAPTACIÓN · verificación"]
+        VPSI["Registra el resultado del test psicofísico<br/>APTO / NO_APTO + informe PDF<br/>el test se aplica fuera del sistema"]
         V1{"¿Datos corroborados<br/>y test aprobado?"}
-        VR["RECHAZADO_CAPTACION<br/>revoca credencial<br/>conserva auditoría<br/>purga diferida"]
-        VOK["Abre Expediente<br/>propone CARGO + OFICINA<br/>genera SOLICITUD DE PERSONAL"]
+        VC["EN_CORRECCION_DATOS<br/>devuelve con observaciones<br/>el postulante corrige y reenvía"]
+        VR["RECHAZADO_CAPTACION<br/>revoca credencial<br/>conserva auditoría"]
+        VOK["Abre Expediente<br/>propone CARGO + OFICINA<br/>solicitud de personal"]
+        VPSI --> V1
+        V1 -->|"Faltan datos"| VC
         V1 -->|No| VR
         V1 -->|Sí| VOK
     end
 
+    VC -.->|"corrige y reenvía"| V1
     VR --> FINR([Fin: no contratado])
     VOK --> PR1
 
     subgraph PRE["🟨 PRESUPUESTO"]
-        PR1{"¿Existe AsigTrabajo VACANTE<br/>para ese cargo en esa oficina?<br/>— lo resuelve el sistema —"}
-        PRNEW["Crear código de cargo<br/>generacion_codigo.py"]
+        PR1{"¿Existe puesto VACANTE<br/>para ese cargo en esa oficina?<br/>— lo resuelve el sistema —"}
         PR2{"¿Hay disponibilidad<br/>presupuestaria?<br/>— gestión externa, se registra —"}
-        PRDIF["DIFERIDO_PRESUPUESTO<br/>cola de espera"]
+        PRDIF["DIFERIDO_PRESUPUESTO<br/>cola de espera · 90 días (parámetro)"]
         PRERR["EN_CORRECCION_CARGO<br/>Captación revisa cargo/oficina"]
         PROK["Reserva el puesto<br/>registra constancia<br/>emite PUNTO DE CUENTA"]
-        PR1 -->|No hay| PRNEW
-        PRNEW --> PR2
+        PR1 -->|No hay| PRERR
         PR1 -->|Sí| PR2
-        PRNEW -.->|"no procede crear"| PRERR
         PR2 -->|No| PRDIF
         PR2 -->|Sí| PROK
     end
 
     PRERR --> VOK
-    PRDIF -->|se libera partida| PR2
+    PRDIF -->|se libera partida| PR1
     PROK --> DG1
 
     subgraph DIR["🟥 DIRECCIÓN GENERAL"]
         DG1{"¿Firma y aprueba<br/>el Punto de Cuenta?"}
-        DGNO["RECHAZADO_DIRECCION<br/>libera la reserva del puesto<br/>terminal salvo instrucción"]
+        DGNO["RECHAZADO_DIRECCION<br/>libera la reserva del puesto<br/>terminal"]
         DGOK["APROBADO<br/>Punto de Cuenta firmado"]
         DG1 -->|No| DGNO
         DG1 -->|Sí| DGOK
@@ -365,36 +448,40 @@ flowchart TD
     DGOK --> RE
 
     subgraph CAP3["🟦 CAPTACIÓN · reapertura"]
-        RE["Nueva contraseña temporal · Ventana 2<br/>Captación contacta al postulante"]
+        RE["Reabre la Ventana 2<br/>nueva credencial (en persona o enlace)<br/>aviso CONTACTAR_POSTULANTE"]
     end
 
     RE --> P5
 
     subgraph POST2["🟩 POSTULANTE · Ventana 2"]
         P5["Carga grupo familiar"]
-        P6["Completa datos de contratación<br/>vivienda · salud · tallas · emergencia"]
-        P7["Llena planillas digitales<br/>prellenadas con lo ya cargado"]
+        P6["Completa vivienda · salud<br/>tallas · contacto de emergencia"]
         P8["Sube FOTO de carnet"]
-        P9["Envía · CONSOLIDANDO"]
-        P5 --> P6 --> P7 --> P8 --> P9
+        P9["Envía · EN_REVISION_FINAL"]
+        P5 --> P6 --> P8 --> P9
     end
+
+    P7["Planillas prellenadas y firma por clic<br/>⬜ pendiente: bloque F"]
+    P6 -.-> P7 -.-> P8
 
     P9 --> C1
 
-    subgraph CAP4["🟦 CAPTACIÓN · consolidación y asignación"]
-        C1{"¿Expediente completo<br/>y planillas conformes?"}
-        C1 -->|No| P5
-        C2["Genera CONTRATO<br/>indeterminado / determinado"]
-        C3["<b>ASIGNACIÓN DE CARGO</b><br/>transacción atómica:<br/>1 crea Employee<br/>2 bloquea AsigTrabajo VACANTE<br/>3 asigna titular · estatus ACTIVO<br/>4 registra movimiento INGRESO<br/>5 crea cuenta rol AUTOGESTION<br/>6 emite eventos de sincronización"]
-        C1 -->|Sí| C2 --> C3
+    subgraph CAP4["🟦 CAPTACIÓN · revisión final y asignación"]
+        C1{"¿Expediente conforme?"}
+        C1b["Observa faltantes<br/>vuelve a CONSOLIDANDO"]
+        C1c["LISTO_PARA_ASIGNAR"]
+        C3["<b>ASIGNACIÓN DE CARGO</b> · POST asignar/<br/>transacción atómica:<br/>1 revalida reserva y puesto<br/>2 Employee (o el existente · reingreso)<br/>3 familiares · vivienda · salud · tallas<br/>4 asigna el puesto · movimiento INGRESO<br/>5 cuenta del sistema si el correo es institucional<br/>6 reserva CONSUMIDA · expediente CONTRATADO"]
+        C1 -->|No| C1b
+        C1 -->|Sí| C1c --> C3
     end
 
-    C3 --> CARN["🟪 CARNETIZACIÓN<br/>la foto ya está en profile/cedula<br/>emite carnet de 2 caras"]
-    C3 --> ETL["⚙️ SINCRONIZACIÓN<br/>outbox → SIGEP-Nómina"]
+    C1b -.-> P5
+
+    C3 --> CARN["🟪 CARNETIZACIÓN<br/>la foto ya está en Employee.foto_objeto<br/>aviso CARNET_PENDIENTE"]
     C3 --> AG["🟫 AUTOGESTIÓN<br/>ficha disponible para el trabajador"]
+    C3 -.-> ETL["⚙️ SINCRONIZACIÓN CON NÓMINA<br/>⏸ fuera de alcance: sistema destino por definir"]
 
     CARN --> FIN([Fin: personal activo])
-    ETL --> FIN
     AG --> FIN
 
     style START fill:#e8f5e9,stroke:#2e7d32
@@ -405,6 +492,8 @@ flowchart TD
     style DGNO fill:#ffebee
     style PRDIF fill:#fff3e0
     style PRERR fill:#fff3e0
+    style P7 fill:#f5f5f5,stroke:#9e9e9e,stroke-dasharray: 5 5
+    style ETL fill:#f5f5f5,stroke:#9e9e9e,stroke-dasharray: 5 5
 ```
 
 **Lo que este diagrama corrige respecto de `propuesta-gath.jpg`:** las dos ventanas del postulante
@@ -412,6 +501,17 @@ flowchart TD
 (O-3), el Punto de Cuenta emitido después de Presupuesto (O-4), la vacante como consulta automática
 frente a la disponibilidad como dato registrado (O-5), y la asignación de cargo como transacción
 explícita (O-6).
+
+**Cambios respecto del diseño de agosto, ya construidos:**
+
+- El **test psicofísico no lo responde el postulante en el sistema** (C-6): se aplica fuera y Captación **registra el
+  resultado (APTO / NO_APTO) y el informe PDF**. Que el resultado sea obligatorio para pasar a Presupuesto lo decide el
+  parámetro `captacion.psicofisico_obligatorio`.
+- La entrega del acceso es **en persona o por enlace de activación enviado al correo** (§4.3).
+- Un diferido que se libera **vuelve a EN_PRESUPUESTO** (la máquina no admite DIFERIDO → EN_CORRECCION_CARGO).
+- La **contratación** no es una transición más: se ejecuta por el endpoint `asignar/` (§4.4) y la cuenta del sistema solo
+  se crea si el correo del trabajador es institucional.
+- Planillas, contrato y firma (bloque F) y la sincronización con nómina (bloque I) **no están construidos**.
 
 ### 4.2 Máquina de estados del Expediente de Postulación
 
@@ -426,7 +526,7 @@ stateDiagram-v2
     PRE_REGISTRADO --> EXPIRADO : vence sin uso
 
     EN_CAPTURA --> EN_CAPTURA : guarda borrador
-    EN_CAPTURA --> ENVIADO_CAPTACION : envía datos + test
+    EN_CAPTURA --> ENVIADO_CAPTACION : envía los datos
     EN_CAPTURA --> EXPIRADO : vence la ventana
 
     ENVIADO_CAPTACION --> EN_CORRECCION_DATOS : Captación devuelve observaciones
@@ -450,7 +550,7 @@ stateDiagram-v2
     EN_REVISION_FINAL --> CONSOLIDANDO : Captación observa faltantes
     EN_REVISION_FINAL --> LISTO_PARA_ASIGNAR : expediente conforme
 
-    LISTO_PARA_ASIGNAR --> CONTRATADO : asignación atómica de cargo
+    LISTO_PARA_ASIGNAR --> CONTRATADO : asignar/ · promoción atómica
     LISTO_PARA_ASIGNAR --> EN_PRESUPUESTO : el puesto se perdió · re-reserva
 
     CONTRATADO --> [*]
@@ -476,12 +576,59 @@ stateDiagram-v2
 **Estados terminales**: `CONTRATADO`, `RECHAZADO_CAPTACION`, `RECHAZADO_DIRECCION`, `EXPIRADO`,
 `DESISTIDO`. Un expediente terminal es inmutable; corregir exige uno nuevo con referencia al anterior.
 
+**Implementado.** Son **17 estados** (el diagrama de agosto decía 16: se contaban mal) y **24 transiciones**, definidas
+en `apps/postulacion/domain/services/maquina_estados.py`, que es la fuente de verdad. Cada una declara quién la ejecuta
+(un permiso `postulacion.*`, el propio postulante o el sistema) y sus guardas; todo cambio de estado deja un asiento
+inmutable en el historial (salvo los guardados de borrador, que no generan ruido).
+
+| # | Transición | Quién | Guardas |
+|---|---|---|---|
+| 1 | `PRE_REGISTRADO → EN_CAPTURA` | postulante | ventana vigente |
+| 2 | `PRE_REGISTRADO → EXPIRADO` | sistema | ventana vencida |
+| 3 | `EN_CAPTURA → EN_CAPTURA` (borrador) | postulante | ventana vigente · sin asiento |
+| 4 | `EN_CAPTURA → ENVIADO_CAPTACION` | postulante | ventana vigente |
+| 5 | `EN_CAPTURA → EXPIRADO` | sistema | ventana vencida |
+| 6 | `ENVIADO_CAPTACION → EN_CORRECCION_DATOS` | `postulacion.verificar` | motivo obligatorio (reabre la ventana) |
+| 7 | `EN_CORRECCION_DATOS → ENVIADO_CAPTACION` | postulante | ventana vigente |
+| 8 | `ENVIADO_CAPTACION → RECHAZADO_CAPTACION` | `postulacion.rechazar` | motivo obligatorio |
+| 9 | `ENVIADO_CAPTACION → EN_PRESUPUESTO` | `postulacion.abrir_expediente` | cargo y oficina definidos · psicofísico registrado si es obligatorio |
+| 10 | `EN_PRESUPUESTO → EN_CORRECCION_CARGO` | `postulacion.devolver_solicitud` | motivo obligatorio |
+| 11 | `EN_CORRECCION_CARGO → EN_PRESUPUESTO` | `postulacion.abrir_expediente` | cargo y oficina definidos |
+| 12 | `EN_PRESUPUESTO → DIFERIDO_PRESUPUESTO` | `postulacion.devolver_solicitud` | motivo obligatorio (fija el vencimiento de la espera) |
+| 13 | `DIFERIDO_PRESUPUESTO → EN_PRESUPUESTO` | `postulacion.declarar_disponibilidad` | — |
+| 14 | `DIFERIDO_PRESUPUESTO → DESISTIDO` | sistema | espera vencida (`captacion.espera_diferido_dias`, 90) |
+| 15 | `EN_PRESUPUESTO → EN_DIRECCION_GENERAL` | `postulacion.emitir_punto_cuenta` | puesto reservado y vigente + disponibilidad declarada |
+| 16 | `EN_DIRECCION_GENERAL → RECHAZADO_DIRECCION` | `postulacion.aprobar_ingreso` | motivo obligatorio (libera la reserva) |
+| 17 | `EN_DIRECCION_GENERAL → APROBADO` | `postulacion.aprobar_ingreso` | — |
+| 18 | `APROBADO → CONSOLIDANDO` | `postulacion.revision_final` | — (reabre la Ventana 2) |
+| 19 | `CONSOLIDANDO → CONSOLIDANDO` (borrador) | postulante | ventana vigente · sin asiento |
+| 20 | `CONSOLIDANDO → EN_REVISION_FINAL` | postulante | ventana vigente |
+| 21 | `EN_REVISION_FINAL → CONSOLIDANDO` | `postulacion.revision_final` | motivo obligatorio (observa faltantes; reabre la ventana) |
+| 22 | `EN_REVISION_FINAL → LISTO_PARA_ASIGNAR` | `postulacion.revision_final` | — |
+| 23 | `LISTO_PARA_ASIGNAR → CONTRATADO` | `postulacion.revision_final` | reserva vigente y puesto revalidado · **solo por `asignar/`** |
+| 24 | `LISTO_PARA_ASIGNAR → EN_PRESUPUESTO` | sistema o `postulacion.revision_final` | el puesto se perdió (reserva vencida o puesto ocupado) |
+
+Dos matices que el diagrama no dibuja: «evaluar el test» y «reservar el puesto / registrar la constancia» **no son
+transiciones**, son hechos que la máquina exige como guardas (`registrar_psicofisico`, `reservar_puesto`,
+`declarar_disponibilidad`); y los vencimientos (filas 2, 5, 14 y 24) los ejecuta únicamente el sistema, nunca el
+postulante.
+
 ### 4.3 Secuencia: la credencial del postulante y sus dos ventanas
 
-**El postulante entra con cédula y contraseña.** No con correo: todavía no tiene correo
-institucional, y no se puede hacer depender el acceso de una dirección personal que puede no existir,
-estar mal transcrita o no ser consultada. La contraseña temporal la genera el sistema y **la entrega
-Captación en persona**, en el mismo acto en que recibe al postulante.
+**El postulante entra con cédula y contraseña.** No con correo: todavía no tiene correo institucional, y no se puede
+hacer depender el acceso de una dirección personal que puede no existir, estar mal transcrita o no ser consultada.
+
+✅ **Implementado: dos formas de entregar el acceso (D-10).**
+
+1. **En persona.** El sistema genera la contraseña temporal y **Captación la entrega en el mismo acto** en que recibe
+   al postulante. Se muestra una sola vez.
+2. **Enlace de activación por correo** (a distancia, aprobado por el usuario). El postulante recibe un correo con un
+   enlace de **un solo uso**; el enlace **nunca lleva contraseña**. Para usarlo debe escribir **su cédula (segundo
+   factor)** y crear su propia contraseña. El token es aleatorio de 32 bytes y **en la base solo se guarda su hash
+   (sha256)**; vence a las **48 horas** (`captacion.horas_vigencia_enlace_activacion`, entre 1 y 168) y nunca más allá
+   de la ventana del expediente; **5 cédulas equivocadas bloquean el enlace**; reenviarlo invalida el anterior; el
+   token en claro se retira del outbox apenas se envía o falla. Captación recibe el recordatorio de confirmar el
+   correo por teléfono.
 
 Esto resuelve H-1 sin tocar `Employee` ni `cuenta`.
 
@@ -490,26 +637,29 @@ sequenceDiagram
     autonumber
     actor CAP as Analista Captación
     participant API as GATH API
-    participant DB as gath_db
+    participant DB as Base de datos
     actor POS as Postulante
 
     rect rgb(232,244,253)
-    note over CAP,POS: VENTANA 1 — datos básicos y test
-    CAP->>API: POST /postulacion/postulantes<br/>cedula, nombres, cargo tentativo
-    API->>DB: valida que la cédula no exista<br/>en Employee ni en Postulante activo
-    DB-->>API: libre
-    API->>DB: crea Postulante + CredencialPostulante<br/>contraseña temporal · ventana=1 · vence_el
-    API-->>CAP: contraseña temporal · se muestra UNA sola vez
-    CAP-->>POS: entrega en persona:<br/>cédula + contraseña temporal
-    POS->>API: POST /postulacion/acceso<br/>{cedula, password}
+    note over CAP,POS: VENTANA 1 — datos básicos
+    CAP->>API: POST /postulacion/postulantes/<br/>cédula, nombres, entrega = persona | correo
+    API->>DB: valida que la cédula no sea de un trabajador ACTIVO<br/>y que no haya otro expediente abierto
+    API->>DB: crea Postulante + Expediente + Credencial<br/>ventana=1 · vence_el = hoy + 15 d (parámetro)
+    alt entrega en persona
+        API-->>CAP: contraseña temporal · se muestra UNA sola vez
+        CAP-->>POS: cédula + contraseña temporal
+    else enlace de activación
+        API-->>POS: correo con enlace de un solo uso · SIN contraseña
+        POS->>API: POST /postulacion/activar/<br/>token + cédula + contraseña nueva
+    end
+    POS->>API: POST /postulacion/acceso/ {cedula, password}
     API->>API: verifica hash, vigencia,<br/>ventana activa y bloqueo por intentos
-    API-->>POS: sesión de invitado · scope expediente:{id}<br/>debe_cambiar_password = true
-    POS->>API: POST /postulacion/cambiar-clave<br/>obligatorio antes de continuar
-    POS->>API: PATCH datos básicos (borradores sucesivos)
-    POS->>API: POST respuestas del test psicofísico
-    POS->>API: POST /enviar → ENVIADO_CAPTACION
-    API->>API: revoca la sesión
-    API->>DB: Notificacion → rol CAPTACION
+    API-->>POS: sesión de invitado · scope del expediente<br/>debe_cambiar_clave = true
+    POS->>API: POST /postulacion/cambiar-clave/<br/>obligatorio antes de continuar
+    POS->>API: PUT /postulacion/borrador/ (borradores sucesivos)
+    POS->>API: POST /postulacion/enviar/ → ENVIADO_CAPTACION
+    API->>DB: aviso EXPEDIENTE_RECIBIDO → permiso postulacion.ver_bandeja
+    CAP->>API: POST /expedientes/{id}/psicofisico/<br/>resultado APTO/NO_APTO + informe PDF
     end
 
     rect rgb(255,243,224)
@@ -518,45 +668,53 @@ sequenceDiagram
 
     rect rgb(232,245,233)
     note over CAP,POS: VENTANA 2 — consolidación para contratar
-    CAP->>API: POST /expedientes/{id}/reabrir-ventana
-    API->>DB: nueva contraseña temporal<br/>ventana=2 · vence_el = hoy+5d
-    API-->>CAP: contraseña temporal + aviso:<br/>"contactar al postulante"
-    CAP-->>POS: lo contacta por teléfono<br/>y entrega la nueva credencial
+    CAP->>API: POST /expedientes/{id}/transicion/ → CONSOLIDANDO
+    API->>DB: credencial nueva · ventana=2 · vence_el = hoy + 15 d (parámetro)
+    API-->>CAP: aviso CONTACTAR_POSTULANTE (tarea crítica)<br/>+ nueva contraseña o enlace por correo
+    CAP-->>POS: lo contacta por teléfono y le entrega el acceso
     POS->>API: accede · cambio de clave obligatorio
-    POS->>API: POST familiares · vivienda · salud · tallas
-    POS->>API: GET /documentos/{plantilla}/prellenado
-    API-->>POS: planilla con nombre, cédula, fecha nac.<br/>ya resueltos desde el expediente
-    POS->>API: POST planilla firmada + POST foto de carnet
-    POS->>API: POST /enviar → EN_REVISION_FINAL
-    API->>API: revoca la credencial definitivamente
-    API->>DB: Notificacion → rol CAPTACION
+    POS->>API: PUT /postulacion/ventana2/<br/>familiares · vivienda · salud · tallas · emergencia
+    POS->>API: POST /postulacion/ventana2/foto/<br/>foto de carnet (sin EXIF, clave opaca)
+    POS->>API: POST /postulacion/enviar/ → EN_REVISION_FINAL
+    API->>DB: resuelve CONTACTAR_POSTULANTE · aviso EXPEDIENTE_REVISION_FINAL
     end
 ```
 
-**Consecuencia operativa de no tener correo institucional.** El sistema **no puede avisarle al
-postulante**: no hay canal propio hasta que sea empleado. Por eso los avisos que en otro diseño irían
-por correo se convierten en **tareas para Captación** (§5.6): «contactar al postulante para la
-segunda etapa», «avisar que su expediente tiene observaciones». Si el postulante dejó un correo
-personal o un móvil, se usa como cortesía —nunca como canal único—. La reapertura de la Ventana 2 es
-el punto crítico: el postulante no tiene motivo para volver a entrar por su cuenta, así que si nadie
-lo contacta, el expediente se queda quieto. La bandeja de Captación tiene que hacer visible esa
-pendiente.
+> Las planillas prellenadas y su firma por clic (`GET /documentos/{plantilla}/prellenado`, `POST planilla firmada`) del
+> diseño de agosto **no están construidas** (bloque F). La credencial de la Ventana 2 se revoca definitivamente al
+> contratar, no al enviar: así Captación puede devolver faltantes y reabrirla.
+
+**Consecuencia operativa de no tener correo institucional.** El postulante **no tiene cuenta ni campana**. Por eso los
+avisos internos se convierten en **tareas para Captación** (§5.6): «contactar al postulante para la segunda etapa»,
+«faltan datos». Su **correo personal es solo de cortesía** —nunca el canal único—: si lo dejó, el sistema le envía
+correos por el outbox (después del commit, deduplicados y con reintentos) en estos casos:
+
+| Correo | Cuándo | Contenido |
+|---|---|---|
+| `POSTULACION_CORRECCION` | Captación devuelve el expediente con observaciones | qué corregir y hasta cuándo |
+| `POSTULACION_VENTANA2` | se reabre la Ventana 2 tras la aprobación | «¡Tu ingreso fue aprobado!», plazo y remite al portal |
+| `POSTULACION_FALTANTES` | Captación observa faltantes de la Ventana 2 | qué falta y cómo recibe el nuevo acceso |
+| `POSTULACION_ACTIVACION` | Captación envía el enlace de activación | botón «Crear mi contraseña» (enlace de un solo uso) |
+| `POSTULACION_RECHAZO` | Captación rechaza | aviso cordial, **sin el motivo interno** |
+
+**Ningún correo lleva jamás una contraseña ni la cédula.** Remiten al portal y recuerdan que se entra con la propia.
+La reapertura de la Ventana 2 sigue siendo el punto crítico: si nadie contacta al postulante el expediente se queda
+quieto, por eso `CONTACTAR_POSTULANTE` se destaca en la bandeja con su antigüedad y **escala** (§5.6).
 
 **Decisiones de seguridad de este mecanismo:**
-- La credencial **no es una fila en `cuenta`**: es un registro propio con su hash, su ventana, su
-  vencimiento y su alcance (`scope = expediente:{id}`). No hereda ningún permiso del sistema.
-- **La cédula es un dato público, así que la contraseña es el único secreto.** Eso obliga a lo demás:
-  cambio forzoso en el primer ingreso, exigencia mínima de complejidad al cambiarla, **bloqueo
-  temporal por intentos fallidos** y vencimiento corto de la ventana.
-- **Cambio de contraseña obligatorio** al primer ingreso de cada ventana. Reutiliza
-  `debe_cambiar_password`, que ya funciona de punta a punta en el sistema —del serializer de `USER` al
-  diálogo forzado del panel—, así que no hay mecanismo nuevo que auditar.
+- La credencial **no es una fila en `cuenta`**: es un registro propio (`postulacion_credencial`) con su hash, su
+  ventana, su vencimiento y su alcance. No hereda ningún permiso del sistema. La sesión de invitado es un token propio
+  (`TIPO_TOKEN = 'postulante'`) aislado del resto.
+- **La cédula es un dato público, así que la contraseña es el único secreto.** Eso obliga a lo demás: cambio forzoso en
+  el primer ingreso, **mínimo de 10 caracteres que combinen letras y números, sin contener la cédula ni repetir la actual**, **bloqueo de 15 minutos tras 5 intentos fallidos** y
+  vencimiento corto de la ventana. La contraseña temporal es aleatoria de 12 caracteres.
+- **Cambio de contraseña obligatorio** al primer ingreso de cada ventana.
 - **Un solo expediente por credencial.** El postulante no puede enumerar ni leer otros expedientes.
-- **No hay recuperación automática.** Sin correo no hay «olvidé mi contraseña»: la reposición la hace
-  Captación regenerando la contraseña temporal, lo cual queda asentado con responsable y fecha.
-- **Revocación al enviar**, no al vencer: reduce la ventana de exposición.
-- Sin la corrección de CRIT-08 (permisos en backend), este esquema es la única barrera real. Otra
-  razón por la que §7 es prerrequisito.
+- **No hay recuperación automática.** Sin cuenta no hay «olvidé mi contraseña»: la reposición la hace Captación
+  (`reponer-credencial/`), solo mientras haya una ventana abierta (si no, responde 409 `SIN_VENTANA_ABIERTA`), y queda
+  asentada con responsable y fecha.
+- **La sesión de invitado dura como máximo 2 horas** y el backend revalida el alcance en cada llamada.
+- Un error de acceso es siempre genérico: nunca revela si una cédula está registrada.
 
 ### 4.4 Decisión de vacante y asignación atómica del cargo
 
@@ -567,15 +725,15 @@ flowchart TD
     A["Expediente en EN_PRESUPUESTO<br/>cargo propuesto + oficina propuesta"] --> B
 
     subgraph SIS["Lo resuelve el sistema — consulta, no desarrollo"]
-        B["SELECT * FROM AsigTrabajo<br/>WHERE estatusid.estatus = 'VACANTE'<br/>AND denominacioncargoid = :cargo<br/>AND DireccionGeneral = :dg<br/>AND DireccionLinea = :dl<br/>AND Coordinacion = :coord<br/>FOR UPDATE SKIP LOCKED"]
-        C{"¿filas > 0?"}
+        B["GET solicitudes/{id}/vacantes/<br/>puestos VACANTES compatibles con el cargo<br/>y la oficina · excluye los ya reservados"]
+        C{"¿hay puestos?"}
         B --> C
     end
 
-    C -->|Sí| D["Reserva el puesto<br/>ReservaPuesto · vence en 15 días<br/>el código queda invisible<br/>para otros expedientes"]
-    C -->|No| E{"¿Presupuesto autoriza<br/>crear código nuevo?"}
+    C -->|Sí| D["POST solicitudes/{id}/reserva/<br/>ReservaPuesto ACTIVA · vence en 30 días (parámetro)<br/>una sola reserva activa por puesto y por expediente"]
+    C -->|No| E{"¿Presupuesto crea un código nuevo?<br/>(Gestión de códigos)"}
 
-    E -->|Sí| F["generar código 8 dígitos<br/>RAC/services/generacion_codigo.py<br/>crea AsigTrabajo VACANTE"]
+    E -->|Sí| F["genera el código de 8 dígitos<br/>y el puesto queda VACANTE"]
     E -->|No| G["EN_CORRECCION_CARGO<br/>vuelve a Captación con motivo"]
     F --> D
 
@@ -583,31 +741,30 @@ flowchart TD
 
     subgraph EXT["Gestión externa — el sistema sólo registra el resultado"]
         H{"¿Disponibilidad<br/>presupuestaria?"}
-        I["Registra ConstanciaPresupuestaria:<br/>declarado_por · fecha · referencia<br/>adjunto opcional"]
-        J["DIFERIDO_PRESUPUESTO<br/>libera la reserva<br/>queda en cola de espera"]
+        I["ConstanciaPresupuestaria:<br/>declarado por (nombre) · fecha · referencia<br/>adjunto PDF opcional"]
+        J["DIFERIDO_PRESUPUESTO<br/>libera la reserva<br/>espera 90 días"]
         H -->|Sí| I
         H -->|No| J
     end
 
-    I --> K["Emite PUNTO DE CUENTA<br/>correlativo + cargo + constancia<br/>→ EN_DIRECCION_GENERAL"]
+    I --> K["Emite PUNTO DE CUENTA<br/>proceso ingreso_postulacion · correlativo + PDF<br/>→ EN_DIRECCION_GENERAL"]
 
-    K --> L["… firma de Dirección General …"] --> M
+    K --> L["… aprueba Dirección General …"] --> M
 
-    subgraph ASIG["ASIGNACIÓN — una sola transacción"]
+    subgraph ASIG["ASIGNACIÓN — POST asignar/ · una sola transacción"]
         M["BEGIN"]
-        M1["1 · SELECT AsigTrabajo FOR UPDATE<br/>revalida que sigue VACANTE"]
-        M2["2 · crea Employee desde Postulante<br/>+ perfiles + familiares + vivienda"]
-        M3["3 · AsigTrabajo.employee = nuevo<br/>estatusid = ACTIVO"]
-        M4["4 · registrar_historial_movimiento<br/>tipo INGRESO"]
-        M5["5 · crea cuenta · rol AUTOGESTION"]
-        M6["6 · encola eventos en OutboxSincronizacion"]
-        M7["7 · Expediente → CONTRATADO"]
-        M8["COMMIT"]
-        M --> M1 --> M2 --> M3 --> M4 --> M5 --> M6 --> M7 --> M8
+        M1["1 · bloquea expediente, puesto y reserva<br/>y REVALIDA: reserva de ESTE expediente,<br/>ACTIVA y vigente · puesto aún vacante"]
+        M2["2 · Employee nuevo (o el existente en un reingreso)<br/>con datos de Ventana 1 y 2 · foto · origen_expediente"]
+        M3["3 · familiares · vivienda · salud · tallas"]
+        M4["4 · asigna el puesto al Employee<br/>movimiento INGRESO"]
+        M5["5 · cuenta del sistema<br/>solo si el correo es institucional"]
+        M6["6 · reserva CONSUMIDA · postulante enlazado<br/>credencial revocada · expediente CONTRATADO"]
+        M7["COMMIT · después: avisos"]
+        M --> M1 --> M2 --> M3 --> M4 --> M5 --> M6 --> M7
     end
 
-    M8 --> N([Personal activo])
-    M1 -.->|"ya no está vacante"| O["ROLLBACK<br/>→ EN_PRESUPUESTO<br/>re-reservar puesto"]
+    M7 --> N([Personal activo])
+    M1 -.->|"ya no está vacante o la reserva venció<br/>409 PUESTO_NO_DISPONIBLE · no se toca nada"| O["EN_PRESUPUESTO<br/>re-reservar puesto"]
 
     style ASIG fill:#fff9c4,stroke:#f9a825,stroke-width:3px
     style SIS fill:#e3f2fd
@@ -615,13 +772,34 @@ flowchart TD
     style O fill:#ffebee
 ```
 
-**Por qué `FOR UPDATE SKIP LOCKED` y por qué revalidar en el paso 1:** entre la reserva y la
-asignación pasan días. Dos expedientes aprobados para el mismo código, o un traslado interno que
-ocupó el puesto mientras tanto, son escenarios reales. Sin el bloqueo y la revalidación, el resultado
-es un `AsigTrabajo` con dos titulares o un `unique_together('codigo','tiponominaid')` que estalla al
-final del proceso, cuando la persona ya firmó.
+**Por qué bloquear y revalidar en el paso 1:** entre la reserva y la asignación pasan días. Dos expedientes
+aprobados para el mismo código, o un traslado interno que ocupó el puesto mientras tanto, son escenarios reales. El
+caso de uso toma los bloqueos siempre **en el mismo orden** (expediente, puesto, reserva) y revalida con datos reales;
+una prueba de concurrencia (G-6) simula dos expedientes sobre el mismo puesto. Si algo falla, **no queda nada a
+medias**: ni Employee, ni familiares, ni puesto ocupado, ni movimiento, ni cuenta, ni cambio de estado.
+
+**Pasos reales de la contratación** (puerto `PromotorEmpleado`, implementado en `promotor_empleado_orm.py`):
+
+- **Reingreso (C-1):** si la cédula ya tiene `Employee` (egresado), se reutiliza y se reactiva; si está ACTIVO, 409
+  `EMPLEADO_ACTIVO`. La respuesta indica `es_reingreso`.
+- **El correo del `Employee` es el institucional.** El del postulante casi siempre es personal: queda como correo
+  *alternativo*. La **cuenta del sistema solo se crea si el correo es institucional** (del dominio de la casa,
+  `DOMINIO_CORREO_INSTITUCIONAL`). Si no lo es, la contratación igual se completa y se emite el aviso
+  **`CORREO_INSTITUCIONAL_PENDIENTE`** a quien tenga `personal.editar_personales` (RRHH), con enlace a la ficha: pide
+  gestionar el correo con Tecnología y cargarlo. **El aviso se resuelve solo** cuando se carga el correo y se crea la
+  cuenta.
+- Tras el commit salen `CONTRATACION_COMPLETADA` (a Captación) y, si hay foto, `CARNET_PENDIENTE` (a quien emite
+  carnets); se cierran todos los avisos pendientes del expediente.
+- La respuesta nunca incluye contraseñas.
+
+**Lo que ya no está en el diseño:** la asignación **no encola eventos de sincronización** (el outbox hacia nómina es el
+bloque I, fuera de alcance), y el bloqueo de la vacante usa `SELECT … FOR UPDATE` del puesto, no `SKIP LOCKED`.
 
 ### 4.5 Autogestión: ficha, solicitud, cambios propuestos y aprobación
+
+> **Nota de alcance.** `apps/autogestion` está construida en esta rama con sus propios estados y permisos
+> (`bienestar.habilitar_ventana`, `bienestar.aprobar`, …); esta revisión **no la re-audita**. Lo que sigue es el diseño
+> original; donde difiere (estados, prórrogas, devolución para corregir) manda el código.
 
 Implementa H-2: el trabajador **propone**, Bienestar Social **aplica**.
 
@@ -685,9 +863,10 @@ sequenceDiagram
     end
 ```
 
-**Estados de la solicitud**: `SOLICITADA → HABILITADA → EN_CARGA → ENVIADA →
-APROBADA | APROBADA_PARCIAL | RECHAZADA`, más `DENEGADA` (Bienestar Social no habilita) y `EXPIRADA`
-(la ventana venció sin envío).
+**Estados de la solicitud (implementados)**: `SOLICITADA → HABILITADA → ENVIADA → APROBADA | APROBADA_PARCIAL |
+RECHAZADA`, más `DEVUELTA` (Bienestar Social la devuelve al trabajador con motivo para que corrija y reenvíe) y
+`EXPIRADA` (la ventana venció sin envío; hay **prórrogas** de la ventana). El diseño de agosto hablaba de `EN_CARGA` y
+`DENEGADA`, que no existen en el código.
 
 **Aprobación parcial:** es la razón práctica de guardar cambio por cambio en lugar de un JSON
 completo. Si el trabajador actualiza teléfono, dirección y nivel académico, y sólo el nivel académico
@@ -712,14 +891,14 @@ carece de soporte documental, Bienestar Social aprueba dos y rechaza uno. Con un
 
 ```mermaid
 flowchart LR
-    subgraph HOY["ESTADO ACTUAL"]
+    subgraph HOY["ESTADO ANTERIOR (agosto)"]
         H1["CarnetTemplate<br/>UNA imagen de fondo<br/>activo = singleton"]
         H2["CarnetDesigner<br/>designer.py:23<br/>5.5 × 8.56 cm vertical<br/><b>coordenadas en el código</b>"]
         H3["PDF de UNA cara"]
         H1 --> H2 --> H3
     end
 
-    subgraph PROP["FASE 2"]
+    subgraph PROP["FASE 2 (implementado)"]
         P1["CarnetPlantilla<br/>versionada · anverso + reverso<br/>historial de versiones"]
         P2["CarnetPlantillaCampo<br/>cara · origen_dato · x · y<br/>ancho · alto · fuente · color<br/><b>coordenadas en la base</b>"]
         P3["Diseñador visual web<br/>arrastrar y soltar<br/>vista previa en vivo"]
@@ -732,7 +911,7 @@ flowchart LR
     HOY -.->|"migración: la maqueta actual<br/>se siembra como<br/>plantilla v1 LEGACY"| PROP
 
     subgraph DATOS["Origen de cada campo"]
-        D1["FOTO · profile/{cedula}<br/>la misma que cargó en Ventana 2"]
+        D1["FOTO · Employee.foto_objeto<br/>la misma que cargó en Ventana 2"]
         D2["Employee · nombres, apellidos, cédula"]
         D3["AsigTrabajo · cargo, oficina, nómina"]
         D4["QR · security_hash<br/>models.py:_compute_security_hash"]
@@ -751,21 +930,44 @@ flowchart LR
 diseñarlo o cargarlo ya listo»*:
 
 - **Modo diseño**: fondo + campos posicionados en el diseñador web. Editable, versionable.
-- **Modo carga directa**: se sube un PDF o imagen ya maquetado por cara; sólo se posicionan los
-  campos variables encima (foto, nombre, cédula, QR). Útil cuando el diseño lo entrega Imagen
-  Institucional en un archivo cerrado.
+- **Modo carga directa**: fondo por cara tomado de una imagen o de la página elegida de un PDF de la Biblioteca (el PDF
+  se rasteriza a PNG con límites de páginas, tamaño y tiempo), con los campos variables encima.
 
-**Cuidados de la migración:** el layout actual está **codificado en `designer.py`**, no en datos.
-Antes de volver `CarnetDesigner` data-driven hay que sembrar la maqueta vigente como
-`CarnetPlantilla v1 · LEGACY` con sus campos y coordenadas medidas del código, y comparar píxel a
-píxel un carnet generado por cada vía. Sin ese paso, el primer carnet nuevo sale distinto al que la
-gente ya tiene en la mano.
+✅ **Implementado (bloques A, B y K).** Lo que quedó construido sobre el diseño anterior:
 
-Además: `CarnetTemplate.activo` es un singleton global (`models.py:72`, el `save()` desactiva las
-demás). Con plantillas versionadas conviene **activo por tipo de carnet** (empleado / contratado /
-pasante / autoridad), no uno solo para todo el organismo.
+- **Una sola función dibuja cada cara** (`dibujar_cara`): el PDF individual, el de lote y la vista previa salen idénticos
+  a lo diseñado. Se aplican imágenes de la biblioteca, **rotación y opacidad**, formas libres y esquinas redondeadas.
+- **Formato imprenta**: sangrado configurable (`carnetizacion.sangrado_mm`, 2 mm) y marcas de corte, con `TrimBox` y
+  `BleedBox`; **dúplex** configurable (ninguno, borde largo o corto) y lote de trabajadores con las páginas
+  intercaladas A1, R1, A2, R2…
+- **El PDF emitido se guarda** (`CarnetEmitidoArchivo`, clave opaca y sha256) y la reimpresión sale idéntica.
+- **Ciclo físico**: `EMITIDO → IMPRESO → ENTREGADO`, y `ANULADO` con motivo obligatorio; avisos «listo para retirar».
+- **Solicitudes de carnet reales**: el trabajador solicita desde Autogestión y RRHH emite o rechaza desde la bandeja.
+- **La plantilla se elige por la condición real del titular** (activo, pasivo o sin asignación) con el resolutor
+  central, y por la **regla de uso** de cada plantilla (p. ej. nómina = CONTRATADO).
+- **La credencial toma el diseño de la nómina del titular.** El color y el nivel salen de la asignación vigente
+  (Funcionario, Obrero, Contratado…). **Alto Nivel es la nómina FUNCIONARIO** (azul marino). **Contratados y pasantes
+  *no* son tipos de credencial**: usan el diseño de su nómina. Los tipos de credencial que quedan son trabajador,
+  pasivo y los externos (visitante, contratista, trabajador temporal). Las migraciones 0021 y 0022 retiraron
+  «autoridad», «contratado» y «pasante».
+- **Migración de la maqueta heredada**: la maqueta de `designer.py` se sembró como **plantilla v1 `LEGACY`** (migración
+  `0017`) con una prueba de comparación de imagen con tolerancia documentada; `CarnetTemplate` se retiró del código
+  (la tabla física queda intacta). El comando `verificar_plantilla_legacy` comprueba, antes de desplegar, qué carnets
+  antiguos dependen de ella.
+- **Biblioteca de medios segura**: solo PNG, JPEG y WebP en subidas nuevas (tipo real por *magic bytes*), tope de 40
+  megapíxeles, SVG históricos saneados y servidos como adjunto; el borrado de un medio en uso pide confirmación.
+- **Diseñador**: carnet siempre visible en escritorio y teléfono, aviso de cambios sin guardar y sin pérdida de trabajo
+  al volver a la ventana.
 
-### 4.7 Sincronización con SIGEP-Nómina — patrón outbox
+El diseño de agosto proponía además «activo por tipo de carnet» en lugar de un singleton global: quedó resuelto por
+la **regla de uso de cada plantilla** y por el tipo de credencial.
+
+### 4.7 Sincronización con el sistema de nómina (por definir) — patrón outbox
+
+> ⏸ **Fuera de alcance — sin implementar.** El sistema de nómina destino **está por definir** (no es SIGESP), por lo
+> que no existen `OutboxSincronizacion`, `MapeoCatalogo`, el worker de despacho ni la conciliación (bloque I, E-9).
+> Lo que sigue es **el patrón de diseño** que se aplicaría cuando se conozca el canal; los nombres «SIGEP-Nómina» y
+> «SIGESP» son provisionales y no hay ninguna escritura hacia ninguna base de nóminas.
 
 *«Cada registro y actualización y movimiento de cargo, suspensión y etc.»*
 
@@ -830,11 +1032,9 @@ que aislarla como en §I.4.6 del plan de reconstrucción: alias propio, `CONN_MA
 `connect_timeout = 5`, espejos `managed = False` con **sólo** las columnas usadas, router por módulo,
 y usuario SQL con permisos acotados a esas tablas. Y dejar por escrito quién asume el riesgo.
 
-**Prerrequisito de infraestructura — ya resuelto en la decisión, no en el código:** el broker será
-**RabbitMQ** y el worker corre en la cola `sync`, con `acks_late` y reintento exponencial. La
-especificación completa —colas, garantías de entrega, tareas programadas y el `compose`— está en
-**§12.6**. Sigue pendiente levantarlo: `celery==5.3.4` está en `requirements.txt` sin broker ni app
-declarada.
+**Prerrequisito de infraestructura — ya resuelto:** el broker es **RabbitMQ** y existe la app de Celery (`GATH/celery.py`)
+con `acks_late`, reintentos y colas configurables (§12.6). Lo que falta para la sincronización no es infraestructura
+sino **definir el sistema destino y su canal** (DEC-1 y DEC-2, ver §9).
 
 ---
 
@@ -845,127 +1045,106 @@ Sólo lo esencial de cada tabla. Convención del proyecto: `db_table` explícito
 
 ### 5.1 `apps/postulacion`
 
+✅ **Implementado.** El código real difiere del boceto de agosto en tres decisiones de arquitectura:
+
+- **Sin claves foráneas entre módulos (regla Onion).** Cargo, oficina, puesto y trabajador se guardan como
+  **identificadores** (`cargo_propuesto_id`, `puesto_id`, `employee_cedula`…); las personas que actúan se guardan por
+  **cédula** (texto). Así `postulacion` no depende de los modelos de `personal` ni de `cargos`.
+- **Clave primaria UUID** (`BaseModel`, UUID v7) en todas las tablas.
+- **Una credencial por expediente**, y un postulante puede tener **varios expedientes** a lo largo del tiempo (un
+  reingreso o un nuevo intento), pero **solo uno abierto** (restricción única parcial).
+
+Modelos (tablas `postulacion_*`), solo lo esencial:
+
 ```python
-class Postulante(models.Model):
-    """Agregado independiente. NO es Employee. Ver H-1."""
-    cedula            = models.CharField(max_length=15, unique=True)
-    nombres           = models.CharField(max_length=150)
-    apellidos         = models.CharField(max_length=150)
-    correo            = models.EmailField(blank=True)   # personal y OPCIONAL: no es el acceso
-    telefono_movil    = models.CharField(max_length=20, blank=True)   # canal real de contacto
-    fecha_nacimiento  = models.DateField(null=True, blank=True)
-    sexo              = models.ForeignKey('RAC.Sexo', models.PROTECT, null=True)
-    estado_civil      = models.ForeignKey('RAC.estado_civil', models.PROTECT, null=True)
-    datos_extra       = models.JSONField(default=dict)   # borrador libre de Ventana 1
-    # Trazabilidad de la promoción
-    employee          = models.OneToOneField('RAC.Employee', models.SET_NULL,
-                                             null=True, blank=True, db_column='employeeId')
-    creado_por        = models.ForeignKey('USER.cuenta', models.PROTECT)
-    fecha_creacion    = models.DateTimeField(auto_now_add=True)
+class PostulanteModel(BaseModel):          # NO es Employee (H-1)
+    cedula = CharField(max_length=15, unique=True)
+    nombres, apellidos = CharField(150), CharField(150)
+    correo = EmailField(blank=True)         # personal y de cortesía: NO es el acceso
+    telefono_movil = CharField(20, blank=True)
+    employee_cedula = CharField(15, blank=True, db_index=True)   # se llena al contratar (sin FK)
+    creado_por = CharField(15)              # cédula del analista de Captación
 
 
-class ExpedientePostulacion(models.Model):
-    ESTADOS = [...]   # los 16 estados de §4.2
-    numero            = models.CharField(max_length=20, unique=True)  # EXP-2026-00001
-    postulante        = models.OneToOneField(Postulante, models.CASCADE)
-    estado            = models.CharField(max_length=30, choices=ESTADOS, db_index=True)
-    # Propuesta de Captación
-    cargo_propuesto           = models.ForeignKey('RAC.Denominacioncargo', models.PROTECT, null=True)
-    cargo_esp_propuesto       = models.ForeignKey('RAC.Denominacioncargoespecifico', models.PROTECT, null=True)
-    tipo_nomina_propuesto     = models.ForeignKey('RAC.Tiponomina', models.PROTECT, null=True)
-    direccion_general         = models.ForeignKey('RAC.DireccionGeneral', models.PROTECT, null=True)
-    direccion_linea           = models.ForeignKey('RAC.DireccionLinea', models.PROTECT, null=True)
-    coordinacion              = models.ForeignKey('RAC.Coordinaciones', models.PROTECT, null=True)
-    dependencia               = models.ForeignKey('RAC.Dependencias', models.PROTECT, null=True)
-    # Resultado
-    puesto_asignado   = models.ForeignKey('RAC.AsigTrabajo', models.SET_NULL, null=True, blank=True)
-    fecha_apertura    = models.DateTimeField(auto_now_add=True)
-    fecha_cierre      = models.DateTimeField(null=True, blank=True)
-    # Retención (O-2)
-    purgado           = models.BooleanField(default=False)
-    fecha_purga       = models.DateField(null=True, blank=True)
-
-    class Meta:
-        indexes = [models.Index(fields=['estado', 'fecha_apertura'])]
+class ExpedientePostulacionModel(BaseModel):
+    numero = CharField(20, unique=True)     # EXP-2026-00001
+    postulante = ForeignKey(PostulanteModel, PROTECT, related_name='expedientes')
+    estado = CharField(30, db_index=True)   # los 17 estados de §4.2
+    # propuesta de Captación — identificadores, sin FK
+    cargo_propuesto_id, cargo_especifico_propuesto_id, tipo_nomina_propuesto_id = PositiveIntegerField(null=True) …
+    direccion_general_id, direccion_linea_id, coordinacion_id, dependencia_id = PositiveIntegerField(null=True) …
+    cargo_propuesto_texto, oficina_propuesta_texto = CharField(200)   # nombres al abrir hacia Presupuesto
+    ventana = PositiveSmallIntegerField(null=True)                  # 1 o 2
+    ventana_vence_el, reserva_vence_el, diferido_vence_el = DateTimeField(null=True)
+    datos_ventana1 = JSONField()            # formulario de la Ventana 1 (esquema en el dominio)
+    datos_ventana2 = JSONField()            # familiares, vivienda, salud, tallas, emergencia (Ventana 2)
+    foto_clave, foto_sha256, foto_tamano, foto_subida_el        # foto de carnet: clave opaca
+    contacto_pendiente_desde = DateTimeField(null=True)         # para el escalamiento de CONTACTAR_POSTULANTE
+    fecha_apertura, fecha_cierre
+    # constraint: postul_un_expediente_abierto_por_postulante (un expediente no terminal por postulante)
 
 
-class TransicionExpediente(models.Model):
-    """Auditoría inmutable. Una fila por cambio de estado. Nunca se actualiza."""
-    expediente     = models.ForeignKey(ExpedientePostulacion, models.PROTECT,
-                                       related_name='transiciones')
-    estado_origen  = models.CharField(max_length=30)
-    estado_destino = models.CharField(max_length=30)
-    ejecutado_por  = models.ForeignKey('USER.cuenta', models.PROTECT, null=True)  # null = postulante
-    motivo         = models.TextField(blank=True)
-    observaciones  = models.TextField(blank=True)
-    fecha          = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ['fecha']
+class TransicionExpedienteModel(BaseModel):    # historial inmutable
+    expediente = ForeignKey(ExpedientePostulacionModel, PROTECT, related_name='transiciones')
+    estado_origen, estado_destino, actor_cedula, actor_tipo   # USUARIO | POSTULANTE | SISTEMA
+    fecha, motivo, datos_extra = …
 
 
-class CredencialPostulante(models.Model):
-    """Acceso por cédula + contraseña. NO crea fila en USER.cuenta (H-1).
-    El postulante no tiene correo institucional: la contraseña temporal la
-    entrega Captación en persona. Ver §4.3."""
-    postulante        = models.ForeignKey(Postulante, models.CASCADE, related_name='credenciales')
-    password_hash     = models.CharField(max_length=128)    # hashers de Django, nunca en claro
-    debe_cambiar      = models.BooleanField(default=True)   # reusa debe_cambiar_password
-    ventana           = models.PositiveSmallIntegerField()  # 1 o 2 · ver O-1
-    vence_el          = models.DateTimeField(db_index=True)
-    intentos_fallidos = models.PositiveSmallIntegerField(default=0)
-    bloqueado_hasta   = models.DateTimeField(null=True, blank=True)   # bloqueo a los 5
-    ultimo_acceso     = models.DateTimeField(null=True, blank=True)
-    revocada_el       = models.DateTimeField(null=True, blank=True)
-    entregada_por     = models.ForeignKey('USER.cuenta', models.PROTECT)  # quién la entregó
+class CredencialPostulanteModel(BaseModel):
+    expediente = OneToOneField(ExpedientePostulacionModel, PROTECT, related_name='credencial')
+    usuario = CharField(15)                 # la cédula
+    clave_hash = CharField(255)             # hasher de Django, nunca en claro
+    ventana, vence_el, debe_cambiar_clave
+    intentos_fallidos, bloqueada_hasta      # bloqueo de 15 min a los 5 fallos
+    ultimo_acceso, emitida_por, emitida_el, version_sesion, revocada
 
 
-class ReservaPuesto(models.Model):
-    """Impide que dos expedientes tomen el mismo AsigTrabajo. Ver §4.4."""
-    puesto      = models.ForeignKey('RAC.AsigTrabajo', models.PROTECT, related_name='reservas')
-    expediente  = models.ForeignKey(ExpedientePostulacion, models.CASCADE)
-    vence_el    = models.DateTimeField(db_index=True)
-    liberada_el = models.DateTimeField(null=True, blank=True)
-    creada_por  = models.ForeignKey('USER.cuenta', models.PROTECT)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=['puesto'], condition=Q(liberada_el__isnull=True),
-                                    name='un_solo_puesto_reservado_activo'),
-        ]
+class EnlaceActivacionModel(BaseModel):        # D-10
+    expediente = ForeignKey(ExpedientePostulacionModel, PROTECT, related_name='enlaces_activacion')
+    token_hash = CharField(64, unique=True)  # sha256 del token; el token en claro NO se guarda
+    correo_destino, creado_por, creado_el, vence_el
+    usado_el, ip_uso, intentos, revocado
 
 
-class ConstanciaPresupuestaria(models.Model):
-    """Registra el resultado de la gestión externa. El sistema NO la calcula. Ver O-5."""
-    expediente     = models.OneToOneField(ExpedientePostulacion, models.CASCADE)
-    disponible     = models.BooleanField()
-    referencia     = models.CharField(max_length=100, blank=True)   # nº de oficio/constancia
-    observaciones  = models.TextField(blank=True)
-    adjunto_clave  = models.CharField(max_length=120, blank=True)   # objeto en gath-soportes (§12.2)
-    declarado_por  = models.ForeignKey('USER.cuenta', models.PROTECT)
-    fecha          = models.DateTimeField(auto_now_add=True)
+class ReservaPuestoModel(BaseModel):
+    expediente = ForeignKey(ExpedientePostulacionModel, PROTECT, related_name='reservas')
+    puesto_id = PositiveIntegerField(db_index=True)    # AsigTrabajo, SIN FK dura
+    reservado_por, reservado_el, vence_el
+    estado = CharField(10)                  # ACTIVA | LIBERADA | CONSUMIDA | VENCIDA
+    motivo_liberacion, cerrada_el
+    # constraints: una reserva ACTIVA por puesto y una por expediente
 
 
-class InstrumentoEvaluacion(models.Model):
-    """Test psicofísico. Reutiliza el motor de AUTOGESTION. Ver O-7."""
-    nombre         = models.CharField(max_length=150)
-    version        = models.PositiveSmallIntegerField(default=1)
-    puntaje_minimo = models.DecimalField(max_digits=5, decimal_places=2)
-    activo         = models.BooleanField(default=True)
+class ConstanciaPresupuestariaModel(BaseModel):   # el sistema NO calcula la disponibilidad (O-5)
+    expediente = OneToOneField(ExpedientePostulacionModel, PROTECT, related_name='constancia_presupuestaria')
+    declarado_por_cedula, declarado_por_nombre, referencia, fecha, observaciones
+    adjunto_clave, adjunto_sha256, adjunto_tamano         # PDF opcional, clave opaca
 
 
-class ResultadoEvaluacion(models.Model):
-    expediente    = models.ForeignKey(ExpedientePostulacion, models.CASCADE)
-    instrumento   = models.ForeignKey(InstrumentoEvaluacion, models.PROTECT)
-    puntaje       = models.DecimalField(max_digits=5, decimal_places=2, null=True)
-    aprobado      = models.BooleanField(null=True)   # null = pendiente de evaluar
-    respuestas    = models.JSONField(default=dict)
-    evaluado_por  = models.ForeignKey('USER.cuenta', models.PROTECT, null=True)
-    fecha         = models.DateTimeField(auto_now_add=True)
+class PuntoCuentaIngresoModel(BaseModel):     # enlace con apps.puntocuenta, por id y número
+    expediente = OneToOneField(ExpedientePostulacionModel, PROTECT, related_name='punto_cuenta_ingreso')
+    punto_cuenta_id = UUIDField(); numero; pdf_clave
+    estado = CharField(10)                  # EMITIDO | FIRMADO | RECHAZADO
+    puesto_id, referencia_constancia, emitido_por, emitido_el, decidido_por, decidido_el
+
+
+class ResultadoPsicofisicoModel(BaseModel):   # C-6: solo resultado e informe
+    expediente = OneToOneField(ExpedientePostulacionModel, PROTECT, related_name='psicofisico')
+    resultado = CharField(10)               # APTO | NO_APTO
+    fecha_aplicacion, observaciones
+    informe_clave, informe_sha256, informe_tamano         # PDF opcional, clave opaca
+    registrado_por, registrado_el
 ```
+
+Lo que el boceto de agosto tenía y **no existe**: `InstrumentoEvaluacion` y `ResultadoEvaluacion` (el test no se
+modela en el sistema, solo su resultado: C-6); el motor de cuestionarios de Autogestión no se reutilizó para el test.
+El `Punto de Cuenta` no es una tabla de `postulacion` sino un proceso de `apps/puntocuenta` (`ingreso_postulacion`).
 
 ### 5.2 `apps/documentos`
 
+> ⬜ **No implementado (bloque F).** Espera los PDF oficiales vigentes (F-3). Se conserva como diseño. Hoy los únicos
+> documentos del flujo son el **Punto de Cuenta de ingreso** (en `apps/puntocuenta`) y los PDF que se **adjuntan**
+> (informe psicofísico, constancia presupuestaria), guardados con clave opaca y sha256.
 ```python
 class PlantillaDocumento(models.Model):
     """Los formatos que hoy se llenan en físico. Ver §8."""
@@ -1009,6 +1188,8 @@ cargo. Si el PDF se regenera leyendo `Employee` en vivo, el reimpreso no coincid
 
 ### 5.3 `apps/autogestion` (reescritura)
 
+> ✅ **Implementada** con variantes (estados `DEVUELTA` y `EXPIRADA`, prórrogas, secciones configurables y soportes por
+> tipo); el código es la referencia. El boceto siguiente es el diseño original.
 ```python
 class SolicitudActualizacion(models.Model):
     ESTADOS = ['SOLICITADA','HABILITADA','EN_CARGA','ENVIADA',
@@ -1058,26 +1239,37 @@ class CambioPropuesto(models.Model):
 
 ### 5.4 `apps/notificaciones` y `apps/sincronizacion`
 
+✅ **Implementado (notificaciones).** El destinatario no es un rol: el aviso se **dirige a un permiso** (p. ej.
+`postulacion.ver_bandeja`) o a una cédula concreta, y al emitirse se crea **una copia por cada cuenta** que tiene ese
+permiso. Todas las copias de un mismo caso comparten `ref_tipo`/`ref_id`, y cuando alguien lo atiende las demás pasan
+a «atendida» (H-4, §5.6). Se evita el duplicado con `clave_unica`.
+
 ```python
-class Notificacion(models.Model):
-    # Destinatario: a una cuenta concreta O a todo un rol (bandeja compartida)
-    destinatario      = models.ForeignKey('USER.cuenta', models.CASCADE, null=True, db_index=True)
-    rol_destinatario  = models.ForeignKey('USER.Rol', models.CASCADE, null=True, db_index=True)
-    tipo              = models.CharField(max_length=50)   # SOLICITUD_HABILITACION, EXPEDIENTE_APROBADO…
-    titulo            = models.CharField(max_length=200)
-    cuerpo            = models.TextField(blank=True)
-    url_destino       = models.CharField(max_length=255, blank=True)   # a dónde lleva el clic
-    # Referencia genérica al objeto, sin acoplar apps
-    ref_tipo          = models.CharField(max_length=60, blank=True)
-    ref_id            = models.CharField(max_length=40, blank=True)
-    leida_el          = models.DateTimeField(null=True, blank=True)
-    fecha             = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        indexes = [models.Index(fields=['destinatario', 'leida_el', '-fecha']),
-                   models.Index(fields=['rol_destinatario', 'leida_el', '-fecha'])]
+class NotificacionModel(BaseModel):              # notificaciones_notificacion
+    destinatario_cedula = CharField(20)
+    tipo = CharField(60); titulo = CharField(200); mensaje = TextField()
+    enlace = CharField(300)                      # ruta interna relativa
+    ref_tipo, ref_id = CharField(40), CharField(64)   # referencia genérica, sin acoplar apps
+    modulo = CharField(30)                       # etiqueta del módulo en la campana
+    leida, fecha_lectura
+    clave_unica = CharField(160, null=True)      # deduplicación
+    grupo = CharField(32)                        # copias del mismo caso
+    atendida, atendida_por_cedula, atendida_por_nombre, fecha_atendida   # «el primero que actúa»
 
 
+class EventoOutboxModel(BaseModel):              # notificaciones_evento_outbox · correo asíncrono
+    tipo, canal ('EMAIL'), destinatario (correo), destinatario_cedula, payload
+    idempotency_key = CharField(250, unique=True)
+    estado (PENDIENTE|…), intentos, proximo_intento, ultimo_error, enviado_en
+```
+
+El correo a una persona sin cuenta (el postulante) **no usa campana**: pasa por el puerto `Notificador.enviar_correo_directo`,
+que escribe en `EventoOutboxModel`; Celery lo envía y una tarea cada 5 minutos reprograma los pendientes que nadie
+envió (broker o worker caídos).
+
+⏸ **Sin implementar (bloque I).** El outbox de sincronización con nómina sigue siendo solo diseño:
+
+```python
 class OutboxSincronizacion(models.Model):
     """Se inserta en el MISMO COMMIT que el cambio de negocio. Ver §4.7."""
     ESTADOS = ['PENDIENTE','ENVIANDO','ENVIADO','FALLIDO','DESCARTADO']
@@ -1108,203 +1300,215 @@ class MapeoCatalogo(models.Model):
 
 ### 5.5 Cambios en modelos existentes
 
-| Modelo | Cambio | Motivo |
+| Modelo | Cambio | Estado |
 |---|---|---|
-| `RAC.Employee` | agregar `foto_objeto` (CharField 120, clave S3 opaca) y `foto_actualizada` (DateTime) | hoy la foto vive fuera de la base, sin metadatos y bajo una clave adivinable (§12.2). `profile` (TextField) queda para su uso actual |
-| `RAC.Employee` | agregar `origen_expediente` (FK nullable a `ExpedientePostulacion`) | trazabilidad de cómo entró cada trabajador |
-| `CARNETIZACION.CarnetTemplate` | **se conserva**, se marca obsoleta; nace `CarnetPlantilla` | no romper los carnets ya emitidos |
-| `CARNETIZACION.CarnetEmitido` | agregar `plantilla_version`, `anverso_clave` y `reverso_clave` | saber con qué formato se imprimió cada carnet y dónde quedó cada cara |
-| `USER.Rol` | agregar `codigo` (slug estable, unique) | dejar de comparar por `nombre_rol`; ver MED-18 y la errata `BIENSTAR SOCIAL` |
-| `AUTOGESTION.RespuestasEncuesta` | sujeto generalizable o modelo paralelo para postulantes | `empleado` es FK a `Employee`; un postulante no lo es (O-7) |
+| `Employee` (`apps/personal`) | `foto_objeto` (CharField 120, null) y `foto_actualizada` (DateTime, null): clave opaca de la foto de carnet y fecha | ✅ migración `personal.0004` (por SQL). `profile` conserva su uso y se alinea con `foto_objeto` cuando la foto llega por la promoción |
+| `Employee` (`apps/personal`) | `origen_expediente`: **`UUIDField` nullable, SIN clave foránea** | ✅ trazabilidad de cómo entró cada trabajador; es un id opaco porque `personal` **no puede conocer** `postulacion` (regla Onion). La propuesta de agosto decía «FK nullable»: se descartó |
+| `CarnetTemplate` | se retiró del código; la tabla física queda intacta | ✅ nace `PlantillaCarnetModel` versionada y la plantilla `LEGACY` (migraciones 0017 y 0018) |
+| `CarnetEmitido` | el PDF emitido se guarda aparte | ✅ `CarnetEmitidoArchivo` (clave opaca, sha256, formato) y `CarnetCiclo` (ciclo físico); la versión de plantilla viaja en el *snapshot* |
+| `Rol` | `codigo` estable | ⬜ no se implementó: la autorización es por **permiso** (`modulo.accion`), no por nombre de rol |
+| `RespuestasEncuesta` generalizable al postulante | — | ❌ no hizo falta: el test psicofísico no se responde en el sistema (C-6) |
 
 ### 5.6 Catálogo de notificaciones
 
-Los avisos que el flujo exige, enumerados. `rol_destinatario` significa bandeja compartida: le llega
-a todos los que tienen ese rol, y el primero que actúa la resuelve.
+✅ **Implementado.** Estos son los avisos que el flujo de Captación emite **hoy** (fuente: `apps/postulacion/application/use_cases/avisos.py`
+y `vencimientos.py`). El destino es un **permiso**: le llega a todas las cuentas que lo tengan (bandeja compartida) y
+**el primero que actúa lo resuelve para todos** (H-4): las demás copias pasan a «atendidas» («Atendido por …») y salen
+del contador de la campana, y el aviso personal del mismo caso no se toca. La emisión ocurre **después del commit**; un
+fallo al avisar nunca deshace la transición.
 
-| `tipo` | Se emite cuando | Destinatario | Lleva a |
+| `tipo` | Se emite cuando | Destino (permiso) | Se resuelve cuando |
 |---|---|---|---|
-| `CREDENCIAL_GENERADA` | Captación da de alta al postulante | quien la generó | contraseña temporal, una sola vez |
-| `EXPEDIENTE_RECIBIDO` | el postulante envía Ventana 1 | rol `CAPTACION` | expediente |
-| `EXPEDIENTE_OBSERVADO` | Captación devuelve con observaciones | rol `CAPTACION` (tarea: contactar) | expediente |
-| `EXPEDIENTE_EN_PRESUPUESTO` | Captación abre el expediente | rol `PRESUPUESTO` | solicitud de personal |
-| `EXPEDIENTE_DEVUELTO_CARGO` | Presupuesto devuelve por cargo u oficina | rol `CAPTACION` | expediente |
-| `EXPEDIENTE_DIFERIDO` | sin disponibilidad presupuestaria | rol `CAPTACION` | expediente |
-| `PUNTO_CUENTA_PARA_FIRMA` | Presupuesto emite el Punto de Cuenta | rol `DIRECCION_GENERAL` | documento |
-| `EXPEDIENTE_APROBADO_DG` | Dirección General firma | rol `CAPTACION` | expediente |
-| `EXPEDIENTE_RECHAZADO_DG` | Dirección General no aprueba | rol `CAPTACION` | expediente |
-| `CONTACTAR_POSTULANTE` | se reabre la Ventana 2 | rol `CAPTACION` (**tarea crítica**) | expediente + nueva contraseña |
-| `VENTANA_POR_VENCER` | 48 h antes del vencimiento | rol `CAPTACION` (tarea: insistir) | expediente |
-| `CONSOLIDACION_RECIBIDA` | el postulante envía Ventana 2 | rol `CAPTACION` | expediente |
-| `CONSOLIDACION_INCOMPLETA` | Captación observa faltantes | rol `CAPTACION` (tarea: contactar) | expediente |
-| `CONTRATACION_COMPLETADA` | asignación de cargo exitosa | rol `CAPTACION` + rol `ANALISTA` | ficha del nuevo empleado |
-| `CARNET_PENDIENTE` | hay foto cargada y aún no hay carnet | rol `ANALISTA` | emisión de carnet |
-| `SOLICITUD_HABILITACION` | el trabajador pide actualizar | rol `BIENESTAR_SOCIAL` | solicitud |
-| `HABILITACION_CONCEDIDA` | Bienestar Social habilita | cuenta del trabajador | su solicitud |
-| `HABILITACION_DENEGADA` | Bienestar Social no habilita | cuenta del trabajador | su solicitud |
-| `ACTUALIZACION_POR_REVISAR` | el trabajador envía cambios | rol `BIENESTAR_SOCIAL` | vista de diferencias |
-| `ACTUALIZACION_APROBADA` | se aplican los cambios | cuenta del trabajador | su ficha |
-| `ACTUALIZACION_RECHAZADA` | se rechazan los cambios | cuenta del trabajador | su solicitud |
-| `SINCRONIZACION_FALLIDA` | el outbox agota reintentos | rol `ADMINISTRADOR` | bandeja de reproceso |
-| `CONCILIACION_CON_DIVERGENCIAS` | la conciliación diaria encuentra diferencias | rol `ADMINISTRADOR` | reporte |
+| `EXPEDIENTE_RECIBIDO` | el postulante envía la Ventana 1 (o su corrección) | `postulacion.ver_bandeja` (Captación) | Captación actúa sobre el expediente enviado |
+| `EXPEDIENTE_REVISION_FINAL` | el postulante envía la Ventana 2 | `postulacion.ver_bandeja` | Captación observa faltantes, da conforme o contrata |
+| `EXPEDIENTE_EN_PRESUPUESTO` | Captación abre (o reabre) hacia Presupuesto, o el puesto reservado se perdió | `postulacion.ver_solicitudes` (Presupuesto) | Presupuesto actúa (devuelve, difiere o emite el Punto de Cuenta) |
+| `EXPEDIENTE_CORRECCION_CARGO` | Presupuesto devuelve por cargo u oficina (con el motivo) | `postulacion.ver_bandeja` | Captación reabre hacia Presupuesto |
+| `EXPEDIENTE_EN_DIRECCION` | Presupuesto emite el Punto de Cuenta | `postulacion.ver_ingresos` (Dirección General) | Dirección General aprueba o rechaza |
+| `INGRESO_APROBADO` | Dirección General aprueba | `postulacion.ver_bandeja` | Captación reabre la Ventana 2 |
+| `CONTACTAR_POSTULANTE` | se reabre la Ventana 2 o se observan faltantes | `postulacion.ver_bandeja` (**tarea crítica**) | Captación lo marca «ya lo contacté» (`contactado/`), el postulante envía, o se contrata |
+| `CONTACTO_ATRASADO` | el contacto lleva más de `captacion.horas_escalamiento_contacto` horas sin atender (48 por defecto); una sola vez por reapertura | `postulacion.ver_bandeja` | igual que `CONTACTAR_POSTULANTE` |
+| `CONTRATACION_COMPLETADA` | asignación de cargo exitosa | `postulacion.ver_bandeja` | informativo |
+| `CARNET_PENDIENTE` | contratado con foto cargada y sin carnet | `carnetizacion.emitir` | informativo |
+| `CORREO_INSTITUCIONAL_PENDIENTE` | contratado cuyo correo **no** es institucional | `personal.editar_personales` (RRHH) · enlace a la ficha | **se resuelve solo** al cargarse el correo institucional y crearse la cuenta |
 
-Son **23 tipos** y **ninguno se dirige al postulante**: no tiene correo institucional ni cuenta en el
-sistema (§4.3). Los cinco avisos que le conciernen se convierten en **tareas para Captación**, que es
-quien lo contacta. Si dejó correo personal o móvil, se usa como cortesía y en adición a la tarea,
-nunca en su lugar.
+Otros módulos emiten además sus propios avisos: Carnetización (`CARNET_SOLICITUD_RECIBIDA` a quien tiene el permiso de la
+bandeja de solicitudes, `CARNET_SOLICITUD_APROBADA` / `CARNET_SOLICITUD_RECHAZADA` y `CARNET_LISTO_PARA_RETIRAR` al
+trabajador) y Autogestión (`autogestion.solicitud_creada`, `ventana_habilitada`, `ventana_prorrogada`,
+`solicitud_enviada`, `solicitud_devuelta`, `correccion_reenviada`, `solicitud_rechazada`, `actualizacion_aprobada`,
+`foto_aprobada`, `ventana_expirada` y `ventana_por_expirar`, dirigidos a Bienestar Social, al trabajador o a quien reemite
+carnets).
 
-`CONTACTAR_POSTULANTE` es el más importante del catálogo: **si nadie actúa sobre él, el expediente se
-detiene indefinidamente** y la persona nunca sabe que fue aprobada. Debe destacarse en la bandeja con
-antigüedad visible y escalar si pasa de 48 horas sin atender.
+**Avisos del diseño de agosto que NO existen**, y por qué: `CREDENCIAL_GENERADA` (la contraseña se muestra en la propia
+respuesta del alta, una sola vez), `EXPEDIENTE_OBSERVADO`, `EXPEDIENTE_DIFERIDO` y `EXPEDIENTE_RECHAZADO_DG` (quien
+ejecuta la acción ya la conoce; el postulante, si tiene correo, recibe el suyo), `VENTANA_POR_VENCER` (la ventana vencida
+la maneja el vencimiento automático, no un aviso previo) y `SINCRONIZACION_FALLIDA` / `CONCILIACION_CON_DIVERGENCIAS`
+(bloque I).
 
-Dos reglas que evitan el ruido: **una notificación por evento, no por destinatario** —la bandeja de
-rol se resuelve al consultar, no duplicando filas—, y **agrupación al leer** cuando varios eventos
-del mismo tipo apuntan al mismo expediente.
+**Ninguno se dirige al postulante por campana**: no tiene cuenta (§4.3). Si dejó correo personal recibe los correos de
+§4.3, que nunca llevan contraseña.
+
+**`CONTACTAR_POSTULANTE` es el más importante del catálogo:** si nadie actúa sobre él, el expediente se detiene y la
+persona nunca sabe que fue aprobada. Se destaca en la bandeja («Por contactar») con su antigüedad visible, y una tarea
+programada **escala** el aviso (`CONTACTO_ATRASADO`) cuando supera `captacion.horas_escalamiento_contacto`.
+
+**Notificaciones casi en tiempo real: sondeo de 15 s con ETag, no SSE.**
+`GET /api/v1/notificaciones/estado/` devuelve `{no_leidas, ultima_actualizacion}` con una sola consulta agregada y un
+`ETag`; con `If-None-Match` responde `304` sin cuerpo. El frontend hace **un único sondeo cada 15 segundos solo con la
+pestaña visible**, revalida al volver a la ventana o reconectar, recarga la lista y muestra el *toast* únicamente si el
+estado cambió. Se descartó el SSE del diseño original (`GET /notificaciones/stream/`) **porque el backend corre sobre
+WSGI**: una conexión SSE mantiene ocupado un worker por usuario conectado y agotaría el servidor con pocos cientos de
+sesiones. **Para tener SSE real haría falta**: servir Django bajo ASGI (existe `GATH/asgi.py`) con vistas asíncronas o
+un servicio de *streaming* aparte, un canal de eventos entre procesos (Redis ya está disponible), un proxy que no
+almacene en búfer (`proxy_buffering off`) y reconexión con `Last-Event-ID`. Pendiente opcional del sondeo: una pestaña
+«líder» (BroadcastChannel) para que varias pestañas no sondeen a la vez.
+
+Dos reglas que evitan el ruido: **una copia por cuenta resuelta por permiso, agrupada por caso**, y **deduplicación por
+`clave_unica`** (un reenvío tras corregir genera un aviso nuevo porque su clave es el asiento del historial).
 
 ---
 
 ## 6. Contratos de API
 
-Bajo `/api/v1/` según §0.3 del plan de reconstrucción. Todo endpoint con permiso declarado
-**en backend**.
+Bajo `/api/v1/`. Todo endpoint con permiso declarado **en backend**. La referencia viva es el esquema OpenAPI
+(`/api/schema/`, Swagger); lo que sigue es el mapa de lo **implementado**.
 
-### Postulación
+### Postulación (`/api/v1/postulacion/`)
 ```
-POST   /postulacion/postulantes/                   CAPTACION   alta + credencial Ventana 1
-POST   /postulacion/acceso/                         invitado    cédula + contraseña → sesión de invitado
-POST   /postulacion/cambiar-clave/                  invitado    obligatorio en el primer ingreso
-POST   /postulacion/expedientes/{id}/reponer-clave/ CAPTACION   regenera la contraseña temporal
-GET    /postulacion/mi-expediente/                  invitado    estado y campos pendientes
-PATCH  /postulacion/mi-expediente/datos/            invitado    guardado de borrador
-POST   /postulacion/mi-expediente/evaluacion/       invitado    respuestas del test
-POST   /postulacion/mi-expediente/enviar/           invitado    → ENVIADO_CAPTACION
+# Postulante (sesión de invitado, token propio)
+POST   acceso/                                  invitado    cédula + contraseña → sesión de invitado
+POST   activar/                                 público     enlace de activación + cédula + contraseña nueva (D-10)
+POST   cambiar-clave/                           invitado    obligatorio en el primer ingreso
+GET    mi-expediente/                           invitado    estado y campos pendientes
+PUT    borrador/                                invitado    guardado de borrador de la Ventana 1
+POST   enviar/                                  invitado    Ventana 1 → ENVIADO_CAPTACION · Ventana 2 → EN_REVISION_FINAL
+GET/PUT ventana2/                               invitado    familiares, vivienda, salud, tallas, emergencia
+GET    ventana2/catalogos/                      invitado    catálogos del formulario
+GET/POST ventana2/foto/                         invitado    foto de carnet (sin EXIF, clave opaca)
 
-GET    /postulacion/expedientes/                    CAPTACION|PRESUPUESTO|DIR_GENERAL  bandeja filtrada por rol
-GET    /postulacion/expedientes/{id}/               según rol
-POST   /postulacion/expedientes/{id}/verificar/     CAPTACION   aprueba o devuelve con observaciones
-POST   /postulacion/expedientes/{id}/rechazar/      CAPTACION   → RECHAZADO_CAPTACION
-POST   /postulacion/expedientes/{id}/abrir/         CAPTACION   cargo+oficina → EN_PRESUPUESTO
-GET    /postulacion/expedientes/{id}/vacantes/      PRESUPUESTO consulta de §4.4
-POST   /postulacion/expedientes/{id}/reservar/      PRESUPUESTO reserva del puesto
-POST   /postulacion/expedientes/{id}/constancia/    PRESUPUESTO registra disponibilidad
-POST   /postulacion/expedientes/{id}/devolver/      PRESUPUESTO → EN_CORRECCION_CARGO | DIFERIDO
-POST   /postulacion/expedientes/{id}/aprobar-dg/    DIR_GENERAL firma del Punto de Cuenta
-POST   /postulacion/expedientes/{id}/rechazar-dg/   DIR_GENERAL → RECHAZADO_DIRECCION
-POST   /postulacion/expedientes/{id}/reabrir/       CAPTACION   Ventana 2
-POST   /postulacion/expedientes/{id}/asignar/       CAPTACION   transacción atómica de §4.4
-GET    /postulacion/expedientes/{id}/auditoria/     CAPTACION|ADMIN  transiciones
+# Captación
+POST   postulantes/                             crear_postulante      alta + credencial (entrega = persona | correo)
+POST   expedientes/{id}/reponer-credencial/     crear_postulante      regenera la contraseña (solo con ventana abierta)
+POST   expedientes/{id}/enviar-enlace/          crear_postulante      envía el enlace de activación por correo
+GET    expedientes/                             ver_bandeja           bandeja con filtros y «Por contactar»
+GET    expedientes/{id}/                        ver_bandeja           detalle con historial y acciones[] permitidas
+POST   expedientes/{id}/transicion/             según el par          devolver · rechazar · abrir · reabrir V2 · observar · conforme
+POST   expedientes/{id}/contactado/             revision_final        «ya lo contacté»
+POST   expedientes/{id}/asignar/                revision_final        promoción atómica (§4.4)
+GET/POST expedientes/{id}/psicofisico/          registrar_psicofisico resultado APTO / NO_APTO
+GET    expedientes/{id}/psicofisico/informe/    ver_bandeja           descarga del informe PDF (con bitácora)
+GET    expedientes/{id}/foto/                   ver_bandeja           foto del postulante (con bitácora)
+
+# Presupuesto
+GET    solicitudes/  ·  solicitudes/{id}/       ver_solicitudes       bandeja y detalle
+GET    solicitudes/{id}/vacantes/               ver_solicitudes       consulta de §4.4
+POST   solicitudes/{id}/reserva/                reservar_puesto       reserva del puesto
+POST   solicitudes/{id}/constancia/             declarar_disponibilidad  constancia (+ constancia/adjunto/)
+POST   solicitudes/{id}/transicion/             devolver_solicitud | emitir_punto_cuenta | declarar_disponibilidad
+GET    solicitudes/{id}/punto-cuenta/           ver_solicitudes|ver_ingresos  PDF del Punto de Cuenta
+
+# Dirección General
+GET    ingresos/  ·  ingresos/{id}/             ver_ingresos          bandeja y detalle
+POST   ingresos/{id}/transicion/                aprobar_ingreso       aprobar | rechazar (motivo)
+GET    ingresos/{id}/punto-cuenta/              ver_ingresos          PDF del Punto de Cuenta
 ```
 
 ### Documentos
 ```
+⬜ NO IMPLEMENTADO (bloque F). Diseño original:
 GET    /documentos/plantillas/                      CAPTACION|ADMIN
 GET    /documentos/plantillas/{codigo}/prellenado/  invitado|CAPTACION  campos ya resueltos
 POST   /documentos/generar/                         CAPTACION|invitado
 POST   /documentos/{id}/firmar/                     según rol_firmante
 GET    /documentos/{id}/descargar/                  autenticado + dueño o rol   ← CRIT-06/07
-POST   /documentos/punto-de-cuenta/{expediente}/    PRESUPUESTO
 ```
 
 ### Autogestión
-```
-GET    /autogestion/mi-ficha/                       AUTOGESTION   siempre disponible
-GET    /autogestion/mis-solicitudes/                AUTOGESTION
-POST   /autogestion/solicitudes/                    AUTOGESTION   pide habilitación
-PATCH  /autogestion/solicitudes/{id}/cambios/       AUTOGESTION   sólo si HABILITADA y sin vencer
-POST   /autogestion/solicitudes/{id}/enviar/        AUTOGESTION
-GET    /autogestion/bandeja/                         BIENESTAR_SOCIAL
-POST   /autogestion/solicitudes/{id}/habilitar/     BIENESTAR_SOCIAL
-POST   /autogestion/solicitudes/{id}/denegar/       BIENESTAR_SOCIAL
-GET    /autogestion/solicitudes/{id}/diff/          BIENESTAR_SOCIAL   antes → después
-POST   /autogestion/solicitudes/{id}/aprobar/       BIENESTAR_SOCIAL   ids aceptados
-POST   /autogestion/solicitudes/{id}/rechazar/      BIENESTAR_SOCIAL
-```
+Implementada (`/api/v1/autogestion/`); ver Swagger. Su detalle no se re-auditó en esta revisión (§4.5).
 
 ### Notificaciones · Carnet · Sincronización
 ```
-GET    /notificaciones/                              autenticado   propias + de su rol
-GET    /notificaciones/no-leidas/count/              autenticado   para el badge
-POST   /notificaciones/{id}/marcar-leida/            autenticado
-GET    /notificaciones/stream/                       autenticado   SSE
+GET    /notificaciones/                          autenticado   propias, con filtros
+GET    /notificaciones/conteo/                   autenticado   para el badge
+GET    /notificaciones/estado/                   autenticado   sondeo con ETag / 304 (cada 15 s)
+POST   /notificaciones/{id}/leer/                autenticado
+POST   /notificaciones/leer-todas/               autenticado
+(no existe /notificaciones/stream/: el backend es WSGI, §5.6)
 
-GET    /carnetizacion/plantillas/                    ANALISTA|ADMIN
-POST   /carnetizacion/plantillas/                    ADMIN         crear versión
-PUT    /carnetizacion/plantillas/{id}/campos/        ADMIN         diseñador: posiciones
-POST   /carnetizacion/plantillas/{id}/vista-previa/  ANALISTA|ADMIN  render sin persistir
-POST   /carnetizacion/plantillas/{id}/activar/       ADMIN
-POST   /carnetizacion/emitir/{cedula}/               ANALISTA      PDF de 2 caras
+GET    /carnetizacion/plantillas-motor/          plantillas versionadas (+ /activa/, /{id}/publicar/, /activar/, /versiones/)
+POST   /carnetizacion/generar/{cedula}/          emitir el carnet de 2 caras (PDF guardado)
+GET    /carnetizacion/{id}/pdf/                  reimprimir idéntico (?formato=imprenta)
+GET    /carnetizacion/cola-impresion/            cola de trabajadores; POST lote-trabajadores/pdf/
+POST   /carnetizacion/{id}/impreso/ · entregado/ · revocar/   ciclo físico
+GET    /carnetizacion/solicitudes/               bandeja de solicitudes de carnet (el trabajador solicita desde Autogestión)
+GET/POST /carnetizacion/biblioteca/              medios (PNG/JPEG/WebP y fondos PDF)
 
-GET    /sincronizacion/outbox/                       ADMIN         monitoreo
-POST   /sincronizacion/outbox/{id}/reintentar/       ADMIN
-GET    /sincronizacion/conciliacion/                 ADMIN         divergencias GATH vs SIGEP
+⏸ /sincronizacion/*   NO IMPLEMENTADO (bloque I)
 ```
 
 ---
 
-## 7. Roles y permisos — prerrequisito bloqueante
+## 7. Roles y permisos
+
+> ✅ **Implementado.** La autorización vive en el backend y es **por permiso** (`modulo.accion`), nunca por nombre de
+> rol (regla B2/R16): cada vista declara `HasPermission(...)`, sin permiso se deniega (403) y se audita (*fail-closed*).
+> El catálogo y la matriz se siembran con `apps/identidad/management/commands/seed_permisos.py`; `BACKEND/PERMISOS.md`
+> es el documento rector. El frontend aplica la misma regla con `puede()` (§13.4).
 
 ### 7.1 Roles
 
-| Código | Existe hoy | Rol en la Fase 2 |
+| Rol | Estado | Qué hace en la Fase 2 |
 |---|---|---|
-| `ADMINISTRADOR` | ✅ | plantillas, mapeos, outbox, roles |
-| `ANALISTA` | ✅ | operación de personal, emisión de carnets |
-| `CAPTACION` | ❌ **nuevo** | conduce el expediente de postulación |
-| `PRESUPUESTO` | ✅ | vacantes, códigos, constancia, Punto de Cuenta |
-| `DIRECCION_GENERAL` | ❌ **nuevo** | firma y aprobación |
-| `BIENESTAR_SOCIAL` | ⚠️ existe como `BIENSTAR SOCIAL` | habilita y aprueba actualizaciones |
-| `RECEPCIONISTA` | ✅ | consulta |
-| `AUTOGESTION` | ✅ | el trabajador sobre su propia ficha |
-| *(invitado)* | ❌ **nuevo** | postulante con credencial temporal — **no es un `Rol`** |
+| `ADMINISTRADOR` | ✅ | todo el catálogo de permisos (salvo `personal.recibir_avisos_movimientos`): plantillas, parámetros, roles |
+| `ANALISTA` | ✅ | operación de personal y emisión de carnets |
+| `CAPTACION` | ✅ **creado** (migración `identidad.0016`) | conduce el expediente: 8 permisos `postulacion.*` + `notificaciones.ver_propias`, `autogestion.ver_propio`, `cargos.ver`, `organizacion.ver`, `catalogos.ver` |
+| `PRESUPUESTO` | ✅ **ampliado** | 5 permisos `postulacion.*`: solicitudes, reserva, constancia, devolución, Punto de Cuenta |
+| `DIRECCION_GENERAL` | ✅ **creado** | `postulacion.ver_ingresos` y `postulacion.aprobar_ingreso` + permisos base |
+| `BIENESTAR SOCIAL` | ✅ (la errata `BIENSTAR` ya está corregida en producción) | habilita y aprueba actualizaciones; existen además `ANALISTA_BIENESTAR` y `ADMIN_BIENESTAR` |
+| `RECEPCIONISTA`, `AUTOGESTION` | ✅ | consulta de familiares; el trabajador sobre su propia ficha |
+| `AUDITOR`, `JEFE_RRHH` | ✅ (no son de esta fase) | consulta de bitácora; consulta de gestión de personal |
+| *(invitado)* | **no es un `Rol`** | el postulante: sesión propia con alcance de su expediente (§4.3, §13.3) |
 
-Sobre `BIENSTAR SOCIAL`: hay que decidir si se corrige el nombre con migración de datos (y actualizar
-las 24 referencias del frontend) o se deja como está. Lo que **no** hay que hacer es escribir el
-nombre correcto en el código nuevo y el incorrecto en el viejo: quedarían dos roles conviviendo y las
-habilitaciones fallarían en silencio. Por eso §5.5 propone `Rol.codigo`: un slug estable
-(`BIENESTAR_SOCIAL`) desacoplado de la etiqueta que se muestra.
+**Decisión C-8:** los roles `CAPTACION`, `PRESUPUESTO` y `DIRECCION_GENERAL` quedan **creados con sus permisos**; **el
+usuario (RRHH) los asigna a las personas**. La sembradora no asigna ninguno. El `Rol.codigo` propuesto en agosto no se
+implementó: al comparar por permiso ya no hace falta.
 
-### 7.2 Matriz de autorización por transición
+### 7.2 Matriz de autorización: permisos `postulacion.*`
 
-Cada fila es una comprobación **en backend**. Hoy ninguna existe.
+Cada fila es una comprobación **en backend**. Los quince permisos están sembrados en `seed_permisos`:
 
-| Transición | Rol autorizado | Condición adicional |
-|---|---|---|
-| Emitir credencial | `CAPTACION` | cédula libre (O-9); la contraseña temporal se muestra una sola vez |
-| Acceso del postulante | invitado | cédula + contraseña válidas, ventana activa, no vencida, sin bloqueo por intentos |
-| Enviar Ventana 1 | invitado | expediente en `EN_CAPTURA` y campos obligatorios completos |
-| Verificar / rechazar datos | `CAPTACION` | estado `ENVIADO_CAPTACION` |
-| Evaluar el test | `CAPTACION` | resultado registrado |
-| Abrir expediente | `CAPTACION` | cargo y oficina definidos |
-| Consultar vacantes | `PRESUPUESTO` | estado `EN_PRESUPUESTO` |
-| Crear código de cargo | `PRESUPUESTO` | — *(ya restringido, en frontend)* |
-| Reservar puesto | `PRESUPUESTO` | puesto `VACANTE` y sin reserva activa |
-| Registrar constancia | `PRESUPUESTO` | reserva vigente |
-| Emitir Punto de Cuenta | `PRESUPUESTO` | constancia `disponible = True` |
-| Firmar / rechazar | `DIRECCION_GENERAL` | estado `EN_DIRECCION_GENERAL` |
-| Reabrir Ventana 2 | `CAPTACION` | estado `APROBADO` |
-| **Asignar cargo** | `CAPTACION` | `LISTO_PARA_ASIGNAR` + reserva vigente + puesto revalidado |
-| Habilitar actualización | `BIENESTAR_SOCIAL` | estado `SOLICITADA` |
-| Aprobar actualización | `BIENESTAR_SOCIAL` | estado `ENVIADA` + soportes en secciones que los exigen |
-| Editar plantilla de carnet | `ADMINISTRADOR` | — |
-| Reintentar outbox | `ADMINISTRADOR` | estado `FALLIDO` |
+| Permiso | Rol que lo trae | Qué autoriza | Condición adicional (guarda) |
+|---|---|---|---|
+| `postulacion.ver_bandeja` | `CAPTACION` | ver la bandeja, el detalle, la foto y el informe | — |
+| `postulacion.crear_postulante` | `CAPTACION` | alta del postulante, reponer credencial, enviar enlace de activación | cédula que no sea de un trabajador ACTIVO; sin otro expediente abierto |
+| `postulacion.verificar` | `CAPTACION` | devolver con observaciones (`ENVIADO_CAPTACION → EN_CORRECCION_DATOS`) | motivo obligatorio |
+| `postulacion.rechazar` | `CAPTACION` | `→ RECHAZADO_CAPTACION` | motivo obligatorio |
+| `postulacion.registrar_psicofisico` | `CAPTACION` | registrar el resultado y el informe | — |
+| `postulacion.abrir_expediente` | `CAPTACION` | abrir o reabrir hacia Presupuesto | cargo y oficina definidos; psicofísico si es obligatorio |
+| `postulacion.revision_final` | `CAPTACION` | reabrir la Ventana 2, observar faltantes, dar conforme, marcar contactado y **asignar el cargo** | asignar: `LISTO_PARA_ASIGNAR` + reserva vigente + puesto revalidado |
+| `postulacion.ver_auditoria` | `CAPTACION` | consultar el historial de transiciones | — |
+| `postulacion.ver_solicitudes` | `PRESUPUESTO` | bandeja de solicitudes y consulta de vacantes | estado `EN_PRESUPUESTO` |
+| `postulacion.reservar_puesto` | `PRESUPUESTO` | reservar el puesto | puesto `VACANTE`, sin reserva activa |
+| `postulacion.declarar_disponibilidad` | `PRESUPUESTO` | registrar la constancia (queda con el nombre de quien la declara) y retomar un diferido | reserva vigente |
+| `postulacion.devolver_solicitud` | `PRESUPUESTO` | devolver por cargo u oficina, o diferir | motivo obligatorio |
+| `postulacion.emitir_punto_cuenta` | `PRESUPUESTO` | emitir el Punto de Cuenta y enviar a Dirección General | puesto reservado y disponibilidad declarada |
+| `postulacion.ver_ingresos` | `DIRECCION_GENERAL` | ver los ingresos pendientes | — |
+| `postulacion.aprobar_ingreso` | `DIRECCION_GENERAL` | aprobar o rechazar el ingreso (firma del Punto de Cuenta) | estado `EN_DIRECCION_GENERAL`; rechazar pide motivo |
 
-### 7.3 Hallazgos previos que **bloquean** la Fase 2
+Los avisos se dirigen a estos mismos permisos (§5.6). La **crítica de seguridad** de la matriz de agosto («hoy ninguna
+existe») **ya no aplica**: cada vista exige su permiso y las pruebas de integración verifican el 403.
 
-Del `PLAN_RECONSTRUCCION_ONION.md`, en orden de bloqueo:
+### 7.3 Hallazgos previos que bloqueaban la Fase 2
 
-| Hallazgo | Por qué bloquea |
+Del `PLAN_RECONSTRUCCION_ONION.md`. Verificados contra el código el 24-11-2026:
+
+| Hallazgo | Estado |
 |---|---|
-| **B0.0** — 0 migraciones versionadas | La Fase 2 agrega ~15 tablas. Sin línea base, no hay forma de aplicar el esquema |
-| **CRIT-08** — la API no impone restricciones | Cualquiera aprobaría el Punto de Cuenta de cualquiera |
-| **CRIT-05** — `register_view` deja elegir el rol | Un atacante se hace `DIRECCION_GENERAL` |
-| **CRIT-04** — cambio de contraseña sin la actual | Toma de cuentas |
-| **CRIT-06 / 07** — documentos personales sin autenticar | Los nuevos documentos son más sensibles que los actuales |
-| **CRIT-12** — crear/renombrar/borrar roles sin permiso | La matriz de §7.2 sería decorativa |
-| **D-02** — Celery sin broker | Sin cola no hay ETL asíncrono |
-| **ALTA-17** — sin backend de caché | El throttling del acceso de invitado lo necesita |
-
-**No hay forma de construir la Fase 2 encima de esto.** La semana 1 de §0.7 del plan de
-reconstrucción es la condición de entrada.
+| **B0.0** — 0 migraciones versionadas | ✅ migraciones versionadas en todas las apps; `verificar_migraciones.sh` las prueba desde cero |
+| **CRIT-08** — la API no impone restricciones | ✅ `HasPermission` / `HasAnyPermission` en las vistas, fail-closed |
+| **CRIT-06 / 07** — documentos sin autenticar | ✅ no hay `/media/` público: todo archivo se sirve por una vista que autentica y autoriza, y **cada descarga queda en bitácora** (§12.5) |
+| **D-02** — Celery sin broker | ✅ Celery 5.6.3 + RabbitMQ (§12.6) |
+| **ALTA-17** — sin backend de caché | ✅ Redis cuando hay `REDIS_URL`; si no, la tabla de PostgreSQL (§12.9) |
+| **CRIT-04 / CRIT-05 / CRIT-12** — contraseña sin la actual, `register_view`, roles sin permiso | no se re-verificaron en esta revisión; existen los permisos `identidad.*` que los gobiernan |
 
 ---
 
@@ -1312,93 +1516,100 @@ reconstrucción es la condición de entrada.
 
 Los que nombras, más los que el flujo implica:
 
-| # | Documento | Genera | Cuándo | Datos que ya no se transcriben |
-|---|---|---|---|---|
-| 1 | **Punto de Cuenta** | Presupuesto → DG | tras la constancia (O-4) | nombres, cédula, cargo, oficina, código, sueldo |
-| 2 | **Oferta de Servicios** *(«1-»)* | postulante | Ventana 2 | identidad, contacto, dirección, académico |
-| 3 | **Afiliación Caja de Ahorro** *(«3-»)* | postulante | Ventana 2 | identidad, cargo, nómina, % de aporte |
-| 4 | **Planilla HCM Seguros Mirandaa** *(«7-»)* | postulante | Ventana 2 | identidad + **grupo familiar completo** con parentesco y fechas de nacimiento |
-| 5 | **Notificación Itinerante** | Captación | tras asignar | identidad, cargo, oficina, fecha de inicio |
-| 6 | **Contrato** determinado / indeterminado | Captación | tras revisión final | identidad, cargo, código, vigencia |
-| 7 | Declaración jurada de no incompatibilidad | postulante | Ventana 2 | identidad |
-| 8 | Autorización de tratamiento de datos | postulante | **Ventana 1, antes de cargar nada** | identidad |
-| 9 | Constancia de recepción de expediente | Captación | al verificar | — |
+| # | Documento | Genera | Cuándo | Datos que ya no se transcriben | Estado |
+|---|---|---|---|---|---|
+| 1 | **Punto de Cuenta** de ingreso | Presupuesto → DG | tras la constancia (O-4) | nombres, cédula, cargo, oficina, código del puesto | ✅ proceso `ingreso_postulacion` en `apps/puntocuenta`, correlativo y PDF; estados EMITIDO / FIRMADO / RECHAZADO |
+| 2 | **Oferta de Servicios** *(«1-»)* | postulante | Ventana 2 | identidad, contacto, dirección, académico | ⬜ bloque F, espera F-3 |
+| 3 | **Afiliación Caja de Ahorro** *(«3-»)* | postulante | Ventana 2 | identidad, cargo, nómina, % de aporte | ⬜ bloque F, espera F-3 |
+| 4 | **Planilla HCM Seguros Miranda** *(«7-»)* | postulante | Ventana 2 | identidad + **grupo familiar completo** | ⬜ bloque F, espera F-3 |
+| 5 | **Notificación Itinerante** | Captación | tras asignar | identidad, cargo, oficina, fecha de inicio | ⬜ F-5 |
+| 6 | **Contrato** determinado / indeterminado | Captación | tras revisión final | identidad, cargo, código, vigencia | ⬜ F-5 |
+| 7 | Declaración jurada de no incompatibilidad | postulante | Ventana 2 | identidad | ⬜ F-5 |
+| 8 | Autorización de tratamiento de datos | postulante | Ventana 1, antes de cargar nada | identidad | ⬜ F-5 |
+| 9 | Constancia de recepción de expediente | Captación | al verificar | — | ⬜ sin tarea asignada |
 
-**El ahorro real está en el punto 4.** La planilla HCM repite el grupo familiar entero: nombres,
-cédulas, parentescos y fechas de nacimiento de cada beneficiario. Si el postulante ya lo cargó en
-`Employeefamily`, la planilla sale llena. Es la que más tiempo consume hoy y la que más errores de
-transcripción acumula.
+**El ahorro real está en el punto 4.** La planilla HCM repite el grupo familiar entero. Hoy la **Ventana 2 ya captura
+el grupo familiar** (y vivienda, salud y tallas) y la promoción lo copia a `Employeefamily`; lo que falta es **estampar**
+esos datos en la planilla oficial (F-4).
 
-**Motores de plantilla** (campo `motor` en §5.2):
-- `reportlab` — formatos propios, sobre `RAC/services/pdf/`. Punto de Cuenta, contrato, constancias.
-- `pdf_overlay` — cuando el formato lo dicta un tercero y **no se puede alterar** (HCM de la
-  aseguradora, Caja de Ahorro). Se toma el PDF oficial como fondo y se estampan los valores en
-  coordenadas. Es el mismo mecanismo del diseñador de carnets, y conviene compartir el código.
+**Motores de plantilla** (diseño, bloque F):
+- `reportlab` — formatos propios, sobre los generadores de PDF institucionales. Punto de Cuenta, contrato, constancias.
+- `pdf_overlay` — cuando el formato lo dicta un tercero y **no se puede alterar** (HCM, Caja de Ahorro). Se toma el PDF
+  oficial como fondo y se estampan los valores en coordenadas. **El carnet ya lo hace** (fondo desde PDF rasterizado,
+  campos encima): F-2 propone compartir ese código.
 - `html` — documentos de texto largo donde el diseño importa poco.
 
-⚠️ Antes de programar los puntos 2, 3 y 4 hace falta **el PDF oficial vigente de cada planilla**. Las
-coordenadas del `pdf_overlay` dependen del archivo exacto; si la aseguradora cambia el formato, el
-estampado se desplaza. Hay que versionar el PDF fuente junto con la plantilla.
+⚠️ Antes de programar los puntos 2, 3 y 4 hace falta **el PDF oficial vigente de cada planilla (F-3)**: lo entrega el
+área usuaria. Las coordenadas del `pdf_overlay` dependen del archivo exacto; hay que versionar el PDF fuente con la
+plantilla.
+
+**Firma (C-5):** decidida como **clic de «acepto y declaro»** con fecha, hora, IP y huella (sha256) del documento, sin
+firma electrónica certificada por ahora. Su implementación (F-6) depende de que existan los documentos.
 
 ---
 
-## 9. Decisiones que necesito de tu parte
+## 9. Decisiones
 
-**Ya resueltas** (21-08-2026), incorporadas en §12:
+**Resueltas.** Las de infraestructura del 21-08-2026 y todas las de negocio que tomó el área usuaria el 20-11-2026
+(bloque C del seguimiento). Los parámetros se editan en *Gestión del sistema → grupo «Captación»*.
 
-| Tema | Decisión | Impacto |
+| Tema | Decisión | Dónde queda |
 |---|---|---|
-| Almacenamiento de archivos | **SeaweedFS** por gateway S3 | reemplaza NestJS; §12.2, §12.8 |
-| Broker de tareas asíncronas | **RabbitMQ** + Celery | habilita el ETL y los vencimientos; §12.6 |
-| Backend de resultados y caché | PostgreSQL (`django-db`) y `DatabaseCache` | **no se agrega Redis**; §12.6 |
+| Almacenamiento de archivos | **SeaweedFS** por gateway S3 | §12 |
+| Broker de tareas | **RabbitMQ** + Celery | §12.6 |
+| Resultados y caché | **Redis** (resultados db 1 y caché) cuando hay `REDIS_URL`; sin él, tabla de PostgreSQL. *Cambio respecto de agosto, cuando se decidió no agregar Redis* | §12.6, §12.9 |
+| **C-1 · Reingreso** (DEC-4) | **Misma persona (`Employee` existente) con un expediente nuevo**: conserva el historial y no duplica la cédula | `PromotorEmpleado`, `es_reingreso` |
+| **C-2 · Quién declara la disponibilidad** (DEC-5) | **Quien tenga el permiso** `postulacion.declarar_disponibilidad` (p. ej. administrador de Presupuesto o quien designe el usuario); **queda registrado con su nombre** | `ConstanciaPresupuestaria.declarado_por_*` |
+| **C-3 · Vigencia de las ventanas** (DEC-6) | **Parámetros configurables** por ventana | `captacion.vigencia_ventana1_dias` (15 por defecto) y `captacion.vigencia_ventana2_dias` (15) |
+| **C-4 · Vigencia de la reserva** (DEC-7) | **Parámetro configurable**; al vencer se libera sola | `captacion.vigencia_reserva_puesto_dias` (30) |
+| **C-5 · Firma del postulante** (DEC-9) | **Clic de «acepto y declaro»** con fecha, hora, **IP y sha256** del documento; sin firma electrónica certificada | decidido; se implementa con el bloque F (F-6) |
+| **C-6 · Test psicofísico** (DEC-11) | **Solo resultado e informe** (no se aplica en el sistema); obligatorio o no, parametrizable | `captacion.psicofisico_obligatorio` (sí) |
+| **C-7 · Retención de rechazados** (DEC-3) | **Plazo parametrizable**; el valor definitivo lo fija Consultoría Jurídica | `captacion.retencion_rechazados_meses` (24 por defecto). *La tarea de purga aún no existe* |
+| **C-8 · Roles** | Crear `CAPTACION`, `PRESUPUESTO` (ampliado) y `DIRECCION_GENERAL` con sus permisos; **el usuario los asigna a las personas** | §7.1 |
+| **C-10 · Espera de un diferido** | Parámetro; pasado el plazo el expediente pasa a `DESISTIDO` | `captacion.espera_diferido_dias` (**90** por defecto) |
+| **C-9 · ¿Un jubilado puede volver a postularse?** | **Provisional: SÍ.** Solo se rechaza a quien está ACTIVO | por confirmar con el área usuaria |
+| DEC-8 · `BIENSTAR SOCIAL` | corregido en producción; se compara por permiso, no por nombre | §7.1 |
+| DEC-10 · Formato del carnet | el formato ya existía (plantilla con colores por nómina); se sembró como `LEGACY` y se extendió | §4.6 |
+| DEC-12 · Renombrar la base local | la base de ejemplo se llama `gath` | §2, O-8 |
 
-Quedan **pendientes** las siguientes. Están ordenadas por cuánto trabajo bloquean; las cuatro
-primeras cambian el modelo de datos.
+Parámetros adicionales que se crearon durante la construcción: `captacion.horas_escalamiento_contacto` (**48** h: tras
+ellas el contacto pendiente escala) y `captacion.horas_vigencia_enlace_activacion` (**48** h, de 1 a 168: vigencia del
+enlace de activación, D-10).
 
-| # | Decisión | Opciones | Recomendación |
-|---|---|---|---|
-| **DEC-1** | Canal de entrega a SIGEP-Nómina (§4.7) | A) API · B) esquema de staging · C) archivo · D) escritura directa | **A**, y si no hay API, **B**. **D** sólo con la responsabilidad asumida por escrito |
-| **DEC-2** | ¿Existe API o documentación del esquema de SIGEP-Nómina? ¿Quién es el contacto? | — | Necesario antes de diseñar `MapeoCatalogo` |
-| **DEC-3** | Retención del expediente rechazado (O-2) | plazo en meses + qué se purga | Consultarlo con Consultoría Jurídica; sin plazo no se puede programar la purga |
-| **DEC-4** | Reingreso de un egresado (O-9) | A) expediente nuevo sobre el `Employee` existente · B) `Employee` nuevo · C) bloquear y derivar a manual | **A**, reactivando el registro y conservando `antecedentes_servicio` |
-| **DEC-5** | ¿Quién declara la disponibilidad presupuestaria en el sistema? | rol `PRESUPUESTO` genérico o un usuario nominal | Un usuario nominal: la constancia debe tener responsable |
-| **DEC-6** | Vigencia de las ventanas del postulante | Ventana 1: ¿7 días? · Ventana 2: ¿5 días? | Configurable, no fijo en código |
-| **DEC-7** | Vigencia de la reserva de puesto (§4.4) | ¿15 días? | Debe cubrir el tiempo real de firma de la DG |
-| **DEC-8** | Corregir `BIENSTAR SOCIAL` (§7.1) | A) migración de datos + 24 archivos · B) dejarlo y usar `Rol.codigo` | **B**: `codigo` estable y la etiqueta se corrige cuando toque |
-| **DEC-9** | Firma del postulante en las planillas | A) clic de conformidad + evidencia · B) imagen de firma dibujada · C) certificado electrónico | **A** para arrancar; el modelo `FirmaDocumento` ya admite las tres |
-| **DEC-10** | El **formato del carnet de dos caras** | lo mencionas: *«luego paso el formato»* | **Pendiente tuyo.** Bloquea §4.6: sin el formato no hay campos que posicionar |
-| **DEC-11** | ¿El test psicofísico se responde en el sistema o se registra su resultado? | A) instrumento completo con baremo · B) sólo cargar el resultado y el informe | **B** para la primera entrega; **A** exige validar el instrumento con el psicólogo |
-| **DEC-12** | Renombrar la base local para no chocar con SIGEP-Nómina (O-8) | `gath_db` | Sí, antes de que existan dos conexiones |
+**Siguen abiertas**
+
+| # | Decisión | Estado |
+|---|---|---|
+| **C-9** | ¿Un jubilado o pensionado puede volver a postularse? | ⏸ por aclarar con el área usuaria |
+| **DEC-1 / DEC-2** | Canal de entrega y documentación del **sistema de nómina destino** | ⏸ el sistema destino **está por definir** (no es SIGESP); el bloque I está fuera de alcance hasta saberlo |
+| **F-3** | Los PDF oficiales vigentes de HCM, Caja de Ahorro y Oferta de Servicios | ⏸ los entrega el área usuaria |
 
 ---
 
 ## 10. Plan de entrega
 
-Cada etapa es desplegable y deja valor por sí solo. Las estimaciones asumen el equipo actual.
+Cada etapa es desplegable y deja valor por sí solo. La columna **Estado** es al 24-11-2026.
 
-| Etapa | Contenido | Semanas | Bloqueado por |
+| Etapa | Contenido | Semanas (est. de agosto) | Estado |
 |---|---|---|---|
-| **E-0** | Semana 1 de `PLAN_RECONSTRUCCION_ONION.md` §0.7 + línea base de migraciones + **SeaweedFS y RabbitMQ endurecidos (§12)** + `DatabaseCache` | 2,5 | — |
-| **E-1** | `core/` de permisos: `Rol.codigo`, resolutor, decoradores, permisos en los endpoints de escritura existentes. **Frontend: tabla `CAPACIDADES` y reescritura de `proxy.ts`** (§13.4) | 2,5 | E-0 |
-| **E-2** | `notificaciones`: modelo, bandeja, SSE, badge en el frontend | 1,5 | E-1 |
-| **E-3** | `postulacion` — Ventana 1: postulante, credencial, datos básicos, bandeja de Captación, verificación | 3 | E-2 |
-| **E-4** | `postulacion` — Presupuesto y DG: vacantes, reserva, constancia, Punto de Cuenta, firma | 3 | E-3 |
-| **E-5** | `documentos`: plantillas, prellenado, `reportlab` + `pdf_overlay`, firma, descarga autenticada | 3 | E-4, DEC-10 |
-| **E-6** | `postulacion` — Ventana 2 y **asignación atómica**: familiares, planillas, foto, contrato, transacción de cargo | 3 | E-5 |
-| **E-7** | `autogestion` reescrita: ficha, solicitud, cambios propuestos, diff, aprobación parcial | 3 | E-2 |
-| **E-8** | `carnetizacion`: plantilla versionada, campos, diseñador visual, PDF de 2 caras, migración `LEGACY` | 3 | DEC-10 |
-| **E-9** | `sincronizacion`: outbox, worker, mapeo, despacho, conciliación, monitoreo | 3 | E-6, DEC-1, DEC-2 |
-| **E-10** | Endurecimiento: el mínimo de pruebas de **§14**, carga, documentación de usuario, capacitación | 2,5 | todos |
+| **E-0** | Reconstrucción base + migraciones + **SeaweedFS y RabbitMQ endurecidos (§12)** + caché | 2,5 | ✅ |
+| **E-1** | Permisos en backend y en el frontend (§7, §13.4) | 2,5 | ✅ por permiso, no por tabla de capacidades |
+| **E-2** | `notificaciones`: modelo, bandeja, badge | 1,5 | ✅ con **sondeo de 15 s** en lugar de SSE |
+| **E-3** | `postulacion` — Ventana 1: postulante, credencial, datos básicos, bandeja de Captación, verificación | 3 | ✅ (D) · incluye enlace de activación |
+| **E-4** | `postulacion` — Presupuesto y DG: vacantes, reserva, constancia, Punto de Cuenta, aprobación | 3 | ✅ (E) · «firma» = aprobación con acta; sin firma digital |
+| **E-5** | `documentos`: plantillas, prellenado, `pdf_overlay`, firma, descarga | 3 | ⬜ **pendiente** (F); la descarga autenticada con bitácora ya está (F-7, H-3) |
+| **E-6** | `postulacion` — Ventana 2 y **asignación atómica** | 3 | ✅ familiares, vivienda, salud, tallas, foto y asignación (G) · ⬜ planillas y contrato, que dependen de F |
+| **E-7** | `autogestion` reescrita | 3 | ✅ (fuera del seguimiento de esta revisión) |
+| **E-8** | `carnetizacion`: plantilla versionada, diseñador, PDF de 2 caras, `LEGACY` | 3 | ✅ (A, B, K) |
+| **E-9** | `sincronizacion`: outbox, worker, mapeo, despacho, conciliación | 3 | ⏸ fuera de alcance: sistema destino por definir |
+| **E-10** | Endurecimiento: pruebas, carga, documentación, capacitación | 2,5 | 🟦 las pruebas del mínimo de §14 están; carga, documentación de usuario y capacitación no se registran |
 
-**Total ≈ 30 semanas** de trabajo secuencial. E-7 y E-8 son independientes de E-3…E-6 después de
-E-2, así que con dos frentes en paralelo el calendario baja a **≈ 21 semanas**.
+**Estimación original: ≈ 30 semanas secuenciales (≈ 21 con dos frentes).** Lo que falta para cerrar la Fase 2 es el
+**bloque F** (E-5 y la parte documental de E-6), que espera los PDF oficiales; y el **bloque I** (E-9), que espera la
+definición del sistema de nómina.
 
-Las estimaciones incluyen el frontend de cada etapa (§13). **No incluyen** migrar las pantallas
-antiguas a `src/modules/`: eso es trabajo del plan de reconstrucción, no de esta fase (§13.6).
-
-**Orden recomendado si hay que priorizar:** E-0 → E-1 → E-2 → **E-7** (autogestión primero: es el
-módulo con más usuarios, el de menor riesgo y el que demuestra el ciclo de notificaciones completo
-antes de apostarlo todo al onboarding) → E-3…E-6 → E-8 → E-9.
+Las estimaciones incluyen el frontend de cada etapa (§13). **No incluyen** migrar las pantallas antiguas a
+`src/modules/`: eso es trabajo del plan de reconstrucción, no de esta fase (§13.6).
 
 ---
 
@@ -1414,7 +1625,7 @@ antes de apostarlo todo al onboarding) → E-3…E-6 → E-8 → E-9.
 | Cambio de formato del carnet ya emitido | Bajo | `plantilla_version` en `CarnetEmitido`: cada carnet sabe con qué formato salió |
 | Datos personales de candidatos no contratados | **Alto — legal** | DEC-3: retención definida y purga programada, no discrecional |
 | Frontend sin tests (0 hoy) sobre flujos de aprobación | Medio | El mínimo de §14: `playwright` sobre los recorridos de aprobación |
-| Menú y middleware que discrepan | Medio — pantallas visibles que no abren | Una sola tabla `CAPACIDADES` alimenta ambos (§13.4) |
+| Menú y middleware que discrepan | Medio — pantallas visibles que no abren | ✅ Un solo permiso alimenta el menú y el `proxy.ts` (`REGLAS_RUTA` + `puede()`, §13.4) |
 | Proveedor de invitado sobre `next-auth` en beta | Medio | Pruebas de extremo a extremo del acceso por cédula y del vencimiento de sesión (§13.3) |
 | **Nadie contacta al postulante tras la aprobación** | **Alto** — el expediente se detiene y la persona nunca se entera | `CONTACTAR_POSTULANTE` destacado en la bandeja con antigüedad y escalamiento a las 48 h (§5.6) |
 | Contraseña temporal débil o reutilizada | Alto — la cédula es pública, la clave es el único secreto | Generación aleatoria, cambio forzoso al primer ingreso, bloqueo por intentos, ventana corta (§4.3) |
@@ -1428,6 +1639,23 @@ antes de apostarlo todo al onboarding) → E-3…E-6 → E-8 → E-9.
 | RabbitMQ caído durante una contratación | Bajo — el outbox absorbe la caída | Eventos quedan en `PENDIENTE`; `reencolar_outbox_pendiente` los despacha al volver (§12.6) |
 | Subida de archivo malicioso por un postulante | Medio | MIME real, tope de tamaño, reencodificado de imágenes con EXIF eliminado (§12.2) |
 
+**Estado de los riesgos al 24-11-2026.**
+
+- **Mitigados y verificados:** expedientes trabados (las 24 transiciones están cubiertas por pruebas y los vencimientos
+  los ejecuta el sistema); dos expedientes al mismo puesto (reserva + bloqueo + revalidación + prueba de concurrencia);
+  expedientes zombis (vencimiento automático de ventanas y de la espera del diferido); contraseña débil (aleatoria,
+  cambio forzoso, bloqueo, enlace de un solo uso con hash); sesión de invitado (máximo 2 h, alcance revalidado);
+  puertos de SeaweedFS (no se publican; `sw_s3` exige identidad y no arranca sin claves); claves adivinables (opacas,
+  H-2); **nadie contacta al postulante** (`CONTACTAR_POSTULANTE` con antigüedad y escalamiento a las 48 h); migración del
+  layout del carnet (plantilla `LEGACY` con comparación de imagen).
+- **Abiertos:** escritura hacia nómina (**no se escribe nada**; el bloque I está fuera de alcance); coordenadas de
+  `pdf_overlay` (bloque F, depende de F-3); datos personales de no contratados (hay plazo configurable, **falta la tarea
+  de purga**); respaldo y restauración de las tres piezas del almacén (§12.10, no verificado en esta revisión);
+  frontend sin pruebas de extremo a extremo de la sesión de invitado en producción (hay E2E en desarrollo).
+- **Nuevos:** la base de desarrollo **envía correos reales** por el outbox (en pruebas usar direcciones `@ejemplo.invalid`
+  y limpiar); cada contratación de prueba crea un `Employee` real y ocupa un puesto (hay que limpiarlo); una tarea
+  programada de préstamos de cargo nunca corría y al desplegar procesará lo atrasado.
+
 ---
 
 ## 12. Infraestructura: SeaweedFS y RabbitMQ
@@ -1435,6 +1663,13 @@ antes de apostarlo todo al onboarding) → E-3…E-6 → E-8 → E-9.
 Decidido: **SeaweedFS** por su gateway S3 para archivos, **RabbitMQ** como broker de Celery. Esta
 sección especifica cómo se integran y qué hay que corregir del `compose` propuesto antes de
 levantarlo.
+
+> ✅ **Estado al 24-11-2026.** Ambos servicios están integrados y en el `compose.yml` real. Lo construido difiere del
+> diseño de agosto en varios puntos que cada subsección indica como **Implementado**: un solo bucket con prefijos por
+> módulo, una identidad S3 de aplicación generada al arrancar (H-1), claves opacas en todo el código (H-2), bitácora de
+> descargas (H-3), colas de Celery `mail`/`docs`/`maint`/`gath` (H-6), resultados y caché en Redis, calendario de tareas
+> estático en código y verificación de migraciones desde cero (H-7). La cola `sync` y el servicio de nómina del
+> diagrama siguiente **no existen** (bloque I).
 
 ### 12.1 Topología de servicios
 
@@ -1504,28 +1739,38 @@ La regla que ordena todo el dibujo: **nada del almacenamiento ni del broker se p
 Sólo nginx queda expuesto. Django alcanza SeaweedFS por la red interna, y el navegador **nunca**
 habla con SeaweedFS.
 
-### 12.2 Buckets y esquema de claves
+✅ **Implementado así en `compose.yml`:** `sw_master`, `sw_volume`, `sw_filer` y `sw_s3` no publican puertos (solo
+la red interna `storage`); `rabbitmq` y `redis` tampoco (redes `broker` y `cache`); los únicos puertos publicados son
+los de Django, Next.js y la consola de administración de contenedores. Además de RabbitMQ hay un **Redis** (resultados
+de Celery y caché) que el diagrama de agosto no dibujaba.
 
-Cuatro buckets, separados por sensibilidad y ciclo de vida:
+### 12.2 Claves y organización del almacén
 
-| Bucket | Contenido | Clave | Retención |
-|---|---|---|---|
-| `gath-fotos` | fotos de carnet | `{uuid4}.jpg` | vigente + histórico de reemplazos |
-| `gath-documentos` | PDFs generados: Punto de Cuenta, contratos, planillas firmadas | `{aaaa}/{mm}/{uuid4}.pdf` | **permanente, nunca se sobrescribe** |
-| `gath-soportes` | adjuntos que suben postulantes y trabajadores | `{aaaa}/{mm}/{uuid4}.{ext}` | según DEC-3 para rechazados |
-| `gath-plantillas` | fondos de carnet, PDFs base para `pdf_overlay` | `{codigo}/v{n}.{ext}` | versionado, se conserva |
+✅ **Implementado (H-2).** Se usa **un solo bucket** (`gath-storage`, variable `SEAWEEDFS_S3_BUCKET`) con **prefijos por
+módulo**, en lugar de los cuatro buckets del diseño de agosto. Todas las claves nuevas las genera
+`clave_segura(prefijo, extension)` = `{prefijo}/{uuid4}{ext}`: **opacas, nunca derivadas de la cédula**.
 
-**Claves opacas, no derivadas de la cédula.** Es la corrección de fondo a `profile/{cedula}` (§1.3).
-Una clave adivinable convierte cualquier fuga de red en una fuga masiva: quien conoce el patrón y una
-cédula, tiene el archivo. Con UUID, la correspondencia vive en PostgreSQL y **está sujeta al mismo
-control de acceso que el resto del expediente**.
+| Prefijo | Contenido |
+|---|---|
+| `postulacion/foto/` | foto de carnet del postulante (Ventana 2) |
+| `postulacion/constancia/` | adjunto de la constancia presupuestaria |
+| `postulacion/psicofisico/` | informe del test psicofísico |
+| `autogestion/soportes/` | soportes de las solicitudes de actualización (antes `…/soportes/{cedula}/…`) |
+| `perfiles/`, `carnets/`, `familiares/{id}/`, `configuracion/{campo}/`, `fe_de_vida/constancias/` | fotos de perfil, PDF de carnets emitidos, familiares, medios de configuración y constancias de fe de vida |
 
-Corolario operativo: la base de datos deja de ser opcional para interpretar el almacén. Un respaldo
-de `seaweed_data` sin el respaldo de PostgreSQL es un montón de objetos sin nombre (§12.10).
+**Corrección de fondo a `profile/{cedula}` (§1.3).** Una clave adivinable convierte cualquier fuga de red en una fuga
+masiva. Con UUID, la correspondencia vive en PostgreSQL (`Employee.foto_objeto`, `adjunto_clave`, `informe_clave`…) y
+**está sujeta al mismo control de acceso que el resto del expediente**. Los soportes de autogestión anteriores seguían
+bajo una clave con la cédula: los soportes **nuevos** ya usan clave opaca y los **viejos siguen descargándose**; el
+comando `migrar_claves_soportes` los pasa a claves opacas (primero en seco; con `--aplicar` copia, actualiza el soporte
+y `Employee.profile/foto_objeto`, y solo después borra). **Falta correrlo en producción.**
 
-**Al subir, siempre:** validar MIME real (no la extensión), imponer tamaño máximo por bucket,
-**reencodificar las imágenes con Pillow para eliminar EXIF** —las fotos de celular traen GPS y modelo
-de cámara— y calcular `sha256` para guardarlo junto al registro.
+Corolario operativo: la base de datos deja de ser opcional para interpretar el almacén. Un respaldo de los datos de
+SeaweedFS sin el respaldo de PostgreSQL es un montón de objetos sin nombre (§12.10).
+
+**Al subir, siempre:** validar el tipo real por *magic bytes* (no la extensión), imponer tamaño máximo, tope de
+megapíxeles (`IMAGEN_MAX_PIXELES`, 40 millones), **reencodificar las imágenes con Pillow** (orientación EXIF aplicada y
+metadatos descartados; las fotos de celular traen GPS y modelo de cámara) y guardar el `sha256` junto al registro.
 
 ### 12.3 Endurecimiento del `compose` propuesto
 
@@ -1548,189 +1793,141 @@ recomiendo antes de llevarla a producción, ordenados por gravedad:
 
 El archivo endurecido, listo para revisar, quedó en **`infra-fase2/compose.fase2.yml`**.
 
-### 12.4 El puerto `AlmacenDeArchivos`
+✅ **Estado de estos hallazgos en el `compose.yml` real:** el **1** (puertos de SeaweedFS) está resuelto: no se publica
+ninguno. Los **2 y 3** (secreto en el repositorio e identidad única con permisos totales) se resolvieron con H-1: las
+claves viven en `BACKEND/.env` (no versionado) y `sw_s3` **genera `identities.json` al arrancar** y **no arranca sin
+claves** (§12.4). El **5** (redes) está resuelto: `backend`, `storage`, `broker` y `cache`. Los demás (**7** y **8**,
+respaldo y replicación; **10**, límites de recursos) no se verificaron en esta revisión.
 
-Onion manda: el dominio no conoce S3. Se define un puerto y la infraestructura lo implementa, que es
-lo que permite que el día de mañana cambie el almacén sin tocar un caso de uso.
+### 12.4 El puerto de almacenamiento y SeaweedFS
 
-```python
-# apps/<modulo>/domain/ports/almacen.py — el dominio sólo conoce esto
-class AlmacenDeArchivos(Protocol):
-    def guardar(self, bucket: str, contenido: bytes, mime: str) -> ObjetoGuardado: ...
-    def leer(self, bucket: str, clave: str) -> bytes: ...
-    def abrir(self, bucket: str, clave: str) -> IO[bytes]: ...      # streaming
-    def eliminar(self, bucket: str, clave: str) -> None: ...
-    def url_temporal(self, bucket: str, clave: str, segundos: int) -> str: ...
+✅ **Implementado.** Onion manda: el dominio no conoce S3. El puerto es **`FileStorage`** (`core/domain/ports.py`) y su
+implementación es `SeaweedFSStorage` (`core/infrastructure/storage/seaweedfs_storage.py`), **la única clase que conoce
+`boto3`**, con `subir`, `descargar`, `existe`, `eliminar` y `descargar_flujo` (*streaming*). Un almacén que no responde
+no debe volver las peticiones colgadas: **`connect_timeout` de 3 s, lectura de 15 s y reintentos acotados**; guardar el
+PDF de un carnet emitido falla en menos de 6 s sin bloquear la emisión (H-12). No se implementó `url_temporal()` ni el
+puerto `NestJSLegacy`: NestJS ya se retiró.
 
-# ObjetoGuardado = (bucket, clave, sha256, tamano, mime) — la clave la genera el almacén
-```
-
-```python
-# core/infrastructure/almacen/seaweed_s3.py — la única clase que sabe de boto3
-class SeaweedS3(AlmacenDeArchivos):
-    def __init__(self, cfg): 
-        self._s3 = boto3.client(
-            's3',
-            endpoint_url=cfg.endpoint,               # http://sw_s3:8333 — red interna
-            aws_access_key_id=cfg.key,
-            aws_secret_access_key=cfg.secret,
-            config=Config(signature_version='s3v4',
-                          connect_timeout=3, read_timeout=15,
-                          retries={'max_attempts': 3, 'mode': 'standard'}),
-        )
-```
-
-`connect_timeout` corto y reintentos acotados: un almacén lento no debe convertirse en peticiones
-colgadas. Si el almacén no responde, excepción propia → **503**, y el resto del sistema sigue
-funcionando —el mismo criterio de degradación explícita de §I.4.6 del plan de reconstrucción—.
-
-**Tres identidades S3**, no una:
-
-| Identidad | Buckets | Acciones | La usa |
-|---|---|---|---|
-| `gath-app` | los cuatro | `Read`, `Write`, `List` | Django y los workers |
-| `gath-lector` | `gath-documentos`, `gath-fotos` | `Read` | reportes, conciliación |
-| `gath-respaldo` | los cuatro | `Read`, `List` | el trabajo de respaldo |
-
-Ninguna incluye `Admin` ni borrado sobre `gath-documentos`: un documento firmado no se elimina desde
-la aplicación. Config en **`infra-fase2/seaweedfs/identities.json`**.
+**Identidad S3 (H-1).** En lugar de las tres identidades del diseño de agosto (`gath-app`, `gath-lector`,
+`gath-respaldo`) hay **una sola identidad de aplicación, `gath-app`, sin `Admin`**, con `Read`, `Write`, `List` y
+`Tagging` **acotadas al bucket**. `sw_s3` la construye en cada arranque (`infra-fase2/seaweedfs/s3-entrypoint.sh`) a
+partir de `SEAWEEDFS_S3_ACCESS_KEY`, `SEAWEEDFS_S3_SECRET_KEY` y `SEAWEEDFS_S3_BUCKET` de `BACKEND/.env`: **las claves
+del gateway y las de la aplicación no pueden desalinearse**, el archivo queda dentro del contenedor (ni en el host ni en
+git) y, si faltan las claves, el servicio **no arranca** (falla cerrado: nunca S3 anónimo). Para desplegar basta
+`docker compose up -d`. Las identidades de solo lectura y de respaldo quedan como mejora futura.
 
 ### 12.5 Servido seguro: cómo se cierra CRIT-06 y CRIT-07
 
-El navegador nunca recibe una URL de SeaweedFS. Todo archivo se pide a Django, que **primero
-autoriza y después entrega**:
+✅ **Implementado.** El navegador nunca recibe una URL de SeaweedFS. Todo archivo protegido se pide a una vista de
+Django que **primero autentica y autoriza y después entrega** con `respuesta_archivo(...)`
+(`core/presentation/archivos.py`), en *streaming* y con la URL interna jamás expuesta. Las vistas autorizan por permiso
+(p. ej. `postulacion.ver_bandeja` para el informe o la foto de un postulante) y, en el caso del postulante, por el
+alcance de su expediente. No hay ruta pública `/media/`: los medios pasan por una vista que autentica
+(`servir_archivo_media`).
 
-```
-GET /api/v1/archivos/{tipo}/{id}/          ← el id es del registro, no la clave del objeto
-  1. autentica (JWT) o valida credencial de invitado con su scope
-  2. autoriza: ¿este usuario puede ver ESTE documento?
-       · dueño del expediente · rol con competencia · ADMINISTRADOR
-  3. resuelve id → (bucket, clave) en PostgreSQL
-  4. abre el objeto por el puerto y hace streaming con Content-Disposition
-  5. asienta el acceso en la bitácora: quién, qué, cuándo, desde dónde
-```
+**Bitácora de descargas (H-3, F-7).** Cada descarga de un archivo protegido deja un asiento en `AuditoriaLog` con la
+acción **`DESCARGA_ARCHIVO`**: **quién** (cédula y rol; el postulante figura como `POSTULANTE`), **qué** (tipo y id del
+recurso, nunca la clave del almacén ni el contenido), **cuándo**, **desde dónde** (IP y agente) y **con qué resultado**
+(éxito o no encontrado). Registrar nunca impide la descarga. Se consulta en `/auditoria` filtrando por la acción y exige
+`auditoria.ver_logs`. Los documentos del bloque F deberán servirse con el mismo mecanismo al crearse.
 
-El paso 5 no es adorno: en un expediente de personal, **saber quién consultó qué** es parte del
-control. Hoy no existe.
-
-También hay que **retirar `static(settings.MEDIA_URL, ...)` de `SIGEP/urls.py`** —es CRIT-07 y sigue
-presente—; mientras esa línea exista, cualquiera descarga de `/media/` sin autenticarse y todo lo
-anterior es decorativo.
-
-*Optimización posterior, no para la primera entrega:* `url_temporal()` genera una URL prefirmada de
-60 segundos y descarga el streaming de Django. Exige publicar el gateway S3 detrás de nginx, así que
-sólo vale la pena si el volumen de descargas lo justifica.
+*Optimización posterior, no para la primera entrega:* una URL prefirmada de 60 segundos exigiría publicar el gateway S3
+detrás de nginx; solo vale la pena si el volumen de descargas lo justifica.
 
 ### 12.6 RabbitMQ y Celery: colas y garantías
 
-**Cuatro colas**, para que un ETL lento no retrase la emisión de un carnet:
+✅ **Implementado (H-6).** Celery 5.6.3 con **RabbitMQ** como broker (vhost `gath`) y **Redis** (db 1) como almacén de
+resultados, con expiración de una hora. Garantías activas: `acks_late`, `reject_on_worker_lost`, `prefetch = 1`,
+confirmación de publicación (`confirm_publish`), serialización JSON, límite de tarea de 300 s y publicación que falla
+rápido: sin broker el encolado responde 503 en lugar de colgarse. Sin `CELERY_BROKER_URL` el encolado **falla cerrado**
+(nunca simula una tarea).
 
-| Cola | Tareas | Concurrencia | Garantía exigida |
-|---|---|---|---|
-| `sync` | outbox → SIGEP-Nómina | 1–2 | **al menos una vez, en orden por cédula.** `acks_late`, `prefetch=1`, idempotencia por `clave_evento` |
-| `docs` | Punto de Cuenta, contratos, planillas, carnets | 4 | reintento; el resultado es reproducible desde el snapshot (§5.2) |
-| `mail` | avisos por correo a cuentas del sistema | 4 | reintento con techo. **No** transporta credenciales de postulantes: se entregan en persona (§4.3) |
-| `maint` | vencimientos, purga, conciliación | 1 | idempotente por diseño |
+**Colas.** Por defecto todo corre en la cola `gath`, como en un despliegue con un solo worker. Con
+**`CELERY_COLAS_SEPARADAS=1`** (en el worker, el beat y Django: los tres deben coincidir porque enrutan al publicar)
+`settings.CELERY_RUTAS_POR_COLA` envía cada tarea a su cola y hay que levantar **un worker por cola**:
 
-```python
-# BACKEND/SIGEP/celery.py
-app = Celery('gath')
-app.conf.update(
-    broker_url=config('CELERY_BROKER_URL'),        # amqp://gath:***@rabbitmq:5672/gath
-    result_backend='django-db',                     # PostgreSQL: no hace falta Redis
-    task_acks_late=True,                            # ack DESPUÉS de ejecutar
-    task_reject_on_worker_lost=True,                # si el worker muere, se reencola
-    worker_prefetch_multiplier=1,                   # no acaparar mensajes
-    task_default_queue='maint',
-    task_routes={
-        'sincronizacion.*': {'queue': 'sync'},
-        'documentos.*':     {'queue': 'docs'},
-        'notificaciones.*': {'queue': 'mail'},
-    },
-    broker_connection_retry_on_startup=True,
-    broker_transport_options={'confirm_publish': True},   # confirmación del broker
-    task_time_limit=300, task_soft_time_limit=270,
-)
-```
+| Cola | Tareas | Worker (en `compose.example.yml`) |
+|---|---|---|
+| `mail` | `notificaciones.enviar_correo_outbox`, `notificaciones.reprocesar_outbox`, `identidad.solicitar_recuperacion_password` | `-Q mail` |
+| `docs` | `exportaciones.generar` (PDF, Excel, carnets) | `-Q docs` |
+| `maint` | vencimientos, purgas y barridos: `postulacion.liberar_reservas_vencidas`, `autogestion.expirar_ventanas`, `autogestion.avisar_ventanas_por_expirar`, `cargos.procesar_vencimientos_prestamos`, `configuracion.purgar_retencion`, `exportaciones.purgar`, `fe_de_vida.*`, `identidad.*`, `core.metricas_cola` | `-Q maint,gath` |
+| `gath` | el resto y la cola por defecto | `-Q maint,gath` |
 
-**`result_backend='django-db'` es una decisión deliberada:** evita introducir Redis. Con RabbitMQ de
-broker, PostgreSQL de resultados y `DatabaseCache` para el caché que pide ALTA-17, la Fase 2 **no
-agrega ningún almacén de datos nuevo** más allá de SeaweedFS.
+Una prueba (`tests/unit/core/test_colas_celery.py`) verifica que **toda tarea registrada tiene ruta** y que sin el flag no
+hay rutas; toda tarea nueva debe añadirse a `CELERY_RUTAS_POR_COLA`. **No existe la cola `sync`**: no hay sincronización
+con nómina.
 
-**El outbox no depende del broker para no perder eventos.** El evento se inserta en el mismo `COMMIT`
-que el cambio de negocio (§4.7); Celery sólo lo *despacha*. Si RabbitMQ está caído, los eventos se
-acumulan en `PENDIENTE` y un barrido de `maint` los reencola al volver. Esa es la razón de ser del
-patrón: **la cola es el transporte, no la fuente de verdad.**
+**Hallazgo corregido durante H-6:** `cargos.procesar_vencimientos_prestamos` (programada en el beat) **nunca se
+registraba en el worker**, porque `apps/cargos/infrastructure/tasks/__init__.py` no importaba `prestamos_tasks`: el beat
+la enviaba y no corría. Ya se corrigió; **al desplegar, la primera corrida procesará de una vez los préstamos de cargo
+atrasados.**
 
-Vhost propio (`/gath`), usuario sin permisos de administración, y **`15672` sin publicar**: la
-consola de RabbitMQ trae credenciales por defecto y no tiene por qué ser alcanzable desde el host.
+El modelo de resultados y de caché cambió respecto de agosto: no se usó `django-db` ni `django-celery-beat`. Los
+resultados van a Redis (con expiración, sin tablas ni migraciones) y el calendario del beat es una **lista estática en
+`CELERY_BEAT_SCHEDULE`** (`GATH/settings.py`); un calendario editable desde la interfaz se evaluará si hace falta. Hay una
+tarea periódica `core.metricas_cola` que registra la profundidad de la cola.
+
+**El outbox no depende del broker para no perder eventos.** Hoy ese patrón sostiene el **correo**: el aviso se inserta
+como evento del outbox de notificaciones y Celery lo *despacha*; si RabbitMQ está caído, el evento queda pendiente y
+`notificaciones.reprocesar_outbox` (cada 5 min) lo reprograma. El mismo patrón aplicará a la sincronización con nómina
+cuando se defina (bloque I).
+
+RabbitMQ usa un vhost propio (`gath`) y no publica puertos al host (ni el de mensajería ni el de administración).
 
 ### 12.7 Tareas programadas
 
-Con `django-celery-beat`, el calendario vive en la base y se ajusta sin desplegar:
+✅ **Implementado** como lista estática (`CELERY_BEAT_SCHEDULE`). Las relacionadas con la Fase 2:
 
-| Tarea | Cadencia | Qué hace | Origen |
-|---|---|---|---|
-| `expirar_credenciales` | 15 min | ventana vencida → `EXPIRADO`; revoca el token | §4.2, DEC-6 |
-| `liberar_reservas_vencidas` | 1 h | reserva vencida → libera el puesto, expediente a `EN_PRESUPUESTO` | §4.4, DEC-7 |
-| `expirar_solicitudes_autogestion` | 1 h | ventana de actualización vencida → `EXPIRADA` | §4.5 |
-| `recordar_vencimientos` | diaria | avisa al postulante 48 h antes de que venza su ventana | §11 |
-| `reencolar_outbox_pendiente` | 10 min | reintenta `PENDIENTE` y `FALLIDO` con techo de intentos | §4.7 |
-| `conciliar_sigep` | diaria, madrugada | compara GATH vs SIGEP-Nómina y reporta divergencias | §4.7 |
-| `purgar_expedientes_rechazados` | diaria | purga datos sensibles cumplida la retención; conserva el asiento | O-2, **DEC-3** |
-| `respaldar_metadatos_filer` | diaria | exporta el índice del filer | §12.10 |
+| Tarea | Cadencia | Qué hace |
+|---|---|---|
+| **`postulacion.liberar_reservas_vencidas`** | **cada 15 min** | reserva ACTIVA vencida → VENCIDA (y si el expediente estaba en `LISTO_PARA_ASIGNAR` vuelve a `EN_PRESUPUESTO`); `DIFERIDO_PRESUPUESTO` con la espera vencida → `DESISTIDO` (C-10); `PRE_REGISTRADO`/`EN_CAPTURA` con la ventana vencida → `EXPIRADO`; **escala** (`CONTACTO_ATRASADO`) el contacto pendiente más de 48 h. Idempotente; actúa como «sistema» y un fallo en un expediente no detiene a los demás |
+| `notificaciones.reprocesar_outbox` | 5 min | reprograma los correos pendientes que nadie envió |
+| `autogestion.expirar_ventanas` | 15 min | ventana de actualización vencida → `EXPIRADA` |
+| `autogestion.avisar_ventanas_por_expirar` | 30 min | recordatorio al trabajador |
+| `cargos.procesar_vencimientos_prestamos` | diaria 00:10 | inicia, marca por vencer y finaliza los préstamos de cargo |
+| `identidad.sincronizar_cuentas_trabajadores` | 02:00, 12:00 y 17:00 | red de seguridad de cuentas de autogestión |
+| `core.metricas_cola` | 60 s | profundidad de la cola |
 
-`purgar_expedientes_rechazados` **no se puede programar hasta que DEC-3 defina el plazo.** Se
-implementa leyendo el plazo de configuración y, sin valor, no borra nada.
+**No existen** las tareas del diseño de agosto `expirar_credenciales`, `recordar_vencimientos`,
+`reencolar_outbox_pendiente` (la hace `reprocesar_outbox`), `conciliar_sigep` (bloque I), `purgar_expedientes_rechazados`
+(el plazo `captacion.retencion_rechazados_meses` existe, **la purga no**) ni `respaldar_metadatos_filer`.
 
 ### 12.8 Migración desde NestJS
 
-El plan de reconstrucción ya retira NestJS (D-01). Con SeaweedFS decidido, la secuencia es:
-
-1. **Levantar SeaweedFS** endurecido y crear los cuatro buckets. NestJS sigue sirviendo.
-2. **Implementar `AlmacenDeArchivos`** con dos implementaciones y una bandera: `SeaweedS3` y
-   `NestJSLegacy`. Todo el código nuevo usa el puerto, nunca `requests`.
-3. **Copiar** lo existente: recorrer `/var/www/backup/uploadsNestFS`, subir cada archivo con clave
-   UUID nueva y **anotar la correspondencia en PostgreSQL** (`Employee.foto_objeto`). Es el paso que
-   convierte claves adivinables en opacas; hay que hacerlo con inventario, no a ojo.
-4. **Verificar**: `sha256` de origen y destino, y conteo. Sin coincidencia total, no se avanza.
-5. **Conmutar** la bandera a `SeaweedS3`. NestJS queda en modo lectura.
-6. **Retirar** el servicio `nestjs`, su red `file_manager` y `NESTJS_URL` de settings —incluida la
-   línea rota de §1.3— tras un período de gracia con el volumen antiguo intacto.
-
-El paso 3 es la oportunidad de arreglar `profile/{cedula}` de una vez. Si se migra conservando las
-rutas por cédula, el problema se muda al almacén nuevo y ya no habrá una segunda ocasión barata.
+✅ **Hecha.** NestJS se retiró del código y del `compose`: el almacenamiento es SeaweedFS y no queda `NESTJS_URL`. Las
+claves nuevas son opacas; los soportes de autogestión anteriores se migran con `migrar_claves_soportes` (§12.2), que
+copia con una clave nueva, **anota la correspondencia en PostgreSQL** y solo después borra. La secuencia original
+(levantar, copiar con inventario, verificar `sha256` y conteo, conmutar, retirar tras un período de gracia) sigue siendo
+la guía para el paso de producción.
 
 ### 12.9 Cambios en `requirements.txt` y settings
 
-```diff
-+ boto3==1.35.*                  # cliente S3 para SeaweedFS
-- celery==5.3.4
-+ celery==5.4.*                  # 5.3.4 es anterior a Django 5.2
-+ django-celery-results==2.5.*   # backend de resultados en PostgreSQL
-+ django-celery-beat==2.7.*      # calendario en la base (§12.7)
-+ python-magic==0.4.*            # MIME real, no por extensión (§12.2)
+✅ **Implementado**, con estas versiones y diferencias respecto del diseño de agosto:
+
+```
+celery==5.6.3                   # 5.3.4 era anterior a Django 5.2
+boto3==1.35.36                  # cliente S3 para SeaweedFS (core/infrastructure/storage/seaweedfs_storage.py)
+redis==5.2.1                    # caché (D-11) y resultados de Celery
+# NO se agregaron django-celery-results ni django-celery-beat (resultados en Redis, calendario estático)
 ```
 
 ```python
-# SIGEP/settings.py — sin valores por defecto para los secretos: si falta, falla al arrancar
-ALMACEN = {
-    'ENDPOINT':  config('S3_ENDPOINT'),          # http://sw_s3:8333
-    'KEY':       config('S3_ACCESS_KEY'),
-    'SECRET':    config('S3_SECRET_KEY'),
-    'BUCKETS':   {'fotos': 'gath-fotos', 'documentos': 'gath-documentos',
-                  'soportes': 'gath-soportes', 'plantillas': 'gath-plantillas'},
-    'MAX_BYTES': {'fotos': 5*1024**2, 'soportes': 15*1024**2, 'documentos': 25*1024**2},
-}
-CELERY_BROKER_URL = config('CELERY_BROKER_URL')
+# GATH/settings.py (extracto, sin secretos por defecto)
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='')         # amqp://…@rabbitmq:5672/gath
+CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='') or None   # redis://…/1
+CELERY_COLAS_SEPARADAS = config('CELERY_COLAS_SEPARADAS', default=False, cast=bool)
 
-CACHES = {'default': {                            # ALTA-17: el throttling lo necesita
-    'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
-    'LOCATION': 'gath_cache',
-}}
+# Caché: Redis si hay REDIS_URL (despliegue Docker); si no, la tabla de PostgreSQL (createcachetable).
+# Ambos fallan cerrado: sin caché el throttling responde 500, no deja el login sin límite.
+_REDIS_URL = config('REDIS_URL', default='')
 ```
 
-Y se retira `NESTJS_URL` junto con `static(settings.MEDIA_URL, ...)` de `SIGEP/urls.py` (§12.5).
+El almacén se configura con `SEAWEEDFS_S3_*` (endpoint, claves, bucket); no hay un diccionario `ALMACEN`.
+La verificación de migraciones (H-7) la hace `BACKEND/scripts/verificar_migraciones.sh`: levanta un PostgreSQL desechable
+en una red propia, crea las tablas heredadas (`managed=False`) derivadas de los modelos, aplica `migrate` **desde cero**,
+ejecuta `makemigrations --check`, revierte (`migrate <app> zero`) y reaplica `fe_de_vida`, `postulacion`,
+`exportaciones` y `notificaciones`, y borra todo al salir. Resultado al 24-11-2026: todas aplican y revierten sin
+fallos. Límite: el esquema heredado es una aproximación, no un clon de producción.
 
 ### 12.10 Respaldo y recuperación
 
@@ -1748,6 +1945,8 @@ ser **consistentes entre sí**:
 restaurar en un ambiente aparte y verificar que un Punto de Cuenta firmado se descarga íntegro y con
 `sha256` coincidente. Un respaldo que nunca se restauró no se sabe si sirve.
 
+> **Estado:** el procedimiento de respaldo y la prueba mensual de restauración **no se verificaron en esta revisión**.
+
 ---
 
 ## 13. Frontend (Next.js)
@@ -1757,6 +1956,11 @@ El backend recibe casi toda la atención de este documento, pero **el frontend e
 construyen con el método actual —copiar la carpeta de al lado y ajustar— el problema estructural que
 ya diagnostica el plan de reconstrucción (§II.1.4: duplicación masiva, 34 archivos sobre 400 líneas)
 se duplica en vez de contenerse.
+
+> ✅ **Estado al 24-11-2026.** Los módulos de la Fase 2 se construyeron en `src/modules/`: `captacion`, `postulacion`,
+> `presupuesto`, `direccion` y `notificaciones` (además de `carnetizacion` y `autogestion`, que ya tenían módulo). Las
+> rutas, el gating y la sesión de invitado difieren del diseño de agosto en lo que indican §13.2 a §13.4. El módulo
+> `documentos` no existe todavía (bloque F).
 
 ### 13.1 Dónde va el código nuevo
 
@@ -1776,7 +1980,7 @@ src/
 │  │  ├─ infrastructure/ http, mappers, server actions
 │  │  └─ ui/             schema (Zod), forms, pantallas
 │  ├─ documentos/        · plantillas, prellenado, firma
-│  ├─ notificaciones/    · bandeja, badge, stream SSE
+│  ├─ notificaciones/    · bandeja, badge, sondeo con ETag
 │  ├─ autogestion/       · ficha, solicitudes, vista de diferencias
 │  └─ carnetizacion/     · diseñador de plantillas, emisión
 └─ app/
@@ -1784,33 +1988,32 @@ src/
    └─ (protected)/dashboard/…      ← envoltorios que sólo importan de modules/
 ```
 
-La regla que lo sostiene y que conviene poner en `eslint` desde el primer día: **`app/` puede importar
-de `modules/`; `modules/` nunca importa de `app/`**, y un módulo no importa del `ui/` de otro. Sin esa
-frontera automatizada, en tres sprints vuelve el patrón actual.
+La regla que lo sostiene: **`app/` puede importar de `modules/`; `modules/` nunca importa de `app/`**, y las capas de
+cada módulo van `domain ← application ← infrastructure/ui`. ✅ **Implementado** en `eslint.config.mjs` con
+`no-restricted-imports` (reglas por capa sobre `src/modules/*/domain`, `application` y `ui`), de modo que la frontera
+está automatizada desde el primer día.
 
-### 13.2 Rutas nuevas
+### 13.2 Rutas
 
-| Ruta | Rol | Qué es |
+✅ **Implementadas** (nombres reales; difieren de los de agosto):
+
+| Ruta | Quién | Qué es |
 |---|---|---|
-| `/postulacion/acceso` | invitado | ingreso con cédula + contraseña |
-| `/postulacion/cambiar-clave` | invitado | cambio obligatorio en el primer ingreso |
-| `/postulacion/expediente` | invitado | formulario por pasos, según ventana |
-| `/postulacion/expediente/documentos` | invitado | planillas prellenadas y firma |
-| `/dashboard/captacion` | `CAPTACION` | bandeja de expedientes por estado |
-| `/dashboard/captacion/nuevo` | `CAPTACION` | alta de postulante y emisión de credencial |
-| `/dashboard/captacion/[id]` | `CAPTACION` | expediente, verificación, historial |
-| `/dashboard/captacion/[id]/asignar` | `CAPTACION` | asignación de cargo (§4.4) |
-| `/dashboard/presupuesto/solicitudes` | `PRESUPUESTO` | bandeja + consulta de vacantes |
-| `/dashboard/presupuesto/solicitudes/[id]` | `PRESUPUESTO` | reserva, constancia, Punto de Cuenta |
-| `/dashboard/direccion-general/firmas` | `DIRECCION_GENERAL` | pendientes de firma |
-| `/dashboard/direccion-general/firmas/[id]` | `DIRECCION_GENERAL` | Punto de Cuenta, firmar o rechazar |
-| `/dashboard/autogestion/ficha` | `AUTOGESTION` | consulta, siempre disponible |
-| `/dashboard/autogestion/actualizar` | `AUTOGESTION` | carga, sólo si hay ventana vigente |
-| `/dashboard/bienestar/solicitudes` | `BIENESTAR_SOCIAL` | bandeja de habilitaciones y revisiones |
-| `/dashboard/bienestar/solicitudes/[id]` | `BIENESTAR_SOCIAL` | vista de diferencias, aprobar por campo |
-| `/dashboard/carnetizacion/plantillas/[id]/disenar` | `ADMINISTRADOR` | diseñador visual |
-| `/dashboard/notificaciones` | autenticado | bandeja completa |
-| `/dashboard/admin/sincronizacion` | `ADMINISTRADOR` | outbox, reproceso, conciliación |
+| `/postulacion/acceso` | postulante | ingreso con cédula + contraseña |
+| `/postulacion/activar` | postulante | crear la contraseña desde el enlace del correo (D-10) |
+| `/postulacion/cambiar-clave` | postulante | cambio obligatorio en el primer ingreso |
+| `/postulacion` | postulante | formulario por pasos según la ventana (Ventana 1 y Ventana 2) |
+| `/postulacion/recibido` | postulante | confirmación de envío |
+| `/captacion`, `/captacion/expedientes` | `postulacion.ver_bandeja` | bandeja de expedientes por estado, con pestaña «Por contactar» |
+| `/captacion/expedientes/[id]` | `postulacion.ver_bandeja` | expediente, verificación, psicofísico, historial, datos y foto, panel de contratación (asignar) |
+| `/captacion/notificaciones` | `postulacion.ver_bandeja` | bandeja de avisos |
+| `/presupuesto`, `/presupuesto/solicitudes` | `postulacion.ver_solicitudes` | bandeja de solicitudes y consulta de vacantes |
+| `/presupuesto/solicitudes/[id]` | `postulacion.ver_solicitudes` | reserva, constancia, Punto de Cuenta, devolver o diferir |
+| `/direccion`, `/direccion/ingresos`, `/direccion/ingresos/[id]` | `postulacion.ver_ingresos` | ingresos pendientes; Punto de Cuenta, aprobar o rechazar con motivo |
+| `/autogestion/…` | trabajador y Bienestar Social | ficha, solicitudes y revisión (§4.5) |
+| `/carnetizacion/…` | `carnetizacion.*` | consola de emisión, diseñador de plantillas, lote, solicitudes |
+
+Aún no existen las rutas de documentos ni de sincronización (`/dashboard/admin/sincronizacion`).
 
 ### 13.3 La sesión de invitado
 
@@ -1829,7 +2032,7 @@ sequenceDiagram
     autonumber
     actor POS as Postulante
     participant MW as proxy.ts
-    participant NA as NextAuth · provider "invitado"
+    participant NA as NextAuth · provider "postulante"
     participant API as Django
     participant DB as gath_db
 
@@ -1837,8 +2040,8 @@ sequenceDiagram
     MW->>MW: ruta del grupo (invitado):<br/>no exige sesión, pero tampoco es pública
     MW-->>POS: formulario de cédula + contraseña
 
-    POS->>NA: signIn("invitado", { cedula, password })
-    NA->>API: POST /api/v1/postulacion/acceso
+    POS->>NA: signIn("postulante", { cedula, password })
+    NA->>API: POST /api/v1/postulacion/acceso/
     API->>DB: busca CredencialPostulante por cédula<br/>verifica hash, vigencia, ventana y bloqueo
     alt credencial válida
         DB-->>API: postulante + expediente + ventana
@@ -1875,55 +2078,25 @@ Cuatro detalles que hay que acertar, porque los cuatro son puertas abiertas si s
    más aumenta la superficie sobre una dependencia inestable. No es motivo para no hacerlo, sí para
    cubrirlo con pruebas de extremo a extremo.
 
-### 13.4 El gating por rol: de cascada de `if` a tabla declarativa
+### 13.4 El gating por permiso: tabla `REGLAS_RUTA` y `puede()`
 
-`src/proxy.ts` es la autorización real del frontend hoy, y ya muestra la forma que toma el problema:
-un bloque por rol, con listas de rutas escritas a mano —`RUTAS_RECEPCIONISTA` enumera siete rutas
-comparadas de forma exacta, con un comentario explicando que un prefijo dejaría pasar las pantallas de
-escritura—. Ese comentario es correcto y es justamente la señal: la lógica ya es delicada con **dos**
-roles especiales. La Fase 2 agrega `CAPTACION`, `PRESUPUESTO`, `DIRECCION_GENERAL` y el invitado.
-Escrita igual, la cadena se vuelve el archivo que nadie quiere tocar.
+✅ **Implementado de otra forma que en el diseño de agosto.** No se creó la tabla `CAPACIDADES` por rol: la
+autorización del frontend es **por permiso**, igual que en el backend (contrato C-3), y se resuelve en un solo lugar,
+`src/shared/lib/evaluador-iam.ts`:
 
-La sustitución es una tabla, en un solo lugar, junto al `Rol.codigo` de §5.5:
+- **`puede(politica, codigo)`** evalúa la política de la sesión (`allow` / `deny`, con comodines `*` y `modulo.*`): un
+  *deny* explícito gana; si no hay coincidencia, se deniega (*fail-closed*).
+- **`REGLAS_RUTA`** asigna a cada **prefijo de ruta** los permisos que la abren; por ejemplo `captacion` →
+  `postulacion.ver_bandeja`, `presupuesto` → `postulacion.ver_solicitudes`, `direccion` → `postulacion.ver_ingresos`,
+  `cargos/crear-codigo` → `cargos.crear`. El `proxy.ts` consulta esa tabla, y **el mismo permiso alimenta cada opción de
+  los menús laterales** (p. ej. `permiso: "postulacion.ver_solicitudes"`), de modo que un menú y un *middleware* no
+  pueden discrepar.
+- **El área del postulante** se decide aparte: `decidirRutaPostulacion` (`modules/postulacion/domain/acceso-ruta`) resuelve
+  si la ruta es suya (`/postulacion/*`), si un postulante intenta salirse de ella o si un empleado intenta entrar; y la
+  sesión de invitado tiene su propio rol sintético, que no es un `Rol` (§13.3).
 
-```ts
-// src/shared/auth/capacidades.ts — única fuente de verdad del frontend
-export const CAPACIDADES: Record<string, readonly string[]> = {
-  ADMINISTRADOR:     ['*'],
-  CAPTACION:         ['expediente:leer','expediente:verificar','expediente:abrir',
-                      'expediente:asignar','postulante:crear'],
-  PRESUPUESTO:       ['expediente:leer','vacante:consultar','puesto:reservar',
-                      'constancia:registrar','punto_cuenta:emitir','cargo:crear'],
-  DIRECCION_GENERAL: ['expediente:leer','punto_cuenta:firmar'],
-  BIENESTAR_SOCIAL:  ['actualizacion:habilitar','actualizacion:revisar','ficha:leer'],
-  ANALISTA:          ['ficha:leer','ficha:escribir','carnet:emitir'],
-  RECEPCIONISTA:     ['ficha:leer'],
-  AUTOGESTION:       ['propio:leer','propio:solicitar'],
-  POSTULANTE:        ['postulacion:propio'],
-} as const;
-
-// Patrón de ruta → capacidad exigida. El orden importa: gana el primero que calza,
-// así que lo específico va antes que lo general.
-export const RUTAS: ReadonlyArray<[RegExp, string]> = [
-  [/^\/postulacion(\/|$)/,                        'postulacion:propio'],
-  [/^\/dashboard\/captacion\/[^/]+\/asignar$/,    'expediente:asignar'],
-  [/^\/dashboard\/captacion(\/|$)/,               'expediente:leer'],
-  [/^\/dashboard\/presupuesto(\/|$)/,             'vacante:consultar'],
-  [/^\/dashboard\/direccion-general(\/|$)/,       'punto_cuenta:firmar'],
-  [/^\/dashboard\/bienestar(\/|$)/,               'actualizacion:revisar'],
-  [/^\/dashboard\/autogestion\/actualizar$/,      'propio:solicitar'],
-  [/^\/dashboard\/autogestion(\/|$)/,             'propio:leer'],
-  [/^\/dashboard\/admin(\/|$)/,                   '*'],
-];
-```
-
-`proxy.ts` se reduce a: resolver el rol → buscar el primer patrón que calza → comprobar la capacidad →
-redirigir o continuar. Y **el mismo `CAPACIDADES` alimenta los `roleAccept` de los sidebars**, que hoy
-repiten los nombres de rol en 24 archivos (MED-18). Un menú y un middleware que discrepan es una
-pantalla que se ve y no se puede abrir; con una sola tabla, no pueden discrepar.
-
-Esto **no sustituye** la matriz de §7.2. El backend sigue siendo la autoridad; esto sólo hace que la
-interfaz no ofrezca lo que el backend va a negar.
+Esto **no sustituye** la matriz de §7.2. El backend sigue siendo la autoridad; esto solo hace que la interfaz no ofrezca
+lo que el backend va a negar.
 
 ### 13.5 Las cinco áreas nuevas y con qué se construyen
 
@@ -1954,9 +2127,9 @@ Para acotar el riesgo, la Fase 2 **no** reestructura lo existente. `gestion-trab
 `gestion-pasivos`, `carnetizacion` y `admin` se quedan como están, salvo tres intervenciones
 puntuales:
 
-1. `proxy.ts` — sustituir la cascada por la tabla (§13.4).
-2. Los `roleAccept` de los sidebars — leer de `CAPACIDADES` en lugar de repetir literales.
-3. Agregar el badge de notificaciones al encabezado compartido.
+1. `proxy.ts` — consulta la tabla de permisos por prefijo de ruta (§13.4) y resuelve el área del postulante.
+2. Los menús laterales — cada opción declara su permiso (`permiso: "postulacion.ver_*"`) en lugar de repetir nombres de rol.
+3. El badge de notificaciones en el encabezado compartido, con sondeo de 15 s (§5.6).
 
 La migración de las pantallas antiguas a `src/modules/` es trabajo de la fase F del plan de
 reconstrucción, no de esta. Mezclarlas convertiría una entrega funcional en una refactorización sin
@@ -1966,29 +2139,29 @@ fecha de término.
 
 ## 14. Pruebas
 
-Hoy hay **4 funciones de prueba en todo el backend** y **cero en el frontend**. La Fase 2 introduce una
-máquina de estados de 16 estados y una transacción financiera-administrativa: es el punto donde la
-ausencia de pruebas deja de ser deuda y pasa a ser un riesgo operativo. Un expediente trabado no es un
-error cosmético — es una contratación detenida y una persona esperando.
+Al comenzar (agosto) había **4 funciones de prueba en todo el backend** y **cero en el frontend**. La Fase 2 introdujo una
+máquina de estados de 17 estados y una transacción financiera-administrativa, el punto donde la ausencia de pruebas pasa
+a ser un riesgo operativo. Un expediente trabado no es un error cosmético: es una contratación detenida y una persona
+esperando.
 
-**El mínimo no negociable**, por orden de importancia:
+✅ **Estado al 24-11-2026:** **3477 pruebas de backend** (`pytest`, con 109 contratos de `import-linter` que vigilan la
+regla de dependencia Onion), **1606 pruebas de frontend** (`vitest`) y recorridos **E2E con Playwright** (postulante,
+Captación, carnet, diseñador; escritorio y teléfono 390×844). Además, `BACKEND/scripts/verificar_migraciones.sh` aplica
+todas las migraciones desde cero y las revierte. Lo que el mínimo no negociable pedía, y dónde está:
 
-| Qué se prueba | Tipo | Por qué es imprescindible |
+| Qué se prueba | Tipo | Estado |
 |---|---|---|
-| **Toda transición legal de §4.2** y el rechazo de las ilegales | unitaria, parametrizada | Es el contrato del módulo. Una tabla de `(origen, destino, rol)` esperados y su inverso: lo que no está en la tabla debe fallar |
-| **La asignación atómica de §4.4** con puesto tomado en paralelo | integración con transacciones reales | Dos expedientes al mismo `AsigTrabajo`. Si esto no está probado, se descubre en producción con la persona ya contratada |
-| **Reserva vencida entre aprobación y asignación** | integración | El camino `LISTO_PARA_ASIGNAR → EN_PRESUPUESTO` sólo se recorre por vencimiento; nadie lo va a encontrar a mano |
-| **Aprobación parcial de autogestión** | integración | Que `Employee` reciba **sólo** los cambios aprobados y ninguno más. Es lo que hace real el rechazo (H-2) |
-| **Rechazo deja `Employee` intacto** | integración | La garantía central de H-2, en una sola prueba |
-| **Credencial de postulante**: vencida, ventana equivocada, bloqueo por intentos, expediente ajeno, clave sin cambiar | unitaria | Es el único punto del sistema donde alguien sin cuenta escribe datos, y la cédula es pública |
-| **Matriz de §7.2** endpoint por endpoint, con rol correcto e incorrecto | integración | Sin esto, CRIT-08 vuelve por la puerta de atrás en cada endpoint nuevo |
-| **Idempotencia del outbox** con `clave_evento` repetida | unitaria | Un evento entregado dos veces a nómina es un problema de pago |
-| **Migración del carnet**: `LEGACY` vs. data-driven | comparación de imagen | §4.6. Un carnet distinto al que la gente tiene en la mano |
+| **Toda transición legal de §4.2** y el rechazo de las ilegales | unitaria, parametrizada | ✅ las 24 transiciones y las ilegales (D-2) |
+| **La asignación atómica de §4.4** con puesto tomado en paralelo | integración con transacciones reales | ✅ prueba de concurrencia: dos expedientes al mismo puesto (G-6) |
+| **Reserva vencida entre aprobación y asignación** | integración | ✅ vencimientos del sistema (E-7) |
+| **Aprobación parcial de autogestión** y **rechazo deja `Employee` intacto** | integración | ✅ en `apps/autogestion` (no re-auditado aquí) |
+| **Credencial de postulante**: vencida, ventana equivocada, bloqueo, expediente ajeno, clave sin cambiar | unitaria | ✅ (D-3, D-10: enlace de un solo uso, cédula como segundo factor) |
+| **Matriz de §7.2** endpoint por endpoint | integración | ✅ cada vista declara su permiso; hay pruebas de 403 por bloque (p. ej. H-8, K-7) |
+| **Idempotencia del outbox** con `clave_evento` repetida | unitaria | ⏸ el outbox de nómina no existe (bloque I); sí está la idempotencia del outbox de correo |
+| **Migración del carnet**: `LEGACY` vs. data-driven | comparación de imagen | ✅ con tolerancia documentada (B-7) |
 
-Herramientas: `pytest` + `pytest-django` + `factory-boy` en backend (nada de esto está instalado hoy);
-`vitest` para la tabla de capacidades de §13.4 y `playwright` para los recorridos completos de
-aprobación. La cobertura útil aquí no se mide en porcentaje global sino en **transiciones cubiertas**:
-la tabla de §4.2 tiene un número finito de aristas y la meta es todas.
+Herramientas reales: `pytest` + `pytest-django`, `vitest` y `playwright`. La cobertura útil aquí no se mide en porcentaje
+global sino en **transiciones cubiertas**: la tabla de §4.2 tiene un número finito de aristas y la meta es todas.
 
 ---
 
@@ -1996,8 +2169,8 @@ la tabla de §4.2 tiene un número finito de aristas y la meta es todas.
 
 | Nodo del diagrama original | Dónde quedó | Cambio |
 |---|---|---|
-| Candidato: Acceso con Usuario/Clave Temporal | §4.3 Ventana 1 | **cédula + contraseña temporal** entregada en persona, sin fila en `cuenta` (H-1) |
-| Candidato: Ingreso de Datos y Test Psicofísico | §4.1 POST1 | test separado de la verificación (O-7) |
+| Candidato: Acceso con Usuario/Clave Temporal | §4.3 Ventana 1 | **cédula + contraseña temporal** en persona **o enlace de activación por correo**, sin fila en `cuenta` (H-1) |
+| Candidato: Ingreso de Datos y Test Psicofísico | §4.1 POST1 | el test se aplica fuera; Captación registra resultado e informe, separado de la verificación (O-7, C-6) |
 | ¿Aprueba Test y Corrobora Datos? | §4.1 CAP2 | dos decisiones distintas |
 | Eliminar Datos y Cierre de Proceso | §4.2 `RECHAZADO_CAPTACION` | retención en vez de borrado (O-2) |
 | Abrir Expediente y Generar Punto de Cuenta | §4.1 VOK + PROK | se parte en Solicitud de Personal y Punto de Cuenta (O-4) |
@@ -2005,15 +2178,25 @@ la tabla de §4.2 tiene un número finito de aristas y la meta es todas.
 | Regresa a RRHH con Motivo de Rechazo (×2) | §4.2 | tres destinos distintos según la causa (O-3) |
 | Gestión de Ruta del Documento | §5.2 `DocumentoGenerado` + `FirmaDocumento` | con correlativo y snapshot |
 | ¿Director General Firma y Aprueba? | §4.1 DIR | libera la reserva al rechazar |
-| Analista genera Documento de Contratación | §4.1 C2 | tras la revisión final |
-| Generar Documentación Adicional | §4.1 POST2 | **lo llena el postulante**, prellenado (O-1) |
+| Analista genera Documento de Contratación | §4.1 C3 | tras la revisión final · ⬜ el documento espera el bloque F; la asignación del cargo ya existe |
+| Generar Documentación Adicional | §4.1 POST2 | **lo llena el postulante** (O-1) · ✅ captura de datos; ⬜ planillas prellenadas (bloque F) |
 | *(no estaba)* Asignación de cargo | §4.4 ASIG | transacción atómica (O-6) |
 | *(no estaba)* Almacenamiento y tareas asíncronas | §12 | SeaweedFS + RabbitMQ, endurecidos |
 | *(no estaba)* Frontend y sesión de invitado | §13 | `src/modules/`, tabla de capacidades, proveedor de invitado |
 | *(no estaba)* Pruebas | §14 | mínimo no negociable sobre la máquina de estados |
-| Inicio de Actividades y Registro en Nómina | §4.7 | vía outbox, no escritura directa (O-8) |
+| Inicio de Actividades y Registro en Nómina | §4.7 | vía outbox, no escritura directa (O-8) · ⏸ sin implementar: sistema de nómina por definir |
 
 ---
 
-*Documento generado a partir del código de la rama `dev` al 21-08-2026. Las referencias
-`archivo:línea` son verificables. Las decisiones de §9 están pendientes y condicionan §5 y §10.*
+*Documento generado a partir del código de la rama `dev` al 21-08-2026 y actualizado sobre la rama
+`feature/fase2-captacion-carnet` al 24-11-2026. Las referencias `archivo:línea` de las secciones 1 y 2 corresponden a
+la fotografía de agosto. Quedan abiertas C-9, el bloque F (espera los PDF oficiales) y el bloque I (nómina por definir).*
+
+---
+
+## Historial de revisiones
+
+| Fecha | Revisión |
+|---|---|
+| 21-08-2026 | Versión original: diseño de la Fase 2 sobre el código de la rama `dev`; 9 observaciones al diagrama, 12 decisiones pendientes (DEC-1…DEC-12) y plan de 11 etapas. |
+| 24-11-2026 | **Actualización J-1: el documento refleja lo construido.** Se agregó «Estado de implementación» y se reemplazaron las decisiones pendientes por las tomadas (C-1…C-10, con sus parámetros `captacion.*`). Correcciones por diferir del código: la máquina tiene **17 estados y 24 transiciones** (no 16) y la contratación va por `asignar/`; el test psicofísico solo registra resultado e informe; `origen_expediente` es UUID sin FK y los modelos de `postulacion` usan identificadores, no claves foráneas; la entrega del acceso es en persona o por enlace de activación (D-10); la cuenta del sistema solo se crea con correo institucional y, si no, se avisa a RRHH (`CORREO_INSTITUCIONAL_PENDIENTE`); el catálogo de notificaciones (§5.6) lista los 11 tipos realmente emitidos, dirigidos a permisos; los avisos casi en tiempo real son sondeo de 15 s con ETag, no SSE; el carnet toma el diseño de la nómina (Alto Nivel = FUNCIONARIO) y contratados y pasantes no son tipos de credencial; almacén con un bucket y claves opacas, bitácora de descargas, identidad S3 generada al arrancar; colas de Celery `mail`/`docs`/`maint`/`gath`, resultados y caché en Redis y calendario estático; la autorización es por permiso (`postulacion.*`), no por rol ni por tabla `CAPACIDADES`; las rutas del frontend son `/captacion`, `/presupuesto`, `/direccion` y `/postulacion`. La sincronización con nómina (§4.7, E-9) se marca **sin implementar y por definir**; las planillas, el contrato y la firma (bloque F) se marcan pendientes. Hallazgo operativo registrado: `cargos.procesar_vencimientos_prestamos` nunca corría en el worker. |
