@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     'apps.movimientos',
     'apps.configuracion',
     'apps.puntocuenta',
+    'apps.documentos',
     'apps.auditoria',
     'apps.exportaciones',
     'apps.carga_masiva',

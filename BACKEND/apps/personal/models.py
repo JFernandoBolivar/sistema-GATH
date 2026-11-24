@@ -24,6 +24,7 @@ from apps.personal.infrastructure.models.catalogos_soporte_models import (
     TallaModel,
     TipoPrendaModel,
 )
+from apps.personal.infrastructure.models.idioma_models import EmpleadoIdiomaModel, IdiomaModel
 from apps.personal.infrastructure.models.expediente_models import (
     AntecedenteServicioModel,
     ContactoEmergenciaModel,
@@ -36,6 +37,8 @@ from apps.personal.infrastructure.models.expediente_models import (
 )
 
 __all__ = [
+    'IdiomaModel',
+    'EmpleadoIdiomaModel',
     'EmployeeModel',
     'PoliticaModel',
     'CondicionViviendaModel',

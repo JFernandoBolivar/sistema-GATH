@@ -112,6 +112,7 @@ def empleado_a_entidad(
         estado_civil_nombre=modelo.estadoCivil.estadoCivil if modelo.estadoCivil else None,
         carnet_patria=_clean_str(modelo.carnet_patria),
         carnet_patria_serial=_clean_str(modelo.carnet_patria_serial),
+        rif=_clean_str(getattr(modelo, 'rif', None)),
         nacionalidad_id=nac_id,
         nacionalidad_codigo=nac_codigo,
         nacionalidad_nombre=nac_nombre,

@@ -25,6 +25,8 @@ def _empleado_a_dto(e: Empleado) -> EmpleadoDTO:
         estado_civil_nombre=e.estado_civil_nombre,
         carnet_patria=e.carnet_patria,
         carnet_patria_serial=e.carnet_patria_serial,
+        rif=e.rif,
+        idiomas=e.idiomas,
         nacionalidad_id=e.nacionalidad_id,
         nacionalidad_codigo=e.nacionalidad_codigo,
         nacionalidad_nombre=e.nacionalidad_nombre,

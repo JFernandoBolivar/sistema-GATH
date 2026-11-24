@@ -474,7 +474,7 @@ def a_dict_contratacion(r) -> dict:
         'expediente': a_dict_expediente_resumen(r.expediente),
         'employee_id': p.employee_id, 'cedula': p.cedula, 'es_reingreso': p.es_reingreso,
         'puesto': {'id': r.reserva.puesto_id, 'codigo': p.puesto_codigo},
-        'familiares_copiados': p.familiares_copiados,
+        'familiares_copiados': p.familiares_copiados, 'ficha_copiada': p.ficha_copiada,
         'reserva': {'id': r.reserva.id, 'estado': r.reserva.estado},
         'cuenta': {
             'creada': c.creada, 'reactivada': c.reactivada, 'motivo': c.motivo, 'correo': c.correo,

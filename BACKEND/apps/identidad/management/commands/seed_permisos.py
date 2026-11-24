@@ -214,6 +214,10 @@ PERMISOS_CATALOGO = [
     # Dirección General
     ("postulacion.ver_ingresos", "Ver los ingresos pendientes de decisión de la Dirección General"),
     ("postulacion.aprobar_ingreso", "Aprobar o rechazar el ingreso de un postulante (firma del Punto de Cuenta)"),
+
+    # ─── 20. DOCUMENTOS DIGITALES (Fase 2, F-1) ───
+    ("documentos.ver_plantillas", "Consultar las plantillas de documentos, sus versiones y los documentos generados"),
+    ("documentos.gestionar_plantillas", "Diseñar, publicar, duplicar y activar plantillas de documentos"),
 ]
 
 # Permisos del catálogo que el rol ADMINISTRADOR NO recibe (G12): los avisos de

@@ -1,10 +1,16 @@
 /**
  * Ventana 2 del postulante (consolidación del expediente tras la aprobación): familiares, vivienda, salud,
- * tallas y foto de carnet. Espejo de `domain/services/datos_ventana2.py` del backend. Todo viaja por id de
+ * tallas, estudios, cursos, experiencia en la Administración Pública, idiomas y RIF (F-8) y foto de carnet. Espejo de `domain/services/datos_ventana2.py` del backend. Todo viaja por id de
  * catálogo; en el formulario los ids son texto (`""` = sin elegir).
  */
 
+import { normalizarRif } from "@/shared/domain/validation/rif";
+
 export const MAX_FAMILIARES = 20;
+export const MAX_ESTUDIOS = 10;
+export const MAX_CURSOS = 30;
+export const MAX_ANTECEDENTES = 15;
+export const MAX_IDIOMAS = 15;
 
 export const LIMITES_VENTANA2 = {
   nombre: 150,
@@ -14,9 +20,33 @@ export const LIMITES_VENTANA2 = {
   ordenMin: 1,
   ordenMax: 99,
   edadMaximaFamiliar: 120,
+  otroIdioma: 60,
+  horasMax: 9999,
 } as const;
 
-export type SeccionVentana2 = "familiares" | "vivienda" | "salud" | "tallas" | "foto" | "revisar";
+/** Niveles de dominio de un idioma (mismos valores que el backend). */
+export const NIVELES_IDIOMA: ReadonlyArray<readonly [string, string]> = [
+  ["BIEN", "Bien"],
+  ["REGULAR", "Regular"],
+  ["POCO", "Poco"],
+];
+
+/** Valor del selector de idioma para «Otro (escribirlo)». */
+export const OTRO_IDIOMA = "otro";
+
+export { normalizarRif };
+
+export type SeccionVentana2 =
+  | "familiares"
+  | "vivienda"
+  | "salud"
+  | "tallas"
+  | "estudios"
+  | "cursos"
+  | "experiencia"
+  | "idiomas"
+  | "foto"
+  | "revisar";
 
 export interface DefinicionSeccion {
   id: SeccionVentana2;
@@ -30,6 +60,10 @@ export const SECCIONES_VENTANA2: readonly DefinicionSeccion[] = [
   { id: "vivienda", etiqueta: "Vivienda", seccionApi: "vivienda" },
   { id: "salud", etiqueta: "Salud", seccionApi: "salud" },
   { id: "tallas", etiqueta: "Tallas", seccionApi: "tallas" },
+  { id: "estudios", etiqueta: "Estudios", seccionApi: "estudios" },
+  { id: "cursos", etiqueta: "Cursos", seccionApi: "cursos" },
+  { id: "experiencia", etiqueta: "Experiencia pública", seccionApi: "antecedentes" },
+  { id: "idiomas", etiqueta: "Idiomas y RIF", seccionApi: "idiomas" },
   { id: "foto", etiqueta: "Foto", seccionApi: "foto" },
   { id: "revisar", etiqueta: "Revisar y enviar", seccionApi: "" },
 ];
@@ -56,6 +90,14 @@ export interface TallaCatalogo {
   region: string;
 }
 
+export interface CarreraCatalogo extends OpcionCatalogo {
+  nivelAcademicoId: number | null;
+}
+
+export interface MencionCatalogo extends OpcionCatalogo {
+  carreraId: number;
+}
+
 export interface CatalogosVentana2 {
   parentescos: ParentescoCatalogo[];
   sexos: OpcionCatalogo[];
@@ -68,6 +110,13 @@ export interface CatalogosVentana2 {
   patologiasCronicas: OpcionCatalogo[];
   discapacidades: OpcionCatalogo[];
   tallas: { camisa: TallaCatalogo[]; pantalon: TallaCatalogo[]; calzado: TallaCatalogo[]; chaqueta: TallaCatalogo[] };
+  nivelesAcademicos: OpcionCatalogo[];
+  carreras: CarreraCatalogo[];
+  menciones: MencionCatalogo[];
+  instituciones: OpcionCatalogo[];
+  capacitaciones: OpcionCatalogo[];
+  organismos: OpcionCatalogo[];
+  idiomas: OpcionCatalogo[];
 }
 
 export const CATALOGOS_VACIOS: CatalogosVentana2 = {
@@ -82,6 +131,13 @@ export const CATALOGOS_VACIOS: CatalogosVentana2 = {
   patologiasCronicas: [],
   discapacidades: [],
   tallas: { camisa: [], pantalon: [], calzado: [], chaqueta: [] },
+  nivelesAcademicos: [],
+  carreras: [],
+  menciones: [],
+  instituciones: [],
+  capacitaciones: [],
+  organismos: [],
+  idiomas: [],
 };
 
 // --- Valores del formulario (todo texto; vacío = no informado) ---
@@ -126,6 +182,61 @@ export interface ValoresTallas {
   tallaZapatosId: string;
   tallaChaquetaId: string;
 }
+
+export interface ValoresEstudio {
+  nivelAcademicoId: string;
+  carreraId: string;
+  mencionId: string;
+  institucionId: string;
+}
+
+export interface ValoresEstudios {
+  estudios: ValoresEstudio[];
+}
+
+export interface ValoresCurso {
+  capacitacionId: string;
+  institucionId: string;
+  fechaInicio: string;
+  fechaFin: string;
+  horas: string;
+}
+
+export interface ValoresCursos {
+  sinCursos: boolean;
+  cursos: ValoresCurso[];
+}
+
+export interface ValoresAntecedente {
+  organismoId: string;
+  fechaIngreso: string;
+  fechaEgreso: string;
+}
+
+export interface ValoresExperiencia {
+  sinAntecedentes: boolean;
+  /** `"si"` | `"no"` | `""` (sin responder). */
+  trabajoAntesEnConatel: string;
+  antecedentes: ValoresAntecedente[];
+}
+
+export interface ValoresIdioma {
+  /** Id del catálogo, `"otro"` (nombre libre) o `""` (sin elegir). */
+  idiomaId: string;
+  otroIdioma: string;
+  nivel: string;
+}
+
+export interface ValoresIdiomas {
+  sinIdiomas: boolean;
+  idiomas: ValoresIdioma[];
+  rif: string;
+}
+
+export const ESTUDIO_VACIO: ValoresEstudio = { nivelAcademicoId: "", carreraId: "", mencionId: "", institucionId: "" };
+export const CURSO_VACIO: ValoresCurso = { capacitacionId: "", institucionId: "", fechaInicio: "", fechaFin: "", horas: "" };
+export const ANTECEDENTE_VACIO: ValoresAntecedente = { organismoId: "", fechaIngreso: "", fechaEgreso: "" };
+export const IDIOMA_VACIO: ValoresIdioma = { idiomaId: "", otroIdioma: "", nivel: "" };
 
 export const FAMILIAR_VACIO: ValoresFamiliar = {
   primerNombre: "",
@@ -199,6 +310,61 @@ export function tallasDesdeDatos(datos: Crudo): ValoresTallas {
   };
 }
 
+const listaDe = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
+
+export function estudiosDesdeDatos(datos: Crudo): ValoresEstudios {
+  return {
+    estudios: listaDe(datos.estudios).map((item) => {
+      const e = objeto(item);
+      return {
+        nivelAcademicoId: texto(e.nivel_academico_id),
+        carreraId: texto(e.carrera_id),
+        mencionId: texto(e.mencion_id),
+        institucionId: texto(e.institucion_id),
+      };
+    }),
+  };
+}
+
+export function cursosDesdeDatos(datos: Crudo): ValoresCursos {
+  return {
+    sinCursos: datos.sin_cursos === true,
+    cursos: listaDe(datos.cursos).map((item) => {
+      const c = objeto(item);
+      return {
+        capacitacionId: texto(c.capacitacion_id),
+        institucionId: texto(c.institucion_id),
+        fechaInicio: texto(c.fecha_inicio),
+        fechaFin: texto(c.fecha_fin),
+        horas: texto(c.horas),
+      };
+    }),
+  };
+}
+
+export function experienciaDesdeDatos(datos: Crudo): ValoresExperiencia {
+  return {
+    sinAntecedentes: datos.sin_antecedentes === true,
+    trabajoAntesEnConatel: datos.trabajo_antes_en_conatel === true ? "si" : datos.trabajo_antes_en_conatel === false ? "no" : "",
+    antecedentes: listaDe(datos.antecedentes).map((item) => {
+      const a = objeto(item);
+      return { organismoId: texto(a.organismo_id), fechaIngreso: texto(a.fecha_ingreso), fechaEgreso: texto(a.fecha_egreso) };
+    }),
+  };
+}
+
+export function idiomasDesdeDatos(datos: Crudo): ValoresIdiomas {
+  return {
+    sinIdiomas: datos.sin_idiomas === true,
+    rif: texto(datos.rif),
+    idiomas: listaDe(datos.idiomas).map((item) => {
+      const i = objeto(item);
+      const otro = texto(i.otro_idioma);
+      return { idiomaId: i.idioma_id ? texto(i.idioma_id) : otro ? OTRO_IDIOMA : "", otroIdioma: otro, nivel: texto(i.nivel) };
+    }),
+  };
+}
+
 // --- Cuerpos del PUT (solo la sección enviada; sin claves vacías) ---
 const recortado = (v: string) => v.trim().replace(/\s+/g, " ");
 const aId = (v: string): number | undefined => (/^\d+$/.test(v) ? Number(v) : undefined);
@@ -223,6 +389,82 @@ export function cuerpoFamiliares(v: ValoresFamiliares): Record<string, unknown> 
       poner("fecha_nacimiento", f.fechaNacimiento);
       if (f.dependeEconomicamente) salida.depende_economicamente = f.dependeEconomicamente === "si";
       return salida;
+    }),
+  };
+}
+
+export function cuerpoEstudios(v: ValoresEstudios): Record<string, unknown> {
+  return {
+    estudios: v.estudios.map((e) => {
+      const salida: Record<string, unknown> = {};
+      const poner = (clave: string, valor: string) => {
+        const id = aId(valor);
+        if (id) salida[clave] = id;
+      };
+      poner("nivel_academico_id", e.nivelAcademicoId);
+      poner("carrera_id", e.carreraId);
+      poner("mencion_id", e.mencionId);
+      poner("institucion_id", e.institucionId);
+      return salida;
+    }),
+  };
+}
+
+export function cuerpoCursos(v: ValoresCursos): Record<string, unknown> {
+  if (v.sinCursos) return { sin_cursos: true, cursos: [] };
+  return {
+    sin_cursos: false,
+    cursos: v.cursos.map((c) => {
+      const salida: Record<string, unknown> = {};
+      const id = (clave: string, valor: string) => {
+        const n = aId(valor);
+        if (n) salida[clave] = n;
+      };
+      id("capacitacion_id", c.capacitacionId);
+      id("institucion_id", c.institucionId);
+      if (c.fechaInicio) salida.fecha_inicio = c.fechaInicio;
+      if (c.fechaFin) salida.fecha_fin = c.fechaFin;
+      id("horas", c.horas.trim());
+      return salida;
+    }),
+  };
+}
+
+export function cuerpoExperiencia(v: ValoresExperiencia): Record<string, unknown> {
+  const salida: Record<string, unknown> = v.sinAntecedentes
+    ? { sin_antecedentes: true, antecedentes: [] }
+    : {
+        sin_antecedentes: false,
+        antecedentes: v.antecedentes.map((a) => {
+          const item: Record<string, unknown> = {};
+          const organismo = aId(a.organismoId);
+          if (organismo) item.organismo_id = organismo;
+          if (a.fechaIngreso) item.fecha_ingreso = a.fechaIngreso;
+          if (a.fechaEgreso) item.fecha_egreso = a.fechaEgreso;
+          return item;
+        }),
+      };
+  if (v.trabajoAntesEnConatel) salida.trabajo_antes_en_conatel = v.trabajoAntesEnConatel === "si";
+  return salida;
+}
+
+export function cuerpoIdiomas(v: ValoresIdiomas): Record<string, unknown> {
+  const rif = normalizarRif(v.rif);
+  const salida: Record<string, unknown> = { rif: rif ?? v.rif.trim() };
+  if (v.sinIdiomas) return { ...salida, sin_idiomas: true, idiomas: [] };
+  return {
+    ...salida,
+    sin_idiomas: false,
+    idiomas: v.idiomas.map((i) => {
+      const item: Record<string, unknown> = {};
+      if (i.idiomaId === OTRO_IDIOMA) {
+        if (recortado(i.otroIdioma)) item.otro_idioma = recortado(i.otroIdioma);
+      } else {
+        const id = aId(i.idiomaId);
+        if (id) item.idioma_id = id;
+      }
+      if (i.nivel) item.nivel = i.nivel;
+      return item;
     }),
   };
 }
@@ -388,6 +630,38 @@ const CAMPO_POR_CLAVE_API: Record<string, string> = {
   talla_pantalon_id: "tallaPantalonId",
   talla_zapatos_id: "tallaZapatosId",
   talla_chaqueta_id: "tallaChaquetaId",
+  nivel_academico_id: "nivelAcademicoId",
+  carrera_id: "carreraId",
+  mencion_id: "mencionId",
+  institucion_id: "institucionId",
+  capacitacion_id: "capacitacionId",
+  fecha_inicio: "fechaInicio",
+  fecha_fin: "fechaFin",
+  horas: "horas",
+  organismo_id: "organismoId",
+  fecha_ingreso: "fechaIngreso",
+  fecha_egreso: "fechaEgreso",
+  idioma_id: "idiomaId",
+  otro_idioma: "otroIdioma",
+  nivel: "nivel",
+  rif: "rif",
+  trabajo_antes_en_conatel: "trabajoAntesEnConatel",
+};
+
+/** Secciones que son una lista de tarjetas (la clave del formulario coincide con la del backend). */
+const SECCIONES_DE_LISTA: Record<string, SeccionVentana2> = {
+  familiares: "familiares",
+  estudios: "estudios",
+  cursos: "cursos",
+  antecedentes: "experiencia",
+  idiomas: "idiomas",
+};
+/** Casillas «no tengo…» -> lista a la que pertenecen. */
+const SIN_DE_LISTA: Record<string, string> = {
+  sin_familiares: "familiares",
+  sin_cursos: "cursos",
+  sin_antecedentes: "antecedentes",
+  sin_idiomas: "idiomas",
 };
 
 export interface ErrorDeCampo {
@@ -399,10 +673,14 @@ export interface ErrorDeCampo {
 export function campoDeRutaApi(ruta: string): ErrorDeCampo {
   const partes = ruta.replace(/^datos_ventana2\./, "").split(".");
   const seccion = SECCIONES_CON_DATOS.find((s) => s.seccionApi === partes[0])?.id ?? null;
-  if (partes[0] === "familiares" && partes.length >= 3) {
-    return { seccion, campo: `familiares.${partes[1]}.${CAMPO_POR_CLAVE_API[partes[2]] ?? partes[2]}` };
+  const lista = SECCIONES_DE_LISTA[partes[0]];
+  if (lista && partes.length >= 3) {
+    return { seccion: lista, campo: `${partes[0]}.${partes[1]}.${CAMPO_POR_CLAVE_API[partes[2]] ?? partes[2]}` };
   }
-  if (partes[0] === "familiares" || partes[0] === "sin_familiares") return { seccion: "familiares", campo: "familiares" };
+  if (lista) return { seccion: lista, campo: partes[0] };
+  if (SIN_DE_LISTA[partes[0]]) return { seccion: SECCIONES_DE_LISTA[SIN_DE_LISTA[partes[0]]], campo: SIN_DE_LISTA[partes[0]] };
+  if (partes[0] === "rif") return { seccion: "idiomas", campo: "rif" };
+  if (partes[0] === "trabajo_antes_en_conatel") return { seccion: "experiencia", campo: "trabajoAntesEnConatel" };
   const clave = partes[1] ?? partes[0];
   return { seccion, campo: CAMPO_POR_CLAVE_API[clave] ?? clave };
 }

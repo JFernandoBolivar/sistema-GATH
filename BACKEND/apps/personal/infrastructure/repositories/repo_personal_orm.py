@@ -16,6 +16,7 @@ from apps.personal.infrastructure.mappers.mapper_personal import (
     empleado_a_entidad,
 )
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
+from apps.personal.infrastructure.repositories.repo_rif_idiomas_orm import RepoRifIdiomasORM
 from apps.personal.infrastructure.models.expediente_models import (
     AntecedenteServicioModel,
     ContactoEmergenciaModel,
@@ -116,7 +117,7 @@ class RepoPersonalORM:
             'id', 'cedulaidentidad', 'nombres', 'apellidos', 'fecha_nacimiento',
             'profile', 'sexoid', 'estadoCivil', 'nacionalidad', 'correo',
             'telefono_habitacion', 'telefono_movil', 'carnet_patria',
-            'carnet_patria_serial',
+            'carnet_patria_serial', 'rif',
             'fecha_actualizacion',
         ).order_by('-fecha_actualizacion', '-id')
 
@@ -241,6 +242,7 @@ class RepoPersonalORM:
             ((complementarios.correo_alternativo or '').strip() or None) if complementarios else None
         )
         expediente['tiene_hijos'] = complementarios.tiene_hijos if complementarios else None
+        expediente['idiomas'] = RepoRifIdiomasORM().idiomas_de(str(fila.cedulaidentidad).strip())
         return empleado_a_entidad(fila, antecedentes, expediente=expediente, apn=apn)
 
     @staticmethod
@@ -548,6 +550,70 @@ class RepoPersonalORM:
             'tallaZapatos_id': data.get('talla_zapatos_id'),
             'tallaChaqueta_id': data.get('talla_chaqueta_id'),
         })
+
+    def incorporar_formacion_y_antecedentes(
+        self, cedula: str, *, estudios: list[dict], cursos: list[dict], antecedentes: list[dict],
+    ) -> dict[str, int]:
+        """
+        Fase 2 (F-8): suma a la ficha la formación académica, los cursos y los antecedentes de servicio que declaró el
+        postulante, SIN tocar lo que ya tenía (a diferencia de `actualizar_empleado`, que reemplaza listas). Un registro
+        igual a uno existente se omite, así un reingreso (C-1) no duplica. Corre dentro de la transacción de quien invoca.
+        Devuelve cuántos registros creó de cada tipo.
+        """
+        fila = EmployeeModel.objects.filter(cedulaidentidad=cedula).first()
+        if fila is None:
+            raise NotFoundError(f"Empleado con cédula {cedula} no encontrado")
+        creados = {'estudios': 0, 'cursos': 0, 'antecedentes': 0}
+
+        tiene = set(FormacionAcademicaModel.objects.filter(empleado=fila).values_list(
+            'nivel_academico_id', 'carrera_id', 'mencion_id', 'institucion_id'))
+        for e in estudios or []:
+            huella = (e.get('nivel_academico_id'), e.get('carrera_id'), e.get('mencion_id'), e.get('institucion_id'))
+            if huella in tiene:
+                continue
+            FormacionAcademicaModel.objects.create(
+                empleado=fila, nivel_academico_id=huella[0], carrera_id=huella[1], mencion_id=huella[2], institucion_id=huella[3],
+            )
+            tiene.add(huella)
+            creados['estudios'] += 1
+
+        if cursos:
+            # Mismo criterio que la autogestión: la tabla exige una procedencia y el postulante no la elige.
+            from apps.catalogos.infrastructure.models.catalogo_models import TipoProcedenciaModel
+            procedencia = TipoProcedenciaModel.objects.values_list('pk', flat=True).first()
+            if procedencia is None:
+                raise ConflictError("No hay tipos de procedencia configurados: no se puede registrar la formación complementaria.")
+        tiene = set(FormacionComplementariaModel.objects.filter(empleado=fila).values_list(
+            'capacitacion_id', 'institucion_id', 'fechaInicio', 'fechaFin'))
+        for c in cursos or []:
+            inicio = date.fromisoformat(c['fecha_inicio']) if c.get('fecha_inicio') else None
+            fin = date.fromisoformat(c['fecha_fin']) if c.get('fecha_fin') else None
+            huella = (c.get('capacitacion_id'), c.get('institucion_id'), inicio, fin)
+            if huella in tiene:
+                continue
+            FormacionComplementariaModel.objects.create(
+                empleado=fila, capacitacion_id=huella[0], institucion_id=huella[1], fechaInicio=inicio, fechaFin=fin,
+                horas_completadas=str(c['horas']) if c.get('horas') else None, procedencia_id=procedencia,
+            )
+            tiene.add(huella)
+            creados['cursos'] += 1
+
+        tiene = set(AntecedenteServicioModel.objects.filter(empleado=fila).values_list(
+            'organismo_id', 'fecha_ingreso', 'fecha_egreso'))
+        for a in antecedentes or []:
+            ingreso = date.fromisoformat(a['fecha_ingreso'])
+            egreso = date.fromisoformat(a['fecha_egreso']) if a.get('fecha_egreso') else None
+            huella = (a.get('organismo_id'), ingreso, egreso)
+            if huella in tiene:
+                continue
+            AntecedenteServicioModel.objects.create(
+                empleado=fila, organismo_id=huella[0], fecha_ingreso=ingreso, fecha_egreso=egreso,
+            )
+            tiene.add(huella)
+            creados['antecedentes'] += 1
+        if any(creados.values()):
+            fila.save(update_fields=['fecha_actualizacion'])
+        return creados
 
     def _upsert_formacion_complementaria(self, empleado: EmployeeModel, data) -> None:
         if not data:

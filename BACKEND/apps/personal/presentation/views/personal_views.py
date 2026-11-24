@@ -29,12 +29,18 @@ from apps.personal.application.use_cases.gestionar_personal import (
     obtener_clave_foto,
 )
 from apps.personal.application.use_cases.actualizar_tiene_hijos import actualizar_tiene_hijos
+from apps.personal.application.use_cases.gestionar_rif_idiomas import (
+    actualizar_rif,
+    consultar_idiomas,
+    reemplazar_idiomas,
+)
 from apps.personal.application.use_cases.listar_personal import listar_personal_paginado
 from apps.personal.application.use_cases.obtener_personal import obtener_personal_por_cedula
 from apps.personal.infrastructure.mappers.mapper_personal import ruta_foto
 from apps.personal.infrastructure.pdf_empleado import construir_pdf_expediente_empleado
 from apps.personal.infrastructure.repositories.consultas_historial_cargos import historial_cargos_de
 from apps.personal.infrastructure.repositories.repo_personal_orm import RepoPersonalORM
+from apps.personal.infrastructure.repositories.repo_rif_idiomas_orm import RepoRifIdiomasORM
 from apps.personal.infrastructure.repositories.repo_tiene_hijos_orm import RepoTieneHijosORM
 from apps.personal.infrastructure.serializers.empleado_escritura_serializers import (
     EmpleadoActualizarSerializer,
@@ -48,7 +54,10 @@ from apps.personal.presentation.filters.personal_filters import (
 from apps.personal.presentation.serializers.personal_serializers import (
     EmpleadoListadoSerializer,
     EmpleadoSerializer,
+    IdiomaLecturaSerializer,
+    IdiomasEntradaSerializer,
     ListadoEmpleadosPaginadoSerializer,
+    RifEntradaSerializer,
     TieneHijosEntradaSerializer,
 )
 
@@ -197,6 +206,74 @@ class DatosComplementariosView(APIView):
         return ok({'tiene_hijos': cambio.nuevo}, 'Dato actualizado correctamente.')
 
     put = patch
+
+
+def _auditar(request, *, accion: str, cedula: str, previo, nuevo) -> None:
+    actor = str(getattr(request.user, 'cedula_id', '') or '')
+    registrar_auditoria(
+        trace_id=getattr(request, 'trace_id', None) or uuid.uuid4().hex,
+        actor_id=getattr(request.user, 'pk', None),
+        actor_cedula=actor,
+        actor_rol=getattr(getattr(request.user, 'rol', None), 'nombre_rol', '') or '',
+        accion=accion, modulo='personal', recurso_tipo='Employee', recurso_id=cedula,
+        estado_previo=previo, estado_nuevo=nuevo, **origen_de_peticion(request),
+    )
+
+
+class RifView(APIView):
+    """RR. HH. corrige el RIF del trabajador (dato personal: mismo permiso que los demás datos personales)."""
+
+    permission_classes = [IsAuthenticated, HasPermission('personal.editar_personales')]
+
+    @extend_schema(tags=['Personal'], summary='Actualizar el RIF del trabajador', request=RifEntradaSerializer)
+    def patch(self, request, cedula: str):
+        entrada = RifEntradaSerializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        with transaction.atomic():
+            cambio = actualizar_rif(RepoRifIdiomasORM(), cedula=cedula, rif=entrada.validated_data['rif'])
+            _auditar(request, accion='personal.rif_actualizado', cedula=cedula,
+                     previo={'rif': cambio.previo}, nuevo={'rif': cambio.nuevo})
+        return ok({'rif': cambio.nuevo}, 'RIF actualizado correctamente.')
+
+    put = patch
+
+
+class IdiomasView(APIView):
+    """Idiomas del trabajador: se ven con el detalle; se editan junto a la educación (`personal.editar_educacion`)."""
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [IsAuthenticated(), HasPermission('personal.ver_detalle')()]
+        return [IsAuthenticated(), HasPermission('personal.editar_educacion')()]
+
+    @extend_schema(tags=['Personal'], summary='Idiomas del trabajador', responses={200: IdiomaLecturaSerializer(many=True)})
+    def get(self, request, cedula: str):
+        return ok(IdiomaLecturaSerializer(consultar_idiomas(RepoRifIdiomasORM(), cedula=cedula), many=True).data)
+
+    @extend_schema(
+        tags=['Personal'], summary='Reemplazar los idiomas del trabajador', request=IdiomasEntradaSerializer,
+        responses={200: IdiomaLecturaSerializer(many=True)},
+    )
+    def put(self, request, cedula: str):
+        entrada = IdiomasEntradaSerializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        with transaction.atomic():
+            cambio = reemplazar_idiomas(RepoRifIdiomasORM(), cedula=cedula, idiomas=entrada.validated_data['idiomas'])
+            def resumen(lista):
+                return [{'nombre': i['nombre'], 'nivel': i['nivel']} for i in lista]
+            _auditar(request, accion='personal.idiomas_actualizados', cedula=cedula,
+                     previo={'idiomas': resumen(cambio.previos)}, nuevo={'idiomas': resumen(cambio.nuevos)})
+        return ok(IdiomaLecturaSerializer(cambio.nuevos, many=True).data, 'Idiomas actualizados correctamente.')
+
+    patch = put
+
+
+class IdiomasCatalogoView(APIView):
+    permission_classes = [IsAuthenticated, HasPermission('personal.ver')]
+
+    @extend_schema(tags=['Personal'], summary='Catálogo de idiomas')
+    def get(self, request):
+        return ok(RepoRifIdiomasORM.listar_catalogo_idiomas())
 
 
 def _quien_genera(usuario) -> str:

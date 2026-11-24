@@ -25,6 +25,10 @@ class Empleado:
     estado_civil_nombre: str | None = None
     carnet_patria: str | None = None
     carnet_patria_serial: str | None = None
+    # RIF canónico `L-NNNNNNNN-D` (F-8).
+    rif: str | None = None
+    # Idiomas del trabajador (F-8); solo se pueblan en el detalle.
+    idiomas: list = field(default_factory=list)
     nacionalidad_id: int = 1
     nacionalidad_codigo: str = "V"
     nacionalidad_nombre: str = "VENEZOLANA"

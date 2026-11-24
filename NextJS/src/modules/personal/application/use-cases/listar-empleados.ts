@@ -17,6 +17,8 @@ function aDTO(e: Empleado): EmpleadoDTO {
     correo: e.correo,
     correoAlternativo: e.correoAlternativo ?? null,
     tieneHijos: e.tieneHijos ?? null,
+    rif: e.rif ?? null,
+    idiomas: e.idiomas ?? [],
     telefonoMovil: e.telefonoMovil,
     telefonoHabitacion: e.telefonoHabitacion,
     fechaNacimiento: e.fechaNacimiento,

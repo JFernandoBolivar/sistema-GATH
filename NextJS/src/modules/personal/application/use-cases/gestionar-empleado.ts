@@ -1,6 +1,7 @@
 /**
  * Casos de uso de Registro y Edición de Empleado (Reglas R2, R4).
  */
+import type { EntradaIdioma, IdiomaEmpleado } from "../../domain/entities/empleado";
 import type { RepoPersonal } from "../../domain/ports/repo-personal";
 import type { EmpleadoDTO, GuardarEmpleadoInputDTO } from "../dtos/empleado-dto";
 
@@ -16,6 +17,8 @@ function aDTO(e: Awaited<ReturnType<RepoPersonal["crearEmpleado"]>>): EmpleadoDT
     correo: e.correo,
     correoAlternativo: e.correoAlternativo ?? null,
     tieneHijos: e.tieneHijos ?? null,
+    rif: e.rif ?? null,
+    idiomas: e.idiomas ?? [],
     telefonoMovil: e.telefonoMovil,
     telefonoHabitacion: e.telefonoHabitacion,
     fechaNacimiento: e.fechaNacimiento,
@@ -113,4 +116,20 @@ export async function actualizarTieneHijos(
   tieneHijos: boolean | null,
 ): Promise<boolean | null> {
   return repo.actualizarTieneHijos(cedula, tieneHijos);
+}
+
+export async function actualizarRif(repo: RepoPersonal, cedula: string, rif: string): Promise<string | null> {
+  return repo.actualizarRif(cedula, rif);
+}
+
+export async function actualizarIdiomas(
+  repo: RepoPersonal,
+  cedula: string,
+  idiomas: EntradaIdioma[],
+): Promise<IdiomaEmpleado[]> {
+  return repo.actualizarIdiomas(cedula, idiomas);
+}
+
+export async function listarIdiomasCatalogo(repo: RepoPersonal): Promise<{ id: number; nombre: string }[]> {
+  return repo.listarIdiomas();
 }

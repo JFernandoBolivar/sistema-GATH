@@ -27,6 +27,8 @@ const RUTAS_PERMITIDAS: readonly RegExp[] = [
   // Soportes de las solicitudes de actualización de datos (Django valida dueño o Bienestar).
   /^autogestion\/soportes\/[0-9a-f-]{36}\/archivo\/?$/,
   // Foto de carnet del postulante para Captación (Django exige el permiso de la bandeja; sin caché).
+  // Páginas (PNG) del PDF de fondo de una plantilla de documentos (Django exige el permiso de lectura).
+  /^documentos\/plantillas\/[0-9a-f-]{36}\/fondo\/paginas\/\d+\/?$/,
   /^postulacion\/expedientes\/[0-9a-f-]{36}\/foto\/?$/,
 ];
 

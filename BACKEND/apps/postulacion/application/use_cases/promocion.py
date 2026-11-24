@@ -116,6 +116,7 @@ def promover_postulante(
                 'employee_id': resultado.employee_id, 'reingreso': resultado.es_reingreso,
                 'cuenta_creada': resultado.cuenta.creada, 'cuenta_motivo': resultado.cuenta.motivo,
                 'contratado_el': ahora.date().isoformat(), 'familiares': resultado.familiares_copiados,
+                'ficha': resultado.ficha_copiada,
             }
 
         guardado, asiento = aplicar_transicion_expediente(

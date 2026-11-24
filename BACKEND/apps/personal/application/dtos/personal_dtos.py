@@ -23,6 +23,8 @@ class EmpleadoDTO:
     estado_civil_nombre: str | None = None
     carnet_patria: str | None = None
     carnet_patria_serial: str | None = None
+    rif: str | None = None
+    idiomas: list = field(default_factory=list)
     nacionalidad_id: int = 1
     nacionalidad_codigo: str = "V"
     nacionalidad_nombre: str = "VENEZOLANA"

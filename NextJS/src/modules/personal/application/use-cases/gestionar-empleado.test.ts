@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { GuardarEmpleadoDatos, RepoPersonal } from "../../domain/ports/repo-personal";
-import type { Empleado } from "../../domain/entities/empleado";
-import { actualizarEmpleado, actualizarTieneHijos, registrarEmpleado } from "./gestionar-empleado";
+import type { EntradaIdioma, Empleado, IdiomaEmpleado } from "../../domain/entities/empleado";
+import {
+  actualizarEmpleado,
+  actualizarIdiomas,
+  actualizarRif,
+  actualizarTieneHijos,
+  listarIdiomasCatalogo,
+  registrarEmpleado,
+} from "./gestionar-empleado";
 import { listarEmpleados, obtenerEmpleadoPorCedula } from "./listar-empleados";
 
 class RepoPersonalMemoria implements RepoPersonal {
@@ -9,6 +16,19 @@ class RepoPersonalMemoria implements RepoPersonal {
   async actualizarTieneHijos(cedula: string, tieneHijos: boolean | null) {
     this.tieneHijosGuardado[cedula] = tieneHijos;
     return tieneHijos;
+  }
+  rifGuardado: Record<string, string> = {};
+  async actualizarRif(cedula: string, rif: string) {
+    this.rifGuardado[cedula] = rif;
+    return rif || null;
+  }
+  idiomasGuardados: Record<string, EntradaIdioma[]> = {};
+  async actualizarIdiomas(cedula: string, idiomas: EntradaIdioma[]): Promise<IdiomaEmpleado[]> {
+    this.idiomasGuardados[cedula] = idiomas;
+    return idiomas.map((i, n) => ({ id: n + 1, idiomaId: i.idiomaId, otroIdioma: i.otroIdioma, nombre: i.otroIdioma || "Inglés", nivel: i.nivel }));
+  }
+  async listarIdiomas() {
+    return [{ id: 1, nombre: "Inglés" }];
   }
   empleados: Empleado[] = [
     {
@@ -165,5 +185,24 @@ describe("Casos de uso de Gestión de Personal", () => {
     expect(await actualizarTieneHijos(repo, "11223344", true)).toBe(true);
     expect(await actualizarTieneHijos(repo, "11223344", false)).toBe(false);
     expect(repo.tieneHijosGuardado["11223344"]).toBe(false);
+  });
+
+  it("actualizarRif y actualizarIdiomas delegan en el repositorio", async () => {
+    const repo = new RepoPersonalMemoria();
+    expect(await actualizarRif(repo, "11223344", "V-12345678-9")).toBe("V-12345678-9");
+    expect(await actualizarRif(repo, "11223344", "")).toBeNull();
+    const guardados = await actualizarIdiomas(repo, "11223344", [{ idiomaId: 1, otroIdioma: "", nivel: "BIEN" }]);
+    expect(guardados).toHaveLength(1);
+    expect(repo.idiomasGuardados["11223344"][0].nivel).toBe("BIEN");
+    expect(await listarIdiomasCatalogo(repo)).toEqual([{ id: 1, nombre: "Inglés" }]);
+  });
+
+  it("el detalle conserva el RIF y los idiomas del backend", async () => {
+    const repo = new RepoPersonalMemoria();
+    repo.empleados[0] = { ...repo.empleados[0], rif: "V-12345678-9", idiomas: [{ id: 1, idiomaId: 2, otroIdioma: "", nombre: "Francés", nivel: "POCO" }] };
+    const emp = await obtenerEmpleadoPorCedula(repo, "11223344");
+    expect(emp.rif).toBe("V-12345678-9");
+    expect(emp.idiomas).toEqual([{ id: 1, idiomaId: 2, otroIdioma: "", nombre: "Francés", nivel: "POCO" }]);
+    expect((await listarEmpleados(repo)).items[0].idiomas).toEqual(emp.idiomas);
   });
 });

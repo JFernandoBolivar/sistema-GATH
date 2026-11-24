@@ -25,6 +25,20 @@ const Rejilla = ({ filas }: { filas: { etiqueta: string; valor: string }[] }) =>
   <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">{filas.map((f) => <Fila key={f.etiqueta} {...f} />)}</dl>
 );
 
+const ListaItems = ({ items, vacio }: { items: { titulo: string; filas: { etiqueta: string; valor: string }[] }[]; vacio: string }) =>
+  items.length === 0 ? (
+    <p className="italic text-muted-foreground">{vacio}</p>
+  ) : (
+    <ul className="grid gap-3 md:grid-cols-2">
+      {items.map((x, i) => (
+        <li key={i} className="rounded-lg border p-3">
+          <p className="mb-2 font-semibold">{x.titulo}</p>
+          <Rejilla filas={x.filas} />
+        </li>
+      ))}
+    </ul>
+  );
+
 /** Datos de la Ventana 2 en lenguaje legible (ids ya traducidos a nombre por el backend) y lo que aún falta. */
 export function SeccionVentana2({ detalle }: { detalle: DetalleExpediente }) {
   const v = ventana2Legible(detalle.datosVentana2Legible);
@@ -65,6 +79,18 @@ export function SeccionVentana2({ detalle }: { detalle: DetalleExpediente }) {
       <Bloque titulo="Vivienda">{v.vivienda.length ? <Rejilla filas={v.vivienda} /> : <p className="italic text-muted-foreground">No informado</p>}</Bloque>
       <Bloque titulo="Salud">{v.salud.length ? <Rejilla filas={v.salud} /> : <p className="italic text-muted-foreground">No informado</p>}</Bloque>
       <Bloque titulo="Tallas">{v.tallas.length ? <Rejilla filas={v.tallas} /> : <p className="italic text-muted-foreground">No informado</p>}</Bloque>
+      <Bloque titulo="Estudios"><ListaItems items={v.estudios} vacio="No informado" /></Bloque>
+      <Bloque titulo="Cursos">
+        <ListaItems items={v.cursos} vacio={v.sinCursos ? "El postulante declaró que no tiene cursos." : "No informado"} />
+      </Bloque>
+      <Bloque titulo="Experiencia en la Administración Pública">
+        <ListaItems items={v.antecedentes} vacio={v.sinAntecedentes ? "El postulante declaró que no ha trabajado en la Administración Pública." : "No informado"} />
+        <dl className="mt-3"><Fila etiqueta="¿Trabajó antes en CONATEL?" valor={v.trabajoAntesEnConatel || "No informado"} /></dl>
+      </Bloque>
+      <Bloque titulo="Idiomas y RIF">
+        <ListaItems items={v.idiomas} vacio={v.sinIdiomas ? "El postulante declaró que no domina otros idiomas." : "No informado"} />
+        <dl className="mt-3"><Fila etiqueta="RIF" valor={v.rif || "No informado"} /></dl>
+      </Bloque>
     </div>
   );
 }

@@ -226,5 +226,5 @@ def test_detalle_no_duplica_la_consulta_de_antecedentes(catalogos):
     de_antecedentes = [s for s in sqls if 'from "antecedentes_servicio"' in s]
     assert len(de_antecedentes) == 1, de_antecedentes
     # 13 desde que el detalle incluye el correo alternativo de autogestión
-    # (una consulta constante más, no un N+1).
-    assert len(consultas) <= 13, len(consultas)
+    # (una consulta constante más, no un N+1); 14 desde que incluye los idiomas (F-8, otra consulta constante).
+    assert len(consultas) <= 14, len(consultas)

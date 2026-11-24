@@ -48,4 +48,6 @@ class ResultadoPromocion:
     es_reingreso: bool
     puesto_codigo: str = ''
     familiares_copiados: int = 0
+    # F-8: lo que se sumó a la ficha además de los familiares (`estudios`, `cursos`, `antecedentes`, `idiomas`, `rif`).
+    ficha_copiada: dict = field(default_factory=dict)
     cuenta: CuentaPromocion = field(default_factory=CuentaPromocion)

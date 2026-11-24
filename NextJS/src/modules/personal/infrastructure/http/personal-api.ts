@@ -22,6 +22,8 @@ export interface EmpleadoApiItem {
   correo: string | null;
   correo_alternativo?: string | null;
   tiene_hijos?: boolean | null;
+  rif?: string | null;
+  idiomas?: Record<string, unknown>[];
   telefono_movil: string | null;
   telefono_habitacion: string | null;
   fecha_nacimiento: string | null;
@@ -123,6 +125,24 @@ export const personalApi = {
         `/api/v1/personal/${cedula}/datos-complementarios/`,
         { tiene_hijos: tieneHijos },
       ),
+    ),
+
+  actualizarRif: (cedula: string, rif: string) =>
+    single<{ rif: string | null }>(
+      apiClient.patch<ApiResponse<{ rif: string | null }>>(`/api/v1/personal/${cedula}/rif/`, { rif }),
+    ),
+
+  actualizarIdiomas: (
+    cedula: string,
+    idiomas: { idioma_id: number | null; otro_idioma: string; nivel: string }[],
+  ) =>
+    single<Record<string, unknown>[]>(
+      apiClient.put<ApiResponse<Record<string, unknown>[]>>(`/api/v1/personal/${cedula}/idiomas/`, { idiomas }),
+    ),
+
+  getIdiomas: () =>
+    single<CatalogoEmpleadoApiItem[]>(
+      apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/personal/catalogos/idiomas/"),
     ),
 
   subirFoto: (cedula: string, formData: FormData) =>

@@ -10,9 +10,11 @@ import type {
   ContactoEmergencia,
   Contrato,
   DatosVivienda,
+  EntradaIdioma,
   Empleado,
   FormacionAcademica,
   FormacionComplementaria,
+  IdiomaEmpleado,
   PerfilFisico,
   PerfilSalud,
 } from "../entities/empleado";
@@ -99,6 +101,11 @@ export interface RepoPersonal {
   actualizarEmpleado(cedula: string, data: Partial<GuardarEmpleadoDatos>): Promise<Empleado>;
   /** RR. HH. corrige «¿tiene hijos?» (datos complementarios); devuelve el valor guardado. */
   actualizarTieneHijos(cedula: string, tieneHijos: boolean | null): Promise<boolean | null>;
+  /** RR. HH. corrige el RIF (vacío lo borra); devuelve el valor normalizado guardado. */
+  actualizarRif(cedula: string, rif: string): Promise<string | null>;
+  /** Reemplaza los idiomas del trabajador; devuelve la lista guardada. */
+  actualizarIdiomas(cedula: string, idiomas: EntradaIdioma[]): Promise<IdiomaEmpleado[]>;
+  listarIdiomas(): Promise<{ id: number; nombre: string }[]>;
   listarCatalogosExpediente(): Promise<CatalogosExpediente>;
   /** PDF del expediente generado en backend (ReportLab), reemplaza el render client-side con @react-pdf/renderer. */
   descargarPdf(cedula: string): Promise<Blob>;

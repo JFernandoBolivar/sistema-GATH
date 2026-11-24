@@ -23,6 +23,12 @@ export interface FamiliarLegible {
   filas: FilaLegible[];
 }
 
+/** Elemento de una lista de la Ventana 2 ampliada (estudio, curso, experiencia, idioma). */
+export interface ItemLegible {
+  titulo: string;
+  filas: FilaLegible[];
+}
+
 export interface Ventana2Legible {
   vacia: boolean;
   sinFamiliares: boolean;
@@ -30,13 +36,35 @@ export interface Ventana2Legible {
   vivienda: FilaLegible[];
   salud: FilaLegible[];
   tallas: FilaLegible[];
+  estudios: ItemLegible[];
+  cursos: ItemLegible[];
+  sinCursos: boolean;
+  antecedentes: ItemLegible[];
+  sinAntecedentes: boolean;
+  /** «Sí», «No» o `""` si no respondió. */
+  trabajoAntesEnConatel: string;
+  idiomas: ItemLegible[];
+  sinIdiomas: boolean;
+  /** `""` si no lo indicó. */
+  rif: string;
 }
 
 const conValor = (filas: FilaLegible[]) => filas.map((f) => ({ ...f, valor: f.valor || "No informado" }));
+const lista = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
+const fecha = (iso: unknown): string => {
+  const t = texto(iso);
+  return t ? formatearFecha(`${t}T12:00:00-04:00`) : "";
+};
+const NIVELES: Record<string, string> = { BIEN: "Bien", REGULAR: "Regular", POCO: "Poco" };
 
 /** `datos_ventana2_legible` del backend (ids con nombre) a filas listas para dibujar. */
 export function ventana2Legible(legible: Record<string, unknown> | null): Ventana2Legible {
-  if (!legible) return { vacia: true, sinFamiliares: false, familiares: [], vivienda: [], salud: [], tallas: [] };
+  if (!legible) {
+    return {
+      vacia: true, sinFamiliares: false, familiares: [], vivienda: [], salud: [], tallas: [],
+      estudios: [], cursos: [], sinCursos: false, antecedentes: [], sinAntecedentes: false, trabajoAntesEnConatel: "", idiomas: [], sinIdiomas: false, rif: "",
+    };
+  }
   const v = objeto(legible.vivienda);
   const s = objeto(legible.salud);
   const t = objeto(legible.tallas);
@@ -54,12 +82,58 @@ export function ventana2Legible(legible: Record<string, unknown> | null): Ventan
       ]),
     };
   });
+  const estudios = lista(legible.estudios).map((item) => {
+    const e = objeto(item);
+    return {
+      titulo: nombre(e.nivel_academico) || "Estudio sin nivel",
+      filas: conValor([
+        { etiqueta: "Carrera", valor: nombre(e.carrera) },
+        { etiqueta: "Mención", valor: nombre(e.mencion) },
+        { etiqueta: "Institución", valor: nombre(e.institucion) },
+      ]),
+    };
+  });
+  const cursos = lista(legible.cursos).map((item) => {
+    const c = objeto(item);
+    return {
+      titulo: nombre(c.capacitacion) || "Curso sin nombre",
+      filas: conValor([
+        { etiqueta: "Institución", valor: nombre(c.institucion) },
+        { etiqueta: "Inicio", valor: fecha(c.fecha_inicio) },
+        { etiqueta: "Fin", valor: fecha(c.fecha_fin) },
+        { etiqueta: "Horas", valor: texto(c.horas) },
+      ]),
+    };
+  });
+  const antecedentes = lista(legible.antecedentes).map((item) => {
+    const a = objeto(item);
+    return {
+      titulo: nombre(a.organismo) || "Organismo sin indicar",
+      filas: conValor([
+        { etiqueta: "Ingreso", valor: fecha(a.fecha_ingreso) },
+        { etiqueta: "Egreso", valor: fecha(a.fecha_egreso) },
+      ]),
+    };
+  });
+  const idiomas = lista(legible.idiomas).map((item) => {
+    const i = objeto(item);
+    return { titulo: texto(i.nombre) || "Idioma sin indicar", filas: conValor([{ etiqueta: "Nivel", valor: NIVELES[texto(i.nivel)] ?? "" }]) };
+  });
   const hayVivienda = Object.keys(v).length > 0;
   const haySalud = Object.keys(s).length > 0;
   return {
     vacia: false,
     sinFamiliares: legible.sin_familiares === true,
     familiares,
+    estudios,
+    cursos,
+    sinCursos: legible.sin_cursos === true,
+    antecedentes,
+    sinAntecedentes: legible.sin_antecedentes === true,
+    trabajoAntesEnConatel: legible.trabajo_antes_en_conatel === true ? "Sí" : legible.trabajo_antes_en_conatel === false ? "No" : "",
+    idiomas,
+    sinIdiomas: legible.sin_idiomas === true,
+    rif: texto(legible.rif),
     vivienda: hayVivienda
       ? conValor([
           { etiqueta: "Tipo y tenencia", valor: nombre(v.condicion_vivienda) },

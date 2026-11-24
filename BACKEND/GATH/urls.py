@@ -35,6 +35,7 @@ urlpatterns = [
     path('api/v1/exportaciones/', include('apps.exportaciones.presentation.urls')),
     path('api/v1/carga-masiva/', include('apps.carga_masiva.presentation.urls')),
     path('api/v1/puntocuenta/', include('apps.puntocuenta.presentation.urls')),
+    path('api/v1/documentos/', include('apps.documentos.presentation.urls')),
     path('reportes/excel/', ReportePersonalActivoExcelView.as_view(), name='reporte-excel-legado'),
     path(
         'api/schema/',

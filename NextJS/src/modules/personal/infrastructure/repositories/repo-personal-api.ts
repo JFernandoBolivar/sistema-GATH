@@ -18,7 +18,7 @@ import type {
   PerfilSalud,
 } from "../../domain/entities/empleado";
 import { personalApi } from "../http/personal-api";
-import { empleadoApiAEntidad } from "../mappers/mapper-personal";
+import { empleadoApiAEntidad, idiomaApiAEntidad } from "../mappers/mapper-personal";
 function viviendaAPI(v: DatosVivienda | null | undefined): Record<string, unknown> | null {
   if (!v) return null;
   const out: Record<string, unknown> = {};
@@ -223,6 +223,24 @@ export const repoPersonalApi: RepoPersonal = {
   async actualizarTieneHijos(cedula, tieneHijos) {
     const raw = await personalApi.actualizarTieneHijos(cedula, tieneHijos);
     return raw.tiene_hijos ?? null;
+  },
+
+  async actualizarRif(cedula, rif) {
+    const raw = await personalApi.actualizarRif(cedula, rif);
+    return raw.rif ?? null;
+  },
+
+  async actualizarIdiomas(cedula, idiomas) {
+    const raw = await personalApi.actualizarIdiomas(
+      cedula,
+      idiomas.map((i) => ({ idioma_id: i.idiomaId, otro_idioma: i.otroIdioma, nivel: i.nivel })),
+    );
+    return raw.map(idiomaApiAEntidad);
+  },
+
+  async listarIdiomas() {
+    const raw = await personalApi.getIdiomas();
+    return raw.map((x) => ({ id: x.id, nombre: x.nombre }));
   },
 
   async listarCatalogosExpediente() {

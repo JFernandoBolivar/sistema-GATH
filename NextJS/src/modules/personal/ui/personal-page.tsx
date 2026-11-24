@@ -65,6 +65,7 @@ export default function PersonalPage() {
   const esAdmin = tienePermiso(permisos, "*");
   const _puedeCrear = esAdmin || tienePermiso(permisos, "personal.crear");
   const puedeEditar = esAdmin || tienePermiso(permisos, "personal.editar_personales");
+  const puedeEditarEducacion = esAdmin || tienePermiso(permisos, "personal.editar_educacion");
   const puedeCorregirCedula = esAdmin || tienePermiso(permisos, "personal.corregir_cedula");
   const puedeEditarNacionalidad = esAdmin || tienePermiso(permisos, "personal.editar_nacionalidad");
   const puedeVerDetalle = esAdmin || tienePermiso(permisos, "personal.ver_detalle");
@@ -438,6 +439,7 @@ export default function PersonalPage() {
         exportandoPdf={exportandoPdf}
         puedeExportarPdf={puedeExportarPdf}
         puedeEditar={puedeEditar}
+        puedeEditarEducacion={puedeEditarEducacion}
         puedeCorregirCedula={puedeCorregirCedula}
         puedeEditarNacionalidad={puedeEditarNacionalidad}
         onCedulaCorregida={(nueva) => {

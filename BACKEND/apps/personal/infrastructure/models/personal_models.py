@@ -57,6 +57,9 @@ class EmployeeModel(models.Model):
     # `postulacion`) y UUID (no entero) porque ése es el tipo de la clave primaria del expediente.
     origen_expediente = models.UUIDField(blank=True, null=True)
 
+    # Fase 2 (F-8): RIF canónico `L-NNNNNNNN-D` (migración `personal.0005`; NULL = sin dato).
+    rif = models.CharField(max_length=12, blank=True, null=True)
+
     class Meta:
         managed = False
         db_table = 'Employee'

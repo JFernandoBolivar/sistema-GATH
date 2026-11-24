@@ -15,6 +15,7 @@ import type {
   Empleado,
   FormacionAcademica,
   FormacionComplementaria,
+  IdiomaEmpleado,
   PerfilFisico,
   PerfilSalud,
   CargoAsignado,
@@ -105,6 +106,8 @@ export interface EmpleadoDTO {
   correo: string | null;
   correoAlternativo?: string | null;
   tieneHijos?: boolean | null;
+  rif?: string | null;
+  idiomas?: IdiomaEmpleado[];
   telefonoMovil: string | null;
   telefonoHabitacion: string | null;
   fechaNacimiento: string | null;

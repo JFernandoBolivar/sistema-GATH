@@ -16,10 +16,15 @@ import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import type { FiltrosListadoEmpleado } from "../../domain/ports/repo-personal";
+import { MENSAJE_RIF_INVALIDO, normalizarRif } from "@/shared/domain/validation/rif";
 import type { GuardarEmpleadoInputDTO } from "../../application/dtos/empleado-dto";
+import type { EntradaIdioma } from "../../domain/entities/empleado";
 import {
   actualizarEmpleado,
+  actualizarIdiomas,
+  actualizarRif,
   actualizarTieneHijos,
+  listarIdiomasCatalogo,
   registrarEmpleado,
 } from "../../application/use-cases/gestionar-empleado";
 import {
@@ -33,6 +38,7 @@ import {
   empleadoCedulaSchema,
   empleadoRegistroSchema,
   empleadoSchema,
+  idiomasEntradaSchema,
   listadoEmpleadosSchema,
 } from "../../ui/schema/schema-empleado";
 
@@ -182,6 +188,63 @@ export async function actualizarTieneHijosAction(cedula: string, tieneHijos: boo
     await logAudit({ traceId, action: "actualizarTieneHijosAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return errorDeAccion(error, "No fue posible actualizar el dato.");
+  }
+}
+
+export async function actualizarRifAction(cedula: string, rif: string) {
+  const cedulaValida = empleadoCedulaSchema.safeParse({ cedula });
+  const normalizado = typeof rif === "string" ? normalizarRif(rif) : null;
+  if (!cedulaValida.success || normalizado === null) {
+    return { error: MENSAJE_RIF_INVALIDO };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await actualizarRif(repoPersonalApi, cedulaValida.data.cedula, normalizado);
+    await logAudit({ traceId, action: "actualizarRifAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { rif: result };
+  } catch (error) {
+    unstable_rethrow(error);
+    await logAudit({ traceId, action: "actualizarRifAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return errorDeAccion(error, "No fue posible actualizar el RIF.");
+  }
+}
+
+export async function actualizarIdiomasAction(cedula: string, idiomas: EntradaIdioma[]) {
+  const cedulaValida = empleadoCedulaSchema.safeParse({ cedula });
+  const valido = idiomasEntradaSchema.safeParse(idiomas);
+  if (!cedulaValida.success || !valido.success) {
+    return { error: "Datos inválidos. Revise los idiomas ingresados." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await actualizarIdiomas(repoPersonalApi, cedulaValida.data.cedula, valido.data);
+    await logAudit({ traceId, action: "actualizarIdiomasAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { idiomas: result };
+  } catch (error) {
+    unstable_rethrow(error);
+    await logAudit({ traceId, action: "actualizarIdiomasAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return errorDeAccion(error, "No fue posible actualizar los idiomas.");
+  }
+}
+
+export async function listarIdiomasCatalogoAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarIdiomasCatalogo(repoPersonalApi);
+    await logAudit({ traceId, action: "listarIdiomasCatalogoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { idiomas: result };
+  } catch (error) {
+    unstable_rethrow(error);
+    await logAudit({ traceId, action: "listarIdiomasCatalogoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return errorDeAccion(error, "No fue posible cargar el catálogo de idiomas.");
   }
 }
 

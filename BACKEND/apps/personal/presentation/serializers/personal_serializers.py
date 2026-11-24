@@ -15,6 +15,15 @@ from core.presentation.serializers.expediente_lectura import (
 )
 
 
+class IdiomaLecturaSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    idioma_id = serializers.IntegerField(read_only=True, allow_null=True)
+    idioma_nombre = serializers.CharField(read_only=True, allow_blank=True)
+    otro_idioma = serializers.CharField(read_only=True, allow_blank=True)
+    nombre = serializers.CharField(read_only=True, allow_blank=True)
+    nivel = serializers.CharField(read_only=True)
+
+
 class EmpleadoListadoSerializer(serializers.Serializer):
     """Listado liviano de personal activo.
 
@@ -61,6 +70,8 @@ class EmpleadoSerializer(serializers.Serializer):
     estado_civil_nombre = serializers.CharField(read_only=True, allow_null=True)
     carnet_patria = serializers.CharField(read_only=True, allow_null=True)
     carnet_patria_serial = serializers.CharField(read_only=True, allow_null=True)
+    rif = serializers.CharField(read_only=True, allow_null=True, required=False)
+    idiomas = IdiomaLecturaSerializer(read_only=True, many=True, required=False)
     nacionalidad_id = serializers.IntegerField(read_only=True, default=1)
     nacionalidad_codigo = serializers.CharField(read_only=True, default="V")
     nacionalidad_nombre = serializers.CharField(read_only=True, default="VENEZOLANA")
@@ -93,3 +104,21 @@ class TieneHijosEntradaSerializer(serializers.Serializer):
     """Cuerpo del PATCH de datos complementarios: «¿tiene hijos?» (null = sin dato)."""
 
     tiene_hijos = serializers.BooleanField(allow_null=True)
+
+
+class RifEntradaSerializer(serializers.Serializer):
+    """Cuerpo del PATCH del RIF. El formato lo valida el dominio (`normalizar_rif`); vacío o null lo borra."""
+
+    rif = serializers.CharField(allow_null=True, allow_blank=True, max_length=30)
+
+
+class IdiomaEntradaSerializer(serializers.Serializer):
+    idioma_id = serializers.IntegerField(required=False, allow_null=True)
+    otro_idioma = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=60)
+    nivel = serializers.CharField(max_length=20)
+
+
+class IdiomasEntradaSerializer(serializers.Serializer):
+    """Cuerpo del PUT de idiomas: la lista REEMPLAZA a la actual (vacía = ninguno)."""
+
+    idiomas = IdiomaEntradaSerializer(many=True, allow_empty=True)

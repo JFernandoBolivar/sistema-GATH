@@ -28,14 +28,14 @@ export function IndicadorAvance({ avance, actual, onIr }: { avance: AvanceVentan
           const conPendientes = !!sec && !sec.completa;
           return (
             <li key={s.id} className="relative flex flex-1 flex-col items-center gap-1 text-center">
-              {i > 0 && <span aria-hidden className={cn("absolute top-5 right-1/2 h-0.5 w-full -translate-y-1/2", i <= indiceActual ? "bg-primary" : "bg-border")} />}
+              {i > 0 && <span aria-hidden className={cn("absolute top-4 right-1/2 sm:top-5 h-0.5 w-full -translate-y-1/2", i <= indiceActual ? "bg-primary" : "bg-border")} />}
               <button
                 type="button"
                 onClick={() => onIr(s.id)}
                 aria-current={esActual ? "step" : undefined}
                 aria-label={`${s.etiqueta}${completa ? " (lista)" : conPendientes ? " (pendiente)" : ""}`}
                 className={cn(
-                  "relative z-10 flex size-10 items-center justify-center rounded-full border-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "relative z-10 flex size-8 items-center sm:size-10 justify-center rounded-full border-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   completa && "border-primary bg-primary text-primary-foreground",
                   esActual && !completa && "border-primary bg-background text-primary ring-4 ring-primary/15",
                   !completa && !esActual && "border-border bg-background text-muted-foreground",

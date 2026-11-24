@@ -10,6 +10,9 @@ from apps.personal.presentation.views.personal_views import (
     EmpleadoDetallePdfView,
     EmpleadoFotoView,
     EmpleadosListView,
+    IdiomasCatalogoView,
+    IdiomasView,
+    RifView,
 )
 from apps.personal.presentation.views.reportes_error_views import (
     AtenderReporteErrorLaboralView,
@@ -64,6 +67,7 @@ urlpatterns = [
     path('catalogos/menciones/', MencionesListView.as_view(), name='catalogos-menciones'),
     path('catalogos/instituciones/', InstitucionesListView.as_view(), name='catalogos-instituciones'),
     path('catalogos/capacitaciones/', CapacitacionesListView.as_view(), name='catalogos-capacitaciones'),
+    path('catalogos/idiomas/', IdiomasCatalogoView.as_view(), name='catalogos-idiomas'),
     path('catalogos/grupos-capacitacion/', GruposCapacitacionListView.as_view(), name='catalogos-grupos-capacitacion'),
 
     # Tipos de Prenda
@@ -106,5 +110,7 @@ urlpatterns = [
     path('<str:cedula>/', EmpleadoDetailView.as_view(), name='empleado-detail'),
     path('<str:cedula>/pdf/', EmpleadoDetallePdfView.as_view(), name='empleado-detail-pdf'),
     path('<str:cedula>/datos-complementarios/', DatosComplementariosView.as_view(), name='empleado-datos-complementarios'),
+    path('<str:cedula>/rif/', RifView.as_view(), name='empleado-rif'),
+    path('<str:cedula>/idiomas/', IdiomasView.as_view(), name='empleado-idiomas'),
     path('<str:cedula>/foto/', EmpleadoFotoView.as_view(), name='empleado-foto'),
 ]

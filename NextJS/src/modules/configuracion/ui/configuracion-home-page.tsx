@@ -4,7 +4,7 @@
  * Portada de «Administración del sistema → Configuración» (D9).
  */
 import Link from "next/link";
-import { Settings, Image as ImageIcon, FileText, SlidersHorizontal, Mail, UserCog } from "lucide-react";
+import { Settings, Image as ImageIcon, FileText, SlidersHorizontal, Mail, UserCog, FileStack } from "lucide-react";
 
 import PageLayout from "@/components/layout/page-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import {
   RUTA_PUNTO_CUENTA,
   RUTA_REGLAS_CATALOGOS,
   RUTA_CORREO_ACCESO,
+  RUTA_DOCUMENTOS,
 } from "@/shared/lib/administracion-sistema";
 import { RUTA_AUTOGESTION_CONDICION } from "../domain/value-objects/claves-parametros";
 
@@ -21,7 +22,7 @@ export function ConfiguracionHomePage() {
   return (
     <PageLayout
       title="Configuración"
-      description="Parámetros del sistema, identidad visual, reglas de catálogos, puntos de cuenta y correo de acceso."
+      description="Parámetros del sistema, identidad visual, reglas de catálogos, puntos de cuenta, documentos digitales y correo de acceso."
     >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <Link href={RUTA_PARAMETROS} className="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -98,6 +99,19 @@ export function ConfiguracionHomePage() {
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground">
               Política general de resolución de correos de acceso (activos y pasivos), fallbacks y aplicación masiva con vista previa.
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href={RUTA_DOCUMENTOS} className="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <Card className="h-full transition-colors hover:bg-accent/40">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <FileStack aria-hidden /> Documentos digitales
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground">
+              Diseñador de plantillas: formularios propios de CONATEL y formatos de terceros sobre un PDF, con versiones y vista previa.
             </CardContent>
           </Card>
         </Link>

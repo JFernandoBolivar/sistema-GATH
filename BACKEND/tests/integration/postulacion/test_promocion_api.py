@@ -11,11 +11,15 @@ from apps.identidad.infrastructure.models.cuenta_models import CuentaModel
 from apps.identidad.infrastructure.models.desactivacion_egreso_model import DesactivacionEgresoModel
 from apps.movimientos.infrastructure.models.movimiento_models import EmployeeMovementHistoryModel
 from apps.personal.infrastructure.models.expediente_models import (
+    AntecedenteServicioModel,
     ContactoEmergenciaModel,
     DatosViviendaModel,
+    FormacionAcademicaModel,
+    FormacionComplementariaModel,
     PerfilFisicoModel,
     PerfilSaludModel,
 )
+from apps.personal.infrastructure.models.idioma_models import EmpleadoIdiomaModel
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from apps.postulacion.infrastructure.models.credencial_models import CredencialPostulanteModel
 from apps.postulacion.infrastructure.models.expediente_models import (
@@ -68,6 +72,10 @@ def sin_efectos(m2, exp, cedula=CEDULA, puesto='p1'):
     assert not DatosViviendaModel.objects.filter(empleado__cedulaidentidad=cedula).exists()
     assert not PerfilSaludModel.objects.filter(empleado__cedulaidentidad=cedula).exists()
     assert not PerfilFisicoModel.objects.filter(empleado__cedulaidentidad=cedula).exists()
+    assert not FormacionAcademicaModel.objects.filter(empleado__cedulaidentidad=cedula).exists()
+    assert not FormacionComplementariaModel.objects.filter(empleado__cedulaidentidad=cedula).exists()
+    assert not AntecedenteServicioModel.objects.filter(empleado__cedulaidentidad=cedula).exists()
+    assert not EmpleadoIdiomaModel.objects.filter(empleado__cedulaidentidad=cedula).exists()
     assert not CuentaModel.objects.filter(cedula_id=cedula).exists()
     assert not EmployeeMovementHistoryModel.objects.filter(empleado__cedulaidentidad=cedula).exists()
     p = AsigTrabajoModel.objects.get(pk=m2.mundo[puesto].pk)
@@ -216,7 +224,68 @@ def test_el_contacto_de_emergencia_de_la_ventana_1_pasa_a_la_ficha(m2, captacion
     assert EmployeeModel.objects.get(cedulaidentidad=CEDULA).telefono_habitacion == '02125551234'
 
 
+def test_la_formacion_los_cursos_los_antecedentes_los_idiomas_y_el_rif_pasan_a_la_ficha(m2, captacion):
+    exp = listo_para_asignar(m2)
+    r = asignar(captacion, exp)
+    assert r.status_code == 200, r.content
+    assert datos(r)['ficha_copiada'] == {'estudios': 1, 'cursos': 1, 'antecedentes': 1, 'idiomas': 2, 'rif': True}
+    e = EmployeeModel.objects.get(cedulaidentidad=CEDULA)
+    assert e.rif == 'V-12345678-9'
+    est = FormacionAcademicaModel.objects.get(empleado=e)
+    assert (est.nivel_academico_id, est.carrera_id, est.mencion_id, est.institucion_id) == (
+        m2.cat['nivel'].pk, m2.cat['carrera'].pk, m2.cat['mencion'].pk, m2.cat['institucion'].pk)
+    curso = FormacionComplementariaModel.objects.get(empleado=e)
+    assert (curso.capacitacion_id, curso.institucion_id, curso.fechaInicio, curso.fechaFin, curso.horas_completadas) == (
+        m2.cat['capacitacion'].pk, m2.cat['institucion'].pk, date(2023, 2, 1), date(2023, 3, 1), '40')
+    ant = AntecedenteServicioModel.objects.get(empleado=e)
+    assert (ant.organismo_id, ant.fecha_ingreso, ant.fecha_egreso) == (m2.cat['organismo'].pk, date(2015, 1, 5), date(2020, 12, 31))
+    assert {(i.idioma_id, i.otro_idioma, i.nivel) for i in EmpleadoIdiomaModel.objects.filter(empleado=e)} == {
+        (m2.cat['ingles'].pk, '', 'BIEN'), (None, 'Guaraní', 'POCO')}
+
+
+def test_una_v2_vieja_sin_las_secciones_nuevas_se_contrata_sin_error(m2, captacion):
+    exp = listo_para_asignar(m2)
+    datos_viejos = {k: v for k, v in ExpedientePostulacionModel.objects.get(pk=exp).datos_ventana2.items()
+                    if k not in ('estudios', 'cursos', 'antecedentes', 'idiomas', 'rif', 'trabajo_antes_en_conatel')}
+    ExpedientePostulacionModel.objects.filter(pk=exp).update(datos_ventana2=datos_viejos)
+    r = asignar(captacion, exp)
+    assert r.status_code == 200, r.content
+    assert datos(r)['ficha_copiada'] == {'estudios': 0, 'cursos': 0, 'antecedentes': 0, 'idiomas': 0, 'rif': False}
+    assert EmployeeModel.objects.get(cedulaidentidad=CEDULA).rif is None
+
+
+def test_un_rif_invalido_en_la_v2_aborta_toda_la_contratacion(m2, captacion):
+    exp = listo_para_asignar(m2)
+    e = ExpedientePostulacionModel.objects.get(pk=exp)
+    ExpedientePostulacionModel.objects.filter(pk=exp).update(datos_ventana2={**e.datos_ventana2, 'rif': 'XYZ'})
+    r = asignar(captacion, exp)
+    assert r.status_code == 400 and codigo(r) == 'FICHA_INVALIDA', r.content
+    sin_efectos(m2, exp)
+
+
 # ------------------------------------------------------------------------------------------------ reingreso (C-1)
+def test_reingreso_no_duplica_formacion_antecedentes_ni_idiomas_y_conserva_el_rif(m2, captacion):
+    previo = EmployeeModel.objects.create(
+        cedulaidentidad=CEDULA, nombres='Ana Maria', apellidos='Perez Antigua', sexoid=m2.cat['femenino'],
+        correo='ana.vieja@conatel.gob.ve', rif='V-12345678-0')
+    FormacionAcademicaModel.objects.create(
+        empleado=previo, nivel_academico=m2.cat['nivel'], carrera=m2.cat['carrera'], mencion=m2.cat['mencion'],
+        institucion=m2.cat['institucion'])
+    AntecedenteServicioModel.objects.create(
+        empleado=previo, organismo=m2.cat['organismo'], fecha_ingreso=date(2015, 1, 5), fecha_egreso=date(2020, 12, 31))
+    EmpleadoIdiomaModel.objects.create(empleado=previo, idioma=m2.cat['ingles'], nivel='REGULAR')
+    exp = listo_para_asignar(m2)
+    r = asignar(captacion, exp)
+    assert r.status_code == 200, r.content
+    # solo se suman el curso y «Guaraní»; lo igual no se repite y el RIF y el nivel que ya tenía no se pisan
+    assert datos(r)['ficha_copiada'] == {'estudios': 0, 'cursos': 1, 'antecedentes': 0, 'idiomas': 1, 'rif': False}
+    assert FormacionAcademicaModel.objects.filter(empleado=previo).count() == 1
+    assert AntecedenteServicioModel.objects.filter(empleado=previo, organismo=m2.cat['organismo']).count() == 1
+    assert EmpleadoIdiomaModel.objects.filter(empleado=previo).count() == 2
+    assert EmpleadoIdiomaModel.objects.get(empleado=previo, idioma=m2.cat['ingles']).nivel == 'REGULAR'
+    assert EmployeeModel.objects.get(pk=previo.pk).rif == 'V-12345678-0'
+
+
 def test_reingreso_reutiliza_al_mismo_employee_sin_duplicar_y_reactiva_su_cuenta(m2, captacion):
     previo = EmployeeModel.objects.create(
         cedulaidentidad=CEDULA, nombres='Ana Maria', apellidos='Perez Antigua', sexoid=m2.cat['femenino'],
@@ -344,6 +413,9 @@ def test_un_familiar_que_no_cumple_las_reglas_revierte_todo(m2, captacion):
 FALLOS = [
     ('crear el Employee', 'apps.personal.infrastructure.repositories.repo_personal_orm.RepoPersonalORM.crear_empleado'),
     ('anotar foto y origen', 'apps.personal.infrastructure.repositories.repo_personal_orm.RepoPersonalORM.registrar_procedencia_ingreso'),
+    ('copiar estudios, cursos y antecedentes', 'apps.personal.infrastructure.repositories.repo_personal_orm.RepoPersonalORM.incorporar_formacion_y_antecedentes'),
+    ('copiar los idiomas', 'apps.personal.infrastructure.repositories.repo_rif_idiomas_orm.RepoRifIdiomasORM.agregar_idiomas'),
+    ('guardar el RIF', 'apps.personal.infrastructure.repositories.repo_rif_idiomas_orm.RepoRifIdiomasORM.guardar_rif_si_falta'),
     ('copiar un familiar', 'apps.familiares.infrastructure.repositories.repo_familiares_orm.RepoFamiliaresORM.crear_familiar'),
     ('ocupar el puesto', 'apps.cargos.infrastructure.repositories.repo_cargos_orm.RepoCargosORM.asignar_cargo_a_empleado'),
     ('crear la cuenta', 'apps.postulacion.infrastructure.promotor_empleado_orm.aprovisionar_por_cedula'),

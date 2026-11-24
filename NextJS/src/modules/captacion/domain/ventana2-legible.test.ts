@@ -21,4 +21,32 @@ describe("Ventana 2 legible para Captación", () => {
     expect(v.tallas).toContainEqual({ etiqueta: "Camisa", valor: "M (VE)" });
     expect(v.tallas).toContainEqual({ etiqueta: "Pantalón", valor: "No informado" });
   });
+
+  it("dibuja estudios, cursos, experiencia, idiomas y RIF (F-8)", () => {
+    const v = ventana2Legible({
+      estudios: [{ nivel_academico: { id: 1, nombre: "Universitario" }, carrera: { id: 2, nombre: "Ingeniería" }, mencion: null, institucion: { id: 4, nombre: "UCV" } }],
+      cursos: [{ capacitacion: { id: 5, nombre: "Gerencia pública" }, institucion: { id: 4, nombre: "UCV" }, fecha_inicio: "2023-02-01", horas: 40 }],
+      antecedentes: [{ organismo: { id: 6, nombre: "SENIAT" }, fecha_ingreso: "2015-01-05", fecha_egreso: "2020-12-31" }],
+      trabajo_antes_en_conatel: false,
+      idiomas: [{ idioma_id: 7, nombre: "Inglés", nivel: "BIEN" }, { otro_idioma: "Guaraní", nombre: "Guaraní", nivel: "POCO" }],
+      rif: "V-12345678-9",
+    });
+    expect(v.estudios[0].titulo).toBe("Universitario");
+    expect(v.estudios[0].filas).toContainEqual({ etiqueta: "Carrera", valor: "Ingeniería" });
+    expect(v.estudios[0].filas).toContainEqual({ etiqueta: "Mención", valor: "No informado" });
+    expect(v.cursos[0].filas).toContainEqual({ etiqueta: "Horas", valor: "40" });
+    expect(v.cursos[0].filas.find((f) => f.etiqueta === "Inicio")?.valor).toMatch(/2023/);
+    expect(v.cursos[0].filas).toContainEqual({ etiqueta: "Fin", valor: "No informado" });
+    expect(v.antecedentes[0].titulo).toBe("SENIAT");
+    expect(v.trabajoAntesEnConatel).toBe("No");
+    expect(v.idiomas.map((i) => [i.titulo, i.filas[0].valor])).toEqual([["Inglés", "Bien"], ["Guaraní", "Poco"]]);
+    expect(v.rif).toBe("V-12345678-9");
+  });
+
+  it("un borrador anterior a F-8 no rompe el detalle", () => {
+    const v = ventana2Legible({ familiares: [], sin_cursos: true });
+    expect(v.estudios).toEqual([]);
+    expect(v.sinCursos).toBe(true);
+    expect([v.rif, v.trabajoAntesEnConatel, v.idiomas.length]).toEqual(["", "", 0]);
+  });
 });

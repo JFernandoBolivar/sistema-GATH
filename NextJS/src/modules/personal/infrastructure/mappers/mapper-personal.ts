@@ -10,6 +10,7 @@ import type {
   Empleado,
   FormacionAcademica,
   FormacionComplementaria,
+  IdiomaEmpleado,
   PerfilFisico,
   PerfilSalud,
   Encargaduria,
@@ -176,6 +177,16 @@ function encargaduriaAPIADto(raw: Record<string, unknown>): Encargaduria {
   };
 }
 
+export function idiomaApiAEntidad(raw: Record<string, unknown>): IdiomaEmpleado {
+  return {
+    id: (raw.id as number) ?? 0,
+    idiomaId: (raw.idioma_id as number | null) ?? null,
+    otroIdioma: (raw.otro_idioma as string | null) ?? "",
+    nombre: (raw.nombre as string | null) ?? "",
+    nivel: (raw.nivel as string | null) ?? "",
+  };
+}
+
 export function empleadoApiAEntidad(raw: EmpleadoApiItem): Empleado {
   const rec = asRec(raw);
   return {
@@ -189,6 +200,8 @@ export function empleadoApiAEntidad(raw: EmpleadoApiItem): Empleado {
     correo: raw.correo,
     correoAlternativo: raw.correo_alternativo ?? null,
     tieneHijos: raw.tiene_hijos ?? null,
+    rif: textoValido(raw.rif),
+    idiomas: (raw.idiomas ?? []).map(idiomaApiAEntidad),
     telefonoMovil: raw.telefono_movil,
     telefonoHabitacion: raw.telefono_habitacion,
     fechaNacimiento: raw.fecha_nacimiento,

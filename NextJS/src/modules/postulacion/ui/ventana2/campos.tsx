@@ -1,7 +1,8 @@
 "use client";
 
 import type { Control, FieldPath, FieldValues } from "react-hook-form";
-import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Combobox } from "@/components/ui/combobox";
+import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage, useFormField } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
@@ -126,6 +127,83 @@ export function CampoOpciones<T extends FieldValues>({
           <FormControl>
             <OpcionesRadio value={field.value ?? ""} onChange={field.onChange} etiquetadoPor={idEtiqueta} opciones={opciones} />
           </FormControl>
+          {ayuda && <FormDescription>{ayuda}</FormDescription>}
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+}
+
+function ComboboxEnCampo({
+  value,
+  onChange,
+  opciones,
+  placeholder,
+  deshabilitado,
+}: {
+  value: string;
+  onChange: (valor: string) => void;
+  opciones: ReadonlyArray<{ valor: string; texto: string }>;
+  placeholder: string;
+  deshabilitado?: boolean;
+}) {
+  const { error, formItemId, formDescriptionId, formMessageId } = useFormField();
+  return (
+    <Combobox
+      id={formItemId}
+      options={opciones.map((o) => ({ value: o.valor, label: o.texto }))}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      searchPlaceholder="Buscar…"
+      emptyText="No hay coincidencias."
+      disabled={deshabilitado}
+      invalido={!!error}
+      describedBy={error ? `${formDescriptionId} ${formMessageId}` : formDescriptionId}
+      className="h-11 text-base"
+    />
+  );
+}
+
+/** Select con buscador, para catálogos largos (instituciones, carreras, cursos, organismos). */
+export function CampoCombobox<T extends FieldValues>({
+  control,
+  name,
+  etiqueta,
+  requerido,
+  ayuda,
+  className,
+  opciones,
+  placeholder = "Elige una opción",
+  deshabilitado,
+  onCambio,
+}: Base<T> & {
+  opciones: ReadonlyArray<{ valor: string; texto: string }>;
+  placeholder?: string;
+  deshabilitado?: boolean;
+  onCambio?: (valor: string) => void;
+}) {
+  return (
+    <FormField
+      control={control}
+      name={name}
+      render={({ field }) => (
+        <FormItem className={className}>
+          <FormLabel>
+            {etiqueta}
+            {requerido && ASTERISCO}
+          </FormLabel>
+          <ComboboxEnCampo
+            value={field.value ?? ""}
+            onChange={(v) => {
+              field.onChange(v);
+              onCambio?.(v);
+            }}
+            opciones={opciones}
+            placeholder={placeholder}
+            deshabilitado={deshabilitado}
+          />
           {ayuda && <FormDescription>{ayuda}</FormDescription>}
           <FormMessage />
         </FormItem>

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { REGEX } from "@/shared/domain/validation";
 import { serialCarnetPatriaZod } from "@/shared/domain/validation/serial-carnet-patria";
+import { MENSAJE_RIF_INVALIDO, normalizarRif } from "@/shared/domain/validation/rif";
 import { telefonoZod } from "@/shared/domain/validation/telefono";
 import { CORREO_MAX, DIRECCION_MAX, DIRECCION_MIN, cedulaZod, nombreZod } from "./reglas-personas";
 
@@ -302,3 +303,40 @@ export function empleadoBasicoFormSchema(carnetPatriaOriginal = "") {
     );
 }
 export type EmpleadoBasicoFormValues = z.input<ReturnType<typeof empleadoBasicoFormSchema>>;
+
+
+// --- RIF e idiomas (F-8) ---
+export const NIVELES_IDIOMA_EMPLEADO = ["BIEN", "REGULAR", "POCO"] as const;
+export const MAX_IDIOMAS_EMPLEADO = 15;
+export const OTRO_IDIOMA_MAX = 60;
+
+/** RIF opcional: vacío lo borra; si se escribe debe tener el formato venezolano (V-12345678-9). */
+export const rifSchema = z
+  .string()
+  .trim()
+  .refine((v) => normalizarRif(v) !== null, MENSAJE_RIF_INVALIDO);
+
+export const idiomaEntradaSchema = z
+  .object({
+    idiomaId: z.number().int().positive().nullable(),
+    otroIdioma: z.string().trim().max(OTRO_IDIOMA_MAX, `Máximo ${OTRO_IDIOMA_MAX} caracteres`),
+    nivel: z.enum(NIVELES_IDIOMA_EMPLEADO, { message: "Elija el nivel" }),
+  })
+  .refine((i) => (i.idiomaId === null) !== (i.otroIdioma === ""), {
+    message: "Elija un idioma de la lista o escriba otro (no ambos)",
+    path: ["idiomaId"],
+  });
+
+export const idiomasEntradaSchema = z
+  .array(idiomaEntradaSchema)
+  .max(MAX_IDIOMAS_EMPLEADO, `Máximo ${MAX_IDIOMAS_EMPLEADO} idiomas`)
+  .superRefine((lista, ctx) => {
+    const vistos = new Set<string>();
+    lista.forEach((i, n) => {
+      const clave = i.idiomaId !== null ? `id:${i.idiomaId}` : `otro:${i.otroIdioma.toLowerCase()}`;
+      if (vistos.has(clave)) {
+        ctx.addIssue({ code: "custom", path: [n], message: "Este idioma ya está en la lista" });
+      }
+      vistos.add(clave);
+    });
+  });

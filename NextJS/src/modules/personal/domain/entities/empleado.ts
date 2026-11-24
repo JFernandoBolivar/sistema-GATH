@@ -160,6 +160,23 @@ export interface CargoAsignado {
   cargoCubiertoEncargaduria: boolean;
 }
 
+/** Idioma que domina el trabajador: del catálogo (`idiomaId`) o escrito a mano (`otroIdioma`). */
+export interface IdiomaEmpleado {
+  id: number;
+  idiomaId: number | null;
+  otroIdioma: string;
+  /** Nombre a mostrar (el del catálogo o el escrito). */
+  nombre: string;
+  /** `BIEN` | `REGULAR` | `POCO`. */
+  nivel: string;
+}
+
+export interface EntradaIdioma {
+  idiomaId: number | null;
+  otroIdioma: string;
+  nivel: string;
+}
+
 export interface Empleado {
   id: number;
   cedula: string;
@@ -173,6 +190,10 @@ export interface Empleado {
   correoAlternativo?: string | null;
   /** «¿Tiene hijos?» (datos complementarios); `null` = sin dato. Solo viene en el detalle. */
   tieneHijos?: boolean | null;
+  /** RIF canónico `L-NNNNNNNN-D`; `null` = sin dato. */
+  rif?: string | null;
+  /** Idiomas del trabajador; solo vienen en el detalle. */
+  idiomas?: IdiomaEmpleado[];
   telefonoMovil: string | null;
   telefonoHabitacion: string | null;
   fechaNacimiento: string | null;

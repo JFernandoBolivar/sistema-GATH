@@ -7,7 +7,7 @@ import type {
   SesionInvitadoDTO,
   Ventana2DTO,
 } from "../../application/dtos/postulacion-dto";
-import type { CatalogosVentana2, OpcionCatalogo, ParentescoCatalogo, TallaCatalogo } from "../../domain/ventana2";
+import type { CarreraCatalogo, CatalogosVentana2, MencionCatalogo, OpcionCatalogo, ParentescoCatalogo, TallaCatalogo } from "../../domain/ventana2";
 
 type Crudo = Record<string, unknown>;
 
@@ -70,6 +70,22 @@ const tallas = (v: unknown): TallaCatalogo[] =>
       })
     : [];
 
+const carreras = (v: unknown): CarreraCatalogo[] =>
+  Array.isArray(v)
+    ? v.map((o) => {
+        const c = objeto(o);
+        return { id: Number(c.id), nombre: texto(c.nombre), nivelAcademicoId: typeof c.nivel_academico_id === "number" ? c.nivel_academico_id : null };
+      })
+    : [];
+
+const menciones = (v: unknown): MencionCatalogo[] =>
+  Array.isArray(v)
+    ? v.map((o) => {
+        const c = objeto(o);
+        return { id: Number(c.id), nombre: texto(c.nombre), carreraId: Number(c.carrera_id) };
+      })
+    : [];
+
 export function mapearCatalogosVentana2(crudo: unknown): CatalogosVentana2 {
   const d = objeto(crudo);
   const t = objeto(d.tallas);
@@ -98,6 +114,13 @@ export function mapearCatalogosVentana2(crudo: unknown): CatalogosVentana2 {
     patologiasCronicas: opciones(d.patologias_cronicas),
     discapacidades: opciones(d.discapacidades),
     tallas: { camisa: tallas(t.camisa), pantalon: tallas(t.pantalon), calzado: tallas(t.calzado), chaqueta: tallas(t.chaqueta) },
+    nivelesAcademicos: opciones(d.niveles_academicos),
+    carreras: carreras(d.carreras),
+    menciones: menciones(d.menciones),
+    instituciones: opciones(d.instituciones),
+    capacitaciones: opciones(d.capacitaciones),
+    organismos: opciones(d.organismos),
+    idiomas: opciones(d.idiomas),
   };
 }
 

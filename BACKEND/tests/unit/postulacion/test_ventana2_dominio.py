@@ -32,6 +32,7 @@ COMPLETO = {
     'vivienda': {'condicion_vivienda_id': 1, 'estado_id': 1, 'municipio_id': 1, 'parroquia_id': 1, 'direccion_exacta': 'Calle 1'},
     'salud': {'grupo_sanguineo_id': 1},
     'tallas': {'talla_camisa_id': 1, 'talla_pantalon_id': 2, 'talla_zapatos_id': 3},
+    'estudios': [{'nivel_academico_id': 4}],
 }
 
 
@@ -99,10 +100,10 @@ def test_vacia_lista_cada_campo_obligatorio_de_cada_seccion_con_su_ruta():
     assert campos == {
         'familiares', 'vivienda.condicion_vivienda_id', 'vivienda.estado_id', 'vivienda.municipio_id', 'vivienda.parroquia_id',
         'vivienda.direccion_exacta', 'salud.grupo_sanguineo_id', 'tallas.talla_camisa_id', 'tallas.talla_pantalon_id',
-        'tallas.talla_zapatos_id', 'foto',
+        'tallas.talla_zapatos_id', 'estudios', 'foto',
     }
     assert all({'seccion', 'campo', 'mensaje'} == set(f) and f['mensaje'] for f in faltan)
-    assert {f['seccion'] for f in faltan} == {'familiares', 'vivienda', 'salud', 'tallas', 'foto'}
+    assert {f['seccion'] for f in faltan} == {'familiares', 'vivienda', 'salud', 'tallas', 'estudios', 'foto'}
 
 
 def test_sin_familiares_se_declara_expresamente_y_no_se_mezcla_con_familiares():
@@ -198,3 +199,104 @@ def test_la_maquina_exige_motivo_al_observar_y_solo_captacion_reabre():
         validar_transicion(E.APROBADO, E.CONSOLIDANDO, Actor(cedula='1', permisos=frozenset({'postulacion.verificar'})), h)
     assert getattr(e.value, 'codigo', '') == 'SIN_PERMISO'
     assert replace(exp(), foto_clave='x').tiene_foto and not exp().tiene_foto
+
+
+# ------------------------------------------------------------------------------------------------ F-8: estudios, cursos, experiencia, idiomas y RIF
+def test_un_borrador_anterior_a_f8_sigue_siendo_valido_y_solo_el_envio_exige_estudios():
+    viejo = {k: v for k, v in COMPLETO.items() if k != 'estudios'}
+    assert validar_datos_ventana2(viejo, HOY) == viejo
+    assert [f['campo'] for f in faltantes_ventana2(viejo, tiene_foto=True)] == ['estudios']
+
+
+def test_las_secciones_nuevas_se_normalizan():
+    limpio = validar_datos_ventana2({
+        'estudios': [{'nivel_academico_id': '3', 'carrera_id': 5, 'mencion_id': '', 'institucion_id': None}],
+        'cursos': [{'capacitacion_id': 2, 'institucion_id': 1, 'fecha_inicio': '2023-01-10', 'fecha_fin': '2023-02-10', 'horas': '40'}],
+        'sin_cursos': False,
+        'antecedentes': [{'organismo_id': 9, 'fecha_ingreso': '2010-01-01', 'fecha_egreso': '2012-06-30'}],
+        'sin_antecedentes': False, 'trabajo_antes_en_conatel': True,
+        'idiomas': [{'idioma_id': 1, 'nivel': 'bien'}, {'otro_idioma': '  Guaraní  ', 'nivel': 'POCO'}],
+        'sin_idiomas': False, 'rif': ' v-1234567-8 ',
+    }, HOY)
+    assert limpio['estudios'] == [{'nivel_academico_id': 3, 'carrera_id': 5}]
+    assert limpio['cursos'][0]['horas'] == 40 and limpio['antecedentes'][0]['fecha_egreso'] == '2012-06-30'
+    assert limpio['idiomas'] == [{'idioma_id': 1, 'nivel': 'BIEN'}, {'otro_idioma': 'Guaraní', 'nivel': 'POCO'}]
+    assert limpio['rif'] == 'V-01234567-8' and limpio['trabajo_antes_en_conatel'] is True and limpio['sin_cursos'] is False
+
+
+@pytest.mark.parametrize('rif', ['', '   ', None])
+def test_el_rif_vacio_es_valido(rif):
+    assert validar_datos_ventana2({'rif': rif or ''}, HOY) == {'rif': ''}
+
+
+@pytest.mark.parametrize('rif', ['12345678-9', 'X-12345678-9', 'V-123-9', 'V-123456789-9', 'V-ABCDEFGH-9', 5])
+def test_el_rif_con_formato_invalido_se_rechaza(rif):
+    with pytest.raises(ValidationError) as e:
+        validar_datos_ventana2({'rif': rif}, HOY)
+    assert e.value.campo == 'datos_ventana2.rif'
+
+
+@pytest.mark.parametrize('rif, esperado', [
+    ('V-12345678-9', 'V-12345678-9'), ('j-123456789', 'J-12345678-9'), ('E 12345678 9', 'E-12345678-9'),
+    ('G123456780', 'G-12345678-0'), ('P-1234567-1', 'P-01234567-1'),
+])
+def test_el_rif_se_normaliza(rif, esperado):
+    assert validar_datos_ventana2({'rif': rif}, HOY)['rif'] == esperado
+
+
+@pytest.mark.parametrize('datos, campo', [
+    ({'estudios': {}}, 'estudios'), ({'estudios': [{}] * 11}, 'estudios'), ({'estudios': [{'raro': 1}]}, 'estudios.0'),
+    ({'estudios': [{'nivel_academico_id': 0}]}, 'estudios.0.nivel_academico_id'),
+    ({'cursos': [{'horas': 0}]}, 'cursos.0.horas'), ({'cursos': [{'horas': 10000}]}, 'cursos.0.horas'),
+    ({'cursos': [{'fecha_inicio': '2026-11-25'}]}, 'cursos.0.fecha_inicio'),
+    ({'cursos': [{'fecha_inicio': '2023-05-01', 'fecha_fin': '2023-04-01'}]}, 'cursos.0.fecha_fin'),
+    ({'cursos': [{'fecha_fin': '01/02/2023'}]}, 'cursos.0.fecha_fin'), ({'cursos': [{}] * 31}, 'cursos'),
+    ({'antecedentes': [{'fecha_ingreso': '2030-01-01'}]}, 'antecedentes.0.fecha_ingreso'),
+    ({'antecedentes': [{'fecha_ingreso': '2012-01-01', 'fecha_egreso': '2011-01-01'}]}, 'antecedentes.0.fecha_egreso'),
+    ({'antecedentes': [{'otra': 1}]}, 'antecedentes.0'),
+    ({'idiomas': [{'idioma_id': 1, 'otro_idioma': 'X'}]}, 'idiomas.0.otro_idioma'),
+    ({'idiomas': [{'nivel': 'ALTO'}]}, 'idiomas.0.nivel'), ({'idiomas': [{'otro_idioma': 'x' * 61}]}, 'idiomas.0.otro_idioma'),
+    ({'idiomas': [{'idioma_id': 'x'}]}, 'idiomas.0.idioma_id'), ({'idiomas': [{}] * 16}, 'idiomas'),
+    ({'sin_cursos': 'no'}, 'sin_cursos'), ({'trabajo_antes_en_conatel': 1}, 'trabajo_antes_en_conatel'),
+])
+def test_las_secciones_nuevas_rechazan_lo_invalido_con_su_ruta(datos, campo):
+    with pytest.raises(ValidationError) as e:
+        validar_datos_ventana2(datos, HOY)
+    assert e.value.campo == f'datos_ventana2.{campo}'
+
+
+def test_los_faltantes_de_las_secciones_nuevas():
+    datos = {
+        **COMPLETO,
+        'estudios': [{'nivel_academico_id': 4}, {'carrera_id': 2}],
+        'cursos': [{'capacitacion_id': 1}], 'antecedentes': [{'organismo_id': 1}],
+        'idiomas': [{'nivel': 'BIEN'}, {'idioma_id': 1}],
+    }
+    campos = {f['campo'] for f in faltantes_ventana2(datos, True)}
+    assert campos == {
+        'estudios.1.nivel_academico_id', 'cursos.0.institucion_id', 'antecedentes.0.fecha_ingreso',
+        'antecedentes.0.fecha_egreso', 'idiomas.0.idioma_id', 'idiomas.1.nivel',
+    }
+
+
+def test_las_declaraciones_de_no_tengo_no_se_mezclan_con_registros():
+    datos = {**COMPLETO, 'cursos': [{'capacitacion_id': 1, 'institucion_id': 1}], 'sin_cursos': True,
+             'antecedentes': [{'organismo_id': 1, 'fecha_ingreso': '2010-01-01', 'fecha_egreso': '2011-01-01'}], 'sin_antecedentes': True,
+             'idiomas': [{'idioma_id': 1, 'nivel': 'BIEN'}], 'sin_idiomas': True}
+    assert {f['campo'] for f in faltantes_ventana2(datos, True)} == {'sin_cursos', 'sin_antecedentes', 'sin_idiomas'}
+    solo_declaraciones = {**COMPLETO, 'sin_cursos': True, 'sin_antecedentes': True, 'sin_idiomas': True}
+    assert faltantes_ventana2(solo_declaraciones, True) == []
+
+
+def test_las_secciones_opcionales_no_son_obligatorias():
+    assert faltantes_ventana2(COMPLETO, True) == []   # sin cursos, experiencia, idiomas ni RIF
+
+
+def test_ids_de_catalogo_incluye_las_secciones_nuevas():
+    ids = ids_de_catalogo({
+        'estudios': [{'nivel_academico_id': 1, 'carrera_id': 2, 'mencion_id': 3, 'institucion_id': 4}],
+        'cursos': [{'capacitacion_id': 5, 'institucion_id': 6}], 'antecedentes': [{'organismo_id': 7}],
+        'idiomas': [{'idioma_id': 8}, {'otro_idioma': 'Guaraní'}],
+    })
+    assert (ids['nivel_academico'], ids['carrera'], ids['mencion']) == ([1], [2], [3])
+    assert ids['institucion'] == [4, 6] and ids['capacitacion'] == [5] and ids['organismo'] == [7] and ids['idioma'] == [8]

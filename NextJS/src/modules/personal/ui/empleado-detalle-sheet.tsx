@@ -15,6 +15,7 @@
  * 5. Datos de Vivienda (House + botón Actualizar).
  * 6. Formaciones Académicas (GraduationCap + botón Actualizar).
  * 7. Formación Complementaria (tabla con horas, fechas, institución + botón Actualizar).
+ * 7b. Idiomas (F-8; tabla con nivel + botón según `personal.editar_educacion`). El RIF va en «Datos Personales».
  * 8. Contacto de Emergencia (mejora documentada en el Sheet).
  * 8b. Grupo Familiar (¿Tiene hijos? + botón Actualizar).
  * 9. Información de Vestimenta (Shirt + botón Actualizar).
@@ -28,6 +29,8 @@ import {
   ContactRound,
   FileDown,
   GraduationCap,
+  IdCard,
+  Languages,
   House,
   Loader2,
   PhoneCall,
@@ -61,6 +64,8 @@ import FormDwellingUpdateDialog from "./dialogs/form-dwelling-update-dialog";
 import FormEmergencyContactsUpdateDialog from "./dialogs/form-emergency-contacts-update-dialog";
 import FormHealthProfileUpdateDialog from "./dialogs/form-health-profile-update-dialog";
 import FormPhysicalProfileUpdateDialog from "./dialogs/form-physical-profile-update-dialog";
+import FormIdiomasUpdateDialog from "./dialogs/form-idiomas-update-dialog";
+import FormRifUpdateDialog from "./dialogs/form-rif-update-dialog";
 import FormTieneHijosUpdateDialog from "./dialogs/form-tiene-hijos-update-dialog";
 import FormSupplementaryTrainingUpdateDialog from "./dialogs/form-supplementary-training-update-dialog";
 import type { DetalleExpedienteViewModel } from "./expediente-detalle-view-model";
@@ -77,6 +82,10 @@ interface EmpleadoDetalleSheetProps {
   /** RECEPCIONISTA sólo consulta: se ocultan los accesos a edición y exportación */
   puedeExportarPdf: boolean;
   puedeEditar: boolean;
+  /** Permiso `personal.editar_educacion`: habilita la edición de los idiomas (junto a la formación). */
+  puedeEditarEducacion?: boolean;
+  /** Permiso `personal.editar_personales` para el RIF; por defecto el mismo `puedeEditar`. */
+  puedeEditarRif?: boolean;
   /** Permiso `personal.corregir_cedula`: la cédula se edita en «Actualizar Información Básica». */
   puedeCorregirCedula?: boolean;
   /** Permiso `personal.editar_nacionalidad`: habilita el select de Nacionalidad del modal. */
@@ -90,6 +99,8 @@ interface EmpleadoDetalleSheetProps {
   esPasivo?: boolean;
 }
 
+const NOMBRE_NIVEL_IDIOMA: Record<string, string> = { BIEN: "Bien", REGULAR: "Regular", POCO: "Poco" };
+
 export default function EmpleadoDetalleSheet({
   detalle,
   empleado,
@@ -101,6 +112,8 @@ export default function EmpleadoDetalleSheet({
   exportandoPdf,
   puedeExportarPdf,
   puedeEditar,
+  puedeEditarEducacion = false,
+  puedeEditarRif,
   puedeCorregirCedula = false,
   puedeEditarNacionalidad = false,
   onCedulaCorregida,
@@ -205,6 +218,36 @@ export default function EmpleadoDetalleSheet({
                 />
               )}
             </div>
+
+            {/* 1b. Datos personales: RIF (F-8). Los pasivos aún no lo exponen en su detalle. */}
+            {!esPasivo && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+                    <div className="flex flex-row items-center gap-2">
+                      Datos Personales <IdCard className="size-5" />
+                    </div>
+                    {(puedeEditarRif ?? puedeEditar) && (
+                      <FormRifUpdateDialog
+                        cedula={empleado.cedula}
+                        rif={empleado.rif}
+                        onGuardado={onGuardado}
+                        triggerLabel={empleado.rif ? "Actualizar RIF" : "Agregar RIF"}
+                        triggerClassName="w-full sm:w-auto cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm"
+                      />
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 place-content-center gap-y-2 text-sm">
+                    <div className="font-medium text-muted-foreground">Cédula:</div>
+                    <div>{detalle.cedula}</div>
+                    <div className="font-medium text-muted-foreground">RIF:</div>
+                    <div data-testid="rif-trabajador">{empleado.rif ?? "No registrado"}</div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* 2. Detalles del Cargo (13 campos del legado) */}
             <Card>
@@ -673,6 +716,52 @@ export default function EmpleadoDetalleSheet({
                   triggerClassName="w-full cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm whitespace-normal h-auto py-2.5 px-3 text-center leading-snug"
                 />
               )
+            )}
+
+            {/* 7b. Idiomas (F-8): junto a la formación; se editan con el permiso de educación. */}
+            {!esPasivo && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+                    <div className="flex flex-row items-center gap-2">
+                      Idiomas <Languages className="size-5" />
+                    </div>
+                    {puedeEditarEducacion && (
+                      <FormIdiomasUpdateDialog
+                        cedula={empleado.cedula}
+                        idiomas={empleado.idiomas}
+                        onGuardado={onGuardado}
+                        triggerLabel={(empleado.idiomas ?? []).length === 0 ? "Agregar" : "Actualizar"}
+                        triggerClassName="w-full sm:w-auto cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm"
+                      />
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {(empleado.idiomas ?? []).length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Sin idiomas registrados.</p>
+                  ) : (
+                    <div className="w-full overflow-x-auto">
+                      <Table className="w-full min-w-[260px]">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Idioma</TableHead>
+                            <TableHead>Nivel</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {(empleado.idiomas ?? []).map((i) => (
+                            <TableRow key={i.id}>
+                              <TableCell className="font-medium">{i.nombre}</TableCell>
+                              <TableCell>{NOMBRE_NIVEL_IDIOMA[i.nivel] ?? i.nivel}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             )}
 
             {/* 8. Contacto de Emergencia (Mejora funcional preservada) */}

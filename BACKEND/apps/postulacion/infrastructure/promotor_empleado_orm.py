@@ -16,6 +16,7 @@ Orquesta, SIN duplicar su lógica, lo que ya existe en las demás apps:
 NO abre transacción: corre dentro de la del caso de uso, de modo que cualquier fallo revierte TODO. Orden de los pasos:
   2. Employee (nuevo, o el existente en un reingreso, C-1) con datos de V1 y V2, foto y origen;
   3. familiares (más vivienda, salud y tallas, que viajan con el Employee en el mismo paso);
+  3b. formación académica, cursos, antecedentes de servicio, idiomas y RIF (F-8), sin duplicar lo que la ficha ya tenga;
   4. puesto + movimiento INGRESO;
   5. cuenta de acceso.
 `personal` y las demás apps NO conocen `postulacion`: el origen viaja como id opaco.
@@ -42,8 +43,10 @@ from apps.identidad.infrastructure.receivers import aprovisionar_por_cedula
 from apps.identidad.infrastructure.repositories.repo_condicion_trabajador_orm import RepoCondicionTrabajadorORM
 from apps.identidad.infrastructure.repositories.repo_cuentas_orm import RepoCuentasORM
 from apps.identidad.infrastructure.repositories.repo_desactivacion_egreso_orm import RepoDesactivacionEgresoORM
+from apps.personal.domain.value_objects.rif import normalizar_rif
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from apps.personal.infrastructure.repositories.repo_personal_orm import RepoPersonalORM
+from apps.personal.infrastructure.repositories.repo_rif_idiomas_orm import RepoRifIdiomasORM
 from apps.postulacion.domain.entities.promocion import (
     CUENTA_NO_APLICA,
     CUENTA_SIN_CORREO,
@@ -102,6 +105,9 @@ class PromotorEmpleadoORM:
         # 3: familiares.
         copiados = self._copiar_familiares(s, empleado)
 
+        # 3b: formación, cursos, antecedentes, idiomas y RIF (misma transacción: si algo falla, rollback total).
+        ficha = self._copiar_ficha_adicional(s, repo_personal)
+
         # 4: puesto + INGRESO (la señal que emite `cargos` la registra `movimientos`).
         if s.usuario_id is None:
             raise ValidacionConCodigo(
@@ -116,7 +122,7 @@ class PromotorEmpleadoORM:
         cuenta = self._cuenta(s, empleado, reingreso, tenia_cuenta, condicion_previa, repo_personal)
         return ResultadoPromocion(
             employee_id=empleado.pk, cedula=s.cedula, es_reingreso=reingreso, puesto_codigo=puesto.codigo,
-            familiares_copiados=copiados, cuenta=cuenta,
+            familiares_copiados=copiados, ficha_copiada=ficha, cuenta=cuenta,
         )
 
     # ------------------------------------------------------------------------------------------------ Employee
@@ -245,6 +251,27 @@ class PromotorEmpleadoORM:
             huellas.add(huella)
             copiados += 1
         return copiados
+
+    # ------------------------------------------------------------------------------------------------ ficha (F-8)
+    @staticmethod
+    def _copiar_ficha_adicional(s: SolicitudPromocion, repo_personal: RepoPersonalORM) -> dict:
+        """
+        Suma a la ficha los estudios, cursos, antecedentes, idiomas y el RIF de la Ventana 2. Es aditivo: en un reingreso
+        (C-1) lo que ya estaba igual no se duplica y el RIF existente no se pisa. Un dato que la ficha rechaza aborta TODA la
+        contratación con un código propio.
+        """
+        v2 = s.datos_ventana2 or {}
+        repo_rif = RepoRifIdiomasORM()
+        try:
+            creados = repo_personal.incorporar_formacion_y_antecedentes(
+                s.cedula, estudios=v2.get('estudios') or [], cursos=v2.get('cursos') or [],
+                antecedentes=v2.get('antecedentes') or [],
+            )
+            idiomas = repo_rif.agregar_idiomas(s.cedula, v2.get('idiomas') or [])
+            rif = repo_rif.guardar_rif_si_falta(s.cedula, normalizar_rif(v2.get('rif')) or None)
+        except DomainError as e:
+            raise ValidacionConCodigo(str(e), campo=getattr(e, 'campo', None), codigo='FICHA_INVALIDA') from e
+        return {**creados, 'idiomas': idiomas, 'rif': rif}
 
     # ------------------------------------------------------------------------------------------------ cuenta
     def _cuenta(self, s, empleado, reingreso: bool, tenia_cuenta: bool, condicion_previa, repo_personal) -> CuentaPromocion:

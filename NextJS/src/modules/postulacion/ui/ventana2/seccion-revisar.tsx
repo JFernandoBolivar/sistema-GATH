@@ -50,6 +50,20 @@ const Filas = ({ filas }: { filas: { etiqueta: string; valor: string }[] }) => (
   </dl>
 );
 
+const ListaResumen = ({ items, vacio }: { items: { titulo: string; detalle: string }[]; vacio: string }) =>
+  items.length === 0 ? (
+    <p className="text-sm italic text-muted-foreground">{vacio}</p>
+  ) : (
+    <ul className="flex flex-col gap-2">
+      {items.map((x, i) => (
+        <li key={i} className="text-sm">
+          <span className="font-medium">{x.titulo}</span>
+          {x.detalle && <span className="block text-muted-foreground">{x.detalle}</span>}
+        </li>
+      ))}
+    </ul>
+  );
+
 export function SeccionRevisar({ datos, catalogos, faltantes, tieneFoto, fotoVersion, onIrA, onAnterior, onFaltantes, onSesionCaida }: Props) {
   const [hoy] = useState(() => new Date());
   const resumen = resumirVentana2(datos, catalogos, hoy);
@@ -115,6 +129,20 @@ export function SeccionRevisar({ datos, catalogos, faltantes, tieneFoto, fotoVer
       <Bloque titulo="Vivienda" seccion="vivienda" onIrA={onIrA}><Filas filas={resumen.vivienda} /></Bloque>
       <Bloque titulo="Salud" seccion="salud" onIrA={onIrA}><Filas filas={resumen.salud} /></Bloque>
       <Bloque titulo="Tallas" seccion="tallas" onIrA={onIrA}><Filas filas={resumen.tallas} /></Bloque>
+      <Bloque titulo="Estudios" seccion="estudios" onIrA={onIrA}>
+        <ListaResumen items={resumen.estudios} vacio="Sin indicar" />
+      </Bloque>
+      <Bloque titulo="Cursos" seccion="cursos" onIrA={onIrA}>
+        <ListaResumen items={resumen.cursos} vacio={resumen.sinCursos ? "Declaraste que no tienes cursos." : "No registraste cursos."} />
+      </Bloque>
+      <Bloque titulo="Experiencia en la Administración Pública" seccion="experiencia" onIrA={onIrA}>
+        <ListaResumen items={resumen.antecedentes} vacio={resumen.sinAntecedentes ? "Declaraste que no has trabajado en la Administración Pública." : "No registraste experiencia."} />
+        {resumen.trabajoAntesEnConatel && <p className="mt-2 text-sm"><span className="text-muted-foreground">¿Trabajaste antes en CONATEL? </span><span className="font-medium">{resumen.trabajoAntesEnConatel}</span></p>}
+      </Bloque>
+      <Bloque titulo="Idiomas y RIF" seccion="idiomas" onIrA={onIrA}>
+        <ListaResumen items={resumen.idiomas} vacio={resumen.sinIdiomas ? "Declaraste que no dominas otros idiomas." : "No registraste idiomas."} />
+        <p className="mt-2 text-sm"><span className="text-muted-foreground">RIF: </span><span className={resumen.rif ? "font-medium" : "italic text-muted-foreground"}>{resumen.rif || "No indicado"}</span></p>
+      </Bloque>
       <Bloque titulo="Foto de carnet" seccion="foto" onIrA={onIrA}>
         {tieneFoto ? <img src={`/postulacion/foto?v=${encodeURIComponent(fotoVersion)}`} alt="Tu foto de carnet" className="size-28 rounded-lg border object-cover" /> : <p className="text-sm italic text-muted-foreground">Sin foto</p>}
       </Bloque>

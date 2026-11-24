@@ -223,6 +223,11 @@ def test_detalle_de_revision_final_trae_los_datos_legibles_y_la_foto(m2, captaci
     assert legible['tallas']['camisa']['valor'] == 'M' and legible['tallas']['calzado']['valor'] == '40' and legible['tallas']['chaqueta'] is None
     conyuge, hijo = legible['familiares']
     assert conyuge['parentesco']['nombre'] == 'CONYUGE' and conyuge['sexo']['nombre'] == 'M' and hijo['parentesco']['nombre'] == 'HIJO(A)'
+    assert legible['estudios'][0]['nivel_academico']['nombre'] == 'UNIVERSITARIO' and legible['estudios'][0]['carrera']['nombre'] == 'INGENIERIA EN SISTEMAS'
+    assert legible['estudios'][0]['mencion']['nombre'] == 'REDES' and legible['estudios'][0]['institucion']['nombre'].startswith('UNIVERSIDAD')
+    assert legible['cursos'][0]['capacitacion']['nombre'] == 'GERENCIA PUBLICA' and legible['cursos'][0]['horas'] == 40
+    assert legible['antecedentes'][0]['organismo']['nombre'] == 'SENIAT' and legible['trabajo_antes_en_conatel'] is False
+    assert [i['nombre'] for i in legible['idiomas']] == ['Inglés', 'Guaraní'] and legible['rif'] == 'V-12345678-9'
     assert d['ventana2_faltantes'] == []
     assert d['foto'] == {'tiene': True, 'subida_el': d['foto']['subida_el'], 'tamano': 10, 'url': f'{BASE}/expedientes/{exp}/foto/'}
     assert {a['destino'] for a in d['acciones']} == {'CONSOLIDANDO', 'LISTO_PARA_ASIGNAR'}

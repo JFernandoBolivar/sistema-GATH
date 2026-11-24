@@ -14,14 +14,21 @@ from apps.familiares.application.use_cases.validaciones_familiar import (
     violaciones_reglas_familiar,
 )
 from apps.familiares.infrastructure.lector_validacion_familiar_orm import LectorValidacionFamiliarORM
+from apps.organizacion.infrastructure.models.organizacion_models import OrganismoAdscritoModel
 from apps.personal.infrastructure.models.catalogos_soporte_models import (
     AlergiaModel,
+    CapacitacionModel,
+    CarreraModel,
     CondicionViviendaModel,
     DiscapacidadModel,
     GrupoSanguineoModel,
+    InstitucionModel,
+    MencionModel,
+    NivelAcademicoModel,
     PatologiaCronicaModel,
     TallaModel,
 )
+from apps.personal.infrastructure.models.idioma_models import IdiomaModel
 from apps.postulacion.domain.services.datos_ventana2 import ids_de_catalogo
 
 # Fragmentos del nombre del tipo de prenda (catálogo `TipoPrenda`) para cada talla del formulario.
@@ -69,6 +76,21 @@ class CatalogosVentana2ORM:
             'patologias_cronicas': _opciones(PatologiaCronicaModel.objects.order_by('patologia'), 'patologia'),
             'discapacidades': _opciones(DiscapacidadModel.objects.order_by('discapacidad'), 'discapacidad'),
             'tallas': tallas,
+            # F-8: los mismos catálogos que la ficha (educación, cursos, antecedentes) y el de idiomas.
+            'niveles_academicos': _opciones(NivelAcademicoModel.objects.order_by('nivelacademico'), 'nivelacademico'),
+            'carreras': [
+                {'id': pk, 'nombre': nombre, 'nivel_academico_id': nivel}
+                for pk, nombre, nivel in CarreraModel.objects.order_by('nombre_carrera').values_list('pk', 'nombre_carrera', 'nivel_academico_id')
+            ],
+            'menciones': [
+                {'id': pk, 'nombre': nombre, 'carrera_id': carrera}
+                for pk, nombre, carrera in MencionModel.objects.order_by('nombre_mencion').values_list('pk', 'nombre_mencion', 'carrera_id_id')
+            ],
+            'instituciones': _opciones(InstitucionModel.objects.order_by('nombre_institucion'), 'nombre_institucion'),
+            'capacitaciones': _opciones(CapacitacionModel.objects.order_by('nombre_capacitacion'), 'nombre_capacitacion'),
+            'organismos': _opciones(OrganismoAdscritoModel.objects.order_by('Organismoadscrito'), 'Organismoadscrito'),
+            'idiomas': _opciones(IdiomaModel.objects.filter(activo=True).order_by('nombre'), 'nombre'),
+            'niveles_idioma': ['BIEN', 'REGULAR', 'POCO'],
         }
         if estado_id is not None:
             datos['municipios'] = _opciones(MunicipioModel.objects.filter(estadoid_id=estado_id).order_by('municipio'), 'municipio')
@@ -84,6 +106,7 @@ class CatalogosVentana2ORM:
         self._errores_de_ids(datos, errores)
         self._errores_de_geografia(datos.get('vivienda') or {}, errores)
         self._errores_de_tallas(datos.get('tallas') or {}, errores)
+        self._errores_de_formacion(datos, errores)
         self._errores_de_familiares(
             datos.get('familiares') or [], errores, cedula_titular, fecha_nacimiento_titular, hoy, completo,
         )
@@ -121,6 +144,52 @@ class CatalogosVentana2ORM:
             faltan = sorted(set(s.get(clave) or []) - existen[tipo])
             if faltan:
                 errores[f'salud.{clave}'] = f"Hay {etiqueta}s que no existen en el catálogo: {', '.join(map(str, faltan))}."
+
+    def _errores_de_formacion(self, datos: dict, errores: dict) -> None:
+        """Estudios, cursos, antecedentes e idiomas: los ids existen y la carrera y la mención encajan con su nivel y carrera."""
+        ids = ids_de_catalogo(datos)
+        niveles = self._existentes(NivelAcademicoModel, ids['nivel_academico'])
+        carreras = {c.pk: c for c in CarreraModel.objects.filter(pk__in=set(ids['carrera']))} if ids['carrera'] else {}
+        menciones = {m.pk: m for m in MencionModel.objects.filter(pk__in=set(ids['mencion']))} if ids['mencion'] else {}
+        instituciones = self._existentes(InstitucionModel, ids['institucion'])
+        for i, e in enumerate(datos.get('estudios') or []):
+            base = f'estudios.{i}'
+            nivel, carrera, mencion = e.get('nivel_academico_id'), e.get('carrera_id'), e.get('mencion_id')
+            if nivel and nivel not in niveles:
+                errores[f'{base}.nivel_academico_id'] = "El nivel académico indicado no existe."
+            if carrera:
+                fila = carreras.get(carrera)
+                if fila is None:
+                    errores[f'{base}.carrera_id'] = "La carrera indicada no existe."
+                elif nivel and fila.nivel_academico_id_id and fila.nivel_academico_id_id != nivel:
+                    errores[f'{base}.carrera_id'] = "La carrera no corresponde al nivel académico indicado."
+            if mencion:
+                fila = menciones.get(mencion)
+                if fila is None:
+                    errores[f'{base}.mencion_id'] = "La mención indicada no existe."
+                elif not carrera or fila.carrera_id_id != carrera:
+                    errores[f'{base}.mencion_id'] = "La mención no corresponde a la carrera indicada."
+            if e.get('institucion_id') and e['institucion_id'] not in instituciones:
+                errores[f'{base}.institucion_id'] = "La institución indicada no existe."
+        capacitaciones = self._existentes(CapacitacionModel, ids['capacitacion'])
+        for i, c in enumerate(datos.get('cursos') or []):
+            if c.get('capacitacion_id') and c['capacitacion_id'] not in capacitaciones:
+                errores[f'cursos.{i}.capacitacion_id'] = "El curso indicado no existe en el catálogo."
+            if c.get('institucion_id') and c['institucion_id'] not in instituciones:
+                errores[f'cursos.{i}.institucion_id'] = "La institución indicada no existe."
+        organismos = self._existentes(OrganismoAdscritoModel, ids['organismo'])
+        for i, a in enumerate(datos.get('antecedentes') or []):
+            if a.get('organismo_id') and a['organismo_id'] not in organismos:
+                errores[f'antecedentes.{i}.organismo_id'] = "El organismo indicado no existe."
+        idiomas = set(IdiomaModel.objects.filter(pk__in=set(ids['idioma']), activo=True).values_list('pk', flat=True)) if ids['idioma'] else set()
+        vistos: set = set()
+        for i, idioma in enumerate(datos.get('idiomas') or []):
+            clave = ('id', idioma['idioma_id']) if idioma.get('idioma_id') else ('otro', (idioma.get('otro_idioma') or '').casefold())
+            if idioma.get('idioma_id') and idioma['idioma_id'] not in idiomas:
+                errores[f'idiomas.{i}.idioma_id'] = "El idioma indicado no existe en el catálogo."
+            elif clave[1] and clave in vistos:
+                errores[f'idiomas.{i}.idioma_id' if clave[0] == 'id' else f'idiomas.{i}.otro_idioma'] = "Este idioma ya está registrado."
+            vistos.add(clave)
 
     @staticmethod
     def _errores_de_geografia(v: dict, errores: dict) -> None:
@@ -225,7 +294,40 @@ class CatalogosVentana2ORM:
         def lista(valores, nombres_por_id):
             return [{'id': i, 'nombre': nombres_por_id.get(i, '')} for i in valores or []]
 
+        estudios, cursos = datos.get('estudios') or [], datos.get('cursos') or []
+        antecedentes, idiomas = datos.get('antecedentes') or [], datos.get('idiomas') or []
+        niveles = nombres(NivelAcademicoModel, 'nivelacademico', ids['nivel_academico'])
+        carreras = nombres(CarreraModel, 'nombre_carrera', ids['carrera'])
+        menciones = nombres(MencionModel, 'nombre_mencion', ids['mencion'])
+        instituciones = nombres(InstitucionModel, 'nombre_institucion', ids['institucion'])
+        capacitaciones = nombres(CapacitacionModel, 'nombre_capacitacion', ids['capacitacion'])
+        organismos = nombres(OrganismoAdscritoModel, 'Organismoadscrito', ids['organismo'])
+        idiomas_cat = nombres(IdiomaModel, 'nombre', ids['idioma'])
+
+        def ref(valor, por_id):
+            return {'id': valor, 'nombre': por_id.get(valor, '')} if valor else None
+
         return {
+            'estudios': [
+                {
+                    **e, 'nivel_academico': ref(e.get('nivel_academico_id'), niveles), 'carrera': ref(e.get('carrera_id'), carreras),
+                    'mencion': ref(e.get('mencion_id'), menciones), 'institucion': ref(e.get('institucion_id'), instituciones),
+                } for e in estudios
+            ],
+            'cursos': [
+                {**c, 'capacitacion': ref(c.get('capacitacion_id'), capacitaciones), 'institucion': ref(c.get('institucion_id'), instituciones)}
+                for c in cursos
+            ],
+            'sin_cursos': bool(datos.get('sin_cursos')),
+            'trabajo_antes_en_conatel': datos.get('trabajo_antes_en_conatel'),
+            'antecedentes': [{**a, 'organismo': ref(a.get('organismo_id'), organismos)} for a in antecedentes],
+            'sin_antecedentes': bool(datos.get('sin_antecedentes')),
+            'idiomas': [
+                {**i, 'nombre': idiomas_cat.get(i.get('idioma_id'), '') if i.get('idioma_id') else i.get('otro_idioma', '')}
+                for i in idiomas
+            ],
+            'sin_idiomas': bool(datos.get('sin_idiomas')),
+            'rif': datos.get('rif') or '',
             'familiares': [
                 {
                     **f, 'parentesco': {'id': f.get('parentesco_id'), 'nombre': parentescos.get(f.get('parentesco_id'), '')},

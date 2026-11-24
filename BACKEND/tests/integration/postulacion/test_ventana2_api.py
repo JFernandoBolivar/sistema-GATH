@@ -341,3 +341,93 @@ def test_mi_expediente_en_la_ventana_1_indica_ventana1(m2):
     c.credentials(HTTP_AUTHORIZATION=f"Bearer {r.json()['data']['token']}")
     d = datos(c.get(f'{BASE}/mi-expediente/'))
     assert d['ventana_actual'] == 1 and d['formulario'] == 'ventana1' and d['datos_ventana2'] == {}
+
+
+# ------------------------------------------------------------------------------------------------ F-8: estudios, cursos, experiencia, idiomas y RIF
+def test_catalogos_traen_los_de_educacion_cursos_organismos_e_idiomas(m2, post):
+    c, _ = post
+    d = datos(c.get(f'{BASE}/ventana2/catalogos/'))
+    assert {n['nombre'] for n in d['niveles_academicos']} == {'UNIVERSITARIO', 'BACHILLER'}
+    assert {x['nombre']: x['nivel_academico_id'] for x in d['carreras']}['DERECHO'] == m2.cat['nivel'].pk
+    assert d['menciones'] == [{'id': m2.cat['mencion'].pk, 'nombre': 'REDES', 'carrera_id': m2.cat['carrera'].pk}]
+    assert [i['nombre'] for i in d['instituciones']] == ['UNIVERSIDAD CENTRAL DE VENEZUELA']
+    assert [i['nombre'] for i in d['capacitaciones']] == ['GERENCIA PUBLICA'] and [o['nombre'] for o in d['organismos']] == ['SENIAT']
+    assert [i['nombre'] for i in d['idiomas']] == ['Francés', 'Inglés'] and d['niveles_idioma'] == ['BIEN', 'REGULAR', 'POCO']
+
+
+def test_el_borrador_acepta_las_secciones_nuevas_y_las_conserva(m2, post):
+    c, exp = post
+    r = c.put(f'{BASE}/ventana2/', {k: v for k, v in datos_v2(m2.cat).items() if k in (
+        'estudios', 'cursos', 'antecedentes', 'trabajo_antes_en_conatel', 'idiomas', 'rif')}, format='json')
+    assert r.status_code == 200, r.content
+    g = datos(r)['datos_ventana2']
+    assert g['estudios'][0]['carrera_id'] == m2.cat['carrera'].pk and g['cursos'][0]['horas'] == 40 and g['rif'] == 'V-12345678-9'
+    assert g['idiomas'][1] == {'otro_idioma': 'Guaraní', 'nivel': 'POCO'} and g['trabajo_antes_en_conatel'] is False
+    # reemplazar solo los idiomas deja lo demás
+    r = c.put(f'{BASE}/ventana2/', {'idiomas': [], 'sin_idiomas': True, 'rif': ' j-301234567 '}, format='json')
+    g = datos(r)['datos_ventana2']
+    assert g['idiomas'] == [] and g['sin_idiomas'] is True and g['rif'] == 'J-30123456-7' and g['estudios']
+
+
+def test_un_borrador_viejo_sin_las_claves_nuevas_sigue_siendo_valido_y_solo_falta_el_estudio(m2, post):
+    c, exp = post
+    viejo = {k: v for k, v in datos_v2(m2.cat).items() if k in ('familiares', 'vivienda', 'salud', 'tallas')}
+    ExpedientePostulacionModel.objects.filter(pk=exp).update(datos_ventana2=viejo)
+    r = c.get(f'{BASE}/ventana2/')
+    assert r.status_code == 200
+    assert {f['campo'] for f in datos(r)['faltantes']} == {'estudios', 'foto'}
+    assert c.put(f'{BASE}/ventana2/', {'tallas': viejo['tallas']}, format='json').status_code == 200   # y se sigue guardando
+
+
+def test_las_secciones_nuevas_rechazan_formatos_invalidos(m2, post):
+    c, exp = post
+    for cuerpo, esperado in (
+        ({'rif': 'ABC'}, 'datos_ventana2.rif'),
+        ({'idiomas': [{'idioma_id': 1, 'nivel': 'ALTO'}]}, 'datos_ventana2.idiomas.0.nivel'),
+        ({'cursos': [{'fecha_inicio': '2999-01-01'}]}, 'datos_ventana2.cursos.0.fecha_inicio'),
+        ({'antecedentes': [{'fecha_ingreso': '2020-01-01', 'fecha_egreso': '2019-01-01'}]}, 'datos_ventana2.antecedentes.0.fecha_egreso'),
+        ({'estudios': [{'nivel_academico_id': 'x'}]}, 'datos_ventana2.estudios.0.nivel_academico_id'),
+    ):
+        r = c.put(f'{BASE}/ventana2/', cuerpo, format='json')
+        assert r.status_code == 400 and esperado in str(r.json()), (cuerpo, r.content)
+
+
+def test_las_secciones_nuevas_rechazan_ids_que_no_existen_o_no_encajan(m2, post):
+    c, exp = post
+    cat = m2.cat
+    r = c.put(f'{BASE}/ventana2/', {
+        'estudios': [
+            {'nivel_academico_id': cat['otro_nivel'].pk, 'carrera_id': cat['carrera'].pk},             # la carrera es de otro nivel
+            {'nivel_academico_id': cat['nivel'].pk, 'carrera_id': cat['otra_carrera'].pk, 'mencion_id': cat['mencion'].pk},   # mención de otra carrera
+            {'nivel_academico_id': 999999, 'institucion_id': 999999},
+        ],
+        'cursos': [{'capacitacion_id': 999999, 'institucion_id': 999999}],
+        'antecedentes': [{'organismo_id': 999999}],
+        'idiomas': [{'idioma_id': 999999, 'nivel': 'BIEN'}, {'otro_idioma': 'Latín', 'nivel': 'POCO'}, {'otro_idioma': 'latín', 'nivel': 'POCO'}],
+    }, format='json')
+    assert r.status_code == 400 and codigo_de(r) == 'DATOS_INVALIDOS', r.content
+    e = r.json()['data']['errores']
+    assert 'nivel' in e['estudios.0.carrera_id'] and 'carrera' in e['estudios.1.mencion_id']
+    assert e['estudios.2.nivel_academico_id'] and e['estudios.2.institucion_id']
+    assert e['cursos.0.capacitacion_id'] and e['cursos.0.institucion_id'] and e['antecedentes.0.organismo_id']
+    assert e['idiomas.0.idioma_id'] and e['idiomas.2.otro_idioma']
+    assert ExpedientePostulacionModel.objects.get(pk=exp).datos_ventana2 == {}
+
+
+def test_enviar_exige_al_menos_un_estudio_y_valida_lo_opcional_que_se_registro(m2, post):
+    c, exp = post
+    sin_estudios = {k: v for k, v in datos_v2(m2.cat).items() if k != 'estudios'}
+    c.put(f'{BASE}/ventana2/', sin_estudios, format='json')
+    c.post(f'{BASE}/ventana2/foto/', {'foto': foto()}, format='multipart')
+    r = c.post(f'{BASE}/enviar/')
+    assert codigo_de(r) == 'VENTANA2_INCOMPLETA' and [f['campo'] for f in r.json()['data']['faltantes']] == ['estudios']
+    # un curso a medias y una experiencia a medias impiden enviar, con su ruta
+    c.put(f'{BASE}/ventana2/', {'estudios': datos_v2(m2.cat)['estudios'], 'cursos': [{'capacitacion_id': m2.cat['capacitacion'].pk}],
+                                'antecedentes': [{'organismo_id': m2.cat['organismo'].pk}], 'idiomas': [{'otro_idioma': 'Latín'}]}, format='json')
+    r = c.post(f'{BASE}/enviar/')
+    assert {f['campo'] for f in r.json()['data']['faltantes']} == {
+        'cursos.0.institucion_id', 'antecedentes.0.fecha_ingreso', 'antecedentes.0.fecha_egreso', 'idiomas.0.nivel'}
+    # sin cursos, sin experiencia y sin idiomas declarados expresamente: se envía
+    c.put(f'{BASE}/ventana2/', {'cursos': [], 'sin_cursos': True, 'antecedentes': [], 'sin_antecedentes': True,
+                                'idiomas': [], 'sin_idiomas': True, 'rif': ''}, format='json')
+    assert c.post(f'{BASE}/enviar/').status_code == 200

@@ -7,8 +7,12 @@ import { calcularAvance, SECCIONES_VENTANA2, type CatalogosVentana2, type Seccio
 import { catalogosVentana2Action, guardarVentana2Action } from "../../infrastructure/actions/postulacion-actions";
 import type { ResultadoGuardado } from "./comun";
 import { IndicadorAvance } from "./indicador-avance";
+import { SeccionCursos } from "./seccion-cursos";
+import { SeccionEstudios } from "./seccion-estudios";
+import { SeccionExperiencia } from "./seccion-experiencia";
 import { SeccionFamiliares } from "./seccion-familiares";
 import { SeccionFoto } from "./seccion-foto";
+import { SeccionIdiomas } from "./seccion-idiomas";
 import { SeccionRevisar } from "./seccion-revisar";
 import { SeccionSalud } from "./seccion-salud";
 import { SeccionTallas } from "./seccion-tallas";
@@ -74,6 +78,10 @@ export function FormularioVentana2({ datosIniciales, faltantesIniciales, tieneFo
         {actual === "vivienda" && <SeccionVivienda {...comunes} cargarGeografia={cargarGeografia} />}
         {actual === "salud" && <SeccionSalud {...comunes} />}
         {actual === "tallas" && <SeccionTallas {...comunes} />}
+        {actual === "estudios" && <SeccionEstudios {...comunes} />}
+        {actual === "cursos" && <SeccionCursos {...comunes} />}
+        {actual === "experiencia" && <SeccionExperiencia {...comunes} />}
+        {actual === "idiomas" && <SeccionIdiomas {...comunes} />}
         {actual === "foto" && (
           <SeccionFoto
             foto={foto}

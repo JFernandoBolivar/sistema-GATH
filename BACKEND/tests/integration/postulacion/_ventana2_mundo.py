@@ -13,22 +13,30 @@ from apps.catalogos.infrastructure.models.catalogo_models import (
     ParentescoModel,
     SexoModel,
     TipoPersonalModel,
+    TipoProcedenciaModel,
 )
 from apps.catalogos.infrastructure.models.geografia_models import EstadoModel, MunicipioModel, ParroquiaModel
 from apps.identidad.infrastructure.models.cuenta_models import CuentaModel, RolModel
+from apps.organizacion.infrastructure.models.organizacion_models import OrganismoAdscritoModel
 from apps.personal.infrastructure.models.catalogos_soporte_models import (
     AlergiaModel,
+    CapacitacionModel,
+    CarreraModel,
     CategoriaAlergiaModel,
     CategoriaDiscapacidadModel,
     CategoriaPatologiaModel,
     CondicionViviendaModel,
     DiscapacidadModel,
     GrupoSanguineoModel,
+    InstitucionModel,
+    MencionModel,
+    NivelAcademicoModel,
     PatologiaCronicaModel,
     RegionTallaModel,
     TallaModel,
     TipoPrendaModel,
 )
+from apps.personal.infrastructure.models.idioma_models import IdiomaModel
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from apps.postulacion.infrastructure.models.credencial_models import CredencialPostulanteModel
 from apps.postulacion.infrastructure.models.expediente_models import ExpedientePostulacionModel
@@ -97,7 +105,20 @@ def crear_catalogos_v2() -> dict:
     prendas = {n: TipoPrendaModel.objects.create(categoria=n) for n in ('CAMISA', 'PANTALON', 'ZAPATOS', 'CHAQUETA')}
     tallas = {n: TallaModel.objects.create(valor=v, region=region, tipo_prenda=prendas[n]) for n, v in (
         ('CAMISA', 'M'), ('PANTALON', '32'), ('ZAPATOS', '40'), ('CHAQUETA', 'L'))}
+    nivel = NivelAcademicoModel.objects.create(nivelacademico='UNIVERSITARIO')
+    otro_nivel = NivelAcademicoModel.objects.create(nivelacademico='BACHILLER')
+    carrera = CarreraModel.objects.create(nombre_carrera='INGENIERIA EN SISTEMAS', nivel_academico_id=nivel)
+    mencion = MencionModel.objects.create(carrera_id=carrera, nombre_mencion='REDES')
+    otra_carrera = CarreraModel.objects.create(nombre_carrera='DERECHO', nivel_academico_id=nivel)
+    institucion = InstitucionModel.objects.create(nombre_institucion='UNIVERSIDAD CENTRAL DE VENEZUELA')
+    capacitacion = CapacitacionModel.objects.create(nombre_capacitacion='GERENCIA PUBLICA')
+    organismo = OrganismoAdscritoModel.objects.create(Organismoadscrito='SENIAT')
+    ingles = IdiomaModel.objects.create(nombre='Inglés')
+    frances = IdiomaModel.objects.create(nombre='Francés')
+    TipoProcedenciaModel.objects.get_or_create(tipo_procedencia='EXTERNA')
     return {
+        'nivel': nivel, 'otro_nivel': otro_nivel, 'carrera': carrera, 'mencion': mencion, 'otra_carrera': otra_carrera,
+        'institucion': institucion, 'capacitacion': capacitacion, 'organismo': organismo, 'ingles': ingles, 'frances': frances,
         'femenino': femenino, 'masculino': masculino, 'hijo': hijo, 'conyuge': conyuge, 'no_familiar': no_familiar,
         'condicion': condicion, 'estado': estado, 'otro_estado': otro_estado, 'municipio': municipio,
         'municipio_zulia': municipio_zulia, 'parroquia': parroquia, 'sangre': sangre, 'alergia': alergia,
@@ -128,6 +149,18 @@ def datos_v2(cat: dict, **cambios) -> dict:
             'talla_camisa_id': cat['tallas']['CAMISA'].pk, 'talla_pantalon_id': cat['tallas']['PANTALON'].pk,
             'talla_zapatos_id': cat['tallas']['ZAPATOS'].pk,
         },
+        'estudios': [{
+            'nivel_academico_id': cat['nivel'].pk, 'carrera_id': cat['carrera'].pk, 'mencion_id': cat['mencion'].pk,
+            'institucion_id': cat['institucion'].pk,
+        }],
+        'cursos': [{
+            'capacitacion_id': cat['capacitacion'].pk, 'institucion_id': cat['institucion'].pk,
+            'fecha_inicio': '2023-02-01', 'fecha_fin': '2023-03-01', 'horas': 40,
+        }],
+        'antecedentes': [{'organismo_id': cat['organismo'].pk, 'fecha_ingreso': '2015-01-05', 'fecha_egreso': '2020-12-31'}],
+        'trabajo_antes_en_conatel': False,
+        'idiomas': [{'idioma_id': cat['ingles'].pk, 'nivel': 'BIEN'}, {'otro_idioma': 'Guaraní', 'nivel': 'POCO'}],
+        'rif': 'V-12345678-9',
     }
     datos.update(cambios)
     return datos
