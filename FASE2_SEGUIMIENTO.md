@@ -47,7 +47,7 @@ Cómo actualizar: cambiar el ícono de la columna **Estado**, la **Fecha** del �
 | C · Decisiones para Captación | 10 | 0 | 0 | 9 | 1 |
 | D · Captación Ventana 1 (E-3) | 10 | 0 | 0 | 10 | 0 |
 | E · Presupuesto y Dirección General (E-4) | 7 | 0 | 0 | 7 | 0 |
-| F · Documentos digitales (E-5) | 8 | 3 | 2 | 3 | 0 |
+| F · Documentos digitales (E-5) | 8 | 0 | 2 | 6 | 0 |
 | G · Ventana 2 y asignación de cargo (E-6) | 6 | 0 | 0 | 6 | 0 |
 | H · Transversales / deuda técnica | 13 | 0 | 0 | 13 | 0 |
 | I · Sincronización con nómina (E-9) | 1 | 0 | 0 | 0 | 1 |
