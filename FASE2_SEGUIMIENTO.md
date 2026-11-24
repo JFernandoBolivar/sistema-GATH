@@ -4,7 +4,7 @@ Rama: `feature/fase2-captacion-carnet` · Creado: 2026-11-20 · Referencia: `FAS
 
 ## ▶ Cómo continuar (actualizado 2026-11-22)
 
-**Dónde quedamos:** bloques A, B, K (carnet), C (decisiones), D (Captación Ventana 1) **completos**. **Siguiente: bloque E** (Presupuesto y Dirección General: bandeja de Presupuesto, reserva de puesto, declaración de disponibilidad, Punto de Cuenta de ingreso, aprobación de Dirección General y tarea que libera reservas vencidas). Después F, G y H.
+**Dónde quedamos:** bloques A, B, K (carnet), C (decisiones), D (Captación Ventana 1) **completos**. **En curso (2026-11-24): bloque E**, backend primero (Presupuesto y Dirección General: bandeja de Presupuesto, reserva de puesto, declaración de disponibilidad, Punto de Cuenta de ingreso, aprobación de Dirección General y tarea que libera reservas vencidas). Después F, G y H.
 
 **Código:** rama `feature/fase2-captacion-carnet` en GitHub (`git fetch github && git checkout feature/fase2-captacion-carnet`). GitLab (`origin`) sigue sin resolver DNS: subir ahí cuando vuelva (`git push origin feature/fase2-captacion-carnet`). Nunca push a `dev` ni `qa`.
 
@@ -46,7 +46,7 @@ Cómo actualizar: cambiar el ícono de la columna **Estado**, la **Fecha** del �
 | B · Carnet: funciones faltantes | 11 | 0 | 0 | 11 | 0 |
 | C · Decisiones para Captación | 10 | 0 | 0 | 9 | 1 |
 | D · Captación Ventana 1 (E-3) | 9 | 0 | 0 | 9 | 0 |
-| E · Presupuesto y Dirección General (E-4) | 7 | 7 | 0 | 0 | 0 |
+| E · Presupuesto y Dirección General (E-4) | 7 | 0 | 7 | 0 | 0 |
 | F · Documentos digitales (E-5) | 7 | 6 | 0 | 0 | 1 |
 | G · Ventana 2 y asignación de cargo (E-6) | 6 | 6 | 0 | 0 | 0 |
 | H · Transversales / deuda técnica | 13 | 7 | 0 | 6 | 0 |
@@ -133,13 +133,13 @@ Cómo actualizar: cambiar el ícono de la columna **Estado**, la **Fecha** del �
 
 | ID | Tarea | Estado | Fecha | Nota |
 |---|---|---|---|---|
-| E-1 | Consulta de vacantes por cargo y oficina para el expediente | ⬜ Pendiente | | reutiliza `cargos/vacantes` |
-| E-2 | `ReservaPuesto` con vencimiento y restricción de una reserva activa por puesto | ⬜ Pendiente | | |
-| E-3 | `ConstanciaPresupuestaria` (declarado por, fecha, referencia, adjunto) | ⬜ Pendiente | | |
-| E-4 | Devoluciones diferenciadas: `EN_CORRECCION_CARGO` y `DIFERIDO_PRESUPUESTO` | ⬜ Pendiente | | |
-| E-5 | Punto de Cuenta de ingreso: proceso `ingreso_postulacion` en `apps/puntocuenta`, ligado al expediente, con estados emitido/firmado | ⬜ Pendiente | | |
-| E-6 | Bandeja de Dirección General: aprobar o rechazar (libera la reserva) | ⬜ Pendiente | | |
-| E-7 | Tarea programada: liberar reservas vencidas | ⬜ Pendiente | | |
+| E-1 | Consulta de vacantes por cargo y oficina para el expediente | 🟦 En curso | 2026-11-24 | backend `352af7c3`: vacantes compatibles (excluye reservadas); falta la pantalla |
+| E-2 | `ReservaPuesto` con vencimiento y restricción de una reserva activa por puesto | 🟦 En curso | 2026-11-24 | backend `352af7c3`: ReservaPuesto (1 activa por puesto y por expediente, vence 30 días); falta la pantalla |
+| E-3 | `ConstanciaPresupuestaria` (declarado por, fecha, referencia, adjunto) | 🟦 En curso | 2026-11-24 | backend `352af7c3`: ConstanciaPresupuestaria con declarante y PDF; falta la pantalla |
+| E-4 | Devoluciones diferenciadas: `EN_CORRECCION_CARGO` y `DIFERIDO_PRESUPUESTO` | 🟦 En curso | 2026-11-24 | backend `352af7c3`: bandeja y acciones de Presupuesto (devolver, diferir, retomar, emitir); falta la pantalla |
+| E-5 | Punto de Cuenta de ingreso: proceso `ingreso_postulacion` en `apps/puntocuenta`, ligado al expediente, con estados emitido/firmado | 🟦 En curso | 2026-11-24 | backend `352af7c3`: Punto de Cuenta de ingreso (proceso ingreso_postulacion), EMITIDO/FIRMADO/RECHAZADO; falta la pantalla |
+| E-6 | Bandeja de Dirección General: aprobar o rechazar (libera la reserva) | 🟦 En curso | 2026-11-24 | backend `352af7c3`: bandeja de Dirección General (aprobar / rechazar con motivo); falta la pantalla |
+| E-7 | Tarea programada: liberar reservas vencidas | 🟦 En curso | 2026-11-24 | backend `352af7c3`: tarea cada 15 min: reservas, diferidos y ventanas vencidas; falta la pantalla |
 
 ## F · Documentos digitales (E-5)
 
@@ -225,6 +225,7 @@ Cómo actualizar: cambiar el ícono de la columna **Estado**, la **Fecha** del �
 
 | Fecha | Cambio |
 |---|---|
+| 2026-11-24 | Backend del bloque E (commit `352af7c3`, GitHub ✅). Worker Sonnet; suite 3285 ✅; probado en vivo de punta a punta (Captación → Presupuesto reserva + constancia → Punto de Cuenta 0001-2026 en PDF → aprobación de Dirección General). Corregido en la auditoría: el PDF decía «emitido por N/A». Migración postulacion 0005 aplicada en desarrollo; la reserva de prueba del puesto 107807 se liberó a mano y se borraron 33 avisos de prueba. Sigue: pantallas de Presupuesto y Dirección General. |
 | 2026-11-22 | Documentos versionados en GitHub para continuar desde otra PC (`FASE2_SEGUIMIENTO.md`, `FASE2_PROPUESTA_TECNICA.md`, `Propuesta_Fase2_GATH.html`) y sección «Cómo continuar». Siguiente: bloque E. |
 | 2026-11-21 | Pendientes del bloque D cerrados (commit `392cee9e`, GitHub ✅): correo al postulante por el outbox (puerto nuevo del kernel) y sesión vencida del postulante a su portal. En la auditoría en vivo se detectó y corrigió que un borrador sin correo borraba el registrado por Captación. Ojo: el outbox de la base de desarrollo SÍ envía correos reales (las pruebas en vivo usan direcciones `.invalid` y se limpian). Suite 3217 ✅, frontend 1486 ✅, E2E 11 ✅. |
 | 2026-11-21 | **Bloque D completo** (9/9). Pantallas de Captación (commit `4780950e`, GitHub ✅): bandeja, nuevo postulante, detalle y psicofísico. Worker Sonnet; en la auditoría visual se corrigió el botón que tapaba las pestañas en el teléfono y la E2E frágil. Frontend 1479 ✅, E2E Captación/postulante/carnet ✅. Pendientes menores: correo al postulante, cierre por inactividad del postulante a /login, enlace de aviso de Presupuesto `/postulacion/solicitudes/{id}` (se hará en E). En la base de desarrollo quedan expedientes de prueba creados por las E2E. |
