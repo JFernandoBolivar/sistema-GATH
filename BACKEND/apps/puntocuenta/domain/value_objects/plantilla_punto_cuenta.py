@@ -5,6 +5,9 @@ Vivían en el modelo ORM; el caso de uso los necesita y `application` no puede
 importar `infrastructure` (regla B2/B4). El modelo los reutiliza.
 """
 
+# Proceso del Punto de Cuenta que emite Presupuesto al enviar un expediente de postulación a Dirección General (E-5).
+PROCESO_INGRESO_POSTULACION = 'ingreso_postulacion'
+
 PROCESOS_POR_DEFECTO = {
     'cambio_oficina': True,  # RN-006-01: activado por defecto
     'cambio_nivel': False,
@@ -14,6 +17,9 @@ PROCESOS_POR_DEFECTO = {
     'pase_a_pasivo': False,
     'encargaduria_prestamo': False,
     'cambio_estatus': False,
+    # El ingreso de un postulante siempre genera su Punto de Cuenta (es parte del flujo): esta clave habilita la
+    # plantilla propia del proceso en la configuración; no lo apaga.
+    PROCESO_INGRESO_POSTULACION: True,
 }
 
 FIRMAS_POR_DEFECTO = [

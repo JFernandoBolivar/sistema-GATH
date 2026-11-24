@@ -361,6 +361,12 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'fe_de_vida.enviar_recordatorios',
         'schedule': crontab(hour=8, minute=0),
     },
+    # Postulación (E-7): libera las reservas de puesto vencidas, pasa a DESISTIDO los diferidos con la espera vencida (C-10)
+    # y a EXPIRADO los expedientes con la ventana vencida (idempotente).
+    'postulacion-liberar-reservas-vencidas': {
+        'task': 'postulacion.liberar_reservas_vencidas',
+        'schedule': 900.0,  # cada 15 minutos
+    },
     # Notificaciones (A3): reprograma los correos PENDIENTES que nadie envió (broker o worker caídos).
     'notificaciones-reprocesar-outbox': {
         'task': 'notificaciones.reprocesar_outbox',

@@ -9,15 +9,28 @@ from apps.postulacion.application.use_cases.credenciales import EmisionCredencia
 from apps.postulacion.application.use_cases.mi_expediente import VistaMiExpediente
 from apps.postulacion.domain.entities.expediente import ExpedientePostulacion
 from apps.postulacion.domain.errores import CredencialBloqueada, ErrorAccesoPostulante
+from apps.postulacion.infrastructure.repositories.repo_postulacion_orm import BuscadorEmpleadosORM
 from apps.postulacion.presentation.authentication import PostulanteJWTAuthentication
 from apps.postulacion.presentation.permissions.postulante_permissions import ClaveAlDia, EsPostulante
 from apps.postulacion.application.use_cases.bandeja import DetalleCaptacion
 from apps.postulacion.domain.entities.bandeja import FilaBandeja
 from apps.postulacion.domain.entities.psicofisico import ResultadoPsicofisico
+from apps.postulacion.application.use_cases.presupuesto import DetalleArea, FilaEnriquecida, QuienActua
+from apps.postulacion.domain.entities.constancia import ConstanciaPresupuestaria
+from apps.postulacion.domain.entities.punto_cuenta_ingreso import PuntoCuentaIngreso
+from apps.postulacion.domain.entities.reserva import ReservaPuesto
+from apps.postulacion.domain.entities.vacantes import PuestoVacante
 from apps.postulacion.domain.services.maquina_estados import (
     P_ABRIR_EXPEDIENTE,
+    P_APROBAR_INGRESO,
+    P_DECLARAR_DISPONIBILIDAD,
+    P_DEVOLVER_SOLICITUD,
+    P_EMITIR_PUNTO_CUENTA,
     P_RECHAZAR,
+    P_RESERVAR_PUESTO,
     P_REVISION_FINAL,
+    P_VER_INGRESOS,
+    P_VER_SOLICITUDES,
     P_VERIFICAR,
     Actor,
 )
@@ -239,4 +252,152 @@ def a_dict_detalle_captacion(d: DetalleCaptacion) -> dict:
              'motivo_bloqueo': a.motivo_bloqueo, 'sugerida': a.sugerida}
             for a in d.acciones
         ],
+    }
+
+
+# --- Presupuesto y Dirección General (E-1 a E-6) ---
+PERMISOS_DE_PRESUPUESTO = (
+    P_VER_SOLICITUDES, P_RESERVAR_PUESTO, P_DECLARAR_DISPONIBILIDAD, P_DEVOLVER_SOLICITUD, P_EMITIR_PUNTO_CUENTA,
+)
+PERMISOS_DE_DIRECCION = (P_VER_INGRESOS, P_APROBAR_INGRESO)
+RUTA_BASE = '/api/v1/postulacion'
+
+
+def actor_con_permisos(request, permisos: tuple[str, ...]) -> Actor:
+    """El usuario autenticado con SUS permisos de esa área; la máquina de estados decide con el permiso EXACTO."""
+    user = request.user
+    return Actor(
+        cedula=str(getattr(user, 'cedula_id', '') or ''),
+        permisos=frozenset(p for p in permisos if usuario_tiene_permiso(user, p)),
+    )
+
+
+def nombre_del_usuario(user) -> str:
+    """Nombre de quien actúa (queda en la constancia y el Punto de Cuenta): el del trabajador asociado a su cuenta."""
+    empleado = getattr(user, 'cedula', None)
+    nombre = ' '.join(
+        str(getattr(empleado, campo, '') or '').strip() for campo in ('nombres', 'apellidos')
+    ).strip() if empleado is not None and not isinstance(empleado, (str, int)) else ''
+    nombre = nombre or str(getattr(user, 'nombre_completo', '') or '').strip()
+    if not nombre:
+        # Respaldo: el trabajador con la cédula de la cuenta. Sin esto el Punto de Cuenta decía «emitido por N/A».
+        cedula = str(getattr(user, 'cedula_id', '') or '').strip()
+        previo = BuscadorEmpleadosORM().por_cedula(cedula) if cedula else None
+        if previo is not None:
+            nombre = f'{previo.nombres} {previo.apellidos}'.strip()
+    return nombre
+
+
+def quien_actua(request) -> QuienActua:
+    user = request.user
+    pk = getattr(user, 'pk', None)
+    return QuienActua(
+        cedula=str(getattr(user, 'cedula_id', '') or ''), nombre=nombre_del_usuario(user),
+        usuario_id=pk if isinstance(pk, int) else None,
+    )
+
+
+def a_dict_puesto(p: PuestoVacante | None) -> dict | None:
+    if p is None:
+        return None
+    return {
+        'id': p.id, 'codigo': p.codigo, 'vacante': p.vacante,
+        'cargo': {'id': p.cargo_id, 'nombre': p.cargo_nombre},
+        'cargo_especifico': {'id': p.cargo_especifico_id, 'nombre': p.cargo_especifico_nombre},
+        'tipo_nomina': {'id': p.tipo_nomina_id, 'nombre': p.tipo_nomina_nombre},
+        'dependencia': {'id': p.dependencia_id, 'nombre': p.dependencia_nombre},
+        'direccion_general': {'id': p.direccion_general_id, 'nombre': p.direccion_general_nombre},
+        'direccion_linea': {'id': p.direccion_linea_id, 'nombre': p.direccion_linea_nombre},
+        'coordinacion': {'id': p.coordinacion_id, 'nombre': p.coordinacion_nombre},
+    }
+
+
+def a_dict_reserva(r: ReservaPuesto | None, puesto: PuestoVacante | None = None, ahora_: datetime | None = None) -> dict | None:
+    if r is None:
+        return None
+    return {
+        'id': r.id, 'puesto_id': r.puesto_id, 'estado': r.estado, 'reservado_por': r.reservado_por,
+        'reservado_el': r.reservado_el, 'vence_el': r.vence_el, 'vigente': r.vigente(ahora_ or ahora()),
+        'puesto': a_dict_puesto(puesto),
+    }
+
+
+def a_dict_constancia(c: ConstanciaPresupuestaria | None) -> dict | None:
+    if c is None:
+        return None
+    return {
+        'referencia': c.referencia, 'observaciones': c.observaciones, 'fecha': c.fecha,
+        'declarado_por_cedula': c.declarado_por_cedula, 'declarado_por_nombre': c.declarado_por_nombre,
+        'tiene_adjunto': c.tiene_adjunto, 'adjunto_tamano': c.adjunto_tamano,
+    }
+
+
+def a_dict_punto_cuenta(pc: PuntoCuentaIngreso | None) -> dict | None:
+    if pc is None:
+        return None
+    return {
+        'id': pc.punto_cuenta_id, 'numero': pc.numero, 'estado': pc.estado, 'puesto_id': pc.puesto_id,
+        'referencia_constancia': pc.referencia_constancia, 'emitido_por': pc.emitido_por, 'emitido_el': pc.emitido_el,
+        'decidido_por': pc.decidido_por, 'decidido_el': pc.decidido_el, 'tiene_documento': bool(pc.pdf_clave),
+    }
+
+
+def a_dict_fila_area(f: FilaEnriquecida, prioritarios: tuple) -> dict:
+    exp, p = f.fila.expediente, f.fila.postulante
+    return {
+        'id': exp.id, 'numero': exp.numero, 'estado': exp.estado.value, 'ultimo_cambio': f.fila.ultimo_cambio,
+        'es_reingreso': p.es_reingreso, 'pendiente': exp.estado in prioritarios,
+        'postulante': {'cedula': p.cedula, 'nombres': p.nombres, 'apellidos': p.apellidos},
+        'propuesta': {
+            'cargo_id': exp.cargo_propuesto_id, 'cargo_texto': exp.cargo_propuesto_texto,
+            'oficina_texto': exp.oficina_propuesta_texto, 'direccion_general_id': exp.direccion_general_id,
+        },
+        'diferido_vence_el': exp.diferido_vence_el,
+        'reserva': {'puesto_id': f.reserva.puesto_id, 'vence_el': f.reserva.vence_el} if f.reserva else None,
+        'tiene_constancia': f.constancia is not None,
+        'punto_cuenta': {'numero': f.punto_cuenta.numero, 'estado': f.punto_cuenta.estado} if f.punto_cuenta else None,
+    }
+
+
+def a_dict_detalle_area(d: DetalleArea, area: str) -> dict:
+    exp, p = d.base.expediente, d.base.postulante
+    ruta = f'{RUTA_BASE}/{"solicitudes" if area == "presupuesto" else "ingresos"}/{exp.id}'
+    return {
+        'expediente': {
+            **a_dict_expediente_resumen(exp), 'fecha_apertura': exp.fecha_apertura, 'fecha_cierre': exp.fecha_cierre,
+            'observaciones': exp.observaciones, 'es_reingreso': p.es_reingreso,
+            'reserva_vence_el': exp.reserva_vence_el, 'diferido_vence_el': exp.diferido_vence_el,
+            'propuesta': {
+                'cargo_id': exp.cargo_propuesto_id, 'cargo_especifico_id': exp.cargo_especifico_propuesto_id,
+                'tipo_nomina_id': exp.tipo_nomina_propuesto_id, 'direccion_general_id': exp.direccion_general_id,
+                'direccion_linea_id': exp.direccion_linea_id, 'coordinacion_id': exp.coordinacion_id,
+                'dependencia_id': exp.dependencia_id, 'cargo_texto': exp.cargo_propuesto_texto,
+                'oficina_texto': exp.oficina_propuesta_texto, 'nombres': d.propuesta_nombres,
+            },
+        },
+        # Sin correo, teléfono ni Ventana 1: esas áreas no los necesitan.
+        'postulante': {
+            'id': p.id, 'cedula': p.cedula, 'nombres': p.nombres, 'apellidos': p.apellidos, 'es_reingreso': p.es_reingreso,
+        },
+        'reserva': a_dict_reserva(d.reserva, d.puesto),
+        'puesto': a_dict_puesto(d.puesto),
+        'constancia': a_dict_constancia(d.constancia),
+        'punto_cuenta': a_dict_punto_cuenta(d.punto_cuenta),
+        'documentos': {
+            'punto_cuenta': f'{ruta}/punto-cuenta/' if d.punto_cuenta and d.punto_cuenta.pdf_clave else None,
+            'constancia_adjunto': f'{ruta}/constancia/adjunto/' if d.constancia and d.constancia.tiene_adjunto else None,
+        },
+        'historial': [
+            {'estado_origen': t.estado_origen, 'estado_destino': t.estado_destino, 'fecha': t.fecha,
+             'actor_cedula': t.actor_cedula, 'actor_tipo': t.actor_tipo, 'motivo': t.motivo}
+            for t in d.base.transiciones
+        ],
+        'acciones': [
+            {'destino': a.destino, 'etiqueta': a.etiqueta, 'requiere_motivo': a.requiere_motivo,
+             'bloqueada': a.bloqueada, 'motivo_bloqueo': a.motivo_bloqueo}
+            for a in d.acciones
+        ],
+        'capacidades': {
+            'puede_reservar': d.puede_reservar, 'puede_declarar_disponibilidad': d.puede_declarar,
+        },
     }

@@ -153,3 +153,70 @@ class PsicofisicoRespuestaSerializer(serializers.Serializer):
     registrado_por = serializers.CharField(allow_blank=True)
     registrado_el = serializers.DateTimeField()
     sugiere_rechazo = serializers.BooleanField()
+
+
+# --- Presupuesto y Dirección General (E-1 a E-6) ---
+class FiltrosSolicitudesSerializer(serializers.Serializer):
+    """Query: `vista`, `estado` repetible o separado por comas, `q`, `desde`, `hasta` (fecha del último cambio)."""
+
+    vista = serializers.CharField(max_length=12, required=False, allow_blank=True)
+    estado = serializers.ListField(child=serializers.CharField(max_length=30), required=False)
+    q = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    desde = serializers.DateField(required=False)
+    hasta = serializers.DateField(required=False)
+
+
+class FiltrosVacantesSerializer(serializers.Serializer):
+    """Query: `cargo` (id de la denominación), `oficina` (id de la dirección general), `dependencia`, `direccion_linea`,
+    `coordinacion` y `q` (código, denominación o unidad)."""
+
+    cargo = serializers.IntegerField(min_value=1, required=False)
+    oficina = serializers.IntegerField(min_value=1, required=False)
+    dependencia = serializers.IntegerField(min_value=1, required=False)
+    direccion_linea = serializers.IntegerField(min_value=1, required=False)
+    coordinacion = serializers.IntegerField(min_value=1, required=False)
+    q = serializers.CharField(max_length=100, required=False, allow_blank=True)
+
+
+class TransicionAreaSerializer(serializers.Serializer):
+    destino = serializers.CharField(max_length=30)
+    motivo = serializers.CharField(max_length=2000, required=False, allow_blank=True, default='')
+
+
+class ReservaSerializer(serializers.Serializer):
+    puesto_id = serializers.IntegerField(min_value=1)
+
+
+class LiberarReservaSerializer(serializers.Serializer):
+    motivo = serializers.CharField(max_length=200, required=False, allow_blank=True, default='')
+
+
+class ConstanciaSerializer(serializers.Serializer):
+    """Multipart: `referencia` (partida u oficio), `observaciones?`, `adjunto?` (PDF ≤ 10 MB)."""
+
+    referencia = serializers.CharField(max_length=100)
+    observaciones = serializers.CharField(max_length=2000, required=False, allow_blank=True, default='')
+    adjunto = serializers.FileField(required=False, allow_empty_file=False)
+
+
+class DetalleAreaSerializer(serializers.Serializer):
+    expediente = serializers.JSONField()
+    postulante = serializers.JSONField()
+    reserva = serializers.JSONField(allow_null=True)
+    puesto = serializers.JSONField(allow_null=True)
+    constancia = serializers.JSONField(allow_null=True)
+    punto_cuenta = serializers.JSONField(allow_null=True)
+    documentos = serializers.JSONField()
+    historial = serializers.ListField(child=serializers.JSONField())
+    acciones = serializers.ListField(child=serializers.JSONField())
+    capacidades = serializers.JSONField()
+
+
+class VacantesRespuestaSerializer(serializers.Serializer):
+    resultados = serializers.ListField(child=serializers.JSONField())
+    total = serializers.IntegerField()
+    pagina = serializers.IntegerField()
+    tamano = serializers.IntegerField()
+    total_paginas = serializers.IntegerField()
+    filtros = serializers.JSONField()
+    reserva = serializers.JSONField(allow_null=True)

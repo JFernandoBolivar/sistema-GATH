@@ -5,7 +5,6 @@ la validación de entrada y la ayuda al usuario en pantalla.
 """
 from datetime import date, datetime
 import re
-from typing import Mapping
 
 MESES_ES = (
     'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -62,6 +61,8 @@ DICCIONARIO_VARIABLES: dict[str, str] = {
     'presentado_por': 'Nombre del proponente o responsable de unidad',
     'cargo_presentado_por': 'Cargo del proponente',
     'unidad': 'Unidad u oficina remitente',
+    'referencia_constancia': 'Referencia de la constancia presupuestaria (ingreso de postulantes)',
+    'emitido_por': 'Nombre de quien emite el Punto de Cuenta (ingreso de postulantes)',
 }
 
 VARIABLES_PERMITIDAS: frozenset[str] = frozenset(DICCIONARIO_VARIABLES.keys())

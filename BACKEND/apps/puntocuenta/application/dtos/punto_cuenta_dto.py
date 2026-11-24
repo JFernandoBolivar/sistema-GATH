@@ -43,5 +43,7 @@ class PuntoCuentaDTO:
     presentado_por: str | None = None
     cargo_presentado_por: str | None = None
     unidad: str | None = None
+    referencia_constancia: str | None = None
+    emitido_por: str | None = None
     configuracion_version: int | None = None
     snapshot_formato: dict | None = None

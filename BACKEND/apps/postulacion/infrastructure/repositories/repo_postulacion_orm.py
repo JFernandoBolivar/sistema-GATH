@@ -16,22 +16,37 @@ from apps.organizacion.infrastructure.models.organizacion_models import (
     DireccionLineaModel,
 )
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
-from apps.postulacion.domain.entities.bandeja import ESTADOS_PENDIENTES_CAPTACION, FilaBandeja, FiltrosBandeja, PropuestaCatalogo
+from apps.postulacion.domain.entities.bandeja import FilaBandeja, FiltrosBandeja, PropuestaCatalogo
+from apps.postulacion.domain.entities.constancia import ConstanciaPresupuestaria
 from apps.postulacion.domain.entities.credencial import CredencialPostulante
 from apps.postulacion.domain.entities.expediente import ExpedientePostulacion
 from apps.postulacion.domain.entities.postulante import EmpleadoPrevio, Postulante, TransicionRegistrada
 from apps.postulacion.domain.entities.psicofisico import ResultadoPsicofisico
+from apps.postulacion.domain.entities.punto_cuenta_ingreso import PuntoCuentaIngreso
+from apps.postulacion.domain.entities.reserva import ACTIVA, ReservaPuesto
+from apps.postulacion.domain.errores import ConflictoConCodigo
 from apps.postulacion.infrastructure.mappers.mapper_postulacion import (
+    CAMPOS_CONSTANCIA,
     CAMPOS_CREDENCIAL,
     CAMPOS_PSICOFISICO,
+    CAMPOS_PUNTO_CUENTA_INGRESO,
+    CAMPOS_RESERVA,
     campos_de_expediente,
+    constancia_a_entidad,
     credencial_a_entidad,
     expediente_a_entidad,
     postulante_a_entidad,
     psicofisico_a_entidad,
+    punto_cuenta_ingreso_a_entidad,
+    reserva_a_entidad,
     transicion_a_entidad,
 )
 from apps.postulacion.infrastructure.models.credencial_models import CredencialPostulanteModel
+from apps.postulacion.infrastructure.models.presupuesto_models import (
+    ConstanciaPresupuestariaModel,
+    PuntoCuentaIngresoModel,
+    ReservaPuestoModel,
+)
 from apps.postulacion.infrastructure.models.psicofisico_models import ResultadoPsicofisicoModel
 from apps.postulacion.infrastructure.models.expediente_models import (
     ExpedientePostulacionModel,
@@ -164,12 +179,17 @@ class RepoPostulacionORM:
         qs = ExpedientePostulacionModel.objects.select_related('postulante').annotate(
             _cambio=Max('transiciones__fecha'),
             _pendiente=Case(
-                When(estado__in=[e.value for e in ESTADOS_PENDIENTES_CAPTACION], then=Value(0)),
+                When(estado__in=[e.value for e in filtros.prioritarios], then=Value(0)),
                 default=Value(1), output_field=IntegerField(),
             ),
         )
+        criterio = Q()
         if filtros.estados:
-            qs = qs.filter(estado__in=[e.value for e in filtros.estados])
+            criterio |= Q(estado__in=[e.value for e in filtros.estados])
+        if filtros.o_punto_cuenta_estados:
+            criterio |= Q(punto_cuenta_ingreso__estado__in=list(filtros.o_punto_cuenta_estados))
+        if criterio:
+            qs = qs.filter(criterio)
         for palabra in filtros.texto.split():
             patron = _patron_sin_acentos(palabra)
             qs = qs.filter(
@@ -191,6 +211,19 @@ class RepoPostulacionORM:
         ]
         return filas, total
 
+    # --- vencimientos del sistema ---
+    def listar_ids_con_ventana_vencida(self, ahora: datetime) -> list[str]:
+        qs = ExpedientePostulacionModel.objects.filter(
+            estado__in=['PRE_REGISTRADO', 'EN_CAPTURA'], ventana_vence_el__lt=ahora,
+        ).order_by('ventana_vence_el')
+        return [str(pk) for pk in qs.values_list('pk', flat=True)]
+
+    def listar_ids_con_diferido_vencido(self, ahora: datetime) -> list[str]:
+        qs = ExpedientePostulacionModel.objects.filter(
+            estado='DIFERIDO_PRESUPUESTO', diferido_vence_el__lt=ahora,
+        ).order_by('diferido_vence_el')
+        return [str(pk) for pk in qs.values_list('pk', flat=True)]
+
     # --- test psicofísico ---
     def obtener_psicofisico(self, expediente_id: str, bloquear: bool = False) -> ResultadoPsicofisico | None:
         pk = _uuid_valido(expediente_id)
@@ -204,6 +237,88 @@ class RepoPostulacionORM:
         campos = {c: getattr(r, c) for c in CAMPOS_PSICOFISICO}
         m, _ = ResultadoPsicofisicoModel.objects.update_or_create(expediente_id=r.expediente_id, defaults=campos)
         return psicofisico_a_entidad(m)
+
+    # --- reserva de puesto ---
+    def obtener_reserva_activa_de_expediente(self, expediente_id: str, bloquear: bool = False) -> ReservaPuesto | None:
+        pk = _uuid_valido(expediente_id)
+        if pk is None:
+            return None
+        qs = ReservaPuestoModel.objects.select_for_update() if bloquear else ReservaPuestoModel.objects
+        m = qs.filter(expediente_id=pk, estado=ACTIVA).first()
+        return reserva_a_entidad(m) if m else None
+
+    def obtener_reserva_activa_de_puesto(self, puesto_id: int, bloquear: bool = False) -> ReservaPuesto | None:
+        qs = ReservaPuestoModel.objects.select_for_update() if bloquear else ReservaPuestoModel.objects
+        m = qs.filter(puesto_id=puesto_id, estado=ACTIVA).first()
+        return reserva_a_entidad(m) if m else None
+
+    def crear_reserva(self, r: ReservaPuesto) -> ReservaPuesto:
+        try:
+            with transaction.atomic():  # savepoint: el choque del constraint no envenena la transacción
+                m = ReservaPuestoModel.objects.create(
+                    expediente_id=r.expediente_id, **{c: getattr(r, c) for c in CAMPOS_RESERVA},
+                )
+        except IntegrityError:
+            raise ConflictoConCodigo(
+                "El puesto ya está reservado por otro expediente, o este expediente ya tiene una reserva activa.",
+                codigo='PUESTO_RESERVADO',
+            ) from None
+        return reserva_a_entidad(m)
+
+    def guardar_reserva(self, r: ReservaPuesto) -> ReservaPuesto:
+        actualizadas = ReservaPuestoModel.objects.filter(pk=r.id).update(
+            **{c: getattr(r, c) for c in CAMPOS_RESERVA}, updated_at=timezone.now(),
+        )
+        if not actualizadas:
+            raise NotFoundError("La reserva no existe.")
+        return reserva_a_entidad(ReservaPuestoModel.objects.get(pk=r.id))
+
+    def listar_reservas_vencidas(self, ahora: datetime) -> list[ReservaPuesto]:
+        qs = ReservaPuestoModel.objects.filter(estado=ACTIVA, vence_el__lt=ahora).order_by('vence_el')
+        return [reserva_a_entidad(m) for m in qs]
+
+    def reservas_activas_de(self, expediente_ids: list[str]) -> dict[str, ReservaPuesto]:
+        qs = ReservaPuestoModel.objects.filter(expediente_id__in=expediente_ids, estado=ACTIVA)
+        return {str(m.expediente_id): reserva_a_entidad(m) for m in qs}
+
+    # --- constancia presupuestaria ---
+    def obtener_constancia(self, expediente_id: str, bloquear: bool = False) -> ConstanciaPresupuestaria | None:
+        pk = _uuid_valido(expediente_id)
+        if pk is None:
+            return None
+        qs = ConstanciaPresupuestariaModel.objects.select_for_update() if bloquear else ConstanciaPresupuestariaModel.objects
+        m = qs.filter(expediente_id=pk).first()
+        return constancia_a_entidad(m) if m else None
+
+    def guardar_constancia(self, c: ConstanciaPresupuestaria) -> ConstanciaPresupuestaria:
+        m, _ = ConstanciaPresupuestariaModel.objects.update_or_create(
+            expediente_id=c.expediente_id, defaults={campo: getattr(c, campo) for campo in CAMPOS_CONSTANCIA},
+        )
+        return constancia_a_entidad(m)
+
+    def constancias_de(self, expediente_ids: list[str]) -> dict[str, ConstanciaPresupuestaria]:
+        qs = ConstanciaPresupuestariaModel.objects.filter(expediente_id__in=expediente_ids)
+        return {str(m.expediente_id): constancia_a_entidad(m) for m in qs}
+
+    # --- Punto de Cuenta de ingreso ---
+    def obtener_punto_cuenta_ingreso(self, expediente_id: str, bloquear: bool = False) -> PuntoCuentaIngreso | None:
+        pk = _uuid_valido(expediente_id)
+        if pk is None:
+            return None
+        qs = PuntoCuentaIngresoModel.objects.select_for_update() if bloquear else PuntoCuentaIngresoModel.objects
+        m = qs.filter(expediente_id=pk).first()
+        return punto_cuenta_ingreso_a_entidad(m) if m else None
+
+    def guardar_punto_cuenta_ingreso(self, e: PuntoCuentaIngreso) -> PuntoCuentaIngreso:
+        m, _ = PuntoCuentaIngresoModel.objects.update_or_create(
+            expediente_id=e.expediente_id,
+            defaults={'punto_cuenta_id': e.punto_cuenta_id, **{c: getattr(e, c) for c in CAMPOS_PUNTO_CUENTA_INGRESO}},
+        )
+        return punto_cuenta_ingreso_a_entidad(m)
+
+    def puntos_cuenta_de(self, expediente_ids: list[str]) -> dict[str, PuntoCuentaIngreso]:
+        qs = PuntoCuentaIngresoModel.objects.filter(expediente_id__in=expediente_ids)
+        return {str(m.expediente_id): punto_cuenta_ingreso_a_entidad(m) for m in qs}
 
     # --- credencial del postulante ---
     def obtener_credencial_por_usuario(self, usuario: str) -> CredencialPostulante | None:
@@ -272,3 +387,21 @@ class CatalogoPropuestaORM:
         if general and dependencia and general.dependenciaId_id != dependencia.pk:
             errores.setdefault('direccion_general_id', 'La dirección general no pertenece a la dependencia indicada.')
         return errores
+
+    def nombres_de_propuesta(self, ids: PropuestaCatalogo) -> dict[str, str]:
+        nombres: dict[str, str] = {}
+        for clave, valor, modelo, campo in (
+            ('cargo', ids.cargo_propuesto_id, DenominacionCargoModel, 'cargo'),
+            ('cargo_especifico', ids.cargo_especifico_propuesto_id, DenominacionCargoEspecificoModel, 'cargo'),
+            ('tipo_nomina', ids.tipo_nomina_propuesto_id, TipoNominaModel, 'nomina'),
+            ('dependencia', ids.dependencia_id, DependenciaModel, 'dependencia'),
+            ('direccion_general', ids.direccion_general_id, DireccionGeneralModel, 'direccion_general'),
+            ('direccion_linea', ids.direccion_linea_id, DireccionLineaModel, 'direccion_linea'),
+            ('coordinacion', ids.coordinacion_id, CoordinacionModel, 'coordinacion'),
+        ):
+            if valor is None:
+                continue
+            fila = modelo.objects.filter(pk=valor).first()
+            if fila is not None:
+                nombres[clave] = str(getattr(fila, campo) or '')
+        return nombres

@@ -8,8 +8,13 @@ Qué se emite (el postulante no recibe campana: no tiene cuenta):
   - ENVIADO_CAPTACION (postulante envía Ventana 1 o su corrección)  -> EXPEDIENTE_RECIBIDO a `postulacion.ver_bandeja`.
   - EN_REVISION_FINAL (postulante envía Ventana 2)                  -> EXPEDIENTE_REVISION_FINAL a `postulacion.ver_bandeja`.
   - EN_PRESUPUESTO (Captación abre o reabre hacia Presupuesto)       -> EXPEDIENTE_EN_PRESUPUESTO a `postulacion.ver_solicitudes`.
-  - Un usuario actúa sobre ENVIADO_CAPTACION o EN_REVISION_FINAL    -> `resolver_avisos`: el aviso compartido deja de estar
-    pendiente para todos los que tienen el permiso.
+  - EN_DIRECCION_GENERAL (Presupuesto emite el Punto de Cuenta)     -> EXPEDIENTE_EN_DIRECCION a `postulacion.ver_ingresos`.
+  - EN_CORRECCION_CARGO (Presupuesto devuelve por cargo u oficina)  -> EXPEDIENTE_CORRECCION_CARGO a `postulacion.ver_bandeja`.
+  - APROBADO (Dirección General aprueba)                            -> INGRESO_APROBADO a `postulacion.ver_bandeja`: Captación
+    reabre la Ventana 2.
+  - Un usuario actúa sobre un expediente que esperaba su acción     -> `resolver_avisos`: el aviso compartido deja de estar
+    pendiente para todos los que tienen el permiso (ENVIADO_CAPTACION, EN_REVISION_FINAL, EN_PRESUPUESTO,
+    EN_DIRECCION_GENERAL, EN_CORRECCION_CARGO y APROBADO).
 
 Correo al postulante (no tiene cuenta, por eso no usa campana): puerto `Notificador.enviar_correo_directo` (kernel), que
 escribe en el outbox de `apps.notificaciones` (asíncrono, con reintentos y deduplicado por asiento). Solo si el postulante
@@ -38,22 +43,31 @@ MODULO = 'postulacion'
 REF_TIPO = 'expediente_postulacion'
 PERMISO_BANDEJA = 'postulacion.ver_bandeja'
 PERMISO_SOLICITUDES = 'postulacion.ver_solicitudes'
+PERMISO_INGRESOS = 'postulacion.ver_ingresos'
 ENLACE_BANDEJA = '/captacion/expedientes/{id}'
-ENLACE_SOLICITUD = '/postulacion/solicitudes/{id}'
+ENLACE_SOLICITUD = '/presupuesto/solicitudes/{id}'
+ENLACE_INGRESO = '/direccion/ingresos/{id}'
 ENLACE_PORTAL_POSTULANTE = '/postulacion/acceso'  # el enlace del correo: el envío le antepone FRONTEND_URL
 ZONA_VENEZUELA = ZoneInfo('America/Caracas')
 
 TIPO_RECIBIDO = 'EXPEDIENTE_RECIBIDO'
 TIPO_REVISION_FINAL = 'EXPEDIENTE_REVISION_FINAL'
 TIPO_EN_PRESUPUESTO = 'EXPEDIENTE_EN_PRESUPUESTO'
+TIPO_EN_DIRECCION = 'EXPEDIENTE_EN_DIRECCION'
+TIPO_CORRECCION_CARGO = 'EXPEDIENTE_CORRECCION_CARGO'
+TIPO_INGRESO_APROBADO = 'INGRESO_APROBADO'
 TIPO_CORREO_CORRECCION = 'POSTULACION_CORRECCION'
 TIPO_CORREO_VENTANA2 = 'POSTULACION_VENTANA2'
 TIPO_CORREO_RECHAZO = 'POSTULACION_RECHAZO'
 
-# Estado que Captación atiende -> tipo de aviso compartido que esa acción cierra.
+# Estado que un área atiende -> tipo de aviso compartido que esa acción cierra.
 _AVISO_PENDIENTE_DE: dict[EstadoExpediente, str] = {
     E.ENVIADO_CAPTACION: TIPO_RECIBIDO,
     E.EN_REVISION_FINAL: TIPO_REVISION_FINAL,
+    E.EN_PRESUPUESTO: TIPO_EN_PRESUPUESTO,
+    E.EN_DIRECCION_GENERAL: TIPO_EN_DIRECCION,
+    E.EN_CORRECCION_CARGO: TIPO_CORRECCION_CARGO,
+    E.APROBADO: TIPO_INGRESO_APROBADO,
 }
 
 
@@ -63,7 +77,7 @@ def _quien(p: Postulante, exp: ExpedientePostulacion) -> str:
 
 def solicitudes_de_transicion(
     exp: ExpedientePostulacion, postulante: Postulante, origen: EstadoExpediente, destino: EstadoExpediente,
-    actor: Actor, asiento_id: str,
+    actor: Actor, asiento_id: str, motivo: str = '',
 ) -> list[SolicitudNotificacion]:
     """Avisos de campana de este paso. `clave` = id del asiento: un reenvío tras corregir genera un aviso nuevo."""
     quien = _quien(postulante, exp)
@@ -81,11 +95,35 @@ def solicitudes_de_transicion(
             tipo=TIPO_REVISION_FINAL, permiso_destino=PERMISO_BANDEJA, enlace=ENLACE_BANDEJA.format(id=exp.id),
             titulo='Ventana 2 recibida', mensaje=f'{quien} envió su Ventana 2: pasa a revisión final.', **comunes,
         )]
-    if destino == E.EN_PRESUPUESTO:
+    if destino == E.EN_PRESUPUESTO and origen != E.DIFERIDO_PRESUPUESTO:  # retomar un diferido lo hace Presupuesto mismo
+        if actor.tipo == ACTOR_USUARIO:
+            mensaje = f'Captación abrió el expediente de {quien} hacia Presupuesto: revise la solicitud de personal.'
+        else:
+            mensaje = f'El puesto reservado para {quien} se perdió: el expediente volvió a Presupuesto para reservar otro.'
         return [SolicitudNotificacion(
             tipo=TIPO_EN_PRESUPUESTO, permiso_destino=PERMISO_SOLICITUDES, enlace=ENLACE_SOLICITUD.format(id=exp.id),
-            titulo='Expediente en Presupuesto',
-            mensaje=f'Captación abrió el expediente de {quien} hacia Presupuesto: revise la solicitud de personal.',
+            titulo='Expediente en Presupuesto', mensaje=mensaje, **comunes,
+        )]
+    if destino == E.EN_DIRECCION_GENERAL:
+        return [SolicitudNotificacion(
+            tipo=TIPO_EN_DIRECCION, permiso_destino=PERMISO_INGRESOS, enlace=ENLACE_INGRESO.format(id=exp.id),
+            titulo='Punto de Cuenta para decisión',
+            mensaje=f'Presupuesto emitió el Punto de Cuenta del ingreso de {quien}: pendiente de su decisión.',
+            **comunes,
+        )]
+    if destino == E.EN_CORRECCION_CARGO:
+        detalle = f' Motivo: {motivo.strip()}' if (motivo or '').strip() else ''
+        return [SolicitudNotificacion(
+            tipo=TIPO_CORRECCION_CARGO, permiso_destino=PERMISO_BANDEJA, enlace=ENLACE_BANDEJA.format(id=exp.id),
+            titulo='Corregir cargo u oficina',
+            mensaje=f'Presupuesto devolvió el expediente de {quien} para corregir el cargo o la oficina.{detalle}',
+            **comunes,
+        )]
+    if destino == E.APROBADO:
+        return [SolicitudNotificacion(
+            tipo=TIPO_INGRESO_APROBADO, permiso_destino=PERMISO_BANDEJA, enlace=ENLACE_BANDEJA.format(id=exp.id),
+            titulo='Ingreso aprobado',
+            mensaje=f'Dirección General aprobó el ingreso de {quien}: reabra la Ventana 2 para que complete sus datos.',
             **comunes,
         )]
     return []
@@ -156,7 +194,7 @@ def programar_avisos(
     """Llamar dentro de la transacción de la transición: los avisos salen al confirmarla."""
     if notificador is None:
         return
-    solicitudes = solicitudes_de_transicion(exp, postulante, origen, destino, actor, asiento_id)
+    solicitudes = solicitudes_de_transicion(exp, postulante, origen, destino, actor, asiento_id, motivo)
     resolver = _AVISO_PENDIENTE_DE.get(origen) if actor.tipo == ACTOR_USUARIO and actor.cedula else None
     correo = correo_al_postulante(exp, postulante, origen, destino, actor, asiento_id, motivo)
     if not solicitudes and resolver is None and correo is None:

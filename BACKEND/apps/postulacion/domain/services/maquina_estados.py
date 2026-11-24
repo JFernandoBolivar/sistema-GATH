@@ -59,6 +59,10 @@ P_DEVOLVER_SOLICITUD = 'postulacion.devolver_solicitud'
 P_DECLARAR_DISPONIBILIDAD = 'postulacion.declarar_disponibilidad'
 P_EMITIR_PUNTO_CUENTA = 'postulacion.emitir_punto_cuenta'
 P_APROBAR_INGRESO = 'postulacion.aprobar_ingreso'
+# No son transiciones: consultas y hechos externos (reserva y constancia) de Presupuesto y Dirección General.
+P_VER_SOLICITUDES = 'postulacion.ver_solicitudes'
+P_RESERVAR_PUESTO = 'postulacion.reservar_puesto'
+P_VER_INGRESOS = 'postulacion.ver_ingresos'
 
 
 class Guarda(str, Enum):
@@ -216,8 +220,14 @@ def _evaluar_guarda(g: Guarda, h: Hechos, motivo: str) -> None:
     if g is Guarda.CARGO_Y_OFICINA and not (h.cargo_definido and h.oficina_definida):
         raise ValidacionConCodigo("Defina el cargo y la oficina propuestos antes de continuar.", codigo="CARGO_Y_OFICINA_REQUERIDOS")
     if g is Guarda.PUESTO_RESERVADO_Y_DISPONIBLE and not (h.puesto_reservado and h.disponibilidad_declarada):
+        faltan = [
+            texto for cumple, texto in (
+                (h.puesto_reservado, "el puesto reservado (vigente)"),
+                (h.disponibilidad_declarada, "la disponibilidad presupuestaria declarada"),
+            ) if not cumple
+        ]
         raise ConflictoConCodigo(
-            "Para emitir el Punto de Cuenta se requiere el puesto reservado y la disponibilidad presupuestaria declarada.",
+            f"Para emitir el Punto de Cuenta se requiere {' y '.join(faltan)}.",
             codigo="PUESTO_Y_DISPONIBILIDAD_REQUERIDOS",
         )
     if g is Guarda.RESERVA_VIGENTE_Y_REVALIDADA and not (_reserva_vigente(h) and h.puesto_revalidado):

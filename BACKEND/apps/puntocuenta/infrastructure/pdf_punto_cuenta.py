@@ -54,6 +54,26 @@ BASE_LEGAL_DEFECTO = (
 )
 
 
+# Textos propios de un proceso que NO es un movimiento de un empleado: sustituyen a la plantilla general (cuyo
+# encabezado y cuerpo hablan de traslados) salvo que el proceso tenga plantilla personalizada en la configuración.
+DEFECTOS_POR_PROCESO: dict[str, dict[str, str]] = {
+    'ingreso_postulacion': {
+        'asunto': "Solicitud de aprobación del ingreso de {nombre} (C.I. {cedula}) al cargo de {cargo}.",
+        'exposicion': (
+            "Por medio del presente punto de cuenta, se somete a su digna consideración el ingreso del ciudadano(a) "
+            "{nombre}, titular de la cédula de identidad N.º {cedula}, para desempeñar el cargo de {cargo}, "
+            "código {codigo_cargo}, adscrito a {destino}.\n\n"
+            "El puesto fue reservado para este ingreso y la disponibilidad presupuestaria quedó declarada con la "
+            "referencia {referencia_constancia}. El presente punto de cuenta es emitido por {emitido_por} con fecha {fecha_larga}."
+        ),
+        'propuesta': (
+            "En atención a lo expuesto, se propone muy respetuosamente a la Máxima Autoridad aprobar el ingreso de "
+            "{nombre} en el cargo de {cargo_destino} (código {codigo_cargo}) de la unidad {destino}."
+        ),
+    },
+}
+
+
 def _formatear_lugar(oficina: str | None, nivel: str | None, mostrar_nivel: bool) -> str:
     if not oficina and not nivel:
         return 'N/A'
@@ -105,6 +125,9 @@ def resolver_secciones_plantilla(configuracion: dict, proceso: str | None = None
 
     if not proceso:
         return base
+
+    if proceso in DEFECTOS_POR_PROCESO:
+        base = {**base, **DEFECTOS_POR_PROCESO[proceso]}
 
     cfg_proc = plantillas.get(proceso)
     if isinstance(cfg_proc, dict) and cfg_proc.get('personalizado'):
@@ -344,6 +367,8 @@ def construir_pdf_punto_cuenta(dto: PuntoCuentaDTO, configuracion: dict | None =
         'presentado_por': presentado_por_txt,
         'cargo_presentado_por': cargo_presentado_por_txt,
         'unidad': unidad_txt,
+        'referencia_constancia': getattr(dto, 'referencia_constancia', None) or 'N/A',
+        'emitido_por': getattr(dto, 'emitido_por', None) or 'N/A',
     }
 
     # Procesar textos con las variables sustituidas

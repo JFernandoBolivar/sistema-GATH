@@ -10,12 +10,29 @@ from apps.postulacion.presentation.views.captacion_views import (
     ReponerCredencialView,
     TransicionView,
 )
+from apps.postulacion.presentation.views.direccion_views import (
+    IngresoConstanciaAdjuntoView,
+    IngresoDetalleView,
+    IngresoPuntoCuentaDocumentoView,
+    IngresosView,
+    IngresoTransicionView,
+)
 from apps.postulacion.presentation.views.postulante_views import (
     AccesoView,
     BorradorView,
     CambiarClaveView,
     EnviarView,
     MiExpedienteView,
+)
+from apps.postulacion.presentation.views.presupuesto_views import (
+    ConstanciaAdjuntoView,
+    ConstanciaView,
+    PuntoCuentaDocumentoView,
+    ReservaView,
+    SolicitudDetalleView,
+    SolicitudesView,
+    SolicitudTransicionView,
+    VacantesView,
 )
 
 urlpatterns = [
@@ -42,5 +59,41 @@ urlpatterns = [
     path(
         'expedientes/<uuid:expediente_id>/psicofisico/informe/', InformePsicofisicoView.as_view(),
         name='postulacion_psicofisico_informe',
+    ),
+    # Presupuesto (`ver_solicitudes`, `reservar_puesto`, `declarar_disponibilidad`, `devolver_solicitud`, `emitir_punto_cuenta`)
+    path('solicitudes/', SolicitudesView.as_view(), name='postulacion_solicitudes'),
+    path('solicitudes/<uuid:expediente_id>/', SolicitudDetalleView.as_view(), name='postulacion_solicitud_detalle'),
+    path(
+        'solicitudes/<uuid:expediente_id>/vacantes/', VacantesView.as_view(), name='postulacion_solicitud_vacantes',
+    ),
+    path('solicitudes/<uuid:expediente_id>/reserva/', ReservaView.as_view(), name='postulacion_solicitud_reserva'),
+    path(
+        'solicitudes/<uuid:expediente_id>/constancia/', ConstanciaView.as_view(), name='postulacion_solicitud_constancia',
+    ),
+    path(
+        'solicitudes/<uuid:expediente_id>/constancia/adjunto/', ConstanciaAdjuntoView.as_view(),
+        name='postulacion_solicitud_constancia_adjunto',
+    ),
+    path(
+        'solicitudes/<uuid:expediente_id>/punto-cuenta/', PuntoCuentaDocumentoView.as_view(),
+        name='postulacion_solicitud_punto_cuenta',
+    ),
+    path(
+        'solicitudes/<uuid:expediente_id>/transicion/', SolicitudTransicionView.as_view(),
+        name='postulacion_solicitud_transicion',
+    ),
+    # Dirección General (`ver_ingresos`, `aprobar_ingreso`)
+    path('ingresos/', IngresosView.as_view(), name='postulacion_ingresos'),
+    path('ingresos/<uuid:expediente_id>/', IngresoDetalleView.as_view(), name='postulacion_ingreso_detalle'),
+    path(
+        'ingresos/<uuid:expediente_id>/punto-cuenta/', IngresoPuntoCuentaDocumentoView.as_view(),
+        name='postulacion_ingreso_punto_cuenta',
+    ),
+    path(
+        'ingresos/<uuid:expediente_id>/constancia/adjunto/', IngresoConstanciaAdjuntoView.as_view(),
+        name='postulacion_ingreso_constancia_adjunto',
+    ),
+    path(
+        'ingresos/<uuid:expediente_id>/transicion/', IngresoTransicionView.as_view(), name='postulacion_ingreso_transicion',
     ),
 ]

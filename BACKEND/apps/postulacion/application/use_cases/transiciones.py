@@ -7,12 +7,15 @@ Todo ocurre en UNA transacción con el expediente bloqueado (`select_for_update`
 Credencial (D-3): en la misma transacción se alinea la credencial del postulante con el nuevo estado.
 
 Psicofísico (D-8): si quien invoca no declara el hecho, se lee del resultado registrado del expediente.
+Reserva y constancia (E-2, E-3): igual; la guarda «puesto reservado y disponibilidad declarada» lee la reserva ACTIVA
+y vigente y la constancia reales del expediente.
 
 Notificaciones (D-9): con `notificador`, los avisos del §5.6 salen DESPUÉS del commit (ver `avisos.py`). Sin él
 (tareas programadas, pruebas), no se avisa.
 """
 from dataclasses import dataclass, replace
 from datetime import datetime
+from typing import Callable
 
 from apps.postulacion.application.use_cases._comun import (
     ahora_utc,
@@ -26,7 +29,13 @@ from apps.postulacion.domain.entities.postulante import TransicionRegistrada
 from apps.postulacion.domain.ports.repos import RepoPostulacion
 from apps.postulacion.domain.services.credencial import credencial_tras_transicion
 from apps.postulacion.domain.services.efectos import aplicar_transicion
-from apps.postulacion.domain.services.maquina_estados import Actor, Hechos, validar_transicion
+from apps.postulacion.domain.services.maquina_estados import (
+    Actor,
+    Guarda,
+    Hechos,
+    buscar_transicion,
+    validar_transicion,
+)
 from apps.postulacion.domain.value_objects.estados import EstadoExpediente
 from core.domain.exceptions import ValidationError
 from core.domain.ports import LectorConfiguracion, Notificador
@@ -47,10 +56,15 @@ def aplicar_transicion_expediente(
     destino: EstadoExpediente | str, actor: Actor, motivo: str = '',
     externos: HechosExternos | None = None, propuesta: dict | None = None, datos_extra: dict | None = None,
     ahora: datetime | None = None, notificador: Notificador | None = None,
+    antes_de_guardar: Callable[[ExpedientePostulacion, ExpedientePostulacion], dict | None] | None = None,
 ) -> tuple[ExpedientePostulacion, TransicionRegistrada | None]:
     """
     Devuelve `(expediente, asiento)`; `asiento` es None en las autotransiciones (guardar borrador), que no
     dejan historial. `propuesta` permite fijar cargo/oficina/observaciones, solo al pasar a EN_PRESUPUESTO.
+
+    `antes_de_guardar(actual, nuevo)` se ejecuta DENTRO de la transacción, con la transición ya validada y antes de
+    guardar el expediente (p. ej. emitir el Punto de Cuenta al pasar a Dirección General); su `dict` se suma a
+    `datos_extra` del asiento. Si lanza, todo se revierte.
     """
     try:
         destino = EstadoExpediente(destino)
@@ -72,17 +86,30 @@ def aplicar_transicion_expediente(
             if desconocidos:
                 raise ValidationError(f"Campos de propuesta no válidos: {sorted(desconocidos)}.")
             exp = replace(exp, **propuesta)
+        previa = buscar_transicion(origen, destino)
+        guardas = set(previa.guardas) if previa is not None else set()
+        # Solo se consultan la reserva y la constancia cuando la transición las exige (guarda de Presupuesto).
+        exige_presupuesto = Guarda.PUESTO_RESERVADO_Y_DISPONIBLE in guardas
+        reservado = externos.puesto_reservado
+        if not reservado and exige_presupuesto:
+            reserva = repo.obtener_reserva_activa_de_expediente(exp.id)
+            reservado = reserva is not None and reserva.vigente(ahora)
+        declarada = externos.disponibilidad_declarada or (
+            exige_presupuesto and repo.obtener_constancia(exp.id) is not None
+        )
         hechos = Hechos(
             ahora=ahora, ventana_vence_el=exp.ventana_vence_el, reserva_vence_el=exp.reserva_vence_el,
             diferido_vence_el=exp.diferido_vence_el,
             cargo_definido=exp.cargo_definido, oficina_definida=exp.oficina_definida,
             psicofisico_obligatorio=psicofisico_obligatorio,
             psicofisico_registrado=externos.psicofisico_registrado or repo.obtener_psicofisico(exp.id) is not None,
-            disponibilidad_declarada=externos.disponibilidad_declarada,
-            puesto_reservado=externos.puesto_reservado, puesto_revalidado=externos.puesto_revalidado,
+            disponibilidad_declarada=declarada,
+            puesto_reservado=reservado, puesto_revalidado=externos.puesto_revalidado,
         )
         transicion = validar_transicion(origen, destino, actor, hechos, motivo)
         nuevo = aplicar_transicion(exp, transicion, ahora, vigencias)
+        if antes_de_guardar is not None:
+            datos_extra = {**(datos_extra or {}), **(antes_de_guardar(exp, nuevo) or {})}
         guardado = repo.guardar_expediente(nuevo)
         if not transicion.es_autotransicion:
             # La credencial sigue al expediente: reabrir una ventana la extiende; pasar a revisión la suspende y

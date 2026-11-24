@@ -18,6 +18,10 @@ class FiltrosBandeja:
     texto: str = ''                      # cédula, nombre o número (cada palabra debe aparecer)
     desde: date | None = None            # fecha del último cambio (inclusive)
     hasta: date | None = None
+    # «o con Punto de Cuenta de ingreso en alguno de estos estados» (histórico de Dirección General, E-6).
+    o_punto_cuenta_estados: tuple[str, ...] = ()
+    # Estados que van primero en la bandeja (los que esperan al área que consulta); por defecto, los de Captación.
+    prioritarios: tuple[EstadoExpediente, ...] = tuple(ESTADOS_PENDIENTES_CAPTACION)
 
 
 @dataclass(frozen=True)

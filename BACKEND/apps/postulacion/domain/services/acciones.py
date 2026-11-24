@@ -1,9 +1,9 @@
 """
-Acciones que el usuario de Captación puede ejecutar sobre un expediente (D-7). Sin Django.
+Acciones que el usuario puede ejecutar sobre un expediente en cada bandeja (D-7, E-4, E-6). Sin Django.
 
 Salen de la máquina de estados (transiciones legales desde el estado actual) y de los permisos del usuario, para
-que el frontend no repita reglas. Solo se listan las del flujo de Captación (`PARES_CAPTACION`); las de
-Presupuesto, Dirección General y asignación tienen sus propios endpoints.
+que el frontend no repita reglas. Cada bandeja tiene su lista cerrada de pares: `PARES_CAPTACION`,
+`PARES_PRESUPUESTO` y `PARES_DIRECCION`; la asignación tiene su propio endpoint.
 
 Una acción lleva `bloqueada` + `motivo_bloqueo` cuando una guarda que NO depende de lo que el usuario escriba no se
 cumple hoy (p. ej. el psicofísico obligatorio sin registrar). Las guardas que sí dependen de la entrada (motivo,
@@ -34,6 +34,20 @@ PARES_CAPTACION: dict[tuple[EstadoExpediente, EstadoExpediente], str] = {
     (E.EN_REVISION_FINAL, E.LISTO_PARA_ASIGNAR): 'Conforme',
 }
 
+# Lo que Presupuesto hace por el endpoint de transición de `solicitudes/` (E-4).
+PARES_PRESUPUESTO: dict[tuple[EstadoExpediente, EstadoExpediente], str] = {
+    (E.EN_PRESUPUESTO, E.EN_CORRECCION_CARGO): 'Devolver a Captación (cargo u oficina)',
+    (E.EN_PRESUPUESTO, E.DIFERIDO_PRESUPUESTO): 'Diferir por falta de disponibilidad',
+    (E.DIFERIDO_PRESUPUESTO, E.EN_PRESUPUESTO): 'Retomar: se liberó la partida',
+    (E.EN_PRESUPUESTO, E.EN_DIRECCION_GENERAL): 'Emitir el Punto de Cuenta y enviar a Dirección General',
+}
+
+# Lo que Dirección General hace por el endpoint de transición de `ingresos/` (E-6).
+PARES_DIRECCION: dict[tuple[EstadoExpediente, EstadoExpediente], str] = {
+    (E.EN_DIRECCION_GENERAL, E.APROBADO): 'Aprobar el ingreso',
+    (E.EN_DIRECCION_GENERAL, E.RECHAZADO_DIRECCION): 'Rechazar el ingreso',
+}
+
 _GUARDAS_DE_ENTRADA = (Guarda.MOTIVO_OBLIGATORIO, Guarda.CARGO_Y_OFICINA)
 
 
@@ -52,14 +66,24 @@ def es_par_de_captacion(origen: EstadoExpediente, destino: EstadoExpediente) -> 
     return (origen, destino) in PARES_CAPTACION
 
 
+def es_par_de_presupuesto(origen: EstadoExpediente, destino: EstadoExpediente) -> bool:
+    return (origen, destino) in PARES_PRESUPUESTO
+
+
+def es_par_de_direccion(origen: EstadoExpediente, destino: EstadoExpediente) -> bool:
+    return (origen, destino) in PARES_DIRECCION
+
+
 def acciones_disponibles(
-    exp: ExpedientePostulacion, permisos: frozenset[str], hechos: Hechos, psicofisico: ResultadoPsicofisico | None,
+    exp: ExpedientePostulacion, permisos: frozenset[str], hechos: Hechos, psicofisico: ResultadoPsicofisico | None = None,
+    pares: dict[tuple[EstadoExpediente, EstadoExpediente], str] | None = None,
 ) -> list[AccionDisponible]:
+    pares = PARES_CAPTACION if pares is None else pares
     if exp.es_terminal:
         return []
     acciones = []
     for t in transiciones_desde(exp.estado):
-        etiqueta = PARES_CAPTACION.get((t.origen, t.destino))
+        etiqueta = pares.get((t.origen, t.destino))
         if etiqueta is None or not any(p in permisos for p in t.permisos):
             continue
         bloqueo = next(

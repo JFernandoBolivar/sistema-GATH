@@ -1,8 +1,11 @@
 """Mappers ORM <-> entidades de postulación."""
+from apps.postulacion.domain.entities.constancia import ConstanciaPresupuestaria
 from apps.postulacion.domain.entities.credencial import CredencialPostulante
 from apps.postulacion.domain.entities.expediente import ExpedientePostulacion
 from apps.postulacion.domain.entities.postulante import Postulante, TransicionRegistrada
 from apps.postulacion.domain.entities.psicofisico import ResultadoPsicofisico
+from apps.postulacion.domain.entities.punto_cuenta_ingreso import PuntoCuentaIngreso
+from apps.postulacion.domain.entities.reserva import ReservaPuesto
 from apps.postulacion.domain.value_objects.estados import EstadoExpediente
 
 CAMPOS_EXPEDIENTE = (
@@ -61,4 +64,34 @@ CAMPOS_PSICOFISICO = (
 def psicofisico_a_entidad(m) -> ResultadoPsicofisico:
     return ResultadoPsicofisico(
         expediente_id=str(m.expediente_id), **{c: getattr(m, c) for c in CAMPOS_PSICOFISICO},
+    )
+
+
+CAMPOS_RESERVA = ('puesto_id', 'reservado_por', 'reservado_el', 'vence_el', 'estado', 'motivo_liberacion', 'cerrada_el')
+
+
+def reserva_a_entidad(m) -> ReservaPuesto:
+    return ReservaPuesto(id=str(m.pk), expediente_id=str(m.expediente_id), **{c: getattr(m, c) for c in CAMPOS_RESERVA})
+
+
+CAMPOS_CONSTANCIA = (
+    'declarado_por_cedula', 'declarado_por_nombre', 'referencia', 'fecha', 'observaciones', 'adjunto_clave',
+    'adjunto_sha256', 'adjunto_tamano',
+)
+
+
+def constancia_a_entidad(m) -> ConstanciaPresupuestaria:
+    return ConstanciaPresupuestaria(expediente_id=str(m.expediente_id), **{c: getattr(m, c) for c in CAMPOS_CONSTANCIA})
+
+
+CAMPOS_PUNTO_CUENTA_INGRESO = (
+    'numero', 'pdf_clave', 'estado', 'puesto_id', 'referencia_constancia', 'emitido_por', 'emitido_el', 'decidido_por',
+    'decidido_el',
+)
+
+
+def punto_cuenta_ingreso_a_entidad(m) -> PuntoCuentaIngreso:
+    return PuntoCuentaIngreso(
+        expediente_id=str(m.expediente_id), punto_cuenta_id=str(m.punto_cuenta_id),
+        **{c: getattr(m, c) for c in CAMPOS_PUNTO_CUENTA_INGRESO},
     )

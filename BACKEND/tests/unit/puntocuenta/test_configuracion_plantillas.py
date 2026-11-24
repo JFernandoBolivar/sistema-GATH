@@ -26,13 +26,15 @@ from apps.puntocuenta.infrastructure.serializers.punto_cuenta_lectura_serializer
 )
 
 
-def test_diccionario_variables_contiene_las_veintiun_variables_requeridas():
+def test_diccionario_variables_contiene_las_veintiun_requeridas_y_las_dos_del_ingreso():
     esperadas = {
         'numero', 'fecha', 'fecha_larga', 'nombre', 'cedula',
         'cargo', 'cargo_destino', 'codigo_cargo', 'nivel', 'tipo_personal',
         'origen', 'destino', 'motivo', 'fecha_efectiva', 'fecha_ingreso',
         'anios_servicio', 'presentado_a', 'cargo_presentado_a',
         'presentado_por', 'cargo_presentado_por', 'unidad',
+        # E-5: Punto de Cuenta de ingreso de postulantes.
+        'referencia_constancia', 'emitido_por',
     }
     assert VARIABLES_PERMITIDAS == esperadas
     assert set(DICCIONARIO_VARIABLES.keys()) == esperadas

@@ -6,7 +6,7 @@ HTTP lo decide la capa de presentación a partir del código (el dominio no cono
 """
 from datetime import datetime
 
-from core.domain.exceptions import ConflictError, DomainError, PermissionDeniedError, ValidationError
+from core.domain.exceptions import ConflictError, DomainError, NotFoundError, PermissionDeniedError, ValidationError
 
 
 class ErrorAccesoPostulante(DomainError):
@@ -77,5 +77,13 @@ class SinPermisoConCodigo(PermissionDeniedError):
     """403 con código: el actor no puede ejecutar esa transición."""
 
     def __init__(self, *args, codigo: str = 'SIN_PERMISO', campo: str | None = None):
+        super().__init__(*args, campo=campo)
+        self.codigo = codigo
+
+
+class NoEncontradoConCodigo(NotFoundError):
+    """404 con código (puesto o reserva inexistente), para que el cliente no lea el texto."""
+
+    def __init__(self, *args, codigo: str, campo: str | None = None):
         super().__init__(*args, campo=campo)
         self.codigo = codigo
