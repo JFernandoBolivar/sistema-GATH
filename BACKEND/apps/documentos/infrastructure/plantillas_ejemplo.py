@@ -23,7 +23,9 @@ def _casilla(cid, variable, valor, x, y):
 
 def definicion_caja_ahorro() -> dict:
     c = [
-        _campo_texto('fecha', '{fecha_hoy}', 630, 42, 78, 20, alineacion='centro'),
+        _campo_texto('fecha_dia', '{dia}', 627, 42, 24, 20, alineacion='centro'),
+        _campo_texto('fecha_mes', '{mes}', 652, 42, 28, 20, alineacion='centro'),
+        _campo_texto('fecha_anio', '{anio}', 683, 42, 24, 20, alineacion='centro'),
         _campo_texto('apellidos', '{apellidos}', 45, 168, 265),
         _campo_texto('nombres', '{nombres}', 320, 168, 235),
         _campo_texto('cedula', '{cedula}', 565, 168, 140),
@@ -42,16 +44,16 @@ def definicion_caja_ahorro() -> dict:
         _campo_texto('telefono', '{telefono_principal}', 415, 352, 138),
         _campo_texto('celular', '{telefono_celular}', 563, 352, 142),
         _campo_texto('direccion_alterna', '{direccion_alterna}', 45, 406, 505, 28),
-        _campo_texto('profesion', '{profesion}', 45, 486, 245),
-        _campo_texto('colegio', '{numero_colegio}', 298, 486, 92),
+        _campo_texto('profesion', '{profesion}', 45, 484, 245),
+        _campo_texto('colegio', '{numero_colegio}', 298, 484, 92),
         _casilla('te_fijo', 'tipo_empleado', 'FIJO', 428, 483),
         _casilla('te_contratado', 'tipo_empleado', 'CONTRATADO', 529, 480),
         _casilla('te_obrero', 'tipo_empleado', 'OBRERO', 607, 483),
         _casilla('te_jubilado', 'tipo_empleado', 'JUBILADO', 687, 481),
-        _campo_texto('cargo', '{cargo}', 48, 520, 340),
-        _campo_texto('gerencia', '{oficina}', 400, 519, 305),
-        _campo_texto('division', '{division}', 48, 549, 340),
-        _campo_texto('coordinacion', '{coordinacion}', 400, 549, 305),
+        _campo_texto('cargo', '{cargo}', 48, 517, 340),
+        _campo_texto('gerencia', '{oficina}', 400, 517, 305),
+        _campo_texto('division', '{division}', 48, 547, 340),
+        _campo_texto('coordinacion', '{coordinacion}', 400, 547, 305),
         _campo_texto('ubicacion', '{ubicacion_fisica}', 48, 580, 657),
         _casilla('tv_casa', 'tipo_vivienda', 'CASA', 82, 638),
         _casilla('tv_quinta', 'tipo_vivienda', 'QUINTA', 154, 638),
@@ -78,6 +80,11 @@ def definicion_caja_ahorro() -> dict:
         },
     ]
     return {'paginas': [{'origen': 1, 'campos': c}]}
+
+
+def campos_propios_caja_ahorro() -> list[dict]:
+    """La planilla de la Caja solo usa variables del catálogo: no lleva campos propios."""
+    return []
 
 
 def _celda(etiqueta, variable=None, ancho=1):
@@ -110,7 +117,7 @@ def campos_propios_itinerancia() -> list[dict]:
 
 def definicion_itinerancia() -> dict:
     caja = lambda bid, etiqueta, variable: {  # noqa: E731
-        'id': bid, 'tipo': 'fila_campos', 'alto_mm': 22, 'celdas': [_celda(etiqueta, variable, 12)]}
+        'id': bid, 'tipo': 'fila_campos', 'alto_mm': 15, 'celdas': [_celda(etiqueta, variable, 12)]}
     return {
         'pagina': {'tamano': 'carta', 'orientacion': 'vertical'},
         'encabezado': {'tipo': 'institucional', 'titulo': 'Notificación itinere', 'subtitulo': ''},

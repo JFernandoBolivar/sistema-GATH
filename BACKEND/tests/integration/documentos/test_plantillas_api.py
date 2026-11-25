@@ -244,7 +244,8 @@ def test_sembrar_plantillas_de_ejemplo_es_idempotente_y_usa_el_almacen_falso(alm
     for _ in range(2):
         call_command('sembrar_plantillas_documentos', '--pdf-caja-ahorro', str(pdf))
     codigos = set(PlantillaDocumentoModel.objects.values_list('codigo', flat=True))
-    assert codigos == {'NOTIFICACION_ITINERANCIA', 'AFILIACION_CAJA_AHORRO'}
+    assert codigos == {'NOTIFICACION_ITINERANCIA', 'AFILIACION_CAJA_AHORRO', 'OFERTA_SERVICIOS', 'CONTRATO_TRABAJO',
+                       'DECLARACION_JURADA_INCOMPATIBILIDAD', 'AUTORIZACION_DATOS_PERSONALES'}  # la HCM se omite sin su PDF
     assert not PlantillaDocumentoModel.objects.filter(ultima_version__gt=0).exists()  # en borrador
     assert len(almacen.objetos) == 1  # el PDF fue solo al almacén falso, una vez
     caja = PlantillaDocumentoModel.objects.get(codigo='AFILIACION_CAJA_AHORRO')

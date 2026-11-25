@@ -104,3 +104,26 @@ def test_inspector_rechaza_un_pdf_invalido():
 def test_motor_de_fondo_devuelve_png():
     png = MotorPdfDocumentos().renderizar_pagina_fondo(pdf_fondo(1), 1)
     assert png.startswith(b'\x89PNG')
+
+
+def test_el_inspector_intercambia_las_medidas_de_una_pagina_girada():
+    """Un escaneo con /Rotate 90 o 270 se dibuja girado: las medidas deben coincidir con la imagen rasterizada (HCM Seguros Miranda)."""
+    from io import BytesIO
+
+    from PIL import Image
+    from reportlab.pdfgen import canvas
+
+    from apps.documentos.infrastructure.pdf.motor import InspectorPdfDocumentos
+    from core.infrastructure.pdf.rasterizar_pdf import rasterizar_pagina_pdf
+
+    buf = BytesIO()
+    c = canvas.Canvas(buf, pagesize=(612, 792))
+    c.setPageRotation(90)  # caja apaisada (792 x 612) con /Rotate 90: se muestra vertical, como la planilla HCM
+    c.drawString(40, 40, 'girada')
+    c.showPage()
+    c.save()
+    contenido = buf.getvalue()
+    pagina, = InspectorPdfDocumentos().inspeccionar(contenido)
+    assert (pagina['ancho_pt'], pagina['alto_pt']) == (612, 792)
+    with Image.open(BytesIO(rasterizar_pagina_pdf(contenido, 1))) as img:
+        assert img.height > img.width  # el mismo sentido que informa el inspector

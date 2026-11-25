@@ -35,12 +35,28 @@ class MotorPdfDocumentos:
         return rasterizar_pagina_pdf(contenido_pdf, numero)
 
 
+def _rotacion_de(contenido: bytes, numero: int) -> int:
+    """Rotación (0, 90, 180, 270) declarada por la página; 0 si no se puede leer.
+
+    Los escaneos a menudo traen la página apaisada con `/Rotate` 90 o 270: Poppler la dibuja ya girada (vertical), pero
+    `pdfinfo` informa la medida SIN girar. Hay que intercambiar ancho y alto o el fondo se estira.
+    """
+    try:
+        from pdf2image import pdfinfo_from_bytes
+        info = pdfinfo_from_bytes(contenido, first_page=numero, last_page=numero, timeout=20)
+        return int(next((v for k, v in info.items() if str(k).strip().endswith('rot')), 0)) % 360
+    except Exception:  # noqa: BLE001 - sin rotación legible se asume la medida informada
+        return 0
+
+
 class InspectorPdfDocumentos:
     def inspeccionar(self, contenido: bytes) -> list[dict]:
         paginas, _, _ = inspeccionar_pdf(contenido, 1)
         salida = []
         for n in range(1, paginas + 1):
             _, ancho_pt, alto_pt = inspeccionar_pdf(contenido, n)
+            if _rotacion_de(contenido, n) in (90, 270):
+                ancho_pt, alto_pt = alto_pt, ancho_pt
             salida.append({'numero': n, 'ancho_pt': round(ancho_pt, 2), 'alto_pt': round(alto_pt, 2),
                            'ancho_mm': round(ancho_pt * MM_POR_PT, 2), 'alto_mm': round(alto_pt * MM_POR_PT, 2)})
         return salida
