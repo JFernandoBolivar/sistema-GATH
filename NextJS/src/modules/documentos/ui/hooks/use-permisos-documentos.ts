@@ -11,5 +11,7 @@ export function usePermisosDocumentos() {
     puedeVer: tienePermiso(permisos, "documentos.ver_plantillas"),
     puedeGestionar: tienePermiso(permisos, "documentos.gestionar_plantillas"),
     puedeGenerarBajoDemanda: tienePermiso(permisos, "documentos.generar_bajo_demanda"),
+    /** La API de procesos del Punto de Cuenta exige el permiso de configuración del sistema. */
+    puedeConfigurarPuntoCuenta: tienePermiso(permisos, "configuracion.editar"),
   };
 }

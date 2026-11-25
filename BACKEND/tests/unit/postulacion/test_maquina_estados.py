@@ -69,9 +69,9 @@ def test_hay_diecisiete_estados_y_cinco_terminales():
     assert len(ESTADOS_ABIERTOS) == 12
 
 
-def test_con_ambos_flags_activos_siguen_las_24_transiciones_originales():
+def test_con_ambos_flags_activos_siguen_las_25_transiciones_del_sistema():
     activas = [t for t in TRANSICIONES if t.aplica(True, True)]
-    assert len(activas) == 24
+    assert len(activas) == 25
     assert all(t.con_presupuesto is not False and t.con_direccion is not False for t in activas)
     # Las cuatro de M-1 solo existen sin Presupuesto o sin Dirección General.
     assert {_id(t) for t in TRANSICIONES if not t.aplica(True, True)} == {

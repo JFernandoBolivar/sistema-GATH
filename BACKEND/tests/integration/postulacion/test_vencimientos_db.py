@@ -117,6 +117,45 @@ def test_los_expedientes_con_la_ventana_vencida_expiran_y_los_vigentes_no(mundo)
     assert correr().total == 0
 
 
+def test_consolidando_con_la_ventana_vencida_expira_libera_la_reserva_y_avisa(mundo, django_capture_on_commit_callbacks):
+    exp = crear_expediente(mundo, estado='CONSOLIDANDO')
+    ExpedientePostulacionModel.objects.filter(pk=exp).update(ventana_vence_el=ahora_mas(days=-1))
+    reserva = reservar_directo(mundo, exp, 'p1', vence=ahora_mas(days=15))  # vigente: no la vence el paso de reservas
+    with django_capture_on_commit_callbacks(execute=True):
+        r = correr(Notificador())
+    assert (r.expirados, r.reservas_vencidas, r.errores) == (1, 0, 0)
+    e = ExpedientePostulacionModel.objects.get(pk=exp)
+    assert e.estado == 'EXPIRADO' and e.fecha_cierre is not None and e.contacto_pendiente_desde is None
+    reserva.refresh_from_db()
+    assert (reserva.estado, reserva.motivo_liberacion, reserva.cerrada_el is not None) == (
+        'LIBERADA', 'vencimiento de la ventana del postulante', True)
+    asiento = TransicionExpedienteModel.objects.filter(expediente_id=exp).latest('fecha')
+    assert (asiento.estado_origen, asiento.estado_destino, asiento.actor_tipo, asiento.actor_cedula) == (
+        'CONSOLIDANDO', 'EXPIRADO', 'SISTEMA', '')
+    (aviso,) = Notificador.emitidas  # Captación se entera y el puesto vuelve a estar libre
+    assert aviso.tipo == 'EXPEDIENTE_EXPIRADO' and aviso.enlace == f'/captacion/expedientes/{exp}'
+    assert 'Ventana 2' in aviso.mensaje and 'quedó libre' in aviso.mensaje
+    assert correr().total == 0  # idempotente
+
+
+def test_consolidando_con_la_ventana_vigente_no_expira_ni_libera_la_reserva(mundo):
+    exp = crear_expediente(mundo, estado='CONSOLIDANDO')
+    ExpedientePostulacionModel.objects.filter(pk=exp).update(ventana_vence_el=ahora_mas(days=3))
+    reserva = reservar_directo(mundo, exp, 'p1', vence=ahora_mas(days=15))
+    assert correr().total == 0
+    assert estado(exp) == 'CONSOLIDANDO'
+    reserva.refresh_from_db()
+    assert reserva.estado == 'ACTIVA'
+
+
+def test_consolidando_vencido_sin_reserva_activa_tambien_expira(mundo):
+    exp = crear_expediente(mundo, estado='CONSOLIDANDO')
+    ExpedientePostulacionModel.objects.filter(pk=exp).update(ventana_vence_el=ahora_mas(days=-1))
+    r = correr()
+    assert (r.expirados, r.errores) == (1, 0)
+    assert estado(exp) == 'EXPIRADO'
+
+
 def test_un_expediente_en_correccion_de_datos_no_expira_aunque_su_ventana_venza(mundo):
     exp = crear_expediente(mundo, estado='EN_CORRECCION_DATOS')
     ExpedientePostulacionModel.objects.filter(pk=exp).update(ventana_vence_el=ahora_mas(days=-1))

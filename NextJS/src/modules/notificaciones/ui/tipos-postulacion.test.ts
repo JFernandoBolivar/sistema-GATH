@@ -12,13 +12,14 @@ describe("tipos de notificación del módulo postulación", () => {
       { codigo: "INGRESO_APROBADO", etiqueta: "Ingreso aprobado" },
       { codigo: "CONTACTAR_POSTULANTE", etiqueta: "Postulante por contactar" },
       { codigo: "CONTACTO_ATRASADO", etiqueta: "Contacto con el postulante atrasado" },
+      { codigo: "EXPEDIENTE_EXPIRADO", etiqueta: "Ventana 2 vencida" },
       { codigo: "CONTRATACION_COMPLETADA", etiqueta: "Contratación completada" },
     ]);
   });
 
   it("se incluyen en la bandeja única del usuario", () => {
     const codigos = TIPOS_NOTIFICACION.map((t) => t.codigo);
-    expect(codigos).toEqual(expect.arrayContaining(["EXPEDIENTE_RECIBIDO", "EXPEDIENTE_REVISION_FINAL", "EXPEDIENTE_EN_PRESUPUESTO", "EXPEDIENTE_EN_DIRECCION", "EXPEDIENTE_CORRECCION_CARGO", "INGRESO_APROBADO", "CONTACTAR_POSTULANTE", "CONTACTO_ATRASADO", "CONTRATACION_COMPLETADA", "CARNET_PENDIENTE"]));
+    expect(codigos).toEqual(expect.arrayContaining(["EXPEDIENTE_RECIBIDO", "EXPEDIENTE_REVISION_FINAL", "EXPEDIENTE_EN_PRESUPUESTO", "EXPEDIENTE_EN_DIRECCION", "EXPEDIENTE_CORRECCION_CARGO", "INGRESO_APROBADO", "CONTACTAR_POSTULANTE", "CONTACTO_ATRASADO", "EXPEDIENTE_EXPIRADO", "CONTRATACION_COMPLETADA", "CARNET_PENDIENTE"]));
   });
 
   it("destaca como urgentes solo los avisos de contacto", () => {

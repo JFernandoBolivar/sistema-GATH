@@ -18,7 +18,25 @@ vi.mock("../hooks/use-documentos-datos", () => ({
   useVariables: (...args: unknown[]) => useVariablesMock(...args),
 }));
 vi.mock("../hooks/use-permisos-documentos", () => ({
-  usePermisosDocumentos: () => ({ puedeGestionar: true }),
+  usePermisosDocumentos: () => ({ puedeGestionar: true, puedeConfigurarPuntoCuenta: true }),
+}));
+vi.mock("../hooks/use-configuracion-punto-cuenta", () => ({
+  useConfiguracionPuntoCuenta: () => ({
+    config: {
+      id: "c1",
+      generar: true,
+      procesos_habilitados: { cambio_oficina: true, cambio_nivel: false },
+      version: 1,
+      actualizado_por_id: null,
+      updated_at: null,
+    },
+    faltantes: new Set<string>(),
+    cargando: false,
+    error: null,
+    guardar: vi.fn(),
+    recargar: vi.fn(),
+    actualizarCache: vi.fn(),
+  }),
 }));
 vi.mock("../../infrastructure/actions/documentos-actions", () => ({
   activarPlantillaAction: vi.fn(),
@@ -71,6 +89,7 @@ describe("ListaPlantillasView", () => {
     render(<ListaPlantillasView filtrosIniciales={{ grupo: "punto_cuenta" }} />);
 
     expect(usePlantillasMock).toHaveBeenCalledWith({ grupo: "punto_cuenta", proceso: undefined });
+    expect(screen.getByRole("heading", { name: "Procesos del Punto de Cuenta" })).toBeInTheDocument();
     expect(screen.getByText("Falta la plantilla del Punto de Cuenta de cambio de nivel")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Diseñar plantilla" })).toHaveAttribute(
       "href",

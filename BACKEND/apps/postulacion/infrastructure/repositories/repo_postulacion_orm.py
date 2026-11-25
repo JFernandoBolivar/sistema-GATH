@@ -231,7 +231,7 @@ class RepoPostulacionORM:
     # --- vencimientos del sistema ---
     def listar_ids_con_ventana_vencida(self, ahora: datetime) -> list[str]:
         qs = ExpedientePostulacionModel.objects.filter(
-            estado__in=['PRE_REGISTRADO', 'EN_CAPTURA'], ventana_vence_el__lt=ahora,
+            estado__in=['PRE_REGISTRADO', 'EN_CAPTURA', 'CONSOLIDANDO'], ventana_vence_el__lt=ahora,
         ).order_by('ventana_vence_el')
         return [str(pk) for pk in qs.values_list('pk', flat=True)]
 

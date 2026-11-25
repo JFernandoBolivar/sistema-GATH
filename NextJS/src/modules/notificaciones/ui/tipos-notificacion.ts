@@ -55,6 +55,7 @@ export const TIPOS_POR_MODULO: Record<ModuloNotificaciones, TipoNotificacion[]> 
     { codigo: "INGRESO_APROBADO", etiqueta: "Ingreso aprobado" },
     { codigo: "CONTACTAR_POSTULANTE", etiqueta: "Postulante por contactar" },
     { codigo: "CONTACTO_ATRASADO", etiqueta: "Contacto con el postulante atrasado" },
+    { codigo: "EXPEDIENTE_EXPIRADO", etiqueta: "Ventana 2 vencida" },
     { codigo: "CONTRATACION_COMPLETADA", etiqueta: "Contratación completada" },
   ],
 };

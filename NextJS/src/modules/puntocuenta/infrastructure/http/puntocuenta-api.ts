@@ -1,6 +1,12 @@
 import { apiClient } from "@/shared/infrastructure/http/fetcher-api";
 import type { ApiResponse } from "@/shared/types/api-response";
+import type {
+  CambiosConfiguracionPuntoCuenta,
+  ConfiguracionPuntoCuenta,
+} from "../../domain/entities/configuracion-punto-cuenta";
 import type { FiltrosPuntoCuenta, PuntoCuentaItem } from "../../domain/entities/punto-cuenta";
+
+const BASE = "/api/v1/puntocuenta";
 
 export const puntoCuentaApi = {
   listar: (filtros?: FiltrosPuntoCuenta) => {
@@ -11,10 +17,18 @@ export const puntoCuentaApi = {
     if (filtros?.fecha_hasta) params.append("fecha_hasta", filtros.fecha_hasta);
 
     const query = params.toString() ? `?${params.toString()}` : "";
-    return apiClient.get<ApiResponse<PuntoCuentaItem[]>>(`/api/v1/puntocuenta/${query}`);
+    return apiClient.get<ApiResponse<PuntoCuentaItem[]>>(`${BASE}/${query}`);
   },
 
   obtenerUrlDescarga: (id: string) => {
-    return apiClient.get<ApiResponse<{ url: string }>>(`/api/v1/puntocuenta/${id}/documento/`);
+    return apiClient.get<ApiResponse<{ url: string }>>(`${BASE}/${id}/documento/`);
+  },
+
+  obtenerConfiguracion: () => {
+    return apiClient.get<ApiResponse<ConfiguracionPuntoCuenta>>(`${BASE}/configuracion/`);
+  },
+
+  guardarConfiguracion: (datos: CambiosConfiguracionPuntoCuenta) => {
+    return apiClient.put<ApiResponse<ConfiguracionPuntoCuenta>>(`${BASE}/configuracion/`, { ...datos });
   },
 };

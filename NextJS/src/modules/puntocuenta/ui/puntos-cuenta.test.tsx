@@ -1,17 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { get } = vi.hoisted(() => ({
+const { get, put } = vi.hoisted(() => ({
   get: vi.fn(),
+  put: vi.fn(),
 }));
 
 vi.mock("@/shared/infrastructure/http/fetcher-api", () => ({
-  apiClient: { get },
+  apiClient: { get, put },
 }));
 
 import { puntoCuentaApi } from "../infrastructure/http/puntocuenta-api";
 
 beforeEach(() => {
   get.mockReset();
+  put.mockReset();
 });
 
 describe("Módulo Punto de Cuenta - API", () => {
@@ -51,4 +53,28 @@ describe("Módulo Punto de Cuenta - API", () => {
     expect(resultado.data[0].numero).toBe("0001-2026");
   });
 
+  it("lee y guarda los procesos habilitados del Punto de Cuenta", async () => {
+    const configuracion = {
+      status: "success",
+      message: "ok",
+      data: {
+        id: "c1",
+        generar: true,
+        procesos_habilitados: { cambio_oficina: true, cambio_nivel: false },
+        version: 2,
+        actualizado_por_id: 7,
+        updated_at: null,
+      },
+    };
+    get.mockResolvedValue(configuracion);
+    put.mockResolvedValue(configuracion);
+
+    await puntoCuentaApi.obtenerConfiguracion();
+    expect(get).toHaveBeenCalledWith("/api/v1/puntocuenta/configuracion/");
+
+    await puntoCuentaApi.guardarConfiguracion({ procesos_habilitados: { cambio_nivel: true } });
+    expect(put).toHaveBeenCalledWith("/api/v1/puntocuenta/configuracion/", {
+      procesos_habilitados: { cambio_nivel: true },
+    });
+  });
 });

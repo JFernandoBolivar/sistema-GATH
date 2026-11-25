@@ -66,6 +66,7 @@ import { SeccionVentana2 } from "../components/seccion-ventana2";
 import { DialogoAdjuntarFirmado } from "../components/dialogo-adjuntar-firmado";
 import { DialogoAprobacion } from "../components/dialogo-aprobacion";
 import { DialogoMotivo } from "../components/dialogo-motivo";
+import { IndicadorEtapasExpediente } from "../components/indicador-etapas-expediente";
 import { SeccionIngresoCorto } from "../components/seccion-ingreso-corto";
 import { DialogoPropuesta } from "../components/dialogo-propuesta";
 import { InsigniaEstado } from "../components/insignia-estado";
@@ -345,6 +346,8 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
                 ) : null}
               </div>
             </section>
+
+            <IndicadorEtapasExpediente detalle={detalle} />
 
             {contratacion ? (
               <PanelExitoContratacion resultado={contratacion} nombre={nombreCompleto(detalle.postulante)} onCerrar={() => setContratacion(null)} />

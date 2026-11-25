@@ -19,8 +19,9 @@ Decisiones donde §4.2, §7.2 y el catálogo de permisos sembrado no coinciden o
    recibe como `Hechos` y los exige como guardas.
 4. Psicofísico (C-6): `captacion.psicofisico_obligatorio` decide si ENVIADO_CAPTACION -> EN_PRESUPUESTO exige
    el resultado registrado; si es falso, avanza sin él.
-5. Vencimientos: PRE_REGISTRADO/EN_CAPTURA -> EXPIRADO solo ocurren cuando la ventana ya venció y las
-   ejecuta el SISTEMA (tarea programada). El postulante no puede actuar con la ventana vencida.
+5. Vencimientos: PRE_REGISTRADO/EN_CAPTURA -> EXPIRADO y CONSOLIDANDO -> EXPIRADO solo ocurren cuando la
+   ventana ya venció y las ejecuta el SISTEMA (tarea programada); la de CONSOLIDANDO libera además la reserva
+   activa del puesto y avisa a Captación. El postulante no puede actuar con la ventana vencida.
 6. Observar/devolver reabre la ventana del postulante (EN_CORRECCION_DATOS: V1; EN_REVISION_FINAL ->
    CONSOLIDANDO: V2) para que pueda corregir; §4.2 no dibuja expiración desde EN_CORRECCION_DATOS, así que
    la ventana reabierta vence por la regla del punto 5 solo mientras el expediente siga en estados de ventana.
@@ -189,6 +190,7 @@ TRANSICIONES: tuple[Transicion, ...] = (
     # Ventana 2
     _t(E.APROBADO, E.CONSOLIDANDO, permisos=[P_REVISION_FINAL]),
     _t(E.CONSOLIDANDO, E.CONSOLIDANDO, postulante=True, guardas=[G.VENTANA_VIGENTE], registra_historial=False),
+    _t(E.CONSOLIDANDO, E.EXPIRADO, sistema=True, guardas=[G.VENTANA_VENCIDA]),
     _t(E.CONSOLIDANDO, E.EN_REVISION_FINAL, postulante=True, guardas=[G.VENTANA_VIGENTE]),
     _t(E.EN_REVISION_FINAL, E.CONSOLIDANDO, permisos=[P_REVISION_FINAL], guardas=[G.MOTIVO_OBLIGATORIO]),
     _t(E.EN_REVISION_FINAL, E.LISTO_PARA_ASIGNAR, permisos=[P_REVISION_FINAL]),

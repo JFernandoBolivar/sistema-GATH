@@ -50,7 +50,7 @@ export function PuntosCuentaPage() {
   const cargarDatos = (filtrosAplicados?: FiltrosPuntoCuenta) => {
     startTransition(async () => {
       const res = await listarPuntosCuentaAction(filtrosAplicados);
-      if (res.success && res.data) {
+      if (res.success) {
         setItems(res.data);
         setPaginaActual(1);
       } else {

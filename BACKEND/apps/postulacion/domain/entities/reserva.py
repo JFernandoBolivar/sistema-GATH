@@ -16,6 +16,7 @@ MOTIVO_RECHAZO_DIRECCION = 'rechazo de Dirección General'
 MOTIVO_DEVOLUCION_CAPTACION = 'devolución al postulante para corregir sus datos'   # M-1: reserva hecha por Captación
 MOTIVO_RECHAZO_CAPTACION = 'rechazo de Captación'
 MOTIVO_VENCIMIENTO = 'vencimiento de la reserva'
+MOTIVO_LIBERACION_VENTANA_VENCIDA = 'vencimiento de la ventana del postulante'   # el expediente expiró en CONSOLIDANDO
 MOTIVO_LIBERADA_POR_USUARIO = 'liberada por Presupuesto'
 MOTIVO_CONTRATACION = 'contratación'   # la reserva pasa a CONSUMIDA al asignar el cargo (G-4)
 

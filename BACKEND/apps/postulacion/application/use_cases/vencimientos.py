@@ -5,6 +5,8 @@ Vencimientos que ejecuta el SISTEMA (E-7): tarea periódica `postulacion.liberar
     EN_PRESUPUESTO (transición de sistema «el puesto se perdió»).
   * DIFERIDO_PRESUPUESTO con la espera vencida (C-10) -> DESISTIDO.
   * PRE_REGISTRADO / EN_CAPTURA con la ventana vencida -> EXPIRADO.
+  * CONSOLIDANDO con la ventana vencida -> EXPIRADO (el postulante no completó su Ventana 2 a tiempo): se libera la
+    reserva activa del puesto, si la hay, y se avisa a Captación.
   * CONSOLIDANDO con el contacto al postulante pendiente más de `captacion.horas_escalamiento_contacto` horas (48 por defecto)
     -> se ESCALA: aviso CONTACTO_ATRASADO (una sola vez por reapertura: se deduplica por `clave`). No cambia el estado.
 
@@ -24,7 +26,12 @@ from apps.postulacion.application.use_cases.avisos import (
     TIPO_CONTACTO_ATRASADO,
 )
 from apps.postulacion.application.use_cases.transiciones import aplicar_transicion_expediente
-from apps.postulacion.domain.entities.reserva import MOTIVO_VENCIMIENTO, VENCIDA
+from apps.postulacion.domain.entities.reserva import (
+    LIBERADA,
+    MOTIVO_LIBERACION_VENTANA_VENCIDA,
+    MOTIVO_VENCIMIENTO,
+    VENCIDA,
+)
 from apps.postulacion.domain.ports.repos import RepoPostulacion
 from apps.postulacion.domain.services.contacto import limite_de_atraso
 from apps.postulacion.domain.services.maquina_estados import Actor
@@ -59,16 +66,29 @@ class ResumenVencimientos:
 def _transicion_de_sistema(
     repo: RepoPostulacion, config: LectorConfiguracion, notificador: Notificador | None, expediente_id: str,
     origen: EstadoExpediente, destino: EstadoExpediente, motivo: str, ahora: datetime,
+    *, liberar_reserva: bool = False,
 ) -> bool:
-    """True si aplicó la transición. Si el expediente ya cambió de estado (otra ejecución, un usuario), no hace nada."""
+    """True si aplicó la transición. Si el expediente ya cambió de estado (otra ejecución, un usuario), no hace nada.
+
+    `liberar_reserva` la usa el vencimiento de la Ventana 2 desde CONSOLIDANDO: el puesto reservado vuelve a quedar
+    libre en la misma transacción (mismo patrón que los demás vencimientos: `LIBERADA`, con motivo y fecha de cierre).
+    """
     with repo.transaccion():
         exp = obtener_expediente(repo, expediente_id, bloquear=True)
         if exp.estado != origen:
             return False
+        reserva = repo.obtener_reserva_activa_de_expediente(exp.id, bloquear=True) if liberar_reserva else None
+        datos_extra = {'origen': 'vencimiento'}
+        if reserva is not None:
+            datos_extra.update({'reserva_liberada': True, 'puesto_id': reserva.puesto_id})
         aplicar_transicion_expediente(
             repo, config, expediente_id=expediente_id, destino=destino, actor=Actor.sistema(), motivo=motivo,
-            ahora=ahora, notificador=notificador, datos_extra={'origen': 'vencimiento'},
+            ahora=ahora, notificador=notificador, datos_extra=datos_extra,
         )
+        if reserva is not None:
+            repo.guardar_reserva(replace(
+                reserva, estado=LIBERADA, cerrada_el=ahora, motivo_liberacion=MOTIVO_LIBERACION_VENTANA_VENCIDA,
+            ))
     return True
 
 
@@ -118,13 +138,22 @@ def procesar_vencimientos(
     for ids, origen, destino, motivo, contador in pasos:
         for expediente_id in ids:
             try:
-                if origen is None:   # PRE_REGISTRADO o EN_CAPTURA: el estado actual es el origen
+                if origen is None:   # ventana vencida: PRE_REGISTRADO, EN_CAPTURA o CONSOLIDANDO
                     with repo.transaccion():
-                        origen_real = obtener_expediente(repo, expediente_id, bloquear=True).estado
-                    if origen_real not in (E.PRE_REGISTRADO, E.EN_CAPTURA):
-                        continue
-                else:
-                    origen_real = origen
+                        actual = obtener_expediente(repo, expediente_id, bloquear=True)
+                        origen_real = actual.estado
+                        if (
+                            origen_real not in (E.PRE_REGISTRADO, E.EN_CAPTURA, E.CONSOLIDANDO)
+                            or actual.ventana_vence_el is None or actual.ventana_vence_el >= ahora
+                        ):
+                            continue   # otra ejecución ya lo movió o le extendieron la ventana
+                    if _transicion_de_sistema(
+                        repo, config, notificador, expediente_id, origen_real, destino, motivo, ahora,
+                        liberar_reserva=origen_real == E.CONSOLIDANDO,
+                    ):
+                        contar(**{contador: 1})
+                    continue
+                origen_real = origen
                 if _transicion_de_sistema(repo, config, notificador, expediente_id, origen_real, destino, motivo, ahora):
                     contar(**{contador: 1})
             except DomainError:

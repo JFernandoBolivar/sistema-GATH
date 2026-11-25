@@ -19,6 +19,8 @@ Qué se emite (el postulante no recibe campana: no tiene cuenta):
     CARNET_PENDIENTE a `carnetizacion.emitir` y, si la cuenta no se creó por falta de correo institucional,
     CORREO_INSTITUCIONAL_PENDIENTE a `personal.editar_personales` (módulo personal, ref `empleado`/cédula; lo resuelve
     `identidad` al crearse la cuenta); se cierran todos los avisos pendientes del expediente.
+  - EXPIRADO desde CONSOLIDANDO (venció la Ventana 2 del postulante) -> EXPEDIENTE_EXPIRADO a `postulacion.ver_bandeja`
+    (el puesto reservado vuelve a quedar libre).
   - Un usuario actúa sobre un expediente que esperaba su acción     -> `resolver_avisos`: el aviso compartido deja de estar
     pendiente para todos los que tienen el permiso (ENVIADO_CAPTACION, EN_REVISION_FINAL, EN_PRESUPUESTO,
     EN_DIRECCION_GENERAL, EN_CORRECCION_CARGO y APROBADO).
@@ -66,6 +68,7 @@ TIPO_CORRECCION_CARGO = 'EXPEDIENTE_CORRECCION_CARGO'
 TIPO_INGRESO_APROBADO = 'INGRESO_APROBADO'
 TIPO_CONTACTAR_POSTULANTE = 'CONTACTAR_POSTULANTE'
 TIPO_CONTACTO_ATRASADO = 'CONTACTO_ATRASADO'
+TIPO_EXPIRADO = 'EXPEDIENTE_EXPIRADO'
 TIPO_CONTRATACION_COMPLETADA = 'CONTRATACION_COMPLETADA'
 TIPO_CARNET_PENDIENTE = 'CARNET_PENDIENTE'
 PERMISO_EMITIR_CARNET = 'carnetizacion.emitir'
@@ -174,6 +177,17 @@ def solicitudes_de_transicion(
         return [SolicitudNotificacion(
             tipo=TIPO_CONTACTAR_POSTULANTE, permiso_destino=PERMISO_BANDEJA, enlace=ENLACE_BANDEJA.format(id=exp.id),
             titulo=titulo, mensaje=mensaje, **comunes,
+        )]
+    if destino == E.EXPIRADO and origen == E.CONSOLIDANDO:
+        liberada = bool((datos_extra or {}).get('reserva_liberada'))
+        return [SolicitudNotificacion(
+            tipo=TIPO_EXPIRADO, permiso_destino=PERMISO_BANDEJA, enlace=ENLACE_BANDEJA.format(id=exp.id),
+            titulo='Ventana 2 vencida',
+            mensaje=(
+                f'Venció el plazo de {quien} para completar la Ventana 2: el expediente expiró'
+                + (' y la reserva del puesto quedó libre.' if liberada else '.')
+            ),
+            **comunes,
         )]
     if destino == E.CONTRATADO:
         avisos = [SolicitudNotificacion(

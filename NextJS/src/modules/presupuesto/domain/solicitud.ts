@@ -196,7 +196,7 @@ export function validarConstancia(v: DatosConstancia): Record<string, string> {
 }
 
 // --- Guía de pasos ---
-export type EstadoPaso = "hecho" | "pendiente" | "bloqueado";
+export type EstadoPaso = "hecho" | "pendiente" | "bloqueado" | "actual" | "fuera_sistema";
 
 export interface PasoGuia {
   id: "reserva" | "constancia" | "punto_cuenta";

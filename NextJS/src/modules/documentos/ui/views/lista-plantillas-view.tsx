@@ -27,6 +27,7 @@ import type { PlantillaResumen } from "../../domain/entities/plantilla";
 import { activarPlantillaAction, duplicarPlantillaAction } from "../../infrastructure/actions/documentos-actions";
 import { CrearPlantillaDialog } from "../components/crear-plantilla-dialog";
 import { EstadoPlantilla } from "../components/estado-plantilla";
+import { PanelProcesosPuntoCuenta } from "../components/panel-procesos-punto-cuenta";
 import { usePermisosDocumentos } from "../hooks/use-permisos-documentos";
 import { usePlantillas, useVariables } from "../hooks/use-documentos-datos";
 import { agruparProcesos } from "../../domain/lib/procesos";
@@ -65,7 +66,7 @@ export function ListaPlantillasView({ filtrosIniciales, crearAbiertoInicial, pro
     proceso: filtroProceso || undefined,
   });
   const { catalogo, error: errorCatalogo, recargar: recargarCatalogo } = useVariables();
-  const { puedeGestionar } = usePermisosDocumentos();
+  const { puedeGestionar, puedeConfigurarPuntoCuenta } = usePermisosDocumentos();
   const [creando, setCreando] = useState(Boolean(crearAbiertoInicial));
   const [procesoNueva, setProcesoNueva] = useState<string | undefined>(procesoCrearInicial);
   const [aActivar, setAActivar] = useState<PlantillaResumen | null>(null);
@@ -179,6 +180,10 @@ export function ListaPlantillasView({ filtrosIniciales, crearAbiertoInicial, pro
           ))}
         </div>
       )}
+
+      {grupoActivo === "punto_cuenta" && catalogo && puedeConfigurarPuntoCuenta ? (
+        <PanelProcesosPuntoCuenta procesos={procesosDelGrupo} />
+      ) : null}
 
       {plantillas.length > 0 && (
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
