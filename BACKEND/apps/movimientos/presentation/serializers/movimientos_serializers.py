@@ -1,7 +1,19 @@
 """
 Serializers de Presentación de Movimientos.
 """
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
+
+
+class DocumentoGeneradoMovimientoSerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    nombre = serializers.CharField(read_only=True)
+    proceso = serializers.CharField(read_only=True)
+    version = serializers.IntegerField(read_only=True)
+    sha = serializers.CharField(read_only=True)
+    fecha = serializers.DateTimeField(read_only=True)
+    url = serializers.CharField(read_only=True)
+    detalle_url = serializers.CharField(read_only=True)
 
 
 class MovimientoCargoSerializer(serializers.Serializer):
@@ -24,3 +36,8 @@ class MovimientoCargoSerializer(serializers.Serializer):
     fecha_movimiento = serializers.CharField(read_only=True)
     ejecutado_por_id = serializers.IntegerField(read_only=True)
     ejecutado_por_nombre = serializers.CharField(read_only=True)
+    documentos_generados = serializers.SerializerMethodField()
+
+    @extend_schema_field(DocumentoGeneradoMovimientoSerializer(many=True))
+    def get_documentos_generados(self, obj) -> list[dict]:
+        return self.context.get('documentos_por_movimiento', {}).get(obj.id, [])

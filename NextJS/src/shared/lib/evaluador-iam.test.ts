@@ -146,6 +146,12 @@ describe('Acceso por ruta (A8)', () => {
     expect(puedeVerRuta(['pasivos.ver'], '/pasivos/carga-masiva')).toBe(false);
   });
 
+  it('la ruta heredada de Punto de Cuenta exige el permiso del diseñador', () => {
+    expect(puedeVerRuta(['documentos.ver_plantillas'], '/configuracion/punto-cuenta')).toBe(true);
+    expect(puedeVerRuta(['configuracion.editar'], '/configuracion/punto-cuenta')).toBe(false);
+    expect(puedeVerRuta([], '/configuracion/punto-cuenta')).toBe(false);
+  });
+
   it('deriva el módulo de un código y los módulos accesibles', () => {
     expect(moduloDePermiso('Fe_De_Vida.revisar')).toBe('fe_de_vida');
     expect(modulosAccesibles(['personal.ver', 'reportes.ver'])).toEqual(['personal', 'reportes']);

@@ -55,7 +55,7 @@ const RUTAS_INGRESO: [string, string][] = [
   ["postulacion.ver_bandeja", "/captacion/expedientes"],
   ["postulacion.ver_solicitudes", "/presupuesto/solicitudes"],
   ["postulacion.ver_ingresos", "/direccion/ingresos"],
-  ["documentos.ver_plantillas", "/personal/ingreso/plantillas"],
+  ["documentos.ver_plantillas", "/documentos/plantillas"],
 ];
 
 function rutaDelModulo(modulo: Modulo, permisos: string[] | undefined): string {

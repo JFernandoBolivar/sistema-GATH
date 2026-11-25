@@ -27,6 +27,16 @@ export interface MovimientoApiItem {
   fecha_movimiento: string;
   ejecutado_por_id: number;
   ejecutado_por_nombre: string;
+  documentos_generados?: {
+    id: string;
+    nombre: string;
+    proceso: string;
+    version: number;
+    sha: string;
+    fecha: string;
+    url: string;
+    detalle_url: string;
+  }[];
 }
 
 export interface PaginaMovimientosApi {

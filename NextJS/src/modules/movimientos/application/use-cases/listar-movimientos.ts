@@ -86,5 +86,6 @@ function aDto(e: Awaited<ReturnType<RepoMovimientos["listarHistorialPorEmpleado"
     fechaMovimiento: e.fechaMovimiento,
     ejecutadoPorId: e.ejecutadoPorId,
     ejecutadoPorNombre: e.ejecutadoPorNombre,
+    documentosGenerados: e.documentosGenerados ?? [],
   };
 }

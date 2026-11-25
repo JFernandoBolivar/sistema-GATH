@@ -6,7 +6,7 @@ import { firmaEstable } from "../../domain/lib/cambios";
 
 interface Params {
   plantillaId: string;
-  /** Lo que se previsualiza (puede ser lo no guardado): `{definicion, campos_propios}`. */
+  /** Lo que se previsualiza (puede ser lo no guardado): `{definicion, campos_propios, proceso}`. */
   payload: Record<string, unknown> | null;
   /** Regenera sola, con pausa, cuando el payload cambia. */
   automatica: boolean;

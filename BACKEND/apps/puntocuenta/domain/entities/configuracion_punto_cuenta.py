@@ -1,20 +1,18 @@
-"""Configuración vigente del Punto de Cuenta como entidad de dominio (puro, sin Django)."""
+"""Configuración operativa del Punto de Cuenta como entidad de dominio (pura, sin Django)."""
 from dataclasses import dataclass, field
+from datetime import datetime
 
 
 @dataclass(frozen=True)
 class ConfiguracionPuntoCuenta:
-    """Versión vigente de la plantilla y los procesos habilitados del punto de cuenta.
+    """Procesos habilitados de la emisión automática.
 
-    El adaptador ORM la construye desde la fila; `application` nunca ve el modelo.
+    Los textos y firmas los administra el diseñador de documentos. La versión
+    y el actor se conservan para auditar los cambios operativos.
     """
 
+    id: str | None = None
     procesos_habilitados: dict = field(default_factory=dict)
-    titulo: str = ''
-    encabezado: str = ''
-    cuerpo: str = ''
-    firmas: list = field(default_factory=list)
-    mostrar_nivel: bool = True
-    plantillas_procesos: dict = field(default_factory=dict)
     version: int = 1
     actualizado_por_id: int | None = None
+    actualizada_en: datetime | None = None

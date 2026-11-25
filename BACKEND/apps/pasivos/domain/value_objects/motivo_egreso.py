@@ -8,6 +8,11 @@ DRF (regla B1).
 """
 from dataclasses import dataclass
 
+# Motivos que crea el sistema al cerrar un pasivo que reingresa como personal
+# activo. Pertenecen a EGRESO PASIVO para conservar el historial, pero no se
+# ofrecen en el egreso manual (solo fallecimiento).
+MOTIVOS_EGRESO_PASIVO_SISTEMA = frozenset({'REINGRESO COMO PERSONAL ACTIVO'})
+
 
 @dataclass(frozen=True)
 class MotivoEgreso:

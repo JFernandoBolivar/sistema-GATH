@@ -1,4 +1,4 @@
-"""Adaptadores ORM de la secuencia y la configuración de Punto de Cuenta.
+"""Adaptadores ORM de la secuencia y la configuración operativa del Punto de Cuenta.
 
 Devuelven entidades de dominio (`ConfiguracionPuntoCuenta`), nunca el modelo: la
 capa de aplicación no debe conocer el ORM.
@@ -14,15 +14,11 @@ from apps.puntocuenta.infrastructure.models.configuracion_punto_cuenta_model imp
 
 def _a_entidad(fila: ConfiguracionPuntoCuentaModel) -> ConfiguracionPuntoCuenta:
     return ConfiguracionPuntoCuenta(
+        id=str(fila.pk),
         procesos_habilitados=dict(fila.procesos_habilitados or {}),
-        titulo=fila.titulo,
-        encabezado=fila.encabezado,
-        cuerpo=fila.cuerpo,
-        firmas=list(fila.firmas or []),
-        mostrar_nivel=bool(fila.mostrar_nivel),
-        plantillas_procesos=dict(fila.plantillas_procesos or {}),
         version=fila.version,
         actualizado_por_id=fila.actualizado_por_id,
+        actualizada_en=fila.updated_at,
     )
 
 

@@ -131,7 +131,10 @@ def test_cambiar_cargo_incluye_dependencias_anterior_y_nueva_en_el_evento(captur
     # comportamiento preexistente (no introducido aquí) que no es lo que
     # este test verifica. En producción `cargo_id` siempre es real.
     from apps.movimientos.infrastructure.receivers import despachar_registro_historial
-    cargo_movimiento_ejecutado.disconnect(despachar_registro_historial)
+    cargo_movimiento_ejecutado.disconnect(
+        despachar_registro_historial,
+        dispatch_uid='movimientos_registrar_y_generar_documentos',
+    )
     try:
         actual = _fila_mock(dependencia_id=1, oficina_id=5)
         actual.pk = 10
@@ -156,7 +159,10 @@ def test_cambiar_cargo_incluye_dependencias_anterior_y_nueva_en_el_evento(captur
             with patch.object(repo, "obtener_cargo", return_value="RESULTADO"):
                 repo.cambiar_cargo(cargo_actual_id=10, cargo_nuevo_id=20, motivo_id=7, usuario_id=99)
     finally:
-        cargo_movimiento_ejecutado.connect(despachar_registro_historial)
+        cargo_movimiento_ejecutado.connect(
+            despachar_registro_historial,
+            dispatch_uid='movimientos_registrar_y_generar_documentos',
+        )
 
     assert len(captura_movimiento_ejecutado.recibidos) == 1
     evento = captura_movimiento_ejecutado.recibidos[0]

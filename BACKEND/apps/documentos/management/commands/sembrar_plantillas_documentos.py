@@ -28,33 +28,33 @@ from apps.documentos.infrastructure import plantillas_ingreso as ing
 from apps.documentos.infrastructure.pdf.motor import InspectorPdfDocumentos
 from apps.documentos.infrastructure.repositories.repo_documentos_orm import RepoPlantillasORM
 
-# Formularios propios: (código, nombre, descripción, momento, firmante, definición, campos propios).
+# Formularios propios: (código, nombre, descripción, proceso, firmante, definición, campos propios).
 FORMULARIOS = [
     ('NOTIFICACION_ITINERANCIA', 'Notificación de Itinerancia',
      'Declaración de la ruta habitual vivienda-trabajo (reproduce la planilla «Notificación itinere»).',
-     'contratacion', 'postulante', ej.definicion_itinerancia, ej.campos_propios_itinerancia),
+     'ingreso_contratacion', 'postulante', ej.definicion_itinerancia, ej.campos_propios_itinerancia),
     ('OFERTA_SERVICIOS', 'Oferta de Servicios',
      'Formato propio de CONATEL con los datos personales, académicos y laborales del postulante (reproduce la «Oferta de servicios»).',
-     'ventana2', 'postulante', ing.definicion_oferta, ing.campos_propios_oferta),
+     'ingreso_ventana2', 'postulante', ing.definicion_oferta, ing.campos_propios_oferta),
     ('CONTRATO_TRABAJO', 'Contrato de trabajo',
      'MODELO de contrato por tiempo determinado para personal contratado. Revisar el texto legal con Consultoría Jurídica antes de publicar.',
-     'contratacion', 'ambos', ing.definicion_contrato, ing.campos_propios_contrato),
+     'ingreso_contratacion', 'ambos', ing.definicion_contrato, ing.campos_propios_contrato),
     ('DECLARACION_JURADA_INCOMPATIBILIDAD', 'Declaración jurada de no incompatibilidad',
      'MODELO de declaración de no incompatibilidad y veracidad de datos. Revisar el texto con Consultoría Jurídica antes de publicar.',
-     'ventana2', 'postulante', ing.definicion_declaracion_jurada, lambda: []),
+     'ingreso_ventana2', 'postulante', ing.definicion_declaracion_jurada, lambda: []),
     ('AUTORIZACION_DATOS_PERSONALES', 'Autorización de tratamiento de datos personales',
      'MODELO de autorización para el uso de los datos en la relación laboral. Revisar el texto con Consultoría Jurídica antes de publicar.',
-     'ventana2', 'postulante', ing.definicion_autorizacion_datos, lambda: []),
+     'ingreso_ventana2', 'postulante', ing.definicion_autorizacion_datos, lambda: []),
 ]
 
-# Formatos de terceros: (código, nombre, descripción, momento, firmante, definición, campos propios, opción de la ruta).
+# Formatos de terceros: (código, nombre, descripción, proceso, firmante, definición, campos propios, opción de la ruta).
 TERCEROS = [
     ('AFILIACION_CAJA_AHORRO', 'Afiliación Caja de Ahorro',
      'Solicitud de afiliación a la Caja de Ahorro de los Trabajadores de CONATEL (F-CA002).',
-     'ventana2', 'postulante', ej.definicion_caja_ahorro, lambda: ej.campos_propios_caja_ahorro(), 'pdf_caja_ahorro'),
+     'ingreso_ventana2', 'postulante', ej.definicion_caja_ahorro, lambda: ej.campos_propios_caja_ahorro(), 'pdf_caja_ahorro'),
     ('HCM_SEGUROS_MIRANDA', 'Planilla HCM Seguros Miranda',
      'Solicitud de seguros Ramos de Personas (hospitalización, cirugía y maternidad) de Seguros Miranda; formato de la aseguradora.',
-     'ventana2', 'postulante', ing.definicion_hcm, ing.campos_propios_hcm, 'pdf_hcm'),
+     'ingreso_ventana2', 'postulante', ing.definicion_hcm, ing.campos_propios_hcm, 'pdf_hcm'),
 ]
 
 
@@ -76,24 +76,24 @@ class Command(BaseCommand):
         conocidos = {f[0] for f in FORMULARIOS} | {t[0] for t in TERCEROS}
         if solo - conocidos:
             raise CommandError('Código desconocido: ' + ', '.join(sorted(solo - conocidos)))
-        for codigo, nombre, descripcion, momento, firmante, definicion, propios in FORMULARIOS:
+        for codigo, nombre, descripcion, proceso, firmante, definicion, propios in FORMULARIOS:
             if solo and codigo not in solo:
                 continue
-            self._formulario(repo, codigo, nombre, descripcion, momento, firmante, definicion(), propios(), actualizar)
-        for codigo, nombre, descripcion, momento, firmante, definicion, propios, opcion_pdf in TERCEROS:
+            self._formulario(repo, codigo, nombre, descripcion, proceso, firmante, definicion(), propios(), actualizar)
+        for codigo, nombre, descripcion, proceso, firmante, definicion, propios, opcion_pdf in TERCEROS:
             if solo and codigo not in solo:
                 continue
-            self._tercero(repo, codigo, nombre, descripcion, momento, firmante, definicion(), propios(),
+            self._tercero(repo, codigo, nombre, descripcion, proceso, firmante, definicion(), propios(),
                           opciones.get(opcion_pdf), opcion_pdf.replace('_', '-'), actualizar)
 
     # ───────── formularios propios ─────────
 
-    def _formulario(self, repo, codigo, nombre, descripcion, momento, firmante, definicion, propios, actualizar):
+    def _formulario(self, repo, codigo, nombre, descripcion, proceso, firmante, definicion, propios, actualizar):
         existente = repo.obtener_por_codigo(codigo)
         if existente and not actualizar:
             self.stdout.write(f'Ya existe {codigo}: no se modifica.')
             return
-        datos = {'nombre': nombre, 'descripcion': descripcion, 'momento': momento, 'firmante': firmante,
+        datos = {'nombre': nombre, 'descripcion': descripcion, 'proceso': proceso, 'firmante': firmante,
                  'requiere_firma_clic': True, 'definicion': definicion, 'campos_propios': propios}
         if existente:
             uc.actualizar_borrador(repo, existente.id, datos, None)
@@ -104,7 +104,7 @@ class Command(BaseCommand):
 
     # ───────── formatos de terceros ─────────
 
-    def _tercero(self, repo, codigo, nombre, descripcion, momento, firmante, definicion, propios, ruta, flag, actualizar):
+    def _tercero(self, repo, codigo, nombre, descripcion, proceso, firmante, definicion, propios, ruta, flag, actualizar):
         """Todo o nada: si falla la subida del PDF no queda la plantilla a medias.
 
         Si la plantilla ya existe pero sin fondo (siembra anterior fallida) y se pasa el PDF, se completa.
@@ -127,7 +127,7 @@ class Command(BaseCommand):
             if not archivo.is_file():
                 raise CommandError(f'No existe el archivo {ruta}.')
             contenido = archivo.read_bytes()
-        datos = {'nombre': nombre, 'descripcion': descripcion, 'momento': momento, 'firmante': firmante,
+        datos = {'nombre': nombre, 'descripcion': descripcion, 'proceso': proceso, 'firmante': firmante,
                  'requiere_firma_clic': True, 'campos_propios': propios}
         with transaction.atomic():
             plantilla = existente or uc.crear_plantilla(repo, {'codigo': codigo, 'modo': 'pdf_overlay', **datos}, None)

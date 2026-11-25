@@ -4,17 +4,15 @@
  * Portada de «Administración del sistema → Configuración» (D9).
  */
 import Link from "next/link";
-import { Settings, Image as ImageIcon, FileText, SlidersHorizontal, Mail, UserCog, FileStack, Workflow } from "lucide-react";
+import { Settings, Image as ImageIcon, SlidersHorizontal, Mail, UserCog, Workflow } from "lucide-react";
 
 import PageLayout from "@/components/layout/page-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   RUTA_PARAMETROS,
   RUTA_VISUAL,
-  RUTA_PUNTO_CUENTA,
   RUTA_REGLAS_CATALOGOS,
   RUTA_CORREO_ACCESO,
-  RUTA_DOCUMENTOS,
   RUTA_PROCESO_INGRESO,
 } from "@/shared/lib/administracion-sistema";
 import { RUTA_AUTOGESTION_CONDICION } from "../domain/value-objects/claves-parametros";
@@ -78,19 +76,6 @@ export function ConfiguracionHomePage() {
           </Card>
         </Link>
 
-        <Link href={RUTA_PUNTO_CUENTA} className="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          <Card className="h-full transition-colors hover:bg-accent/40">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <FileText aria-hidden /> Punto de cuenta
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              Interruptor general, procesos administrativos que generan punto de cuenta y formato personalizable del documento PDF.
-            </CardContent>
-          </Card>
-        </Link>
-
         <Link href={RUTA_AUTOGESTION_CONDICION} className="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <Card className="h-full transition-colors hover:bg-accent/40">
             <CardHeader>
@@ -113,19 +98,6 @@ export function ConfiguracionHomePage() {
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground">
               Política general de resolución de correos de acceso (activos y pasivos), fallbacks y aplicación masiva con vista previa.
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link href={RUTA_DOCUMENTOS} className="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          <Card className="h-full transition-colors hover:bg-accent/40">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <FileStack aria-hidden /> Documentos digitales
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              Diseñador de plantillas: formularios propios de CONATEL y formatos de terceros sobre un PDF, con versiones y vista previa.
             </CardContent>
           </Card>
         </Link>

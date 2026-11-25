@@ -26,7 +26,7 @@ const CAMPOS = [
 ];
 
 const doc = (d: Partial<DocumentoExpedienteDTO>): DocumentoExpedienteDTO => ({
-  plantillaId: "p", codigo: "OFERTA", nombre: "Oferta", descripcion: "", momento: "ventana2", version: 1, firmante: "postulante",
+  plantillaId: "p", codigo: "OFERTA", nombre: "Oferta", descripcion: "", proceso: "ventana2", procesoEtiqueta: "Datos complementarios", version: 1, firmante: "postulante",
   requiereFirma: true, camposPropios: [], valores: {}, faltan: [], estado: "listo_para_revisar", firmaInvalidada: false,
   documentoId: null, firma: null, textoConformidad: "", trabajadorCedula: "", archivoUrl: null, ...d,
 });

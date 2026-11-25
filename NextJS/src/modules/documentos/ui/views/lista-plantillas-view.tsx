@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Copy, FilePlus2, FileStack, FileText, FileUp, Pencil, Power } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { AlertTriangle, Copy, FilePlus2, FileStack, FileText, FileUp, Pencil, Power } from "lucide-react";
 import { toast } from "sonner";
 
 import PageLayout from "@/components/layout/page-layout";
@@ -17,6 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -27,8 +28,9 @@ import { activarPlantillaAction, duplicarPlantillaAction } from "../../infrastru
 import { CrearPlantillaDialog } from "../components/crear-plantilla-dialog";
 import { EstadoPlantilla } from "../components/estado-plantilla";
 import { usePermisosDocumentos } from "../hooks/use-permisos-documentos";
-import { usePlantillas } from "../hooks/use-documentos-datos";
-import { ETIQUETA_FIRMANTE, ETIQUETA_MODO, ETIQUETA_MOMENTO, estaPublicada, formatearFecha } from "../lib/etiquetas";
+import { usePlantillas, useVariables } from "../hooks/use-documentos-datos";
+import { agruparProcesos } from "../../domain/lib/procesos";
+import { ETIQUETA_FIRMANTE, ETIQUETA_MODO, estaPublicada, formatearFecha, tituloGrupoProceso } from "../lib/etiquetas";
 
 type FiltroEstado = "todas" | "activas" | "inactivas" | "borrador";
 const FILTROS_ESTADO: { id: FiltroEstado; etiqueta: string }[] = [
@@ -44,12 +46,28 @@ function coincideEstado(p: PlantillaResumen, f: FiltroEstado): boolean {
   return estaPublicada(p) && (f === "activas" ? p.activa : !p.activa);
 }
 
-export function ListaPlantillasView() {
+interface PropsLista {
+  /** Filtros que llegan por la URL (`?grupo=punto_cuenta&proceso=…`). */
+  filtrosIniciales?: { grupo?: string; proceso?: string };
+  /** Abre el diálogo de creación al entrar (`?crear=1`). */
+  crearAbiertoInicial?: boolean;
+  procesoCrearInicial?: string;
+}
+
+export function ListaPlantillasView({ filtrosIniciales, crearAbiertoInicial, procesoCrearInicial }: PropsLista = {}) {
   const RUTA_DOCUMENTOS = useRutaDocumentos();
   const router = useRouter();
-  const { plantillas, cargando, error, recargar } = usePlantillas();
+  const pathname = usePathname();
+  const grupoActivo = filtrosIniciales?.grupo ?? "";
+  const [filtroProceso, setFiltroProceso] = useState(filtrosIniciales?.proceso ?? "");
+  const { plantillas, alertas, cargando, error, recargar } = usePlantillas({
+    grupo: grupoActivo || undefined,
+    proceso: filtroProceso || undefined,
+  });
+  const { catalogo, error: errorCatalogo, recargar: recargarCatalogo } = useVariables();
   const { puedeGestionar } = usePermisosDocumentos();
-  const [creando, setCreando] = useState(false);
+  const [creando, setCreando] = useState(Boolean(crearAbiertoInicial));
+  const [procesoNueva, setProcesoNueva] = useState<string | undefined>(procesoCrearInicial);
   const [aActivar, setAActivar] = useState<PlantillaResumen | null>(null);
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState<FiltroEstado>("todas");
@@ -77,11 +95,26 @@ export function ListaPlantillasView() {
     await recargar();
   };
 
+  const procesos = catalogo?.procesos ?? [];
+  const gruposProceso = agruparProcesos(procesos);
+  const procesosDelGrupo = grupoActivo ? procesos.filter((p) => p.grupo === grupoActivo) : procesos;
+
+  const elegirGrupo = (grupo: string) => {
+    setFiltroProceso("");
+    router.replace(grupo ? `${pathname}?grupo=${encodeURIComponent(grupo)}` : pathname);
+  };
+
+  const abrirCreacion = (proceso?: string) => {
+    setProcesoNueva(proceso);
+    setCreando(true);
+  };
+
   const texto = busqueda.trim().toLowerCase();
   const visibles = plantillas.filter(
     (p) =>
       coincideEstado(p, filtroEstado) &&
-      (!texto || `${p.nombre} ${p.codigo} ${p.descripcion ?? ""}`.toLowerCase().includes(texto)),
+      (!filtroProceso || p.proceso === filtroProceso) &&
+      (!texto || `${p.nombre} ${p.codigo} ${p.descripcion ?? ""} ${p.proceso_etiqueta}`.toLowerCase().includes(texto)),
   );
 
   return (
@@ -93,12 +126,59 @@ export function ListaPlantillasView() {
         <p className="text-sm text-muted-foreground">
           {cargando ? "Cargando…" : `${visibles.length} de ${plantillas.length} plantilla${plantillas.length === 1 ? "" : "s"}`}
         </p>
-        {puedeGestionar && (
-          <Button onClick={() => setCreando(true)}>
+        {puedeGestionar && catalogo && (
+          <Button onClick={() => abrirCreacion()}>
             <FilePlus2 aria-hidden /> Nueva plantilla
           </Button>
         )}
       </div>
+
+      {errorCatalogo && (
+        <div role="alert" className="mt-4 flex flex-col gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between">
+          <span>No se pudo cargar el catálogo de procesos. Reintente antes de diseñar una plantilla.</span>
+          <Button type="button" size="sm" variant="outline" onClick={() => void recargarCatalogo()}>
+            Reintentar
+          </Button>
+        </div>
+      )}
+
+      {alertas.length > 0 && (
+        <section
+          aria-label="Plantillas pendientes de crear"
+          className="mt-4 grid gap-2 rounded-xl border border-amber-500/50 bg-amber-50 p-3 text-amber-950 dark:bg-amber-950/30 dark:text-amber-100"
+        >
+          <h2 className="flex items-center gap-2 text-sm font-semibold">
+            <AlertTriangle className="size-4 shrink-0" aria-hidden /> Faltan plantillas por crear
+          </h2>
+          <ul className="grid gap-2">
+            {alertas.map((a) => (
+              <li key={a.proceso} className="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
+                <span>{a.mensaje}</span>
+                {puedeGestionar && catalogo && (
+                  <Button asChild size="sm" variant="outline" className="self-start bg-background sm:self-auto">
+                    <Link href={`${RUTA_DOCUMENTOS}?crear=1&proceso=${encodeURIComponent(a.proceso)}&grupo=punto_cuenta`}>
+                      <FilePlus2 aria-hidden /> Diseñar plantilla
+                    </Link>
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {gruposProceso.length > 0 && (
+        <div className="mt-4 flex flex-wrap gap-1.5" role="group" aria-label="Filtrar por grupo de procesos">
+          <Button type="button" size="sm" variant={grupoActivo ? "outline" : "default"} aria-pressed={!grupoActivo} onClick={() => elegirGrupo("")}>
+            Todos los procesos
+          </Button>
+          {gruposProceso.map((g) => (
+            <Button key={g.grupo} type="button" size="sm" variant={grupoActivo === g.grupo ? "default" : "outline"} aria-pressed={grupoActivo === g.grupo} onClick={() => elegirGrupo(g.grupo)}>
+              {tituloGrupoProceso(g.grupo)}
+            </Button>
+          ))}
+        </div>
+      )}
 
       {plantillas.length > 0 && (
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -106,10 +186,23 @@ export function ListaPlantillasView() {
             type="search"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar por nombre o código…"
-            aria-label="Buscar plantillas por nombre o código"
+            placeholder="Buscar por nombre, código o proceso…"
+            aria-label="Buscar plantillas por nombre, código o proceso"
             className="sm:max-w-sm"
           />
+          {procesosDelGrupo.length > 1 && (
+            <select
+              aria-label="Filtrar por proceso"
+              value={filtroProceso}
+              onChange={(e) => setFiltroProceso(e.target.value)}
+              className="h-11 rounded-md border border-input bg-background px-3 text-base sm:h-9 sm:max-w-56 sm:text-sm"
+            >
+              <option value="">Todos los procesos</option>
+              {procesosDelGrupo.map((p) => (
+                <option key={p.codigo} value={p.codigo}>{p.etiqueta}</option>
+              ))}
+            </select>
+          )}
           <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtrar por estado">
             {FILTROS_ESTADO.map((f) => (
               <Button key={f.id} type="button" size="sm" variant={filtroEstado === f.id ? "default" : "outline"} aria-pressed={filtroEstado === f.id} onClick={() => setFiltroEstado(f.id)}>
@@ -146,8 +239,8 @@ export function ListaPlantillasView() {
             Cree una plantilla para generar documentos con los datos del sistema: un formulario propio de CONATEL o un
             formato de terceros sobre su PDF.
           </p>
-          {puedeGestionar && (
-            <Button onClick={() => setCreando(true)}>
+          {puedeGestionar && catalogo && (
+            <Button onClick={() => abrirCreacion()}>
               <FilePlus2 aria-hidden /> Crear la primera plantilla
             </Button>
           )}
@@ -168,12 +261,17 @@ export function ListaPlantillasView() {
                   <span className="min-w-0 break-words">{p.nombre}</span>
                 </CardTitle>
                 <p className="font-mono text-xs text-muted-foreground">{p.codigo}</p>
-                <EstadoPlantilla plantilla={p} />
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Badge variant="outline" className="max-w-full whitespace-normal text-left" title={p.proceso}>
+                    {p.proceso_etiqueta || p.proceso}
+                  </Badge>
+                  <EstadoPlantilla plantilla={p} />
+                </div>
               </CardHeader>
               <CardContent className="grid gap-2 text-sm">
                 {p.descripcion && <p className="line-clamp-2 text-muted-foreground">{p.descripcion}</p>}
                 <p className="text-xs text-muted-foreground">
-                  {ETIQUETA_MODO[p.modo]} · {ETIQUETA_MOMENTO[p.momento]} · Firma: {ETIQUETA_FIRMANTE[p.firmante]}
+                  {ETIQUETA_MODO[p.modo]} · Firma: {ETIQUETA_FIRMANTE[p.firmante]}
                   {p.requiere_firma_clic ? " (por clic)" : ""}
                 </p>
                 <p className="text-xs text-muted-foreground">Actualizada: {formatearFecha(p.actualizada_en)}</p>
@@ -203,7 +301,10 @@ export function ListaPlantillasView() {
       </ul>
 
       <CrearPlantillaDialog
+        key={procesoNueva ?? "sin-proceso"}
         abierto={creando}
+        procesos={procesos}
+        procesoInicial={procesoNueva}
         onCerrar={() => setCreando(false)}
         onCreada={(p) => {
           setCreando(false);

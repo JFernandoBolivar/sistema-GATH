@@ -68,6 +68,7 @@ import FormIdiomasUpdateDialog from "./dialogs/form-idiomas-update-dialog";
 import FormRifUpdateDialog from "./dialogs/form-rif-update-dialog";
 import FormTieneHijosUpdateDialog from "./dialogs/form-tiene-hijos-update-dialog";
 import FormSupplementaryTrainingUpdateDialog from "./dialogs/form-supplementary-training-update-dialog";
+import { SeccionDocumentosTrabajador } from "./components/seccion-documentos-trabajador";
 import type { DetalleExpedienteViewModel } from "./expediente-detalle-view-model";
 
 interface EmpleadoDetalleSheetProps {
@@ -97,6 +98,10 @@ interface EmpleadoDetalleSheetProps {
   permitirPais?: boolean;
   /** Ficha de un pasivo: oculta grado, cargo cubierto por encargaduría y encargadurías. */
   esPasivo?: boolean;
+  /** Permiso `documentos.generar_bajo_demanda`: muestra «Generar documento» y los documentos generados. */
+  puedeGenerarDocumentos?: boolean;
+  /** Permiso `movimientos.ver`: muestra el historial de movimientos con sus documentos. */
+  puedeVerMovimientos?: boolean;
 }
 
 const NOMBRE_NIVEL_IDIOMA: Record<string, string> = { BIEN: "Bien", REGULAR: "Regular", POCO: "Poco" };
@@ -120,6 +125,8 @@ export default function EmpleadoDetalleSheet({
   revision = 0,
   permitirPais = false,
   esPasivo = false,
+  puedeGenerarDocumentos = false,
+  puedeVerMovimientos = false,
 }: EmpleadoDetalleSheetProps) {
   const [versionFoto, setVersionFoto] = useState(0);
   if (!detalle || !empleado) {
@@ -970,6 +977,14 @@ export default function EmpleadoDetalleSheet({
                 </div>
               </CardContent>
             </Card>
+
+            {(puedeGenerarDocumentos || puedeVerMovimientos) && (
+              <SeccionDocumentosTrabajador
+                cedula={empleado.cedula}
+                puedeGenerar={puedeGenerarDocumentos}
+                puedeVerMovimientos={puedeVerMovimientos}
+              />
+            )}
           </div>
         </ScrollArea>
       </SheetContent>

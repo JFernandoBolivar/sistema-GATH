@@ -25,10 +25,11 @@ Dos modos:
 
 Los «campos propios» (`campos_propios`) son comunes a ambos modos.
 """
+from apps.documentos.domain.services.catalogo_procesos import PROCESO_BAJO_DEMANDA, validar_proceso
 from apps.documentos.domain.services.variables_documento import (
-    CLAVES_COLECCION,
     POR_CLAVE,
     TIPOS_CAMPO_PROPIO,
+    colecciones_de_proceso,
     es_clave_propia_valida,
     es_variable_escalar,
     variables_desconocidas,
@@ -36,7 +37,6 @@ from apps.documentos.domain.services.variables_documento import (
 from core.domain.exceptions import ValidationError
 
 MODOS = ('formulario', 'pdf_overlay')
-MOMENTOS = ('ventana2', 'contratacion', 'otro')
 FIRMANTES = ('postulante', 'conatel', 'ambos')
 
 TAMANOS_PAGINA = ('carta', 'oficio')
@@ -156,21 +156,21 @@ def _id_bloque(b: dict, i: int, vistos: set) -> str:
     return bid
 
 
-def _variable_escalar_o_vacia(valor, propios, campo: str):
+def _variable_escalar_o_vacia(valor, propios, campo: str, proceso: str):
     if valor in (None, ''):
         return None
-    if not isinstance(valor, str) or not es_variable_escalar(valor, propios):
-        _err(f'Variable desconocida: «{valor}».', campo)
+    if not isinstance(valor, str) or not es_variable_escalar(valor, propios, proceso):
+        _err(f'Variable desconocida o no permitida por el proceso: «{valor}».', campo)
     return valor
 
 
-def _validar_texto_con_variables(texto: str, propios, campo: str) -> None:
-    desconocidas = variables_desconocidas(texto, propios)
+def _validar_texto_con_variables(texto: str, propios, campo: str, proceso: str) -> None:
+    desconocidas = variables_desconocidas(texto, propios, proceso)
     if desconocidas:
-        _err('Variable desconocida: ' + ', '.join('{' + v + '}' for v in desconocidas), campo)
+        _err('Variable desconocida o no permitida por el proceso: ' + ', '.join('{' + v + '}' for v in desconocidas), campo)
 
 
-def _validar_bloque(b, i: int, propios, vistos: set) -> dict:
+def _validar_bloque(b, i: int, propios, vistos: set, proceso: str) -> dict:
     ruta = f'bloques.{i}'
     if not isinstance(b, dict):
         _err('Cada bloque debe ser un objeto.', ruta)
@@ -184,13 +184,13 @@ def _validar_bloque(b, i: int, propios, vistos: set) -> dict:
             _err(f'Una fila lleva de 1 a {MAX_CELDAS} celdas.', f'{ruta}.celdas')
         salida['celdas'] = [{
             'etiqueta': _texto(c.get('etiqueta') if isinstance(c, dict) else None, f'{ruta}.celdas.{j}.etiqueta'),
-            'variable': _variable_escalar_o_vacia(c.get('variable'), propios, f'{ruta}.celdas.{j}.variable'),
+            'variable': _variable_escalar_o_vacia(c.get('variable'), propios, f'{ruta}.celdas.{j}.variable', proceso),
             'ancho': _numero(c.get('ancho'), f'{ruta}.celdas.{j}.ancho', 1, 12, 1),
         } for j, c in enumerate(celdas) if isinstance(c, dict) or _err('Cada celda debe ser un objeto.', f'{ruta}.celdas.{j}')]
         salida['alto_mm'] = _numero(b.get('alto_mm'), f'{ruta}.alto_mm', 8, 120, 12)
     elif tipo == 'casillas':
         variable = b.get('variable')
-        if not isinstance(variable, str) or not es_variable_escalar(variable, propios):
+        if not isinstance(variable, str) or not es_variable_escalar(variable, propios, proceso):
             _err('Elija la variable cuyo valor marca la opción.', f'{ruta}.variable')
         opciones = b.get('opciones')
         if not isinstance(opciones, list) or not 1 <= len(opciones) <= MAX_OPCIONES:
@@ -206,8 +206,8 @@ def _validar_bloque(b, i: int, propios, vistos: set) -> dict:
         })
     elif tipo == 'tabla':
         coleccion = b.get('coleccion')
-        if coleccion not in CLAVES_COLECCION:
-            _err('Elija una colección válida (familiares, estudios, cursos...).', f'{ruta}.coleccion')
+        if coleccion not in colecciones_de_proceso(proceso):
+            _err('Elija una colección válida y permitida por el proceso (familiares, estudios, cursos...).', f'{ruta}.coleccion')
         columnas = b.get('columnas')
         if not isinstance(columnas, list) or not 1 <= len(columnas) <= MAX_COLUMNAS_TABLA:
             _err(f'Una tabla lleva de 1 a {MAX_COLUMNAS_TABLA} columnas.', f'{ruta}.columnas')
@@ -227,7 +227,7 @@ def _validar_bloque(b, i: int, propios, vistos: set) -> dict:
         })
     elif tipo == 'parrafo':
         texto = _texto(b.get('texto'), f'{ruta}.texto', MAX_TEXTO, obligatorio=True)
-        _validar_texto_con_variables(texto, propios, f'{ruta}.texto')
+        _validar_texto_con_variables(texto, propios, f'{ruta}.texto', proceso)
         salida.update({'texto': texto, 'alineacion': _opcion(b.get('alineacion'), ALINEACIONES_TEXTO, f'{ruta}.alineacion', 'justificado')})
     elif tipo == 'foto':
         salida.update({
@@ -246,7 +246,8 @@ def _validar_bloque(b, i: int, propios, vistos: set) -> dict:
     return salida
 
 
-def validar_definicion_formulario(definicion, propios: list[dict]) -> dict:
+def validar_definicion_formulario(definicion, propios: list[dict], proceso: str = PROCESO_BAJO_DEMANDA) -> dict:
+    proceso = validar_proceso(proceso)
     if not isinstance(definicion, dict):
         _err('La definición debe ser un objeto.', 'definicion')
     pagina = definicion.get('pagina') or {}
@@ -269,17 +270,17 @@ def validar_definicion_formulario(definicion, propios: list[dict]) -> dict:
             'orientacion': _opcion(pagina.get('orientacion'), ORIENTACIONES, 'definicion.pagina.orientacion', 'vertical'),
         },
         'encabezado': enc,
-        'bloques': [_validar_bloque(b, i, propios, vistos) for i, b in enumerate(bloques)],
+        'bloques': [_validar_bloque(b, i, propios, vistos, proceso) for i, b in enumerate(bloques)],
     }
 
 
 # ───────────────────────── modo pdf_overlay ─────────────────────────
 
-def _validar_condicion(c, propios, ruta: str) -> dict:
+def _validar_condicion(c, propios, ruta: str, proceso: str) -> dict:
     if not isinstance(c, dict):
         _err('Indique la condición que marca la casilla.', ruta)
     variable = c.get('variable')
-    if not isinstance(variable, str) or not es_variable_escalar(variable, propios):
+    if not isinstance(variable, str) or not es_variable_escalar(variable, propios, proceso):
         _err('Elija la variable de la condición.', f'{ruta}.variable')
     operador = _opcion(c.get('operador'), OPERADORES, f'{ruta}.operador', 'igual')
     valor = _texto(c.get('valor'), f'{ruta}.valor', 120)
@@ -288,7 +289,7 @@ def _validar_condicion(c, propios, ruta: str) -> dict:
     return {'variable': variable, 'operador': operador, 'valor': valor}
 
 
-def _validar_campo_overlay(c, ruta: str, propios, ancho_mm: float | None, alto_mm: float | None, vistos: set) -> dict:
+def _validar_campo_overlay(c, ruta: str, propios, ancho_mm: float | None, alto_mm: float | None, vistos: set, proceso: str) -> dict:
     if not isinstance(c, dict):
         _err('Cada campo debe ser un objeto.', ruta)
     tipo = _opcion(c.get('tipo'), TIPOS_CAMPO_OVERLAY, f'{ruta}.tipo')
@@ -308,7 +309,7 @@ def _validar_campo_overlay(c, ruta: str, propios, ancho_mm: float | None, alto_m
     salida: dict = {'id': cid, 'tipo': tipo, 'x': x, 'y': y, 'w': w, 'h': h}
     if tipo == 'texto':
         texto = _texto(c.get('texto'), f'{ruta}.texto', MAX_TEXTO, obligatorio=True)
-        _validar_texto_con_variables(texto, propios, f'{ruta}.texto')
+        _validar_texto_con_variables(texto, propios, f'{ruta}.texto', proceso)
         salida.update({
             'texto': texto,
             'tamano': _numero(c.get('tamano'), f'{ruta}.tamano', *TAMANO_FUENTE, 9),
@@ -316,11 +317,11 @@ def _validar_campo_overlay(c, ruta: str, propios, ancho_mm: float | None, alto_m
             'negrita': bool(c.get('negrita', False)),
         })
     elif tipo == 'casilla':
-        salida['condicion'] = _validar_condicion(c.get('condicion'), propios, f'{ruta}.condicion')
+        salida['condicion'] = _validar_condicion(c.get('condicion'), propios, f'{ruta}.condicion', proceso)
     elif tipo == 'tabla':
         coleccion = c.get('coleccion')
-        if coleccion not in CLAVES_COLECCION:
-            _err('Elija una colección válida.', f'{ruta}.coleccion')
+        if coleccion not in colecciones_de_proceso(proceso):
+            _err('Elija una colección válida y permitida por el proceso.', f'{ruta}.coleccion')
         validas = {col['clave'] for col in POR_CLAVE[coleccion]['columnas']}
         columnas = c.get('columnas')
         if not isinstance(columnas, list) or not 1 <= len(columnas) <= MAX_COLUMNAS_TABLA:
@@ -344,8 +345,10 @@ def _validar_campo_overlay(c, ruta: str, propios, ancho_mm: float | None, alto_m
     return salida
 
 
-def validar_definicion_overlay(definicion, propios: list[dict], paginas_fondo: list[dict] | None) -> dict:
+def validar_definicion_overlay(definicion, propios: list[dict], paginas_fondo: list[dict] | None,
+                              proceso: str = PROCESO_BAJO_DEMANDA) -> dict:
     """`paginas_fondo`: [{numero, ancho_mm, alto_mm}] del PDF de fondo subido (None si aún no hay)."""
+    proceso = validar_proceso(proceso)
     if not isinstance(definicion, dict):
         _err('La definición debe ser un objeto.', 'definicion')
     paginas = definicion.get('paginas', [])
@@ -368,27 +371,29 @@ def validar_definicion_overlay(definicion, propios: list[dict], paginas_fondo: l
         dim = por_numero[origen]
         salida.append({
             'origen': origen,
-            'campos': [_validar_campo_overlay(c, f'{ruta}.campos.{j}', propios, dim['ancho_mm'], dim['alto_mm'], vistos)
+            'campos': [_validar_campo_overlay(c, f'{ruta}.campos.{j}', propios, dim['ancho_mm'], dim['alto_mm'], vistos, proceso)
                        for j, c in enumerate(campos)],
         })
     return {'paginas': salida}
 
 
-def validar_definicion(modo: str, definicion, campos_propios, paginas_fondo: list[dict] | None = None) -> tuple[dict, list[dict]]:
-    """Valida y normaliza (definición, campos propios) según el modo. Lanza `ValidationError`."""
+def validar_definicion(modo: str, definicion, campos_propios, paginas_fondo: list[dict] | None = None,
+                       proceso: str = PROCESO_BAJO_DEMANDA) -> tuple[dict, list[dict]]:
+    """Valida y normaliza (definición, campos propios) según el modo y proceso. Lanza `ValidationError`."""
+    proceso = validar_proceso(proceso)
     if modo not in MODOS:
         _err(f'Modo no permitido; use uno de: {", ".join(MODOS)}.', 'modo')
     propios = validar_campos_propios(campos_propios)
     if modo == 'formulario':
-        return validar_definicion_formulario(definicion, propios), propios
-    return validar_definicion_overlay(definicion, propios, paginas_fondo), propios
+        return validar_definicion_formulario(definicion, propios, proceso), propios
+    return validar_definicion_overlay(definicion, propios, paginas_fondo, proceso), propios
 
 
-def validar_metadatos(codigo, nombre, momento, firmante, requiere_firma_clic) -> dict:
+def validar_metadatos(codigo, nombre, proceso, firmante, requiere_firma_clic) -> dict:
     return {
         'codigo': _normalizar_codigo(codigo),
         'nombre': _texto(nombre, 'nombre', 160, obligatorio=True),
-        'momento': _opcion(momento, MOMENTOS, 'momento', 'otro'),
+        'proceso': validar_proceso(proceso, defecto=PROCESO_BAJO_DEMANDA),
         'firmante': _opcion(firmante, FIRMANTES, 'firmante', 'postulante'),
         'requiere_firma_clic': bool(requiere_firma_clic),
     }

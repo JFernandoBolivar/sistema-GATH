@@ -162,7 +162,10 @@ export interface ReglaRuta {
 }
 
 export const REGLAS_RUTA: ReglaRuta[] = [
+  { prefijo: 'documentos/plantillas', permisos: ['documentos.ver_plantillas'] },
+  { prefijo: 'personal/documentos/plantillas', permisos: ['documentos.ver_plantillas'] },
   { prefijo: 'configuracion/documentos', permisos: ['documentos.ver_plantillas'] },
+  { prefijo: 'configuracion/punto-cuenta', permisos: ['documentos.ver_plantillas'] },
   { prefijo: 'personal/ingreso/plantillas', permisos: ['documentos.ver_plantillas'] },
   // Proceso de ingreso: mismo permiso que editar parámetros del sistema.
   { prefijo: 'configuracion/proceso-ingreso', permisos: ['configuracion.editar'] },

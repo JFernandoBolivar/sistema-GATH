@@ -32,7 +32,8 @@ export interface DocumentoExpedienteDTO {
   codigo: string;
   nombre: string;
   descripcion: string;
-  momento: string;
+  proceso: string;
+  procesoEtiqueta: string;
   version: number;
   firmante: string;
   requiereFirma: boolean;

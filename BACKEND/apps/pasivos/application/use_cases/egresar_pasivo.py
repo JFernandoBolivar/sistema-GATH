@@ -1,12 +1,25 @@
 """Egreso de un pasivo (fallecimiento) y alta de sobrevivientes en el mismo flujo."""
-from apps.pasivos.application.dtos.pasivos_dtos import CrearSobrevivientesDTO, EgresarPasivoDTO
-from apps.pasivos.application.use_cases.crear_sobrevivientes import ejecutar_creacion_sobrevivientes
+from apps.pasivos.application.dtos.pasivos_dtos import (
+    CrearSobrevivientesDTO,
+    EgresarPasivoDTO,
+)
+from apps.pasivos.application.use_cases.crear_sobrevivientes import (
+    ejecutar_creacion_sobrevivientes,
+)
 from apps.pasivos.application.use_cases.listar_pasivos import pasivo_a_dto
 from apps.pasivos.domain.ports.repo_pasivos import RepoPasivos
+from apps.pasivos.domain.value_objects.motivo_egreso import (
+    MOTIVOS_EGRESO_PASIVO_SISTEMA,
+)
 
 
 def listar_motivos_egreso_pasivo(repo: RepoPasivos) -> list[dict]:
-    return repo.listar_motivos_egreso_pasivo()
+    """Motivos seleccionables en el egreso manual; excluye los reservados al sistema."""
+    return [
+        motivo
+        for motivo in repo.listar_motivos_egreso_pasivo()
+        if str(motivo.get('nombre') or '').strip().upper() not in MOTIVOS_EGRESO_PASIVO_SISTEMA
+    ]
 
 
 def egresar_pasivo(repo: RepoPasivos, dto: EgresarPasivoDTO):

@@ -16,6 +16,8 @@ urlpatterns = [
     path('plantillas/<uuid:id>/fondo/paginas/<int:numero>/', v.PlantillaFondoPaginaView.as_view(), name='plantilla_fondo_pagina'),
     path('plantillas/<uuid:id>/logo/', v.PlantillaLogoView.as_view(), name='plantilla_logo'),
     path('plantillas/<uuid:id>/vista-previa/', v.PlantillaVistaPreviaView.as_view(), name='plantilla_vista_previa'),
+    path('bajo-demanda/', v.BajoDemandaView.as_view(), name='bajo_demanda'),
+    path('bajo-demanda/generar/', v.BajoDemandaGenerarView.as_view(), name='bajo_demanda_generar'),
     path('generados/<uuid:id>/', v.DocumentoGeneradoView.as_view(), name='generado'),
     path('generados/<uuid:id>/archivo/', v.DocumentoGeneradoArchivoView.as_view(), name='generado_archivo'),
 ]

@@ -2,7 +2,6 @@ import type {
   AlineacionTexto,
   FirmanteDocumento,
   ModoPlantilla,
-  MomentoDocumento,
   OperadorCondicion,
   PlantillaResumen,
   TipoCampoPropio,
@@ -13,11 +12,17 @@ export const ETIQUETA_MODO: Record<ModoPlantilla, string> = {
   pdf_overlay: "Formato de terceros",
 };
 
-export const ETIQUETA_MOMENTO: Record<MomentoDocumento, string> = {
-  ventana2: "Datos complementarios (datos y documentos)",
-  contratacion: "Contratación",
-  otro: "Otro momento",
+/** Título legible de cada grupo de procesos (el código lo entrega el backend). */
+export const ETIQUETA_GRUPO_PROCESO: Record<string, string> = {
+  ingreso: "Ingreso de personal",
+  punto_cuenta: "Punto de cuenta",
+  movimiento: "Movimientos de personal",
+  bajo_demanda: "Bajo demanda",
 };
+
+export function tituloGrupoProceso(grupo: string): string {
+  return ETIQUETA_GRUPO_PROCESO[grupo] ?? grupo;
+}
 
 export const ETIQUETA_FIRMANTE: Record<FirmanteDocumento, string> = {
   postulante: "El postulante",

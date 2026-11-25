@@ -11,6 +11,7 @@ import type {
   ErrorValidacion,
   ModoPlantilla,
   PaginaFondo,
+  ProcesoPlantilla,
 } from "../entities/plantilla";
 import { PREFIJO_PROPIO, type ContextoVariables, variablesDesconocidas } from "./variables";
 
@@ -56,6 +57,40 @@ function despachar<T>(porTipo: Record<string, z.ZodTypeAny>, mensajeTipo: string
     const r = esquema.safeParse(valor);
     if (!r.success) for (const i of r.error.issues) ctx.addIssue({ code: "custom", path: i.path, message: i.message });
   }) as unknown as z.ZodType<T>;
+}
+
+// ───────────────────────── metadatos y proceso ─────────────────────────
+
+export type MetadatosPlantilla = {
+  codigo: string;
+  nombre: string;
+  descripcion: string;
+  proceso: string;
+  firmante: "postulante" | "conatel" | "ambos";
+  requiere_firma_clic: boolean;
+};
+
+export function esquemaMetadatosPlantilla(procesos: readonly ProcesoPlantilla[]) {
+  return z.object({
+    codigo: obligatoria(60),
+    nombre: obligatoria(160),
+    descripcion: etiqueta(1000),
+    proceso: z.string().min(1, "Seleccione el proceso en el que se usa la plantilla."),
+    firmante: z.enum(["postulante", "conatel", "ambos"]),
+    requiere_firma_clic: z.boolean(),
+  }).superRefine((datos, ctx) => {
+    if (datos.proceso && !procesos.some((p) => p.codigo === datos.proceso)) {
+      ctx.addIssue({ code: "custom", path: ["proceso"], message: "El proceso seleccionado ya no está disponible." });
+    }
+  });
+}
+
+export function validarMetadatosPlantilla(
+  entrada: MetadatosPlantilla,
+  procesos: readonly ProcesoPlantilla[],
+): ErrorValidacion[] {
+  const resultado = esquemaMetadatosPlantilla(procesos).safeParse(entrada);
+  return resultado.success ? [] : aErrores(resultado.error);
 }
 
 // ───────────────────────── campos propios ─────────────────────────

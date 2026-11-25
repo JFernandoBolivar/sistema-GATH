@@ -1,6 +1,7 @@
 """Modelos ORM de los documentos digitales (F-1, regla B26)."""
 from django.db import models
 
+from apps.documentos.domain.services.catalogo_procesos import PROCESO_BAJO_DEMANDA
 from core.infrastructure.models.base import BaseModel
 
 
@@ -8,14 +9,14 @@ class PlantillaDocumentoModel(BaseModel):
     """Plantilla en edición (borrador de trabajo) + metadatos. Cada publicación crea una versión inmutable."""
 
     MODOS = [('formulario', 'Formulario propio'), ('pdf_overlay', 'Formato de terceros (PDF de fondo)')]
-    MOMENTOS = [('ventana2', 'Ventana 2'), ('contratacion', 'Contratación'), ('otro', 'Otro')]
     FIRMANTES = [('postulante', 'Postulante'), ('conatel', 'CONATEL'), ('ambos', 'Ambos')]
 
     codigo = models.CharField(max_length=60, unique=True)
     nombre = models.CharField(max_length=160)
     descripcion = models.CharField(max_length=400, blank=True, default='')
     modo = models.CharField(max_length=16, choices=MODOS)
-    momento = models.CharField(max_length=16, choices=MOMENTOS, default='otro')
+    # Los códigos válidos viven en el catálogo del dominio (`catalogo_procesos`); crecen sin migrar.
+    proceso = models.CharField(max_length=80, default=PROCESO_BAJO_DEMANDA, db_index=True)
     firmante = models.CharField(max_length=16, choices=FIRMANTES, default='postulante')
     requiere_firma_clic = models.BooleanField(default=False)
     activa = models.BooleanField(default=False)
@@ -82,6 +83,11 @@ class DocumentoGeneradoModel(BaseModel):
     generado_por_id = models.IntegerField(null=True, blank=True)
     huella_datos = models.CharField(max_length=64, blank=True, default='')
     trabajador_cedula = models.CharField(max_length=20, blank=True, default='', db_index=True)
+    # Copia de lo que era la plantilla al generar el documento (la FK sigue siendo la fuente de verdad del vínculo).
+    plantilla_codigo = models.CharField(max_length=60, blank=True, default='')
+    plantilla_nombre = models.CharField(max_length=160, blank=True, default='')
+    proceso = models.CharField(max_length=80, default=PROCESO_BAJO_DEMANDA, db_index=True)
+    proceso_etiqueta = models.CharField(max_length=160, blank=True, default='')
 
     class Meta:
         db_table = 'documentos_generado'

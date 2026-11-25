@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mapearDocumentoExpediente, mapearDocumentosExpediente } from "./mapper-documentos-expediente";
 
 const CRUDO = {
-  plantilla_id: "p1", codigo: "OFERTA", nombre: "Oferta de servicios", descripcion: "d", momento: "ventana2", version: 2,
+  plantilla_id: "p1", codigo: "OFERTA", nombre: "Oferta de servicios", descripcion: "d", proceso: "ventana2", proceso_etiqueta: "Datos complementarios", version: 2,
   firmante: "postulante", requiere_firma: true,
   campos_propios: [
     { clave: "sueldo", etiqueta: "Sueldo", tipo: "texto", obligatorio: true, ayuda: "" },

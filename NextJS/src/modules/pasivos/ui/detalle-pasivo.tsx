@@ -146,6 +146,8 @@ export function DetallePasivo({
       revision={revision}
       permitirPais
       esPasivo
+      puedeGenerarDocumentos={tienePermiso(permisos, "documentos.generar_bajo_demanda")}
+      puedeVerMovimientos={tienePermiso(permisos, "movimientos.ver")}
     />
   );
 }

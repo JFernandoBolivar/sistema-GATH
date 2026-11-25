@@ -206,7 +206,7 @@ export async function postulanteCompletaTodoPorApi(request: APIRequestContext, c
 export async function crearPlantillaDePrueba(request: APIRequestContext, admin: Record<string, string>, codigo: string): Promise<string> {
   const crear = await request.post(`${API_DOCUMENTOS}/plantillas/`, {
     headers: admin,
-    data: { codigo, nombre: "Documento E2E", descripcion: "Plantilla de prueba de la E2E de documentos.", modo: "formulario", momento: "ventana2", firmante: "postulante", requiere_firma_clic: true },
+    data: { codigo, nombre: "Documento E2E", descripcion: "Plantilla de prueba de la E2E de documentos.", modo: "formulario", proceso: "ingreso_ventana2", firmante: "postulante", requiere_firma_clic: true },
   });
   expect(crear.ok(), `crear plantilla: HTTP ${crear.status()}`).toBeTruthy();
   const id = ((await crear.json()) as Sobre<{ id: string }>).data.id;

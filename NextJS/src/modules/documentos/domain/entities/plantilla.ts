@@ -4,9 +4,17 @@
  */
 
 export type ModoPlantilla = "formulario" | "pdf_overlay";
-export type MomentoDocumento = "ventana2" | "contratacion" | "otro";
 export type FirmanteDocumento = "postulante" | "conatel" | "ambos";
 export type EstadoPlantilla = "borrador" | "publicada";
+
+/** Proceso funcional al que pertenece una plantilla. */
+export interface ProcesoPlantilla {
+  codigo: string;
+  etiqueta: string;
+  descripcion: string;
+  grupo: string;
+  grupos_variables: string[];
+}
 
 export interface PlantillaResumen {
   id: string;
@@ -14,7 +22,10 @@ export interface PlantillaResumen {
   nombre: string;
   descripcion: string;
   modo: ModoPlantilla;
-  momento: MomentoDocumento;
+  proceso: string;
+  proceso_etiqueta: string;
+  /** Presente en el listado cuando el backend lo expone. */
+  grupo?: string;
   firmante: FirmanteDocumento;
   requiere_firma_clic: boolean;
   activa: boolean;
@@ -69,14 +80,32 @@ export interface VariableCatalogo {
 }
 
 export interface CatalogoVariables {
+  /** Proceso consultado. Ausente cuando se pidió el catálogo completo. */
+  proceso?: string;
+  procesos: ProcesoPlantilla[];
   variables: VariableCatalogo[];
   tipos_bloque: string[];
   tipos_campo_overlay: string[];
   tipos_campo_propio: string[];
   modos: ModoPlantilla[];
-  momentos: MomentoDocumento[];
   firmantes: FirmanteDocumento[];
   limites: { max_bytes_fondo: number; max_bytes_logo: number };
+}
+
+export interface AlertaPlantilla {
+  proceso: string;
+  etiqueta: string;
+  mensaje: string;
+}
+
+export interface FiltrosPlantilla {
+  proceso?: string;
+  grupo?: string;
+}
+
+export interface ListadoPlantillas {
+  plantillas: PlantillaResumen[];
+  alertas: AlertaPlantilla[];
 }
 
 // ───────────────────────── Campos propios ─────────────────────────
@@ -234,7 +263,7 @@ export interface BorradorPlantilla {
   codigo: string;
   nombre: string;
   descripcion: string;
-  momento: MomentoDocumento;
+  proceso: string;
   firmante: FirmanteDocumento;
   requiere_firma_clic: boolean;
   definicion: DefinicionDocumento;
@@ -245,4 +274,33 @@ export interface ErrorValidacion {
   /** Ruta con puntos, p. ej. `bloques.3.celdas.0.variable`. */
   ruta: string;
   mensaje: string;
+}
+
+// ───────────────────────── Generación bajo demanda ─────────────────────────
+
+export interface PlantillaBajoDemanda extends PlantillaResumen {
+  campos_propios: CampoPropio[];
+}
+
+export interface DocumentoGeneradoResumen {
+  id: string;
+  plantilla_id: string;
+  plantilla_codigo: string;
+  plantilla_nombre: string;
+  proceso: string;
+  proceso_etiqueta: string;
+  version_numero: number;
+  pdf_sha256: string;
+  generado_en: string;
+}
+
+export interface ListadoBajoDemanda {
+  plantillas: PlantillaBajoDemanda[];
+  generados: DocumentoGeneradoResumen[];
+}
+
+export interface GenerarBajoDemandaInput {
+  plantilla_id: string;
+  trabajador_cedula: string;
+  valores_propios: Record<string, string>;
 }

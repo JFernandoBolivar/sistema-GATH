@@ -73,7 +73,7 @@ function FilaDocumento({ doc, expedienteId }: { doc: DocumentoExpedienteDTO; exp
           </h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Versión {doc.version}
-            {doc.momento === "contratacion" ? " · de contratación" : ""}
+            {doc.proceso === "contratacion" ? " · de contratación" : ""}
             {doc.trabajadorCedula ? ` · trabajador C.I. ${doc.trabajadorCedula}` : ""}
           </p>
         </div>

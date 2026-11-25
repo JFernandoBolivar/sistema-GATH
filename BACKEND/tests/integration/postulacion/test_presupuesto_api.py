@@ -400,11 +400,11 @@ def test_si_no_se_puede_generar_el_punto_de_cuenta_el_expediente_no_cambia_y_no_
     exp = crear_expediente(mundo)
     reservar(presupuesto, exp, mundo['p1'])
     declarar(presupuesto, exp)
-    Almacen.falla_con_prefijo = 'puntocuenta/'
+    Almacen.falla_con_prefijo = 'documentos/generados/'
     assert transicion_presupuesto(presupuesto, exp, 'EN_DIRECCION_GENERAL').status_code == 500
     assert ExpedientePostulacionModel.objects.get(pk=exp).estado == 'EN_PRESUPUESTO'
     assert not PuntoCuentaModel.objects.exists() and not PuntoCuentaIngresoModel.objects.exists()
-    assert not [k for k in Almacen.objetos if k.startswith('puntocuenta/')]
+    assert not [k for k in Almacen.objetos if k.startswith('documentos/generados/')]
     Almacen.falla_con_prefijo = ''
     assert transicion_presupuesto(presupuesto, exp, 'EN_DIRECCION_GENERAL').status_code == 200
 

@@ -23,7 +23,7 @@ BASE = '/api/v1/documentos'
 
 
 def _crear(api, modo='formulario', codigo='DOC_PRUEBA', **extra):
-    cuerpo = {'codigo': codigo, 'nombre': 'Documento de prueba', 'modo': modo, 'momento': 'ventana2',
+    cuerpo = {'codigo': codigo, 'nombre': 'Documento de prueba', 'modo': modo, 'proceso': 'ingreso_ventana2',
               'firmante': 'postulante', 'requiere_firma_clic': True, **extra}
     r = api.post(f'{BASE}/plantillas/', cuerpo, format='json')
     assert r.status_code == 201, r.data
@@ -271,7 +271,7 @@ def test_sembrar_es_todo_o_nada_si_falla_la_subida_y_se_completa_despues(almacen
     almacen.subir = subir_real
     PlantillaDocumentoModel.objects.create(
         codigo='AFILIACION_CAJA_AHORRO', nombre='Afiliación Caja de Ahorro', modo='pdf_overlay',
-        momento='ventana2', firmante='postulante', definicion={'paginas': []}, campos_propios=[])
+        proceso='ingreso_ventana2', firmante='postulante', definicion={'paginas': []}, campos_propios=[])
     call_command('sembrar_plantillas_documentos', '--pdf-caja-ahorro', str(pdf))
     caja = PlantillaDocumentoModel.objects.get(codigo='AFILIACION_CAJA_AHORRO')
     assert caja.fondo_clave and caja.definicion['paginas'][0]['campos']

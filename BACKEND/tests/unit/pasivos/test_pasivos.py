@@ -4,6 +4,9 @@ Tests unitarios del módulo pasivos (Arquitectura Onion pura sin BD).
 import pytest
 
 from apps.pasivos.application.dtos.pasivos_dtos import ProcesarEgresoDTO
+from apps.pasivos.application.use_cases.egresar_pasivo import (
+    listar_motivos_egreso_pasivo,
+)
 from apps.pasivos.application.use_cases.listar_pasivos import listar_pasivos
 from apps.pasivos.application.use_cases.obtener_pasivo import obtener_pasivo_por_cedula
 from apps.pasivos.application.use_cases.procesar_egreso import procesar_egreso
@@ -62,6 +65,21 @@ class RepoPasivosMemoria:
         )
         self.pasivos.append(nuevo)
         return nuevo
+
+
+class RepoMotivosEgresoMemoria:
+    def listar_motivos_egreso_pasivo(self):
+        return [
+            {'id': 1, 'nombre': 'FALLECIMIENTO'},
+            {'id': 2, 'nombre': 'REINGRESO COMO PERSONAL ACTIVO'},
+            {'id': 3, 'nombre': ' reingreso como personal activo '},
+        ]
+
+
+def test_listar_motivos_egreso_manual_oculta_los_reservados_al_sistema():
+    assert listar_motivos_egreso_pasivo(RepoMotivosEgresoMemoria()) == [
+        {'id': 1, 'nombre': 'FALLECIMIENTO'},
+    ]
 
 
 def test_listar_pasivos():

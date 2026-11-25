@@ -44,9 +44,9 @@ def _coleccion(clave, etiqueta, descripcion, grupo, columnas, filas_ejemplo):
             'tipo': 'coleccion', 'columnas': columnas, 'ejemplo': filas_ejemplo}
 
 
-G_IDENT, G_CONTACTO, G_DIR, G_LAB, G_DOC, G_SALUD, G_TALLAS, G_COL = (
+G_IDENT, G_CONTACTO, G_DIR, G_LAB, G_DOC, G_SALUD, G_TALLAS, G_COL, G_MOV = (
     'Identidad', 'Contacto', 'Dirección y vivienda', 'Cargo y nómina propuestos',
-    'Documento', 'Salud', 'Tallas', 'Listas (tablas)',
+    'Documento', 'Salud', 'Tallas', 'Listas (tablas)', 'Movimiento',
 )
 
 CATALOGO_VARIABLES: list[dict] = [
@@ -98,6 +98,29 @@ CATALOGO_VARIABLES: list[dict] = [
     _v('dia', 'Día', 'Día del mes de hoy', G_DOC, '24'),
     _v('mes', 'Mes', 'Mes de hoy (número)', G_DOC, '11'),
     _v('anio', 'Año', 'Año de hoy', G_DOC, '2026'),
+    # Movimiento y datos administrativos del Punto de Cuenta. El nombre de la persona
+    # se estampa con `nombre_completo`; no se crea un alias `nombre`.
+    _v('origen', 'Origen', 'Dependencia o cargo de origen del movimiento', G_MOV, 'GERENCIA DE OPERACIONES'),
+    _v('destino', 'Destino', 'Dependencia o cargo de destino del movimiento', G_MOV, 'DIRECCIÓN DE ADMINISTRACIÓN'),
+    _v('motivo', 'Motivo', 'Motivo del movimiento o de la solicitud', G_MOV, 'CAMBIO DE OFICINA'),
+    _v('fecha', 'Fecha del movimiento', 'Fecha efectiva del movimiento (DD/MM/AAAA); el adaptador de Punto de Cuenta la obtiene del movimiento', G_MOV, '01/12/2026', 'fecha'),
+    _v('numero', 'Número', 'Número o referencia administrativa del documento', G_MOV, 'PC-2026-00123'),
+    _v('cargo_destino', 'Cargo de destino', 'Denominación del cargo que ocupará el trabajador', G_MOV, 'ESPECIALISTA EN TELECOMUNICACIONES'),
+    _v('nivel', 'Nivel', 'Nivel administrativo o profesional del trabajador', G_MOV, 'PROFESIONAL III'),
+    _v('tipo_personal', 'Tipo de personal', 'Clasificación de personal aplicable al movimiento', G_MOV, 'FIJO'),
+    _v('fecha_efectiva', 'Fecha efectiva', 'Fecha en que la decisión administrativa entra en vigencia (DD/MM/AAAA)', G_MOV, '01/12/2026', 'fecha'),
+    _v('anios_servicio', 'Años de servicio', 'Años de servicio acumulados por el trabajador', G_MOV, '8'),
+    _v('presentado_a', 'Presentado a', 'Nombre de la autoridad a quien se presenta el documento', G_MOV, 'LIC. MARÍA RODRÍGUEZ'),
+    _v('cargo_presentado_a', 'Cargo de quien recibe', 'Cargo de la autoridad a quien se presenta el documento', G_MOV, 'DIRECTORA GENERAL'),
+    _v('presentado_por', 'Presentado por', 'Nombre de quien presenta o solicita el trámite', G_MOV, 'LIC. JUAN PÉREZ'),
+    _v('cargo_presentado_por', 'Cargo de quien presenta', 'Cargo de quien presenta o solicita el trámite', G_MOV, 'JEFE DE RECURSOS HUMANOS'),
+    _v('unidad', 'Unidad administrativa', 'Unidad responsable o vinculada con el documento', G_MOV, 'DIRECCIÓN DE RECURSOS HUMANOS'),
+    _v('referencia_constancia', 'Referencia de constancia', 'Referencia de la constancia o respaldo administrativo', G_MOV, 'CONST-2026-00456'),
+    _v('emitido_por', 'Emitido por', 'Nombre de la persona o unidad que emite el documento', G_MOV, 'DIRECCIÓN DE RECURSOS HUMANOS'),
+    _coleccion('firmantes', 'Firmantes del documento', 'Personas que presentan o firman el documento, con etiqueta y detalle', G_MOV, [
+        _col('etiqueta', 'Etiqueta', 'EL INTERESADO'),
+        _col('detalle', 'Detalle', 'CÉDULA V-18456789'),
+    ], [{'etiqueta': 'EL INTERESADO', 'detalle': 'CÉDULA V-18456789'}]),
     # Salud
     _v('grupo_sanguineo', 'Grupo sanguíneo', 'Grupo y factor', G_SALUD, 'O+'),
     _v('alergias', 'Alergias', 'Alergias declaradas', G_SALUD, 'NINGUNA'),
@@ -172,13 +195,39 @@ def claves_propias_de(campos_propios: list[dict]) -> frozenset[str]:
     return frozenset(PREFIJO_PROPIO + c['clave'] for c in campos_propios or [])
 
 
-def es_variable_escalar(clave: str, campos_propios: list[dict]) -> bool:
-    return clave in CLAVES_ESCALARES or clave in claves_propias_de(campos_propios)
+def grupos_variables_proceso(proceso: str | None) -> tuple[str, ...]:
+    """Grupos habilitados por un proceso; `None` conserva el catálogo completo."""
+    if not proceso:
+        return tuple(dict.fromkeys(v['grupo'] for v in CATALOGO_VARIABLES))
+    from apps.documentos.domain.services.catalogo_procesos import obtener_proceso
+
+    definicion = obtener_proceso(proceso)
+    if definicion is None:
+        raise ValueError(f'Proceso de documento desconocido: {proceso}')
+    return definicion.grupos_variables
 
 
-def variables_desconocidas(texto: str | None, campos_propios: list[dict]) -> list[str]:
-    """Variables de `texto` que no son escalares conocidas ni campos propios declarados."""
-    return [v for v in extraer_variables(texto) if not es_variable_escalar(v, campos_propios)]
+def variables_disponibles(proceso: str | None = None) -> list[dict]:
+    """Variables del catálogo habilitadas para el proceso (todas si es `None`)."""
+    grupos = set(grupos_variables_proceso(proceso))
+    return [v for v in CATALOGO_VARIABLES if v['grupo'] in grupos]
+
+
+def colecciones_de_proceso(proceso: str | None = None) -> frozenset[str]:
+    return frozenset(v['clave'] for v in variables_disponibles(proceso) if v['tipo'] == 'coleccion')
+
+
+def escalares_de_proceso(proceso: str | None = None) -> frozenset[str]:
+    return frozenset(v['clave'] for v in variables_disponibles(proceso) if v['tipo'] in TIPOS_ESCALARES)
+
+
+def es_variable_escalar(clave: str, campos_propios: list[dict], proceso: str | None = None) -> bool:
+    return clave in escalares_de_proceso(proceso) or clave in claves_propias_de(campos_propios)
+
+
+def variables_desconocidas(texto: str | None, campos_propios: list[dict], proceso: str | None = None) -> list[str]:
+    """Variables de `texto` que no son escalares habilitadas ni campos propios declarados."""
+    return [v for v in extraer_variables(texto) if not es_variable_escalar(v, campos_propios, proceso)]
 
 
 def formatear_fecha(valor) -> str:
@@ -224,10 +273,10 @@ def valor_ejemplo_propio(campo: dict):
     return f"Ejemplo: {campo.get('etiqueta', '')}"
 
 
-def datos_ejemplo(campos_propios: list[dict] | None = None) -> dict:
+def datos_ejemplo(campos_propios: list[dict] | None = None, proceso: str | None = None) -> dict:
     """Datos ficticios completos para la vista previa de una plantilla (nunca datos reales)."""
     datos: dict = {}
-    for v in CATALOGO_VARIABLES:
+    for v in variables_disponibles(proceso):
         datos[v['clave']] = v['ejemplo']
     datos.update(datos_de_hoy())
     for campo in campos_propios or []:
@@ -235,9 +284,9 @@ def datos_ejemplo(campos_propios: list[dict] | None = None) -> dict:
     return datos
 
 
-def catalogo_para_interfaz(campos_propios: list[dict] | None = None) -> list[dict]:
+def catalogo_para_interfaz(campos_propios: list[dict] | None = None, proceso: str | None = None) -> list[dict]:
     """Catálogo serializable para el selector del diseñador (sin los ejemplos de fotos)."""
-    salida = [dict(v) for v in CATALOGO_VARIABLES]
+    salida = [dict(v) for v in variables_disponibles(proceso)]
     for campo in campos_propios or []:
         salida.append({
             'clave': PREFIJO_PROPIO + campo['clave'], 'etiqueta': campo['etiqueta'],

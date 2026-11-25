@@ -173,8 +173,8 @@ class DocumentosExpedienteORM:
         return self._plantillas, self._documentos, self._proveedor
 
     def listar(self, expediente_id: str, *, con_contratacion: bool = False) -> list[dict]:
-        momentos = ('ventana2', 'contratacion') if con_contratacion else ('ventana2',)
-        return uc.listar_documentos(*self._comunes(), sujeto_tipo=SUJETO, sujeto_id=expediente_id, momentos=momentos)
+        procesos = ('ingreso_ventana2', 'ingreso_contratacion') if con_contratacion else ('ingreso_ventana2',)
+        return uc.listar_documentos(*self._comunes(), sujeto_tipo=SUJETO, sujeto_id=expediente_id, procesos=procesos)
 
     def guardar_campos(self, expediente_id: str, codigo: str, valores: dict) -> dict:
         return uc.guardar_campos_propios(*self._comunes(), sujeto_tipo=SUJETO, sujeto_id=expediente_id, codigo=codigo, valores=valores)

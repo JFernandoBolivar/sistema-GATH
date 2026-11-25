@@ -35,8 +35,8 @@ type Confirmacion = "publicar" | "activar" | "duplicar" | null;
 export function EditorPlantillaView({ id }: { id: string }) {
   const RUTA_DOCUMENTOS = useRutaDocumentos();
   const router = useRouter();
-  const { plantilla, cargando, error, status } = usePlantilla(id);
-  const { catalogo, error: errorCatalogo } = useVariables();
+  const { plantilla, cargando, error, status, mutate: recargarPlantilla } = usePlantilla(id);
+  const { catalogo, error: errorCatalogo, recargar: recargarCatalogo } = useVariables();
   const { puedeGestionar } = usePermisosDocumentos();
   const { ref: refEditor, disposicion } = useDisposicionEditor();
   const editor = useEditorPlantilla({ plantilla, catalogo });
@@ -62,11 +62,15 @@ export function EditorPlantillaView({ id }: { id: string }) {
 
   const erroresRuta = useMemo(() => erroresPorRuta(editor.errores), [editor.errores]);
   const entorno = useMemo(
-    () => crearEntorno(catalogo, editor.borrador?.campos_propios ?? [], erroresRuta, !puedeGestionar),
-    [catalogo, editor.borrador?.campos_propios, erroresRuta, puedeGestionar],
+    () => crearEntorno(editor.catalogoProceso, editor.borrador?.campos_propios ?? [], erroresRuta, !puedeGestionar),
+    [editor.catalogoProceso, editor.borrador?.campos_propios, erroresRuta, puedeGestionar],
   );
   const payload = useMemo(
-    () => (editor.borrador ? { definicion: editor.borrador.definicion, campos_propios: editor.borrador.campos_propios } : null),
+    () => (editor.borrador ? {
+      definicion: editor.borrador.definicion,
+      campos_propios: editor.borrador.campos_propios,
+      proceso: editor.borrador.proceso,
+    } : null),
     [editor.borrador],
   );
 
@@ -75,9 +79,18 @@ export function EditorPlantillaView({ id }: { id: string }) {
       <div className="mx-auto grid max-w-lg gap-3 p-8 text-center">
         <h1 className="text-xl font-semibold">{status === 404 ? "La plantilla no existe" : "No se pudo abrir la plantilla"}</h1>
         <p className="text-sm text-muted-foreground">{error ?? errorCatalogo}</p>
-        <Button asChild className="mx-auto">
-          <Link href={RUTA_DOCUMENTOS}>Volver a la lista</Link>
-        </Button>
+        <div className="flex flex-wrap justify-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void Promise.all([recargarPlantilla(), recargarCatalogo()])}
+          >
+            Reintentar carga
+          </Button>
+          <Button asChild>
+            <Link href={RUTA_DOCUMENTOS}>Volver a la lista</Link>
+          </Button>
+        </div>
       </div>
     );
   }
@@ -142,6 +155,9 @@ export function EditorPlantillaView({ id }: { id: string }) {
         publicada={editor.publicada}
         soloLectura={!puedeGestionar}
         errores={erroresRuta}
+        procesos={catalogo.procesos}
+        onCambioProceso={editor.cambiarProceso}
+        errorProceso={editor.errorProceso}
         onCambio={editor.cambiarMeta}
       />
       <HistorialVersionesDialog plantillaId={servidor.id} abierto={verHistorial} onCerrar={() => setVerHistorial(false)} ultimaVersion={servidor.ultima_version} />

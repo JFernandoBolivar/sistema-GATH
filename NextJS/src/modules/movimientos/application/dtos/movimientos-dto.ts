@@ -1,6 +1,8 @@
 /**
  * DTOs de Movimientos (Regla R5).
  */
+import type { DocumentoMovimiento } from "../../domain/entities/movimiento";
+
 export interface MovimientoCargoDTO {
   id: number;
   empleadoCedula: string;
@@ -21,6 +23,7 @@ export interface MovimientoCargoDTO {
   fechaMovimiento: string;
   ejecutadoPorId: number;
   ejecutadoPorNombre: string;
+  documentosGenerados?: DocumentoMovimiento[];
 }
 
 /** Página del historial (paginación en el servidor: 10 por defecto, tope 50). */

@@ -1,7 +1,10 @@
 """Repositorios ORM de plantillas y documentos generados (F-1)."""
 from django.db import IntegrityError, transaction
+from django.db.models import Q
+from django.utils import timezone
 
 from apps.documentos.application.use_cases.gestionar_plantillas import huella_borrador
+from apps.documentos.domain.services.catalogo_procesos import etiqueta_proceso, procesos_de_grupo
 from apps.documentos.domain.entities.documentos import (
     DocumentoGenerado,
     FirmaDocumento,
@@ -18,7 +21,7 @@ from apps.documentos.infrastructure.models.documentos_models import (
 )
 from core.domain.exceptions import ConflictError, NotFoundError
 
-_CAMPOS_BORRADOR = ('codigo', 'nombre', 'descripcion', 'momento', 'firmante', 'requiere_firma_clic', 'definicion',
+_CAMPOS_BORRADOR = ('codigo', 'nombre', 'descripcion', 'proceso', 'firmante', 'requiere_firma_clic', 'definicion',
                     'campos_propios', 'fondo_clave', 'fondo_sha256', 'fondo_nombre', 'fondo_paginas')
 
 
@@ -33,7 +36,7 @@ def _version(m: VersionPlantillaDocumentoModel) -> VersionPlantilla:
 
 def _plantilla(m: PlantillaDocumentoModel, huella_ultima: str | None) -> Plantilla:
     p = Plantilla(
-        id=str(m.id), codigo=m.codigo, nombre=m.nombre, descripcion=m.descripcion, modo=m.modo, momento=m.momento,
+        id=str(m.id), codigo=m.codigo, nombre=m.nombre, descripcion=m.descripcion, modo=m.modo, proceso=m.proceso,
         firmante=m.firmante, requiere_firma_clic=m.requiere_firma_clic, activa=m.activa,
         estado='publicada' if m.ultima_version else 'borrador', ultima_version=m.ultima_version,
         definicion=m.definicion, campos_propios=m.campos_propios, fondo_clave=m.fondo_clave,
@@ -54,8 +57,28 @@ class RepoPlantillasORM:
     def _a_entidad(self, m: PlantillaDocumentoModel) -> Plantilla:
         return _plantilla(m, self._huella_ultima(m))
 
-    def listar(self) -> list[Plantilla]:
-        return [self._a_entidad(m) for m in PlantillaDocumentoModel.objects.all()]
+    def listar(self, proceso: str | None = None, grupo: str | None = None) -> list[Plantilla]:
+        qs = PlantillaDocumentoModel.objects.all()
+        if proceso is not None:
+            qs = qs.filter(proceso=proceso)
+        if grupo is not None:
+            codigos = [p.codigo for p in procesos_de_grupo(grupo)]
+            filtro = Q(proceso__in=codigos)
+            if grupo in ('punto_cuenta', 'movimiento'):
+                filtro |= Q(proceso__startswith=f'{grupo}:')
+            qs = qs.filter(filtro)
+        return [self._a_entidad(m) for m in qs]
+
+    def obtener_activa_por_proceso(self, proceso: str) -> Plantilla | None:
+        m = (PlantillaDocumentoModel.objects
+             .filter(proceso=proceso, activa=True, ultima_version__gt=0)
+             .order_by('-ultima_version', '-updated_at', 'pk').first())
+        return self._a_entidad(m) if m else None
+
+    def activas_por_proceso(self, proceso: str) -> list[Plantilla]:
+        qs = (PlantillaDocumentoModel.objects.filter(proceso=proceso, activa=True, ultima_version__gt=0)
+              .order_by('nombre', 'pk'))
+        return [self._a_entidad(m) for m in qs]
 
     def obtener(self, plantilla_id: str) -> Plantilla | None:
         try:
@@ -98,7 +121,7 @@ class RepoPlantillasORM:
                 plantilla=m, numero=m.ultima_version + 1, modo=m.modo, definicion=m.definicion,
                 campos_propios=m.campos_propios, fondo_clave=m.fondo_clave, fondo_sha256=m.fondo_sha256,
                 fondo_paginas=m.fondo_paginas,
-                metadatos={'codigo': m.codigo, 'nombre': m.nombre, 'momento': m.momento, 'firmante': m.firmante,
+                metadatos={'codigo': m.codigo, 'nombre': m.nombre, 'proceso': m.proceso, 'firmante': m.firmante,
                            'requiere_firma_clic': m.requiere_firma_clic},
                 definicion_sha256=huella_borrador(p), publicada_por_id=actor_id)
             m.ultima_version = v.numero
@@ -106,11 +129,17 @@ class RepoPlantillasORM:
         return _version(v)
 
     def fijar_activa(self, plantilla_id: str, activa: bool) -> Plantilla:
-        m = PlantillaDocumentoModel.objects.filter(pk=plantilla_id).first()
-        if m is None:
-            raise NotFoundError('La plantilla no existe.')
-        m.activa = activa
-        m.save(update_fields=['activa', 'updated_at'])
+        with transaction.atomic():
+            m = PlantillaDocumentoModel.objects.select_for_update().filter(pk=plantilla_id).first()
+            if m is None:
+                raise NotFoundError('La plantilla no existe.')
+            if activa and m.proceso.startswith('punto_cuenta:'):
+                PlantillaDocumentoModel.objects.select_for_update().filter(
+                    proceso=m.proceso, activa=True).exclude(pk=m.pk).update(
+                        activa=False, updated_at=timezone.now(),
+                    )
+            m.activa = activa
+            m.save(update_fields=['activa', 'updated_at'])
         return self._a_entidad(m)
 
     def versiones(self, plantilla_id: str) -> list[VersionPlantilla]:
@@ -130,7 +159,11 @@ def _generado(m: DocumentoGeneradoModel) -> DocumentoGenerado:
         id=str(m.id), plantilla_id=str(m.plantilla_id), version_id=str(m.version_id), version_numero=m.version.numero,
         sujeto_tipo=m.sujeto_tipo, sujeto_id=m.sujeto_id, datos_snapshot=m.datos_snapshot, pdf_clave=m.pdf_clave,
         pdf_sha256=m.pdf_sha256, generado_por_id=m.generado_por_id, generado_en=m.created_at,
-        huella_datos=m.huella_datos, trabajador_cedula=m.trabajador_cedula)
+        huella_datos=m.huella_datos, trabajador_cedula=m.trabajador_cedula,
+        plantilla_codigo=m.plantilla_codigo or m.plantilla.codigo,
+        plantilla_nombre=m.plantilla_nombre or m.plantilla.nombre,
+        proceso=m.proceso or m.plantilla.proceso,
+        proceso_etiqueta=m.proceso_etiqueta or etiqueta_proceso(m.proceso or m.plantilla.proceso))
 
 
 def _firma(m: FirmaDocumentoModel) -> FirmaDocumento:
@@ -143,17 +176,17 @@ def _firma(m: FirmaDocumentoModel) -> FirmaDocumento:
 class RepoDocumentosORM:
     def guardar_generado(self, datos: dict) -> DocumentoGenerado:
         m = DocumentoGeneradoModel.objects.create(**datos)
-        return _generado(DocumentoGeneradoModel.objects.select_related('version').get(pk=m.pk))
+        return _generado(DocumentoGeneradoModel.objects.select_related('version', 'plantilla').get(pk=m.pk))
 
     def obtener_generado(self, documento_id: str) -> DocumentoGenerado | None:
         try:
-            m = DocumentoGeneradoModel.objects.select_related('version').filter(pk=documento_id).first()
+            m = DocumentoGeneradoModel.objects.select_related('version', 'plantilla').filter(pk=documento_id).first()
         except (ValueError, TypeError):
             return None
         return _generado(m) if m else None
 
     def listar_generados(self, sujeto_tipo: str, sujeto_id: str) -> list[DocumentoGenerado]:
-        qs = DocumentoGeneradoModel.objects.select_related('version').filter(sujeto_tipo=sujeto_tipo, sujeto_id=sujeto_id)
+        qs = DocumentoGeneradoModel.objects.select_related('version', 'plantilla').filter(sujeto_tipo=sujeto_tipo, sujeto_id=sujeto_id)
         return [_generado(m) for m in qs]
 
     def guardar_firma(self, datos: dict) -> FirmaDocumento:
@@ -172,7 +205,7 @@ class RepoDocumentosORM:
             sujeto_tipo=sujeto_tipo, sujeto_id=str(sujeto_id), trabajador_cedula='').update(trabajador_cedula=cedula)
 
     def documentos_de_trabajador(self, cedula: str) -> list[DocumentoGenerado]:
-        qs = DocumentoGeneradoModel.objects.select_related('version').filter(trabajador_cedula=cedula)
+        qs = DocumentoGeneradoModel.objects.select_related('version', 'plantilla').filter(trabajador_cedula=cedula)
         return [_generado(m) for m in qs]
 
     def guardar_valores(self, sujeto_tipo: str, sujeto_id: str, plantilla_id: str, valores: dict) -> ValoresDocumento:

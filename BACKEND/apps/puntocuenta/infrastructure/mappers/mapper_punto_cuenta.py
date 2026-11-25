@@ -159,6 +159,10 @@ def a_entidad(modelo, contexto: dict[str, dict] | None = None) -> PuntoCuenta:
         usuario_id=getattr(modelo, 'usuario_id', None),
         fecha=modelo.fecha.isoformat(),
         documento_pdf_clave=getattr(modelo, 'documento_pdf_clave', None),
+        documento_generado_id=(
+            str(modelo.documento_generado_id) if getattr(modelo, 'documento_generado_id', None) else None
+        ),
+        proceso=getattr(modelo, 'proceso', '') or '',
         oficina_origen_id=ofi_orig_id,
         oficina_origen_nombre=ofi_orig_nom,
         oficina_destino_id=ofi_dest_id,

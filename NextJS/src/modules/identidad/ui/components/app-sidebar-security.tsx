@@ -4,7 +4,6 @@ import {
   BookCheck,
   ChevronDown,
   ClipboardList,
-  FileText,
   ChevronRight,
   Home,
   List,
@@ -39,7 +38,6 @@ import {
   RUTA_AUTOGESTION_CONFIG,
   RUTA_CORREO_ACCESO,
   RUTA_PARAMETROS,
-  RUTA_PUNTO_CUENTA,
   RUTA_REGLAS_CATALOGOS,
   RUTA_USUARIOS,
   RUTA_VISUAL,
@@ -110,12 +108,6 @@ const items: MenuItem[] = [
         title: "Identidad visual",
         url: RUTA_VISUAL,
         icon: BookCheck,
-        permiso: "configuracion.editar",
-      },
-      {
-        title: "Punto de cuenta",
-        url: RUTA_PUNTO_CUENTA,
-        icon: FileText,
         permiso: "configuracion.editar",
       },
       {

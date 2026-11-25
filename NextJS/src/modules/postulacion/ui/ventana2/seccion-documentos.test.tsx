@@ -14,7 +14,7 @@ vi.mock("../../infrastructure/actions/postulacion-actions", () => acciones);
 import { SeccionDocumentos } from "./seccion-documentos";
 
 const BASE: DocumentoExpedienteDTO = {
-  plantillaId: "p1", codigo: "OFERTA", nombre: "Oferta de servicios", descripcion: "Tu planilla de ingreso", momento: "ventana2",
+  plantillaId: "p1", codigo: "OFERTA", nombre: "Oferta de servicios", descripcion: "Tu planilla de ingreso", proceso: "ventana2", procesoEtiqueta: "Datos complementarios",
   version: 1, firmante: "postulante", requiereFirma: true,
   camposPropios: [
     { clave: "sueldo", etiqueta: "Sueldo al que aspira", tipo: "texto", obligatorio: true, ayuda: "", opciones: [] },

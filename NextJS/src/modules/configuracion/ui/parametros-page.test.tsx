@@ -117,7 +117,7 @@ describe("ParametrosPage", () => {
       name: /Configurar movimientos y formato/i,
     });
     expect(linkBoton).toBeInTheDocument();
-    expect(linkBoton).toHaveAttribute("href", "/configuracion/punto-cuenta");
+    expect(linkBoton).toHaveAttribute("href", "/documentos/plantillas?grupo=punto_cuenta");
   });
 
   it("abre el historial y muestra agregados", async () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { CampoPropio, DefinicionFormulario, DefinicionOverlay } from "../entities/plantilla";
-import { validarBorrador } from "./esquemas";
+import { validarBorrador, validarMetadatosPlantilla } from "./esquemas";
 import { CATALOGO } from "./fixtures";
 import { contextoDeVariables } from "./variables";
 
@@ -13,6 +13,26 @@ const base = (bloques: DefinicionFormulario["bloques"]): DefinicionFormulario =>
   bloques,
 });
 const validar = (def: unknown, p = propios) => validarBorrador({ modo: "formulario", definicion: def, campos_propios: p }, ctx);
+
+describe("metadatos de plantilla", () => {
+  const metadatos = {
+    codigo: "CONSTANCIA",
+    nombre: "Constancia de trabajo",
+    descripcion: "",
+    proceso: "bajo_demanda",
+    firmante: "conatel" as const,
+    requiere_firma_clic: false,
+  };
+
+  it("exige una selección explícita de proceso y valida que exista", () => {
+    expect(validarMetadatosPlantilla(metadatos, CATALOGO.procesos)).toEqual([]);
+    expect(validarMetadatosPlantilla({ ...metadatos, proceso: "" }, CATALOGO.procesos)[0]).toMatchObject({
+      ruta: "proceso",
+      mensaje: "Seleccione el proceso en el que se usa la plantilla.",
+    });
+    expect(validarMetadatosPlantilla({ ...metadatos, proceso: "inexistente" }, CATALOGO.procesos)[0].ruta).toBe("proceso");
+  });
+});
 
 describe("esquema formulario", () => {
   it("acepta una definición válida con variable propia y celda en blanco", () => {

@@ -62,6 +62,7 @@ import {
 } from "@/components/ui/sidebar";
 import { SelectorGestionPersonal } from "@/components/layout/selector-gestion-personal";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RUTA_DOCUMENTOS } from "@/shared/lib/administracion-sistema";
 import { filtrarMenuPorPermisos } from "@/shared/lib/permiso-menu";
 import { ContadorMenuNotificaciones, moduloDeRutaNotificaciones } from "@/modules/notificaciones/ui/contador-menu-notificaciones";
 
@@ -310,17 +311,24 @@ const items: MenuItem[] = [
         activoEnSubrutas: true,
       },
       {
-        title: "Plantillas de documentos",
-        url: "/personal/ingreso/plantillas",
-        icon: FileStack,
-        permiso: "documentos.ver_plantillas",
-        activoEnSubrutas: true,
-      },
-      {
         title: "Proceso de ingreso",
         url: "/personal/ingreso/proceso",
         icon: SlidersHorizontal,
         permiso: "configuracion.editar",
+        activoEnSubrutas: true,
+      },
+    ],
+  },
+  {
+    icon: FileStack,
+    title: "Documentos",
+    url: "#",
+    subMenu: [
+      {
+        title: "Plantillas",
+        url: RUTA_DOCUMENTOS,
+        icon: FileStack,
+        permiso: "documentos.ver_plantillas",
         activoEnSubrutas: true,
       },
     ],
@@ -418,6 +426,9 @@ export function AppSidebarPersonal() {
       pathname?.startsWith("/personal/ingreso")
     )
       return "Ingreso de personal";
+    if (pathname?.startsWith("/personal/documentos") || pathname?.startsWith("/documentos/plantillas")) {
+      return "Documentos";
+    }
     if (pathname?.startsWith("/personal/bienestar")) return "Actualización de Datos";
     if (pathname?.startsWith("/personal/fe-de-vida")) return "Fe de vida";
     if (pathname?.startsWith("/personal/censo")) return "Censo de Vivienda";

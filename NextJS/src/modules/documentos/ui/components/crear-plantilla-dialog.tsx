@@ -18,10 +18,12 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import type { FirmanteDocumento, ModoPlantilla, MomentoDocumento, PlantillaCompleta } from "../../domain/entities/plantilla";
+import type { FirmanteDocumento, ModoPlantilla, PlantillaCompleta, ProcesoPlantilla } from "../../domain/entities/plantilla";
+import { validarMetadatosPlantilla } from "../../domain/lib/esquemas";
 import { crearPlantillaAction } from "../../infrastructure/actions/documentos-actions";
 import { SelectSimple } from "./select-simple";
-import { ETIQUETA_FIRMANTE, ETIQUETA_MOMENTO } from "../lib/etiquetas";
+import { SelectorProceso } from "./selector-proceso";
+import { ETIQUETA_FIRMANTE } from "../lib/etiquetas";
 
 const MODOS: { valor: ModoPlantilla; titulo: string; texto: string; icono: typeof FileText }[] = [
   {
@@ -52,16 +54,21 @@ export function codigoDesdeNombre(nombre: string): string {
 interface Props {
   abierto: boolean;
   onCerrar: () => void;
+  /** Procesos disponibles (catálogo del backend). */
+  procesos: readonly ProcesoPlantilla[];
+  /** Proceso con el que se abre el diálogo (p. ej. desde una alerta de plantilla faltante). */
+  procesoInicial?: string;
   onCreada: (p: PlantillaCompleta) => void;
 }
 
-export function CrearPlantillaDialog({ abierto, onCerrar, onCreada }: Props) {
+export function CrearPlantillaDialog({ abierto, onCerrar, procesos, procesoInicial, onCreada }: Props) {
   const [modo, setModo] = useState<ModoPlantilla>("formulario");
   const [nombre, setNombre] = useState("");
   const [codigo, setCodigo] = useState("");
   const [codigoManual, setCodigoManual] = useState(false);
   const [descripcion, setDescripcion] = useState("");
-  const [momento, setMomento] = useState<MomentoDocumento>("ventana2");
+  const [procesoElegido, setProcesoElegido] = useState<string>(procesoInicial ?? "");
+  const proceso = procesoElegido;
   const [firmante, setFirmante] = useState<FirmanteDocumento>("postulante");
   const [firmaClic, setFirmaClic] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -69,13 +76,27 @@ export function CrearPlantillaDialog({ abierto, onCerrar, onCreada }: Props) {
 
   const enviar = async (e: React.FormEvent) => {
     e.preventDefault();
+    const invalidos = validarMetadatosPlantilla({
+      codigo,
+      nombre,
+      descripcion,
+      proceso,
+      firmante,
+      requiere_firma_clic: firmaClic,
+    }, procesos);
+    if (invalidos.length > 0) {
+      setErrores(Object.fromEntries(invalidos.map((error) => [error.ruta, [error.mensaje]])));
+      toast.error(invalidos[0].mensaje);
+      return;
+    }
+    setErrores({});
     setEnviando(true);
     const r = await crearPlantillaAction({
       codigo,
       nombre,
       descripcion,
       modo,
-      momento,
+      proceso,
       firmante,
       requiere_firma_clic: firmaClic,
     });
@@ -163,12 +184,13 @@ export function CrearPlantillaDialog({ abierto, onCerrar, onCreada }: Props) {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-1.5">
-              <Label>Momento en que se usa</Label>
-              <SelectSimple
-                valor={momento}
-                onCambio={(v) => setMomento(v as MomentoDocumento)}
-                opciones={Object.entries(ETIQUETA_MOMENTO).map(([valor, etiqueta]) => ({ valor, etiqueta }))}
+            <div className="grid gap-1.5 sm:col-span-2">
+              <SelectorProceso
+                id="nueva-proceso"
+                procesos={procesos}
+                valor={proceso}
+                onCambio={setProcesoElegido}
+                error={errores.proceso?.[0]}
               />
             </div>
             <div className="grid gap-1.5">
@@ -193,7 +215,7 @@ export function CrearPlantillaDialog({ abierto, onCerrar, onCreada }: Props) {
             <Button type="button" variant="outline" onClick={onCerrar} disabled={enviando}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={enviando || !nombre.trim() || !codigo.trim()}>
+            <Button type="submit" disabled={enviando || !nombre.trim() || !codigo.trim() || !proceso}>
               {enviando ? "Creando…" : "Crear y diseñar"}
             </Button>
           </DialogFooter>

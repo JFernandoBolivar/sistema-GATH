@@ -27,7 +27,7 @@ class Plantilla:
     nombre: str
     descripcion: str
     modo: str
-    momento: str
+    proceso: str
     firmante: str
     requiere_firma_clic: bool
     activa: bool
@@ -58,6 +58,10 @@ class DocumentoGenerado:
     generado_en: datetime | None = None
     huella_datos: str = ''          # huella de los datos usados (sin las fechas del día): detecta que cambiaron tras firmar
     trabajador_cedula: str = ''     # al contratar: cédula del trabajador (id opaco, sin FK a personal)
+    plantilla_codigo: str = ''
+    plantilla_nombre: str = ''
+    proceso: str = 'bajo_demanda'
+    proceso_etiqueta: str = 'Bajo demanda'
 
 
 @dataclass

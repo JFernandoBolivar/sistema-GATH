@@ -14,7 +14,8 @@ import type {
 } from "../../domain/entities/plantilla";
 import { firmaEstable, hayCambiosSinGuardar } from "../../domain/lib/cambios";
 import { erroresDeServidor } from "../../domain/lib/errores";
-import { validarBorrador } from "../../domain/lib/esquemas";
+import { validarBorrador, validarMetadatosPlantilla } from "../../domain/lib/esquemas";
+import { catalogoParaProceso, validarVariablesParaProceso } from "../../domain/lib/procesos";
 import { contextoDeVariables } from "../../domain/lib/variables";
 import {
   activarPlantillaAction,
@@ -31,7 +32,7 @@ export function borradorDesdePlantilla(p: PlantillaCompleta): BorradorPlantilla 
     codigo: p.codigo,
     nombre: p.nombre,
     descripcion: p.descripcion ?? "",
-    momento: p.momento,
+    proceso: p.proceso,
     firmante: p.firmante,
     requiere_firma_clic: p.requiere_firma_clic,
     definicion: p.definicion,
@@ -58,6 +59,7 @@ export function useEditorPlantilla({ plantilla, catalogo }: Params) {
   const [base, setBase] = useState<BorradorPlantilla | null>(null);
   const [servidor, setServidor] = useState<PlantillaCompleta | null>(null);
   const [erroresServidor, setErroresServidor] = useState<ErrorValidacion[]>([]);
+  const [errorProceso, setErrorProceso] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState<null | "guardando" | "publicando" | "activando" | "duplicando" | "subiendo">(null);
   const [progresoSubida, setProgresoSubida] = useState<number | null>(null);
   /** Cambia al subir otro PDF de fondo: rompe la caché de las páginas PNG. */
@@ -70,6 +72,7 @@ export function useEditorPlantilla({ plantilla, catalogo }: Params) {
     setBase(structuredClone(inicial));
     setServidor(plantilla);
     setErroresServidor([]);
+    setErrorProceso(null);
   }
 
   // Los manejadores asíncronos leen siempre lo último; se actualiza tras cada render confirmado.
@@ -82,6 +85,10 @@ export function useEditorPlantilla({ plantilla, catalogo }: Params) {
 
   const dirty = hayCambiosSinGuardar(borrador, base);
   const publicada = servidor ? estaPublicada(servidor) : false;
+  const catalogoProceso = useMemo(
+    () => catalogoParaProceso(catalogo, borrador?.proceso),
+    [catalogo, borrador?.proceso],
+  );
 
   /** Toda edición pasa por aquí: limpia los errores del servidor, que ya no aplican. */
   const cambiar = useCallback((fn: (b: BorradorPlantilla) => BorradorPlantilla) => {
@@ -90,9 +97,50 @@ export function useEditorPlantilla({ plantilla, catalogo }: Params) {
   }, []);
 
   const cambiarMeta = useCallback(
-    (parcial: Partial<Omit<BorradorPlantilla, "definicion" | "campos_propios">>) => cambiar((b) => ({ ...b, ...parcial })),
+    (parcial: Partial<Omit<BorradorPlantilla, "definicion" | "campos_propios" | "proceso">>) =>
+      cambiar((b) => ({ ...b, ...parcial })),
     [cambiar],
   );
+
+  /** El proceso se cambia solo después de comprobar todas las referencias del diseño. */
+  const cambiarProceso = useCallback((codigo: string): boolean => {
+    const actual = borradorRef.current;
+    if (!actual || !catalogo) return false;
+    if (actual.proceso === codigo) {
+      setErrorProceso(null);
+      return true;
+    }
+    if (estaPublicada(servidorRef.current ?? { ultima_version: null })) {
+      const mensaje = "No se puede cambiar el proceso de una plantilla publicada. Duplíquela como borrador.";
+      setErrorProceso(mensaje);
+      toast.error(mensaje);
+      return false;
+    }
+    const proceso = catalogo.procesos.find((p) => p.codigo === codigo);
+    if (!proceso) {
+      const mensaje = "El proceso seleccionado ya no está disponible.";
+      setErrorProceso(mensaje);
+      toast.error(mensaje);
+      return false;
+    }
+    const incompatibles = validarVariablesParaProceso(
+      actual.definicion,
+      catalogo.variables,
+      proceso,
+      actual.campos_propios,
+    );
+    if (incompatibles.length > 0) {
+      const detalle = incompatibles.slice(0, 2).map((e) => e.mensaje).join(" ");
+      const mensaje = `No se puede cambiar a «${proceso.etiqueta}»: ${detalle} Ajuste las variables antes de cambiar el proceso.`;
+      setErrorProceso(mensaje);
+      toast.error(mensaje);
+      return false;
+    }
+    setErrorProceso(null);
+    cambiar((b) => ({ ...b, proceso: codigo }));
+    return true;
+  }, [catalogo, cambiar]);
+
   const cambiarDefinicion = useCallback(
     <T extends DefinicionDocumento>(fn: (d: T) => T) =>
       cambiar((b) => ({ ...b, definicion: fn(b.definicion as T) })),
@@ -104,20 +152,29 @@ export function useEditorPlantilla({ plantilla, catalogo }: Params) {
   );
 
   const erroresLocales = useMemo<ErrorValidacion[]>(() => {
-    if (!borrador || !servidor || !catalogo) return [];
-    return validarBorrador(
-      { modo: servidor.modo, definicion: borrador.definicion, campos_propios: borrador.campos_propios },
-      contextoDeVariables(catalogo, borrador.campos_propios),
-      servidor.fondo_paginas,
-    );
-  }, [borrador, servidor, catalogo]);
+    if (!borrador || !servidor || !catalogo || !catalogoProceso) return [];
+    return [
+      ...validarMetadatosPlantilla(borrador, catalogo.procesos),
+      ...validarBorrador(
+        { modo: servidor.modo, definicion: borrador.definicion, campos_propios: borrador.campos_propios },
+        contextoDeVariables(catalogoProceso, borrador.campos_propios),
+        servidor.fondo_paginas,
+      ),
+    ];
+  }, [borrador, servidor, catalogo, catalogoProceso]);
 
   const errores = useMemo(() => [...erroresServidor, ...erroresLocales], [erroresServidor, erroresLocales]);
 
   const guardar = useCallback(async (): Promise<boolean> => {
     const enviado = borradorRef.current;
     const actual = servidorRef.current;
-    if (!enviado || !actual) return false;
+    if (!enviado || !actual || !catalogo) return false;
+    const invalidos = validarMetadatosPlantilla(enviado, catalogo.procesos);
+    if (invalidos.length > 0) {
+      setErroresServidor(invalidos);
+      toast.error(invalidos[0].mensaje);
+      return false;
+    }
     setOcupado("guardando");
     const { codigo, ...sinCodigo } = enviado;
     const cuerpo = estaPublicada(actual) ? sinCodigo : { codigo, ...sinCodigo };
@@ -136,7 +193,7 @@ export function useEditorPlantilla({ plantilla, catalogo }: Params) {
     setErroresServidor([]);
     toast.success("Borrador guardado.");
     return true;
-  }, []);
+  }, [catalogo]);
 
   const publicar = useCallback(async (): Promise<boolean> => {
     const actual = servidorRef.current;
@@ -232,13 +289,16 @@ export function useEditorPlantilla({ plantilla, catalogo }: Params) {
     listo: borrador !== null && servidor !== null,
     borrador,
     servidor,
+    catalogoProceso,
     dirty,
     publicada,
     ocupado,
     progresoSubida,
     versionFondo,
     errores,
+    errorProceso,
     cambiarMeta,
+    cambiarProceso,
     cambiarDefinicion,
     cambiarCamposPropios,
     guardar,

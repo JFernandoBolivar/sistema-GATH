@@ -4,7 +4,7 @@ import hashlib
 import pytest
 
 from apps.documentos.application.use_cases.firmar_documento import firmar_documento
-from apps.documentos.application.use_cases.generar_documento import generar_documento
+from apps.documentos.application.use_cases.generar_documento import generar_documento, generar_por_proceso
 from apps.documentos.infrastructure.models.documentos_models import FirmaDocumentoModel
 from apps.documentos.infrastructure.pdf.motor import MotorPdfDocumentos
 from apps.documentos.infrastructure.repositories.repo_documentos_orm import RepoDocumentosORM, RepoPlantillasORM
@@ -40,6 +40,8 @@ def test_generar_guarda_snapshot_huella_y_version(plantilla_activa, almacen, pro
     doc = _generar(plantilla_activa, almacen, proveedor)
     assert proveedor.llamadas == [('postulante', '12345678')]
     assert doc.version_numero == 1 and doc.sujeto_id == '12345678' and doc.generado_por_id == 7
+    assert (doc.plantilla_codigo, doc.plantilla_nombre) == ('DOC_PRUEBA', 'Documento de prueba')
+    assert (doc.proceso, doc.proceso_etiqueta) == ('ingreso_ventana2', 'Ingreso por Ventana 2')
     pdf = almacen.descargar(doc.pdf_clave)
     assert doc.pdf_sha256 == hashlib.sha256(pdf).hexdigest()
     assert doc.pdf_clave.startswith('documentos/generados/')
@@ -49,14 +51,40 @@ def test_generar_guarda_snapshot_huella_y_version(plantilla_activa, almacen, pro
     assert 'V-12345678' in texto and '1500 USD' in texto
 
 
+def test_datos_base_opcionales_evitan_llamar_al_proveedor(plantilla_activa, almacen, proveedor):
+    doc = _generar(
+        plantilla_activa, almacen, proveedor,
+        datos_base={'nombre_completo': 'PÉREZ ANA', 'cedula': 'V-12345678'},
+    )
+    assert proveedor.llamadas == []
+    assert doc.datos_snapshot['nombre_completo'] == 'PÉREZ ANA'
+    assert doc.datos_snapshot['cedula'] == 'V-12345678'
+
+
+def test_generar_por_proceso_busca_la_activa_y_falla_claramente_si_no_hay(plantilla_activa, almacen, proveedor):
+    doc = generar_por_proceso(
+        RepoPlantillasORM(), RepoDocumentosORM(), proveedor, _Motor(), almacen,
+        proceso='ingreso_ventana2', sujeto_tipo='postulante', sujeto_id='12345678', actor_id=7,
+        valores_propios={'sueldo': '1500 USD'}, datos_base={'nombre_completo': 'PÉREZ ANA'},
+    )
+    assert doc.plantilla_id == plantilla_activa['id'] and proveedor.llamadas == []
+    with pytest.raises(NotFoundError, match='ingreso_contratacion'):
+        generar_por_proceso(
+            RepoPlantillasORM(), RepoDocumentosORM(), proveedor, _Motor(), almacen,
+            proceso='ingreso_contratacion', sujeto_tipo='postulante', sujeto_id='12345678', actor_id=7,
+            datos_base={},
+        )
+
+
 def test_el_documento_conserva_la_version_aunque_la_plantilla_cambie(admin, plantilla_activa, almacen, proveedor):
     doc = _generar(plantilla_activa, almacen, proveedor)
     d = plantilla_activa['definicion']
     d['encabezado']['titulo'] = 'Otro título'
-    admin.put(f"{BASE}/plantillas/{plantilla_activa['id']}/", {'definicion': d}, format='json')
+    admin.put(f"{BASE}/plantillas/{plantilla_activa['id']}/", {'definicion': d, 'nombre': 'Nombre nuevo'}, format='json')
     admin.post(f"{BASE}/plantillas/{plantilla_activa['id']}/publicar/")
     doc2 = _generar(plantilla_activa, almacen, proveedor)
     assert (doc.version_numero, doc2.version_numero) == (1, 2)
+    assert (doc.plantilla_nombre, doc2.plantilla_nombre) == ('Documento de prueba', 'Nombre nuevo')
     assert RepoDocumentosORM().obtener_generado(doc.id).version_numero == 1
 
 

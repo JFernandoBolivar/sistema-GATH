@@ -32,15 +32,15 @@ def test_crea_las_siete_en_borrador_con_sus_metadatos(almacen, pdfs):
     assert not PlantillaDocumentoModel.objects.filter(ultima_version__gt=0).exists()  # todas en borrador
     assert len(almacen.objetos) == 2  # los dos PDF oficiales, solo al almacén falso
     esperado = {
-        'OFERTA_SERVICIOS': ('formulario', 'ventana2', 'postulante'),
-        'HCM_SEGUROS_MIRANDA': ('pdf_overlay', 'ventana2', 'postulante'),
-        'CONTRATO_TRABAJO': ('formulario', 'contratacion', 'ambos'),
-        'DECLARACION_JURADA_INCOMPATIBILIDAD': ('formulario', 'ventana2', 'postulante'),
-        'AUTORIZACION_DATOS_PERSONALES': ('formulario', 'ventana2', 'postulante'),
+        'OFERTA_SERVICIOS': ('formulario', 'ingreso_ventana2', 'postulante'),
+        'HCM_SEGUROS_MIRANDA': ('pdf_overlay', 'ingreso_ventana2', 'postulante'),
+        'CONTRATO_TRABAJO': ('formulario', 'ingreso_contratacion', 'ambos'),
+        'DECLARACION_JURADA_INCOMPATIBILIDAD': ('formulario', 'ingreso_ventana2', 'postulante'),
+        'AUTORIZACION_DATOS_PERSONALES': ('formulario', 'ingreso_ventana2', 'postulante'),
     }
-    for codigo, (modo, momento, firmante) in esperado.items():
+    for codigo, (modo, proceso, firmante) in esperado.items():
         p = _plantilla(codigo)
-        assert (p.modo, p.momento, p.firmante, p.requiere_firma_clic) == (modo, momento, firmante, True), codigo
+        assert (p.modo, p.proceso, p.firmante, p.requiere_firma_clic) == (modo, proceso, firmante, True), codigo
     hcm = _plantilla('HCM_SEGUROS_MIRANDA')
     assert hcm.fondo_clave and [p['origen'] for p in hcm.definicion['paginas']] == [1, 2, 3, 4, 5, 6]
 

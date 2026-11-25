@@ -10,14 +10,14 @@ from apps.cargos.infrastructure.models.cargo_models import (
     DenominacionCargoModel,
 )
 from apps.catalogos.infrastructure.models.catalogo_models import (
+    CategoriaMovimientoModel,
     EstatusModel,
     NacionalidadModel,
+    ParentescoModel,
     SexoModel,
-    CategoriaMovimientoModel,
     TipoMovimientoModel,
     TipoNominaModel,
     TipoPersonalModel,
-    ParentescoModel,
 )
 from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
 from apps.identidad.infrastructure.models.cuenta_models import CuentaModel, RolModel
@@ -69,6 +69,9 @@ def escenario():
     cat_egreso_pasivo = CategoriaMovimientoModel.objects.create(categoria='EGRESO PASIVO')
     cat_egreso = CategoriaMovimientoModel.objects.create(categoria='EGRESO')
     fallecimiento = TipoMovimientoModel.objects.create(movimiento='FALLECIMIENTO', categoria=cat_egreso_pasivo)
+    reingreso = TipoMovimientoModel.objects.create(
+        movimiento='REINGRESO COMO PERSONAL ACTIVO', categoria=cat_egreso_pasivo,
+    )
     # Mismo texto «fallec» pero de la categoría de egreso de activos: no debe ofrecerse a un pasivo.
     TipoMovimientoModel.objects.create(movimiento='FALLECIMIENTO EN SERVICIO', categoria=cat_egreso)
     renuncia = TipoMovimientoModel.objects.create(movimiento='RENUNCIA', categoria=cat_egreso)
@@ -103,6 +106,7 @@ def escenario():
         'pasivo': pasivo,
         'familiar': familiar,
         'fallecimiento': fallecimiento,
+        'reingreso': reingreso,
         'renuncia': renuncia,
         'nomina': nomina,
         'tipo_personal': tipo_personal,
@@ -116,6 +120,16 @@ def test_motivos_de_egreso_pasivo_son_los_de_su_categoria(escenario):
     assert respuesta.status_code == 200
     nombres = [m['nombre'] for m in respuesta.json()['data']]
     assert nombres == ['FALLECIMIENTO']
+
+
+def test_el_sistema_sigue_pudiendo_usar_el_motivo_de_reingreso(escenario):
+    """El filtro afecta solo al listado del egreso manual, no al cierre interno del pasivo."""
+    repo = RepoPasivosORM()
+    repo.egresar_pasivo('V-5000', escenario['reingreso'].pk)
+
+    egreso = EmployeeEgresadoModel.objects.get(employee=escenario['pasivo'])
+    assert egreso.motivo_egreso.movimiento == 'REINGRESO COMO PERSONAL ACTIVO'
+    assert AsigTrabajoModel.objects.get(employee=escenario['pasivo']).estatusid.estatus == 'EGRESADO'
 
 
 def test_egreso_pasivo_por_fallecimiento_y_sobreviviente(escenario):

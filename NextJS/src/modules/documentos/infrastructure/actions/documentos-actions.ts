@@ -11,11 +11,15 @@ import { ApiHttpError, handleSessionExpired } from "@/shared/infrastructure/http
 import type {
   BorradorPlantilla,
   CatalogoVariables,
+  DocumentoGeneradoResumen,
+  GenerarBajoDemandaInput,
+  ListadoBajoDemanda,
+  ListadoPlantillas,
   PlantillaCompleta,
   PlantillaResumen,
   VersionPlantilla,
 } from "../../domain/entities/plantilla";
-import { documentosApi, type NuevaPlantilla } from "../http/documentos-api";
+import { documentosApi, type FiltrosPlantilla, type NuevaPlantilla } from "../http/documentos-api";
 
 export type ResultadoDocumentos<T> =
   | { success: true; data: T; message?: string }
@@ -38,12 +42,20 @@ async function ejecutar<T>(
   }
 }
 
-export async function obtenerVariablesAction(): Promise<ResultadoDocumentos<CatalogoVariables>> {
-  return ejecutar(() => documentosApi.variables(), "No se pudo cargar el catálogo de variables.");
+export async function obtenerVariablesAction(proceso?: string): Promise<ResultadoDocumentos<CatalogoVariables>> {
+  return ejecutar(() => documentosApi.variables(proceso), "No se pudo cargar el catálogo de variables.");
 }
 
-export async function listarPlantillasAction(): Promise<ResultadoDocumentos<PlantillaResumen[]>> {
-  return ejecutar(() => documentosApi.listar(), "No se pudieron cargar las plantillas.");
+export async function listarPlantillasAction(
+  filtros: FiltrosPlantilla = {},
+): Promise<ResultadoDocumentos<PlantillaResumen[]>> {
+  return ejecutar(() => documentosApi.listar(filtros), "No se pudieron cargar las plantillas.");
+}
+
+export async function listarPlantillasConAlertasAction(
+  filtros: FiltrosPlantilla = {},
+): Promise<ResultadoDocumentos<ListadoPlantillas>> {
+  return ejecutar(() => documentosApi.listarConAlertas(filtros), "No se pudieron cargar las plantillas.");
 }
 
 export async function crearPlantillaAction(datos: NuevaPlantilla): Promise<ResultadoDocumentos<PlantillaCompleta>> {
@@ -80,4 +92,47 @@ export async function activarPlantillaAction(
 
 export async function listarVersionesAction(id: string): Promise<ResultadoDocumentos<VersionPlantilla[]>> {
   return ejecutar(() => documentosApi.versiones(id), "No se pudo cargar el historial de versiones.");
+}
+
+export async function listarBajoDemandaAction(
+  trabajadorCedula: string,
+): Promise<ResultadoDocumentos<ListadoBajoDemanda>> {
+  return ejecutar(
+    () => documentosApi.bajoDemanda(trabajadorCedula),
+    "No se pudieron cargar los documentos del trabajador.",
+  );
+}
+
+export async function generarBajoDemandaAction(
+  datos: GenerarBajoDemandaInput,
+): Promise<ResultadoDocumentos<DocumentoGeneradoResumen>> {
+  return ejecutar(() => documentosApi.generarBajoDemanda(datos), "No se pudo generar el documento.");
+}
+
+export interface DescargaPdf {
+  /** Proxy mismo origen; el binario nunca viaja dentro de la Server Action. */
+  url: string;
+  nombre: string;
+}
+
+/** Devuelve metadatos de descarga. El PDF se obtiene después por streaming en el Route Handler. */
+export async function descargarDocumentoGeneradoAction(
+  id: string,
+  nombre: string,
+): Promise<ResultadoDocumentos<DescargaPdf>> {
+  return ejecutar(async () => {
+    const base = nombre
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80);
+    return {
+      data: {
+        url: `/api/documentos/generados/${encodeURIComponent(id)}/archivo/`,
+        nombre: `${base || "documento"}-${id.slice(0, 8)}.pdf`,
+      },
+    };
+  }, "No se pudo preparar la descarga del documento.");
 }

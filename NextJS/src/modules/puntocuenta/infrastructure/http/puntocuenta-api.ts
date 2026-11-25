@@ -1,7 +1,6 @@
 import { apiClient } from "@/shared/infrastructure/http/fetcher-api";
 import type { ApiResponse } from "@/shared/types/api-response";
 import type { FiltrosPuntoCuenta, PuntoCuentaItem } from "../../domain/entities/punto-cuenta";
-import type { ConfiguracionPuntoCuenta } from "../../domain/entities/configuracion-punto-cuenta";
 
 export const puntoCuentaApi = {
   listar: (filtros?: FiltrosPuntoCuenta) => {
@@ -17,13 +16,5 @@ export const puntoCuentaApi = {
 
   obtenerUrlDescarga: (id: string) => {
     return apiClient.get<ApiResponse<{ url: string }>>(`/api/v1/puntocuenta/${id}/documento/`);
-  },
-
-  obtenerConfiguracion: () => {
-    return apiClient.get<ApiResponse<ConfiguracionPuntoCuenta>>(`/api/v1/puntocuenta/configuracion/`);
-  },
-
-  guardarConfiguracion: (datos: Partial<ConfiguracionPuntoCuenta>) => {
-    return apiClient.put<ApiResponse<ConfiguracionPuntoCuenta>>(`/api/v1/puntocuenta/configuracion/`, datos);
   },
 };

@@ -28,6 +28,9 @@ from apps.movimientos.domain.value_objects.permisos_movimientos import (
     PERMISO_EXPORTAR_PDF,
     PERMISO_VER,
 )
+from apps.movimientos.infrastructure.repositories.repo_documentos_movimiento_orm import (
+    RepoDocumentosMovimientoORM,
+)
 from apps.movimientos.infrastructure.repositories.repo_movimientos_orm import RepoMovimientosORM
 from apps.movimientos.presentation.serializers.movimientos_serializers import (
     MovimientoCargoSerializer,
@@ -38,6 +41,15 @@ _PERMISO_PDF = HasPermission(PERMISO_EXPORTAR_PDF)
 _PERMISO_EXCEL = HasPermission(PERMISO_EXPORTAR_EXCEL)
 
 
+def _serializar_historial(dtos) -> list[dict]:
+    """Enriquece el historial sin importar `documentos` desde presentación."""
+    dtos = list(dtos)
+    documentos = RepoDocumentosMovimientoORM().para_movimientos(dtos)
+    return MovimientoCargoSerializer(
+        dtos, many=True, context={'documentos_por_movimiento': documentos},
+    ).data
+
+
 class HistorialPorEmpleadoView(APIView):
     """GET /api/v1/movimientos/empleado/<cedula>/ — Fase 2.5 del plan de reparación."""
     permission_classes = [IsAuthenticated, _PERMISO_VER]
@@ -46,7 +58,7 @@ class HistorialPorEmpleadoView(APIView):
     def get(self, request, cedula: str):
         repo = RepoMovimientosORM()
         dtos = listar_historial_por_empleado(repo, cedula)
-        return ok(MovimientoCargoSerializer(dtos, many=True).data)
+        return ok(_serializar_historial(dtos))
 
 
 class HistorialMovimientosView(APIView):
@@ -60,7 +72,7 @@ class HistorialMovimientosView(APIView):
             RepoMovimientosORM(), request.query_params.dict(), paginacion
         )
         return ok({
-            'resultados': MovimientoCargoSerializer(pagina.resultados, many=True).data,
+            'resultados': _serializar_historial(pagina.resultados),
             'total': pagina.total,
             'pagina': pagina.pagina,
             'tamano': pagina.tamano,
@@ -100,7 +112,7 @@ class HistorialPorCargoView(APIView):
     def get(self, request, codigo_puesto: str):
         repo = RepoMovimientosORM()
         dtos = listar_historial_por_cargo(repo, codigo_puesto)
-        return ok(MovimientoCargoSerializer(dtos, many=True).data)
+        return ok(_serializar_historial(dtos))
 
 
 class TiposMovimientoDisponiblesView(APIView):

@@ -3,6 +3,11 @@ import type { ApiResponse } from "@/shared/types/api-response";
 import type {
   BorradorPlantilla,
   CatalogoVariables,
+  DocumentoGeneradoResumen,
+  FiltrosPlantilla,
+  GenerarBajoDemandaInput,
+  ListadoBajoDemanda,
+  ListadoPlantillas,
   PlantillaCompleta,
   PlantillaResumen,
   VersionPlantilla,
@@ -15,14 +20,22 @@ export interface NuevaPlantilla {
   nombre: string;
   descripcion?: string;
   modo: "formulario" | "pdf_overlay";
-  momento: string;
+  proceso: string;
   firmante: string;
   requiere_firma_clic: boolean;
 }
 
+export type { FiltrosPlantilla };
+
 export const documentosApi = {
-  variables: () => apiClient.get<ApiResponse<CatalogoVariables>>(`${BASE}/variables/`),
-  listar: () => apiClient.get<ApiResponse<PlantillaResumen[]>>(`${BASE}/plantillas/`),
+  variables: (proceso?: string) =>
+    apiClient.get<ApiResponse<CatalogoVariables>>(`${BASE}/variables/`, { params: { proceso } }),
+  listar: (filtros: FiltrosPlantilla = {}) =>
+    apiClient.get<ApiResponse<PlantillaResumen[]>>(`${BASE}/plantillas/`, { params: { ...filtros } }),
+  listarConAlertas: (filtros: FiltrosPlantilla = {}) =>
+    apiClient.get<ApiResponse<ListadoPlantillas>>(`${BASE}/plantillas/`, {
+      params: { ...filtros, incluir_alertas: true },
+    }),
   crear: (datos: NuevaPlantilla) =>
     apiClient.post<ApiResponse<PlantillaCompleta>>(`${BASE}/plantillas/`, { ...datos }),
   obtener: (id: string) => apiClient.get<ApiResponse<PlantillaCompleta>>(`${BASE}/plantillas/${id}/`),
@@ -42,4 +55,10 @@ export const documentosApi = {
     apiClient.postForm<ApiResponse<PlantillaCompleta>>(`${BASE}/plantillas/${id}/${recurso}/`, formData),
   vistaPrevia: (id: string, cuerpo: Record<string, unknown>) =>
     apiClient.postBlob(`${BASE}/plantillas/${id}/vista-previa/`, cuerpo),
+  bajoDemanda: (trabajadorCedula: string) =>
+    apiClient.get<ApiResponse<ListadoBajoDemanda>>(`${BASE}/bajo-demanda/`, {
+      params: { trabajador_cedula: trabajadorCedula },
+    }),
+  generarBajoDemanda: (datos: GenerarBajoDemandaInput) =>
+    apiClient.post<ApiResponse<DocumentoGeneradoResumen>>(`${BASE}/bajo-demanda/generar/`, { ...datos }),
 };

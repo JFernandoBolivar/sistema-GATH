@@ -5,6 +5,7 @@ import json
 import uuid
 
 from apps.documentos.domain.entities.documentos import Plantilla, VersionPlantilla
+from apps.documentos.domain.services.catalogo_procesos import validar_proceso
 from apps.documentos.domain.services.variables_documento import datos_ejemplo
 from apps.documentos.domain.value_objects.esquema_documento import (
     definicion_vacia,
@@ -25,7 +26,7 @@ def huella_borrador(plantilla: Plantilla | dict) -> str:
     contenido = {
         'modo': g('modo'), 'definicion': g('definicion'), 'campos_propios': g('campos_propios'),
         'fondo_sha256': g('fondo_sha256'),
-        'metadatos': {'nombre': g('nombre'), 'momento': g('momento'), 'firmante': g('firmante'),
+        'metadatos': {'nombre': g('nombre'), 'proceso': g('proceso'), 'firmante': g('firmante'),
                       'requiere_firma_clic': g('requiere_firma_clic')},
     }
     return hashlib.sha256(json.dumps(contenido, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
@@ -48,12 +49,12 @@ def obtener_plantilla(repo, plantilla_id: str) -> Plantilla:
 
 def crear_plantilla(repo, datos: dict, actor_id: int | None) -> Plantilla:
     modo = datos.get('modo')
-    meta = validar_metadatos(datos.get('codigo'), datos.get('nombre'), datos.get('momento'),
+    meta = validar_metadatos(datos.get('codigo'), datos.get('nombre'), datos.get('proceso'),
                              datos.get('firmante'), datos.get('requiere_firma_clic', False))
     if repo.obtener_por_codigo(meta['codigo']):
         raise ConflictError(f"Ya existe una plantilla con el código «{meta['codigo']}».", campo='codigo')
     definicion, propios = validar_definicion(modo, datos.get('definicion') or definicion_vacia(modo or ''),
-                                             datos.get('campos_propios'), None)
+                                             datos.get('campos_propios'), None, meta['proceso'])
     return repo.crear({**meta, 'descripcion': (datos.get('descripcion') or '').strip()[:400], 'modo': modo,
                        'definicion': definicion, 'campos_propios': propios, 'actor_id': actor_id})
 
@@ -65,16 +66,18 @@ def _paginas_fondo_para_validar(plantilla: Plantilla) -> list[dict]:
 def actualizar_borrador(repo, plantilla_id: str, datos: dict, actor_id: int | None) -> Plantilla:
     plantilla = _obtener(repo, plantilla_id)
     meta = validar_metadatos(datos.get('codigo', plantilla.codigo), datos.get('nombre', plantilla.nombre),
-                             datos.get('momento', plantilla.momento), datos.get('firmante', plantilla.firmante),
+                             datos.get('proceso', plantilla.proceso), datos.get('firmante', plantilla.firmante),
                              datos.get('requiere_firma_clic', plantilla.requiere_firma_clic))
-    if meta['codigo'] != plantilla.codigo:
-        if plantilla.ultima_version > 0:
+    if plantilla.ultima_version > 0:
+        if meta['codigo'] != plantilla.codigo:
             raise ValidationError('El código no se puede cambiar una vez publicada la plantilla.', campo='codigo')
-        if repo.obtener_por_codigo(meta['codigo']):
-            raise ConflictError(f"Ya existe una plantilla con el código «{meta['codigo']}».", campo='codigo')
+        if meta['proceso'] != plantilla.proceso:
+            raise ValidationError('El proceso no se puede cambiar una vez publicada la plantilla.', campo='proceso')
+    elif meta['codigo'] != plantilla.codigo and repo.obtener_por_codigo(meta['codigo']):
+        raise ConflictError(f"Ya existe una plantilla con el código «{meta['codigo']}».", campo='codigo')
     definicion, propios = validar_definicion(
         plantilla.modo, datos.get('definicion', plantilla.definicion),
-        datos.get('campos_propios', plantilla.campos_propios), _paginas_fondo_para_validar(plantilla))
+        datos.get('campos_propios', plantilla.campos_propios), _paginas_fondo_para_validar(plantilla), meta['proceso'])
     return repo.actualizar_borrador(plantilla_id, {
         **meta, 'descripcion': (datos.get('descripcion', plantilla.descripcion) or '').strip()[:400],
         'definicion': definicion, 'campos_propios': propios, 'actor_id': actor_id,
@@ -84,7 +87,7 @@ def actualizar_borrador(repo, plantilla_id: str, datos: dict, actor_id: int | No
 def publicar(repo, plantilla_id: str, actor_id: int | None) -> VersionPlantilla:
     plantilla = _obtener(repo, plantilla_id)
     definicion, propios = validar_definicion(plantilla.modo, plantilla.definicion, plantilla.campos_propios,
-                                             _paginas_fondo_para_validar(plantilla))
+                                             _paginas_fondo_para_validar(plantilla), plantilla.proceso)
     if plantilla.modo == 'formulario' and not definicion['bloques']:
         raise ValidationError('Agregue al menos un bloque antes de publicar.', campo='definicion.bloques')
     if plantilla.modo == 'pdf_overlay':
@@ -107,7 +110,7 @@ def duplicar(repo, plantilla_id: str, actor_id: int | None) -> Plantilla:
         codigo = f'{base}{n}'
     return repo.crear({
         'codigo': codigo, 'nombre': f'Copia de {origen.nombre}'[:160], 'descripcion': origen.descripcion,
-        'modo': origen.modo, 'momento': origen.momento, 'firmante': origen.firmante,
+        'modo': origen.modo, 'proceso': origen.proceso, 'firmante': origen.firmante,
         'requiere_firma_clic': origen.requiere_firma_clic,
         'definicion': copy.deepcopy(origen.definicion), 'campos_propios': copy.deepcopy(origen.campos_propios),
         'fondo_clave': origen.fondo_clave, 'fondo_sha256': origen.fondo_sha256,
@@ -176,15 +179,18 @@ def contexto_de_render(almacen, modo: str, definicion: dict, campos_propios: lis
 
 
 def vista_previa(repo, almacen, motor, plantilla_id: str, cambios: dict | None = None) -> bytes:
-    """PDF de muestra con datos ficticios. `cambios` (definicion, campos_propios) permite ver lo no guardado."""
+    """PDF de muestra con datos ficticios; permite previsualizar definición, campos y proceso sin guardar."""
     plantilla = _obtener(repo, plantilla_id)
     cambios = cambios or {}
+    proceso = validar_proceso(cambios.get('proceso'), defecto=plantilla.proceso)
+    if plantilla.ultima_version > 0 and proceso != plantilla.proceso:
+        raise ValidationError('El proceso no se puede cambiar una vez publicada la plantilla.', campo='proceso')
     definicion, propios = validar_definicion(
         plantilla.modo, cambios.get('definicion', plantilla.definicion),
-        cambios.get('campos_propios', plantilla.campos_propios), _paginas_fondo_para_validar(plantilla))
+        cambios.get('campos_propios', plantilla.campos_propios), _paginas_fondo_para_validar(plantilla), proceso)
     contexto = contexto_de_render(almacen, plantilla.modo, definicion, propios, plantilla.fondo_clave, plantilla.fondo_paginas)
     contexto['vista_previa'] = True
-    return motor.renderizar(contexto, datos_ejemplo(propios))
+    return motor.renderizar(contexto, datos_ejemplo(propios, proceso))
 
 
 def pagina_de_fondo(repo, almacen, motor, plantilla_id: str, numero: int) -> bytes:

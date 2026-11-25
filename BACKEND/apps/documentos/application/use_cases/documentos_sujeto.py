@@ -9,7 +9,7 @@ Estado de un documento para el sujeto (`estado`):
   * `pendiente_datos`    — faltan campos propios obligatorios.
   * `listo_para_revisar` — datos completos; falta la firma (si la requiere el postulante) o no requiere firma.
   * `firmado`            — hay una firma por clic cuya huella de datos coincide con los datos de HOY.
-  * `generado`           — documento de «contratación» ya generado al contratar.
+  * `generado`           — documento de «ingreso por contratación» ya generado al contratar.
 
 La firma NO se guarda como un estado: se compara la huella (sha256) de los datos firmados contra la de los datos de hoy.
 Si el postulante cambia un campo propio, un dato de su Ventana 2 o la plantilla se publica de nuevo, la huella cambia y la
@@ -24,6 +24,7 @@ from apps.documentos.application.use_cases.generar_documento import (
     valores_propios_para_render,
 )
 from apps.documentos.application.use_cases.gestionar_plantillas import contexto_de_render
+from apps.documentos.domain.services.catalogo_procesos import etiqueta_proceso
 from apps.documentos.domain.services.variables_documento import datos_de_hoy, enmascarar_ip, huella_datos
 from core.domain.exceptions import ConflictError, NotFoundError, ValidationError
 
@@ -45,20 +46,20 @@ def firma_del_postulante_requerida(version) -> bool:
     return bool(meta.get('requiere_firma_clic')) and meta.get('firmante') in ('postulante', 'ambos')
 
 
-def _aplicables(repo_plantillas, momento: str) -> list:
-    """`[(plantilla, ultima_version)]` de las plantillas ACTIVAS y publicadas con ese momento."""
+def _aplicables(repo_plantillas, proceso: str) -> list:
+    """`[(plantilla, ultima_version)]` de las plantillas ACTIVAS y publicadas con ese proceso."""
     salida = []
     for p in repo_plantillas.listar():
-        if p.activa and p.ultima_version and p.momento == momento:
+        if p.activa and p.ultima_version and p.proceso == proceso:
             version = repo_plantillas.ultima_version(p.id)
             if version is not None:
                 salida.append((p, version))
     return salida
 
 
-def _plantilla_por_codigo(repo_plantillas, codigo: str, momento: str):
+def _plantilla_por_codigo(repo_plantillas, codigo: str, proceso: str):
     p = repo_plantillas.obtener_por_codigo(codigo)
-    if p is None or not p.activa or not p.ultima_version or p.momento != momento:
+    if p is None or not p.activa or not p.ultima_version or p.proceso != proceso:
         raise NotFoundError('El documento no existe o no aplica en esta etapa.')
     return p, repo_plantillas.ultima_version(p.id)
 
@@ -107,7 +108,7 @@ def _item(plantilla, version, base: dict, valores: dict, generados: list, repo_d
         estado = LISTO_PARA_REVISAR
     return {
         'plantilla_id': plantilla.id, 'codigo': plantilla.codigo, 'nombre': plantilla.nombre,
-        'descripcion': plantilla.descripcion, 'momento': plantilla.momento, 'version': version.numero,
+        'descripcion': plantilla.descripcion, 'proceso': plantilla.proceso, 'proceso_etiqueta': etiqueta_proceso(plantilla.proceso), 'version': version.numero,
         'firmante': plantilla.firmante, 'requiere_firma': requiere,
         'campos_propios': campos, 'valores': {c['clave']: valores.get(c['clave'], '') for c in campos},
         'faltan': faltan, 'estado': estado, 'firma_invalidada': bool(invalida and not firmado),
@@ -118,9 +119,12 @@ def _item(plantilla, version, base: dict, valores: dict, generados: list, repo_d
 
 
 def _item_generado(plantilla, version, documento) -> dict:
+    proceso = documento.proceso or plantilla.proceso
     return {
-        'plantilla_id': plantilla.id, 'codigo': plantilla.codigo, 'nombre': plantilla.nombre,
-        'descripcion': plantilla.descripcion, 'momento': plantilla.momento, 'version': documento.version_numero,
+        'plantilla_id': plantilla.id, 'codigo': documento.plantilla_codigo or plantilla.codigo,
+        'nombre': documento.plantilla_nombre or plantilla.nombre,
+        'descripcion': plantilla.descripcion, 'proceso': proceso,
+        'proceso_etiqueta': documento.proceso_etiqueta or etiqueta_proceso(proceso), 'version': documento.version_numero,
         'firmante': plantilla.firmante, 'requiere_firma': False, 'campos_propios': [], 'valores': {}, 'faltan': [],
         'estado': GENERADO, 'firma_invalidada': False, 'documento_id': documento.id, 'firma': None,
         'texto_conformidad': '', 'trabajador_cedula': documento.trabajador_cedula,
@@ -129,19 +133,19 @@ def _item_generado(plantilla, version, documento) -> dict:
 
 
 def listar_documentos(
-    repo_plantillas, repo_documentos, proveedor, *, sujeto_tipo: str, sujeto_id: str, momentos=('ventana2',),
+    repo_plantillas, repo_documentos, proveedor, *, sujeto_tipo: str, sujeto_id: str, procesos=('ingreso_ventana2',),
 ) -> list[dict]:
     """
-    Los documentos que aplican al sujeto con su estado. Los de momento `ventana2` salen siempre (plantillas activas y
-    publicadas); los de `contratacion` solo cuando ya se generaron al contratar.
+    Los documentos que aplican al sujeto con su estado. Los de proceso `ingreso_ventana2` salen siempre (plantillas activas y
+    publicadas); los de `ingreso_contratacion` solo cuando ya se generaron al contratar.
     """
     generados = repo_documentos.listar_generados(sujeto_tipo, str(sujeto_id))
     valores = repo_documentos.valores_de(sujeto_tipo, str(sujeto_id))
     base = None
     salida: list[dict] = []
-    for momento in momentos:
-        for plantilla, version in _aplicables(repo_plantillas, momento):
-            if momento == 'contratacion':
+    for proceso in procesos:
+        for plantilla, version in _aplicables(repo_plantillas, proceso):
+            if proceso == 'ingreso_contratacion':
                 doc = next((g for g in generados if g.plantilla_id == plantilla.id and g.trabajador_cedula), None)
                 if doc is not None:
                     salida.append(_item_generado(plantilla, version, doc))
@@ -152,8 +156,8 @@ def listar_documentos(
     return salida
 
 
-def _un_documento(repo_plantillas, repo_documentos, proveedor, *, sujeto_tipo, sujeto_id, codigo, momento) -> dict:
-    plantilla, version = _plantilla_por_codigo(repo_plantillas, codigo, momento)
+def _un_documento(repo_plantillas, repo_documentos, proveedor, *, sujeto_tipo, sujeto_id, codigo, proceso) -> dict:
+    plantilla, version = _plantilla_por_codigo(repo_plantillas, codigo, proceso)
     base = proveedor.datos_de(sujeto_tipo, str(sujeto_id), con_foto=False) or {}
     return _item(
         plantilla, version, base, repo_documentos.valores_de(sujeto_tipo, str(sujeto_id)).get(plantilla.id),
@@ -161,14 +165,14 @@ def _un_documento(repo_plantillas, repo_documentos, proveedor, *, sujeto_tipo, s
     )
 
 
-def obtener_documento(repo_plantillas, repo_documentos, proveedor, *, sujeto_tipo, sujeto_id, codigo, momento='ventana2') -> dict:
+def obtener_documento(repo_plantillas, repo_documentos, proveedor, *, sujeto_tipo, sujeto_id, codigo, proceso='ingreso_ventana2') -> dict:
     return _un_documento(repo_plantillas, repo_documentos, proveedor, sujeto_tipo=sujeto_tipo, sujeto_id=sujeto_id,
-                         codigo=codigo, momento=momento)
+                         codigo=codigo, proceso=proceso)
 
 
 def guardar_campos_propios(
     repo_plantillas, repo_documentos, proveedor, *, sujeto_tipo: str, sujeto_id: str, codigo: str, valores: dict,
-    momento: str = 'ventana2',
+    proceso: str = 'ingreso_ventana2',
 ) -> dict:
     """
     Guarda los campos propios del documento (REEMPLAZA los anteriores). Valida el tipo de cada valor; los obligatorios
@@ -177,14 +181,14 @@ def guardar_campos_propios(
     """
     if not isinstance(valores, dict):
         raise ValidationError('Los valores deben ser un objeto {clave: valor}.', campo='valores')
-    plantilla, version = _plantilla_por_codigo(repo_plantillas, codigo, momento)
+    plantilla, version = _plantilla_por_codigo(repo_plantillas, codigo, proceso)
     conocidas = {c['clave'] for c in version.campos_propios}
     desconocidas = sorted(set(valores) - conocidas)
     if desconocidas:
         raise ValidationError(f"Campos que el documento no tiene: {', '.join(desconocidas)}.", campo='valores')
     valores_propios_para_render(version.campos_propios, valores, estricto=False)   # solo valida los tipos
     antes = _un_documento(repo_plantillas, repo_documentos, proveedor, sujeto_tipo=sujeto_tipo, sujeto_id=sujeto_id,
-                          codigo=codigo, momento=momento)
+                          codigo=codigo, proceso=proceso)
     limpio = {}
     for c in version.campos_propios:
         v = valores.get(c['clave'])
@@ -193,17 +197,17 @@ def guardar_campos_propios(
         limpio[c['clave']] = valores_propios_para_render([c], {c['clave']: v}, estricto=False)['propio.' + c['clave']]
     repo_documentos.guardar_valores(sujeto_tipo, str(sujeto_id), plantilla.id, limpio)
     despues = _un_documento(repo_plantillas, repo_documentos, proveedor, sujeto_tipo=sujeto_tipo, sujeto_id=sujeto_id,
-                            codigo=codigo, momento=momento)
+                            codigo=codigo, proceso=proceso)
     despues['firma_invalidada'] = antes['estado'] == FIRMADO and despues['estado'] != FIRMADO
     return despues
 
 
 def vista_previa(
     repo_plantillas, repo_documentos, proveedor, motor, almacen, *, sujeto_tipo: str, sujeto_id: str, codigo: str,
-    momento: str = 'ventana2', hoy: date | None = None,
+    proceso: str = 'ingreso_ventana2', hoy: date | None = None,
 ) -> bytes:
     """PDF con los datos REALES del sujeto y lo que lleva llenado (los obligatorios vacíos salen en blanco). No se guarda."""
-    plantilla, version = _plantilla_por_codigo(repo_plantillas, codigo, momento)
+    plantilla, version = _plantilla_por_codigo(repo_plantillas, codigo, proceso)
     valores = repo_documentos.valores_de(sujeto_tipo, str(sujeto_id)).get(plantilla.id)
     datos = {**datos_de_hoy(hoy), **(proveedor.datos_de(sujeto_tipo, str(sujeto_id)) or {})}
     datos.update(valores_propios_para_render(version.campos_propios, valores, estricto=False))
@@ -214,7 +218,7 @@ def vista_previa(
 
 def firmar_por_clic(
     repo_plantillas, repo_documentos, proveedor, motor, almacen, *, sujeto_tipo: str, sujeto_id: str, codigo: str,
-    firmante_id: str, ip: str, user_agent: str, acepta: bool, actor_id: int | None = None, momento: str = 'ventana2',
+    firmante_id: str, ip: str, user_agent: str, acepta: bool, actor_id: int | None = None, proceso: str = 'ingreso_ventana2',
     hoy: date | None = None,
 ) -> dict:
     """
@@ -223,11 +227,11 @@ def firmar_por_clic(
     """
     if not acepta:
         raise ValidationError('Marque la casilla de conformidad para firmar.', campo='acepto')
-    plantilla, version = _plantilla_por_codigo(repo_plantillas, codigo, momento)
+    plantilla, version = _plantilla_por_codigo(repo_plantillas, codigo, proceso)
     if not firma_del_postulante_requerida(version):
         raise ConflictError('Este documento no requiere su firma.')
     actual = _un_documento(repo_plantillas, repo_documentos, proveedor, sujeto_tipo=sujeto_tipo, sujeto_id=sujeto_id,
-                           codigo=codigo, momento=momento)
+                           codigo=codigo, proceso=proceso)
     if actual['estado'] == FIRMADO:
         raise ConflictError('Ya firmó este documento. Si cambia algún dato deberá firmarlo de nuevo.')
     if actual['faltan']:
@@ -242,23 +246,23 @@ def firmar_por_clic(
         firmante_id=str(firmante_id), ip=ip, user_agent=user_agent, acepta=True,
     )
     return _un_documento(repo_plantillas, repo_documentos, proveedor, sujeto_tipo=sujeto_tipo, sujeto_id=sujeto_id,
-                         codigo=codigo, momento=momento)
+                         codigo=codigo, proceso=proceso)
 
 
 def clave_pdf_firmado(
-    repo_plantillas, repo_documentos, proveedor, *, sujeto_tipo: str, sujeto_id: str, codigo: str, momento: str = 'ventana2',
+    repo_plantillas, repo_documentos, proveedor, *, sujeto_tipo: str, sujeto_id: str, codigo: str, proceso: str = 'ingreso_ventana2',
 ) -> tuple[str, str] | None:
     """
     `(clave en el almacén, id del documento)` del PDF a servir: el firmado vigente (Ventana 2) o el ya generado al contratar
-    (momento «contratación»). None si no hay (nunca se firmó, o la firma ya no vale porque cambiaron los datos).
+    (proceso «ingreso por contratación»). None si no hay (nunca se firmó, o la firma ya no vale porque cambiaron los datos).
     """
     plantilla = repo_plantillas.obtener_por_codigo(codigo)
-    if plantilla is not None and plantilla.momento == 'contratacion':
+    if plantilla is not None and plantilla.proceso == 'ingreso_contratacion':
         doc = next((g for g in repo_documentos.listar_generados(sujeto_tipo, str(sujeto_id))
                     if g.plantilla_id == plantilla.id and g.trabajador_cedula), None)
         return (doc.pdf_clave, doc.id) if doc else None
     item = _un_documento(repo_plantillas, repo_documentos, proveedor, sujeto_tipo=sujeto_tipo, sujeto_id=sujeto_id,
-                         codigo=codigo, momento=momento)
+                         codigo=codigo, proceso=proceso)
     if item['estado'] != FIRMADO:
         return None
     doc = repo_documentos.obtener_generado(item['documento_id'])
@@ -287,14 +291,14 @@ def generar_de_contratacion(
     trabajador_cedula: str, actor_id: int | None, hoy: date | None = None,
 ) -> int:
     """
-    Genera los documentos de momento «contratación» para el trabajador recién contratado (sin firma: queda pendiente). Los
+    Genera los documentos de proceso «ingreso por contratación» para el trabajador recién contratado (sin firma: queda pendiente). Los
     campos propios obligatorios que nadie llenó salen en blanco. Cualquier error se propaga para que la promoción haga rollback.
     Es idempotente: no repite un documento ya generado para esa plantilla.
     """
     ya = {g.plantilla_id for g in repo_documentos.listar_generados(sujeto_tipo, str(sujeto_id)) if g.trabajador_cedula}
     valores = repo_documentos.valores_de(sujeto_tipo, str(sujeto_id))
     creados = 0
-    for plantilla, _version in _aplicables(repo_plantillas, 'contratacion'):
+    for plantilla, _version in _aplicables(repo_plantillas, 'ingreso_contratacion'):
         if plantilla.id in ya:
             continue
         generar_documento(

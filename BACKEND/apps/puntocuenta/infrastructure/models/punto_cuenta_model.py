@@ -26,6 +26,8 @@ class PuntoCuentaModel(BaseModel):
     division_origen_id = models.IntegerField(null=True, blank=True)
     division_destino_id = models.IntegerField(null=True, blank=True)
     numero = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    proceso = models.CharField(max_length=60, blank=True, default='')
+    documento_generado_id = models.UUIDField(null=True, blank=True, db_index=True)
     anio = models.IntegerField(null=True, blank=True, db_index=True)
     secuencia = models.IntegerField(null=True, blank=True)
     configuracion_version = models.IntegerField(null=True, blank=True)

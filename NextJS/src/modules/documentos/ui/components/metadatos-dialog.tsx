@@ -13,9 +13,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import type { BorradorPlantilla, FirmanteDocumento, MomentoDocumento } from "../../domain/entities/plantilla";
-import { ETIQUETA_FIRMANTE, ETIQUETA_MOMENTO } from "../lib/etiquetas";
+import type { BorradorPlantilla, FirmanteDocumento, ProcesoPlantilla } from "../../domain/entities/plantilla";
+import { ETIQUETA_FIRMANTE } from "../lib/etiquetas";
 import { SelectSimple } from "./select-simple";
+import { SelectorProceso } from "./selector-proceso";
 
 interface Props {
   abierto: boolean;
@@ -24,11 +25,16 @@ interface Props {
   publicada: boolean;
   soloLectura: boolean;
   errores: Record<string, string>;
-  onCambio: (parcial: Partial<Omit<BorradorPlantilla, "definicion" | "campos_propios">>) => void;
+  procesos: readonly ProcesoPlantilla[];
+  /** Cambia el proceso solo si el diseño es compatible; devuelve si se aplicó. */
+  onCambioProceso: (codigo: string) => boolean;
+  /** Aviso de por qué no se pudo cambiar el proceso. */
+  errorProceso?: string | null;
+  onCambio: (parcial: Partial<Omit<BorradorPlantilla, "definicion" | "campos_propios" | "proceso">>) => void;
 }
 
 /** Metadatos de la plantilla. El código es de solo lectura una vez publicada. */
-export function MetadatosDialog({ abierto, onCerrar, borrador, publicada, soloLectura, errores, onCambio }: Props) {
+export function MetadatosDialog({ abierto, onCerrar, borrador, publicada, soloLectura, errores, procesos, onCambioProceso, errorProceso, onCambio }: Props) {
   return (
     <Dialog open={abierto} onOpenChange={(v) => !v && onCerrar()}>
       <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-xl">
@@ -62,9 +68,16 @@ export function MetadatosDialog({ abierto, onCerrar, borrador, publicada, soloLe
             <Textarea id="meta-desc" rows={2} value={borrador.descripcion} disabled={soloLectura} onChange={(e) => onCambio({ descripcion: e.target.value })} />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-1.5">
-              <Label>Momento en que se usa</Label>
-              <SelectSimple valor={borrador.momento} deshabilitado={soloLectura} onCambio={(v) => onCambio({ momento: v as MomentoDocumento })} opciones={Object.entries(ETIQUETA_MOMENTO).map(([valor, etiqueta]) => ({ valor, etiqueta }))} />
+            <div className="grid gap-1.5 sm:col-span-2">
+              <SelectorProceso
+                id="meta-proceso"
+                procesos={procesos}
+                valor={borrador.proceso}
+                deshabilitado={soloLectura}
+                bloqueado={publicada}
+                onCambio={onCambioProceso}
+                error={errorProceso ?? errores.proceso}
+              />
             </div>
             <div className="grid gap-1.5">
               <Label>Quién firma</Label>

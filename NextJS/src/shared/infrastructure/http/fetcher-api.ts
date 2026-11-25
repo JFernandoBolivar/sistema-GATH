@@ -190,11 +190,11 @@ async function request<T>(
   return (await response.json()) as T;
 }
 
-async function requestBlobConRespuesta(
+async function requestResponse(
   path: string,
   init: RequestInit = { method: "GET" },
   options: RequestOptions = {},
-): Promise<{ blob: Blob; headers: Headers; status: number }> {
+): Promise<Response> {
   const traceId = options.traceId ?? generateTraceId();
   const headers = await buildHeaders(
     options.headers,
@@ -235,6 +235,15 @@ async function requestBlobConRespuesta(
     throw new ApiHttpError(mensaje, response.status);
   }
 
+  return response;
+}
+
+async function requestBlobConRespuesta(
+  path: string,
+  init: RequestInit = { method: "GET" },
+  options: RequestOptions = {},
+): Promise<{ blob: Blob; headers: Headers; status: number }> {
+  const response = await requestResponse(path, init, options);
   return { blob: await response.blob(), headers: response.headers, status: response.status };
 }
 
@@ -292,6 +301,10 @@ export const apiClient = {
       options,
       true,
     ),
+
+  /** Respuesta binaria sin consumir el cuerpo: permite reenviar el stream desde un Route Handler. */
+  getResponse: (path: string, options?: RequestOptions): Promise<Response> =>
+    requestResponse(construirRuta(path, options?.params), { method: "GET" }, options),
 
   getBlob: (path: string, options?: RequestOptions): Promise<Blob> =>
     requestBlob(construirRuta(path, options?.params), { method: "GET" }, options),

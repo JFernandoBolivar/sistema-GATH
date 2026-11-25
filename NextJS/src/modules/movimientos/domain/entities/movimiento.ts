@@ -6,6 +6,18 @@
  * Representa un registro del historial de movimientos de cargo de un
  * empleado o de un puesto (Fase 2.5 del plan de reparación).
  */
+/** Documento (PDF) emitido automáticamente por un movimiento de personal. */
+export interface DocumentoMovimiento {
+  id: string;
+  nombre: string;
+  proceso: string;
+  version: number;
+  sha: string;
+  fecha: string;
+  url: string;
+  detalleUrl: string;
+}
+
 export interface MovimientoCargo {
   id: number;
   empleadoCedula: string;
@@ -26,4 +38,6 @@ export interface MovimientoCargo {
   fechaMovimiento: string;
   ejecutadoPorId: number;
   ejecutadoPorNombre: string;
+  /** Ausente en respuestas de un backend anterior a las plantillas por proceso. */
+  documentosGenerados?: DocumentoMovimiento[];
 }

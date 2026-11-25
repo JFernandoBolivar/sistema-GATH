@@ -218,6 +218,7 @@ PERMISOS_CATALOGO = [
     # ─── 20. DOCUMENTOS DIGITALES (Fase 2, F-1) ───
     ("documentos.ver_plantillas", "Consultar las plantillas de documentos, sus versiones y los documentos generados"),
     ("documentos.gestionar_plantillas", "Diseñar, publicar, duplicar y activar plantillas de documentos"),
+    ("documentos.generar_bajo_demanda", "Generar documentos bajo demanda desde la ficha del trabajador y descargar los ya generados"),
 ]
 
 # Permisos del catálogo que el rol ADMINISTRADOR NO recibe (G12): los avisos de

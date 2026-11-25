@@ -5,7 +5,7 @@
  * Paridad con el sistema de referencia (`tableMoves/detail-info.tsx`):
  * Sheet deslizable con Información General, Cargo, y Estructura Organizacional.
  */
-import { Briefcase, Building2, FileText } from "lucide-react";
+import { Briefcase, Building2, FileStack, FileText } from "lucide-react";
 import { formatInTimeZone } from "date-fns-tz";
 
 import { Badge } from "@/shared/ui/components/badge";
@@ -18,6 +18,7 @@ import {
   SheetTitle,
 } from "@/shared/ui/components/sheet";
 
+import { ListaDocumentosGenerados } from "@/modules/documentos/ui/components/lista-documentos-generados";
 import type { MovimientoCargoDTO } from "../application/dtos/movimientos-dto";
 
 function formatFechaHora(fecha: string | null | undefined): string {
@@ -105,6 +106,27 @@ export function DetalleMovimiento({ movimiento, open, onOpenChange }: DetalleMov
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Documentos emitidos por el movimiento */}
+              {(movimiento.documentosGenerados ?? []).length > 0 && (
+                <Card>
+                  <CardHeader className="flex flex-row items-center gap-2 pb-2">
+                    <FileStack className="size-4 text-primary" />
+                    <span className="font-semibold text-sm">Documentos generados</span>
+                  </CardHeader>
+                  <CardContent>
+                    <ListaDocumentosGenerados
+                      testId="documentos-movimiento"
+                      documentos={(movimiento.documentosGenerados ?? []).map((d) => ({
+                        id: d.id,
+                        nombre: d.nombre,
+                        version: d.version,
+                        fecha: d.fecha,
+                      }))}
+                    />
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Estructura Organizacional */}
               <Card>

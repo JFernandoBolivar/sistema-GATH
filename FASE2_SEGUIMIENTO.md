@@ -186,10 +186,10 @@ Decisiones del usuario (2026-11-25): al diseñar una plantilla se elige **en qu�
 
 | ID | Tarea | Estado | Fecha | Nota |
 |---|---|---|---|---|
-| N-1 | Catálogo de procesos y sus variables; la plantilla declara su proceso | ⬜ Pendiente | | se lanza al terminar la siembra de plantillas (F-4/F-5) |
-| N-2 | Punto de Cuenta generado desde el diseñador; migrar las plantillas de texto y retirar la pantalla vieja | ⬜ Pendiente | | |
-| N-3 | Documentos al ejecutar movimientos de personal | ⬜ Pendiente | | |
-| N-4 | Documentos bajo demanda desde la ficha del trabajador | ⬜ Pendiente | | |
+| N-1 | Catálogo de procesos y sus variables; la plantilla declara su proceso | ✅ Completado | 2026-11-25 | Campo `proceso` en lugar de `momento` (migraciones `documentos.0003/0004`, sin aplicar a bases reales), catálogo en el dominio, variables y validación por proceso, selector agrupado en el editor. Detalle en `INFORME_N.md` |
+| N-2 | Punto de Cuenta generado desde el diseñador; migrar las plantillas de texto y retirar la pantalla vieja | ✅ Completado | 2026-11-25 | Puerto `GeneradorPuntoCuenta`; migración `puntocuenta.0006–0008` convierte los textos en 9 plantillas publicadas y activas; pantalla vieja retirada (redirige a la lista filtrada); error y aviso si falta plantilla |
+| N-3 | Documentos al ejecutar movimientos de personal | ✅ Completado | 2026-11-25 | Tras el commit (`on_commit`); un fallo no deshace el movimiento y queda en la bitácora; descarga desde el historial |
+| N-4 | Documentos bajo demanda desde la ficha del trabajador | ✅ Completado | 2026-11-25 | Permiso `documentos.generar_bajo_demanda` (ADMINISTRADOR, `identidad.0017`); «Generar documento» y lista en la ficha; grupo «Documentos» en el menú. Sin verificar contra el backend real (:8005 sin migraciones) |
 
 ## H · Transversales / deuda técnica
 

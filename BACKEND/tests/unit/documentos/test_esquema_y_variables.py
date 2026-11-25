@@ -140,7 +140,7 @@ def test_sustitucion_y_datos_de_ejemplo_incluyen_campos_propios():
 
 
 def test_metadatos():
-    m = validar_metadatos('mi plantilla', 'Mi plantilla', 'ventana2', 'ambos', True)
+    m = validar_metadatos('mi plantilla', 'Mi plantilla', 'ingreso_ventana2', 'ambos', True)
     assert m['codigo'] == 'MI_PLANTILLA' and m['firmante'] == 'ambos'
     with pytest.raises(ValidationError):
         validar_metadatos('x', 'n', 'nunca', 'ambos', False)

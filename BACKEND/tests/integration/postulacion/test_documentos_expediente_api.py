@@ -64,9 +64,9 @@ def admin_docs():
     return cliente_personal('documentos.ver_plantillas', 'documentos.gestionar_plantillas', cedula='20000001')
 
 
-def crear_plantilla(admin, codigo='OFERTA', momento='ventana2', firma=True, campos=None, firmante='postulante', activar=True, publicar=True):
+def crear_plantilla(admin, codigo='OFERTA', proceso='ingreso_ventana2', firma=True, campos=None, firmante='postulante', activar=True, publicar=True):
     r = admin.post(f'{DOC}/plantillas/', {
-        'codigo': codigo, 'nombre': f'Documento {codigo}', 'modo': 'formulario', 'momento': momento,
+        'codigo': codigo, 'nombre': f'Documento {codigo}', 'modo': 'formulario', 'proceso': proceso,
         'firmante': firmante, 'requiere_firma_clic': firma}, format='json')
     assert r.status_code == 201, r.content
     pid = r.json()['data']['id']
@@ -140,8 +140,8 @@ def test_el_proveedor_real_arma_las_variables_con_los_datos_del_expediente(m2, p
 # ------------------------------------------------------------------------------------------------ listado
 def test_lista_solo_las_plantillas_publicadas_activas_de_la_ventana2(m2, admin_docs, post):
     c, _ = post
-    crear_plantilla(admin_docs, 'CONTRATO', momento='contratacion', firma=False)
-    crear_plantilla(admin_docs, 'OTRA', momento='otro')
+    crear_plantilla(admin_docs, 'CONTRATO', proceso='ingreso_contratacion', firma=False)
+    crear_plantilla(admin_docs, 'OTRA', proceso='bajo_demanda')
     crear_plantilla(admin_docs, 'INACTIVA', activar=False)
     crear_plantilla(admin_docs, 'BORRADOR', publicar=False, activar=False)
     assert [d['codigo'] for d in lista(c)] == ['OFERTA']
@@ -417,7 +417,7 @@ def test_captacion_sin_el_permiso_de_la_bandeja_no_ve_los_documentos(m2, post):
 # ------------------------------------------------------------------------------------------------ contratación
 def test_al_contratar_los_documentos_quedan_vinculados_y_se_generan_los_de_contratacion(m2, admin_docs):
     crear_plantilla(admin_docs, 'OFERTA')
-    crear_plantilla(admin_docs, 'CONTRATO', momento='contratacion', firma=False, campos=[])
+    crear_plantilla(admin_docs, 'CONTRATO', proceso='ingreso_contratacion', firma=False, campos=[])
     exp = listo_para_asignar(m2)
     # un documento ya firmado en la Ventana 2 (generado directo, como lo dejaría la firma por clic)
     from apps.documentos.application.use_cases.documentos_sujeto import firmar_por_clic, guardar_campos_propios
@@ -445,7 +445,7 @@ def test_al_contratar_los_documentos_quedan_vinculados_y_se_generan_los_de_contr
 
 
 def test_si_falla_la_generacion_de_contratacion_se_revierte_toda_la_promocion(m2, admin_docs, monkeypatch):
-    crear_plantilla(admin_docs, 'CONTRATO', momento='contratacion', firma=False, campos=[])
+    crear_plantilla(admin_docs, 'CONTRATO', proceso='ingreso_contratacion', firma=False, campos=[])
     exp = listo_para_asignar(m2)
 
     def falla(self, contexto, datos_):

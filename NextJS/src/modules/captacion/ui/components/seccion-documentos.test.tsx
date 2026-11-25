@@ -14,7 +14,7 @@ vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 import { SeccionDocumentosExpediente } from "./seccion-documentos";
 
 const FIRMADO: DocumentoExpedienteDTO = {
-  plantillaId: "p1", codigo: "OFERTA", nombre: "Oferta de servicios", descripcion: "", momento: "ventana2", version: 2, firmante: "postulante",
+  plantillaId: "p1", codigo: "OFERTA", nombre: "Oferta de servicios", descripcion: "", proceso: "ventana2", procesoEtiqueta: "Datos complementarios", version: 2, firmante: "postulante",
   requiereFirma: true,
   camposPropios: [{ clave: "sueldo", etiqueta: "Sueldo al que aspira", tipo: "texto", obligatorio: true, ayuda: "", opciones: [] }],
   valores: { sueldo: "1500 USD" }, faltan: [], estado: "firmado", firmaInvalidada: false, documentoId: "d1",

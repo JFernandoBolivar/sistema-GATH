@@ -25,5 +25,15 @@ export function movimientoApiAEntidad(raw: MovimientoApiItem): MovimientoCargo {
     fechaMovimiento: raw.fecha_movimiento,
     ejecutadoPorId: raw.ejecutado_por_id,
     ejecutadoPorNombre: raw.ejecutado_por_nombre,
+    documentosGenerados: (raw.documentos_generados ?? []).map((d) => ({
+      id: d.id,
+      nombre: d.nombre,
+      proceso: d.proceso,
+      version: d.version,
+      sha: d.sha,
+      fecha: d.fecha,
+      url: d.url,
+      detalleUrl: d.detalle_url,
+    })),
   };
 }

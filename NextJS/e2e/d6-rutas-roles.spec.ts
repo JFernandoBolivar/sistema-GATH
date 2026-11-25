@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { EMAIL, PASSWORD } from "./credenciales";
 import { iniciarSesionComo } from "./inicio-sesion";
@@ -47,6 +47,11 @@ async function moduloOculto(page: Page, nombre: string): Promise<void> {
   await expect(page.locator("#dashboard-modulos").getByText(nombre, { exact: true })).toHaveCount(0);
 }
 
+/** El sidebar se renderiza también en la copia móvil; solo interactuamos con la visible. */
+function visible(locador: Locator): Locator {
+  return locador.filter({ visible: true }).first();
+}
+
 async function rutaProhibidaRedirige(page: Page, ruta: string): Promise<void> {
   await page.goto(ruta);
   await expect(page).toHaveURL(/\/dashboard\?aviso=sin-permiso/);
@@ -65,22 +70,39 @@ test.describe("D6 — ADMINISTRADOR", () => {
     await abrirDashboard(page);
 
     for (const nombre of Object.values(MODULOS)) await moduloVisible(page, nombre);
+    for (const nombre of ["Captación", "Presupuesto", "Dirección General"]) {
+      await moduloOculto(page, nombre);
+    }
 
     await page.goto("/usuarios");
-    await expect(page.getByRole("button", { name: "Usuarios" }).first()).toBeVisible();
-    await expect(page.getByRole("button", { name: "Configuración" }).first()).toBeVisible();
+
+    const usuariosYRoles = visible(
+      page.getByRole("button", { name: "Usuarios y roles", exact: true }),
+    );
+    const configuracion = visible(
+      page.getByRole("button", { name: "Configuración", exact: true }),
+    );
+    await expect(usuariosYRoles).toBeVisible();
+    await expect(configuracion).toBeVisible();
     await expect(
-      page.getByRole("link", { name: "Bitácora de auditoría" }).first(),
+      visible(page.getByRole("link", { name: "Bitácora de auditoría", exact: true })),
     ).toBeVisible();
 
-    await page.getByRole("button", { name: "Usuarios" }).first().click();
+    await usuariosYRoles.click();
+    await expect(visible(page.getByRole("link", { name: "Usuarios", exact: true }))).toBeVisible();
+    await expect(
+      visible(page.getByRole("link", { name: "Roles y permisos", exact: true })),
+    ).toBeVisible();
+
+    await configuracion.click();
     for (const opcion of [
-      "Consultar usuarios",
-      "Registrar usuario",
-      "Consultar roles",
-      "Matriz de permisos",
+      "Parámetros del sistema",
+      "Identidad visual",
+      "Correo de acceso",
+      "Solicitudes de autogestión",
+      "Reglas de catálogos y motivos de movimiento",
     ]) {
-      await expect(page.getByRole("link", { name: opcion }).first()).toBeVisible();
+      await expect(visible(page.getByRole("link", { name: opcion, exact: true }))).toBeVisible();
     }
   });
 });

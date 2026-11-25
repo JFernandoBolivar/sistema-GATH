@@ -10,5 +10,6 @@ export function usePermisosDocumentos() {
   return {
     puedeVer: tienePermiso(permisos, "documentos.ver_plantillas"),
     puedeGestionar: tienePermiso(permisos, "documentos.gestionar_plantillas"),
+    puedeGenerarBajoDemanda: tienePermiso(permisos, "documentos.generar_bajo_demanda"),
   };
 }

@@ -21,13 +21,16 @@ class RepoPuntoCuenta(Protocol):
         division_origen_id: int | None = None,
         division_destino_id: int | None = None,
         numero: str | None = None,
+        proceso: str = '',
         anio: int | None = None,
         secuencia: int | None = None,
         configuracion_version: int | None = None,
         snapshot_formato: dict | None = None,
     ) -> PuntoCuenta: ...
 
-    def adjuntar_documento(self, id: Any, clave: str) -> PuntoCuenta: ...
+    def adjuntar_documento(
+        self, id: Any, clave: str, documento_generado_id: str | None = None,
+    ) -> PuntoCuenta: ...
 
     def listar(self, filtros: dict | None = None) -> list[PuntoCuenta]: ...
 

@@ -1,8 +1,8 @@
-"""
-Valores por defecto de la plantilla del Punto de Cuenta (puro, sin Django).
+"""Procesos administrativos que pueden emitir un Punto de Cuenta.
 
-Vivían en el modelo ORM; el caso de uso los necesita y `application` no puede
-importar `infrastructure` (regla B2/B4). El modelo los reutiliza.
+El contenido y las firmas ya no pertenecen a esta aplicación: viven en las
+plantillas publicadas del diseñador de documentos, identificadas por
+``punto_cuenta:<proceso>``.
 """
 
 # Proceso del Punto de Cuenta que emite Presupuesto al enviar un expediente de postulación a Dirección General (E-5).
@@ -21,19 +21,3 @@ PROCESOS_POR_DEFECTO = {
     # plantilla propia del proceso en la configuración; no lo apaga.
     PROCESO_INGRESO_POSTULACION: True,
 }
-
-FIRMAS_POR_DEFECTO = [
-    {
-        'cargo': 'Director(a) General de Gestión Humana',
-        'nombre': '',
-    },
-]
-
-TITULO_POR_DEFECTO = 'PUNTO DE CUENTA'
-ENCABEZADO_POR_DEFECTO = 'Para su conocimiento y fines pertinentes, se notifica el siguiente movimiento de personal:'
-CUERPO_POR_DEFECTO = (
-    'Por medio del presente punto de cuenta, se deja constancia del movimiento del funcionario '
-    '{nombre}, titular de la cédula de identidad N.º {cedula}, en el cargo {cargo}. '
-    'Movimiento desde {origen} hacia {destino}, con fecha {fecha} y motivo {motivo}, '
-    'bajo el Punto de Cuenta N.º {numero}.'
-)

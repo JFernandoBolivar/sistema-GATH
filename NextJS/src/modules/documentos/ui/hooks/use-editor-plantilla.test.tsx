@@ -21,7 +21,8 @@ function crear(id: string, titulo = "Original"): PlantillaCompleta {
     nombre: "Plantilla",
     descripcion: "",
     modo: "formulario",
-    momento: "otro",
+    proceso: "bajo_demanda",
+    proceso_etiqueta: "Bajo demanda",
     firmante: "postulante",
     requiere_firma_clic: false,
     activa: false,
@@ -91,5 +92,46 @@ describe("useEditorPlantilla", () => {
     });
     expect(result.current.errores.some((e) => e.ruta === "bloques.0.titulo")).toBe(true);
     expect(result.current.dirty).toBe(true);
+  });
+
+  describe("cambiar el proceso de un borrador", () => {
+    const conTabla = (): PlantillaCompleta => {
+      const p = crear("p1");
+      (p.definicion as DefinicionFormulario).bloques = [
+        { id: "t1", tipo: "tabla", titulo: "Carga", coleccion: "familiares", columnas: [], filas_minimas: 1 },
+      ];
+      p.proceso = "ingreso_ventana2";
+      return p;
+    };
+
+    it("se rechaza con aviso claro si el diseño usa datos que el proceso nuevo no ofrece", () => {
+      const { result } = renderHook(() => useEditorPlantilla({ plantilla: conTabla(), catalogo: CATALOGO }));
+      let aplicado = true;
+      act(() => {
+        aplicado = result.current.cambiarProceso("ingreso_contratacion");
+      });
+      expect(aplicado).toBe(false);
+      expect(result.current.borrador!.proceso).toBe("ingreso_ventana2");
+      expect(result.current.errorProceso).toContain("Contratación");
+    });
+
+    it("se aplica cuando el diseño es compatible", () => {
+      const { result } = renderHook(() => useEditorPlantilla({ plantilla: crear("p1"), catalogo: CATALOGO }));
+      act(() => {
+        result.current.cambiarProceso("ingreso_contratacion");
+      });
+      expect(result.current.borrador!.proceso).toBe("ingreso_contratacion");
+      expect(result.current.errorProceso).toBeNull();
+    });
+
+    it("una plantilla publicada no admite cambiar de proceso", () => {
+      const publicada = { ...crear("p1"), ultima_version: 1, estado: "publicada" as const };
+      const { result } = renderHook(() => useEditorPlantilla({ plantilla: publicada, catalogo: CATALOGO }));
+      act(() => {
+        result.current.cambiarProceso("ingreso_contratacion");
+      });
+      expect(result.current.borrador!.proceso).toBe("bajo_demanda");
+      expect(result.current.errorProceso).toMatch(/publicada/);
+    });
   });
 });

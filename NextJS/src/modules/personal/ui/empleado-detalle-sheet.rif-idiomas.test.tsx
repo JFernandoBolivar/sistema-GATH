@@ -1,6 +1,7 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("./components/seccion-documentos-trabajador", () => ({ SeccionDocumentosTrabajador: () => null }));
 vi.mock("../infrastructure/actions/personal-actions", () => ({
   actualizarEmpleadoAction: vi.fn(),
   actualizarTieneHijosAction: vi.fn(),

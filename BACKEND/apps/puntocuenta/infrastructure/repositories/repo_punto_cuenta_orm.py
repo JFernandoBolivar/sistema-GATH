@@ -21,6 +21,7 @@ class RepoPuntoCuentaORM:
         division_origen_id: int | None = None,
         division_destino_id: int | None = None,
         numero: str | None = None,
+        proceso: str = '',
         anio: int | None = None,
         secuencia: int | None = None,
         configuracion_version: int | None = None,
@@ -38,6 +39,7 @@ class RepoPuntoCuentaORM:
             division_origen_id=division_origen_id,
             division_destino_id=division_destino_id,
             numero=numero,
+            proceso=proceso,
             anio=anio,
             secuencia=secuencia,
             configuracion_version=configuracion_version,
@@ -45,10 +47,11 @@ class RepoPuntoCuentaORM:
         )
         return a_entidad(fila)
 
-    def adjuntar_documento(self, id: Any, clave: str):
+    def adjuntar_documento(self, id: Any, clave: str, documento_generado_id: str | None = None):
         fila = PuntoCuentaModel.objects.get(pk=id)
         fila.documento_pdf_clave = clave
-        fila.save(update_fields=['documento_pdf_clave', 'updated_at'])
+        fila.documento_generado_id = documento_generado_id
+        fila.save(update_fields=['documento_pdf_clave', 'documento_generado_id', 'updated_at'])
         return a_entidad(fila)
 
     def listar(self, filtros: dict | None = None):

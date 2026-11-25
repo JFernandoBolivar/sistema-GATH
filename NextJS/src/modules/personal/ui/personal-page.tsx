@@ -68,6 +68,8 @@ export default function PersonalPage() {
   const puedeEditarEducacion = esAdmin || tienePermiso(permisos, "personal.editar_educacion");
   const puedeCorregirCedula = esAdmin || tienePermiso(permisos, "personal.corregir_cedula");
   const puedeEditarNacionalidad = esAdmin || tienePermiso(permisos, "personal.editar_nacionalidad");
+  const puedeGenerarDocumentos = esAdmin || tienePermiso(permisos, "documentos.generar_bajo_demanda");
+  const puedeVerMovimientos = esAdmin || tienePermiso(permisos, "movimientos.ver");
   const puedeVerDetalle = esAdmin || tienePermiso(permisos, "personal.ver_detalle");
   const puedeExportarPdf = esAdmin || tienePermiso(permisos, "personal.exportar_pdf");
 
@@ -447,6 +449,8 @@ export default function PersonalPage() {
           cargar(form.getValues(), pagina);
         }}
         revision={revisionDetalle}
+        puedeGenerarDocumentos={puedeGenerarDocumentos}
+        puedeVerMovimientos={puedeVerMovimientos}
       />
     </PageLayout>
   );

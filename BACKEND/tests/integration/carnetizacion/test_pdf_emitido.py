@@ -2,10 +2,20 @@
 PDF tal como se emitió (seguimiento B-4): se guarda al emitir con clave opaca y sha256, y la
 reimpresión en formato normal entrega esa copia. Si el almacén falla, la emisión no se cae.
 """
+import hashlib
+import re
+from types import SimpleNamespace
+from uuid import UUID
+
 import pytest
 
-from apps.carnetizacion.infrastructure.models.carnetizacion_models import CarnetEmitidoArchivoModel
-from apps.carnetizacion.infrastructure.repositories.repo_carnetizacion_orm import RepoCarnetizacionORM
+from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
+    CarnetEmitidoArchivoModel,
+)
+from apps.carnetizacion.infrastructure.repositories.repo_carnetizacion_orm import (
+    RepoCarnetizacionORM,
+)
+from core.infrastructure.storage import validacion_archivo
 
 pytestmark = pytest.mark.django_db
 
@@ -30,15 +40,24 @@ class AlmacenCaido(AlmacenMemoria):
         raise ConnectionError('SeaweedFS no responde')
 
 
-def test_guarda_y_devuelve_el_pdf_tal_como_se_emitio():
+def test_guarda_y_devuelve_el_pdf_tal_como_se_emitio(monkeypatch):
+    # UUID fijo que contiene «501» por casualidad: la opacidad no depende de
+    # que el ID aparezca o no dentro del UUID aleatorio.
+    uuid_fijo = UUID('00000000000000000000000000005010')
+    monkeypatch.setattr(validacion_archivo, 'uuid', SimpleNamespace(uuid4=lambda: uuid_fijo))
     almacen = AlmacenMemoria()
     repo = RepoCarnetizacionORM(almacen=almacen)
 
     repo.guardar_pdf_emitido(501, b'%PDF-emitido')
 
     registro = CarnetEmitidoArchivoModel.objects.get(carnet_id=501)
-    assert registro.clave.startswith('carnets/') and '501' not in registro.clave  # clave opaca
+    # La clave es un UUID opaco, no una ruta derivada del ID. No se comprueba
+    # que un fragmento del ID no aparezca por casualidad dentro del UUID.
+    assert re.fullmatch(r'carnets/[0-9a-f]{32}\.pdf', registro.clave)
+    assert registro.clave == f'carnets/{uuid_fijo.hex}.pdf'
+    assert registro.sha256 == hashlib.sha256(b'%PDF-emitido').hexdigest()
     assert registro.tamano == len(b'%PDF-emitido')
+    assert registro.formato == 'normal'
     assert repo.pdf_emitido_guardado(501) == b'%PDF-emitido'
 
 
