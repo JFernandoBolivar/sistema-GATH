@@ -128,10 +128,12 @@ def test_el_expediente_guarda_los_flags_vigentes_al_crearse_y_cambiarlos_despues
         'apps.postulacion.presentation.views.captacion_views.configuracion',
         lambda: Config(requiere_presupuesto=True, requiere_direccion_general=False),
     )
-    assert detalle(cap, exp)['flujo'] == {'requiere_presupuesto': False, 'requiere_direccion_general': True}
+    assert detalle(cap, exp)['flujo'] == {
+        'requiere_presupuesto': False, 'requiere_direccion_general': True, 'reingreso_pasivo': 'permitir'}
     # un expediente nuevo toma lo vigente
     exp2 = expediente(m2, True, False, '87654321')
-    assert detalle(cap, exp2)['flujo'] == {'requiere_presupuesto': True, 'requiere_direccion_general': False}
+    assert detalle(cap, exp2)['flujo'] == {
+        'requiere_presupuesto': True, 'requiere_direccion_general': False, 'reingreso_pasivo': 'permitir'}
 
 
 # ------------------------------------------------------------------------------------------------ acciones por combinación
@@ -140,7 +142,8 @@ def test_acciones_con_ambos_activos_son_las_de_siempre(m2, cap):
     a = acciones(cap, exp)
     assert 'EN_PRESUPUESTO' in a and 'RECHAZADO_CAPTACION' in a
     assert not {'reservar_puesto', 'generar_punto_cuenta', 'registrar_aprobacion'} & set(a)
-    assert detalle(cap, exp)['flujo'] == {'requiere_presupuesto': True, 'requiere_direccion_general': True}
+    assert detalle(cap, exp)['flujo'] == {
+        'requiere_presupuesto': True, 'requiere_direccion_general': True, 'reingreso_pasivo': 'permitir'}
 
 
 def test_acciones_solo_direccion_general_sin_presupuesto(m2, cap):

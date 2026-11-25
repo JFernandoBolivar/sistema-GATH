@@ -60,13 +60,14 @@ def cliente(*permisos, cedula='20000001', nombre='María Gómez'):
 
 
 class Config:
-    def __init__(self, psicofisico=False, requiere_presupuesto=True, requiere_direccion_general=True):
+    def __init__(self, psicofisico=False, requiere_presupuesto=True, requiere_direccion_general=True, reingreso_pasivo='permitir'):
         self.valores = {
             'captacion.vigencia_ventana1_dias': 15, 'captacion.vigencia_ventana2_dias': 10,
             'captacion.vigencia_reserva_puesto_dias': 30, 'captacion.espera_diferido_dias': 90, 'captacion.horas_escalamiento_contacto': 48,
             'captacion.psicofisico_obligatorio': psicofisico,
             'captacion.requiere_presupuesto': requiere_presupuesto,
             'captacion.requiere_direccion_general': requiere_direccion_general,
+            'captacion.reingreso_pasivo': reingreso_pasivo,
         }
 
     def obtener_texto(self, clave):

@@ -55,6 +55,8 @@ class ExpedientePostulacion:
     # `captacion.requiere_*`). Cambiar los parámetros no altera los expedientes ya abiertos.
     requiere_presupuesto: bool = True
     requiere_direccion_general: bool = True
+    # C-9: opción vigente de `captacion.reingreso_pasivo` al abrirse (permitir / cerrar_al_contratar / no_permitir).
+    reingreso_pasivo: str = 'permitir'
 
     @property
     def es_terminal(self) -> bool:

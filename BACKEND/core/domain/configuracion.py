@@ -71,6 +71,15 @@ CLAVE_CAPTACION_HORAS_VIGENCIA_ENLACE_ACTIVACION = 'captacion.horas_vigencia_enl
 CLAVE_CAPTACION_REQUIERE_PRESUPUESTO = 'captacion.requiere_presupuesto'
 CLAVE_CAPTACION_REQUIERE_DIRECCION_GENERAL = 'captacion.requiere_direccion_general'
 
+# C-9: qué pasa cuando un jubilado o pensionado (trabajador PASIVO) reingresa por Captación. También se copia al expediente.
+CLAVE_CAPTACION_REINGRESO_PASIVO = 'captacion.reingreso_pasivo'
+REINGRESO_PASIVO_PERMITIR = 'permitir'
+REINGRESO_PASIVO_CERRAR_AL_CONTRATAR = 'cerrar_al_contratar'
+REINGRESO_PASIVO_NO_PERMITIR = 'no_permitir'
+REINGRESO_PASIVO_MODOS = (
+    REINGRESO_PASIVO_PERMITIR, REINGRESO_PASIVO_CERRAR_AL_CONTRATAR, REINGRESO_PASIVO_NO_PERMITIR,
+)
+
 ALCANCE_CARNET_NADIE = 'nadie'
 ALCANCE_CARNET_TODOS = 'todos'
 ALCANCE_CARNET_ACTIVOS = 'activos'

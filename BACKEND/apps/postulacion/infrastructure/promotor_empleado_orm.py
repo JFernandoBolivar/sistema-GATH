@@ -17,6 +17,9 @@ NO abre transacción: corre dentro de la del caso de uso, de modo que cualquier 
   2. Employee (nuevo, o el existente en un reingreso, C-1) con datos de V1 y V2, foto y origen;
   3. familiares (más vivienda, salud y tallas, que viajan con el Employee en el mismo paso);
   3b. formación académica, cursos, antecedentes de servicio, idiomas y RIF (F-8), sin duplicar lo que la ficha ya tenga;
+  3c. (C-9, solo si el expediente guardó «cerrar_al_contratar» y la persona era pasivo) cierre de su condición de pasivo con
+      el caso de uso existente `pasivos.egresar_pasivo` (asignación PASIVO a EGRESADO + registro de egreso + movimiento
+      EGRESO), antes de darle el puesto activo;
   4. puesto + movimiento INGRESO;
   5. cuenta de acceso.
 `personal` y las demás apps NO conocen `postulacion`: el origen viaja como id opaco.
@@ -26,6 +29,7 @@ from datetime import date
 
 from django.conf import settings
 
+from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
 from apps.cargos.infrastructure.repositories.repo_cargos_orm import RepoCargosORM
 from apps.catalogos.infrastructure.models.catalogo_models import (
     EstadoCivilModel,
@@ -33,6 +37,8 @@ from apps.catalogos.infrastructure.models.catalogo_models import (
     ParentescoModel,
     SexoModel,
 )
+from apps.catalogos.infrastructure.models.catalogo_models import TipoMovimientoModel
+from apps.catalogos.infrastructure.repositories.motivos_por_categoria import obtener_o_crear_categoria
 from apps.familiares.application.use_cases.validaciones_familiar import resolver_cedula_familiar
 from apps.familiares.infrastructure.lector_validacion_familiar_orm import LectorValidacionFamiliarORM
 from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
@@ -43,6 +49,9 @@ from apps.identidad.infrastructure.receivers import aprovisionar_por_cedula
 from apps.identidad.infrastructure.repositories.repo_condicion_trabajador_orm import RepoCondicionTrabajadorORM
 from apps.identidad.infrastructure.repositories.repo_cuentas_orm import RepoCuentasORM
 from apps.identidad.infrastructure.repositories.repo_desactivacion_egreso_orm import RepoDesactivacionEgresoORM
+from apps.pasivos.application.dtos.pasivos_dtos import EgresarPasivoDTO
+from apps.pasivos.application.use_cases.egresar_pasivo import egresar_pasivo
+from apps.pasivos.infrastructure.repositories.repo_pasivos_orm import RepoPasivosORM
 from apps.personal.domain.value_objects.rif import normalizar_rif
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from apps.personal.infrastructure.repositories.repo_personal_orm import RepoPersonalORM
@@ -57,11 +66,16 @@ from apps.postulacion.domain.entities.promocion import (
     SolicitudPromocion,
 )
 from apps.postulacion.domain.errores import ConflictoConCodigo, ValidacionConCodigo
+from core.domain.categorias_motivo import CategoriaMotivo
+from core.domain.catalogos import ESTATUS_EGRESADO, TIPO_PERSONAL_PASIVO
 from core.domain.configuracion import CLAVE_PASSWORD_INICIAL_DIAS
 from core.domain.exceptions import DomainError
 from core.infrastructure.providers import obtener_lector_configuracion
 
 logger = logging.getLogger('gath.postulacion')
+
+# C-9: motivo del egreso del pasivo cuando se cierra al reingresar (categoría EGRESO PASIVO; se crea la primera vez).
+MOTIVO_CIERRE_PASIVO_REINGRESO = 'REINGRESO COMO PERSONAL ACTIVO'
 
 
 def _correo_libre(correo: str, cedula: str) -> bool:
@@ -108,6 +122,12 @@ class PromotorEmpleadoORM:
         # 3b: formación, cursos, antecedentes, idiomas y RIF (misma transacción: si algo falla, rollback total).
         ficha = self._copiar_ficha_adicional(s, repo_personal)
 
+        # 3c (C-9): cierre de la condición de pasivo, si el expediente lo pidió. Antes del puesto: con la asignación PASIVO
+        # vigente la persona seguiría contando como pasivo. Cualquier fallo aborta toda la contratación.
+        pasivo_cerrado = False
+        if s.cerrar_pasivo and condicion_previa is CondicionTrabajador.PASIVO and s.usuario_id is not None:
+            pasivo_cerrado = self._cerrar_pasivo(s)
+
         # 4: puesto + INGRESO (la señal que emite `cargos` la registra `movimientos`).
         if s.usuario_id is None:
             raise ValidacionConCodigo(
@@ -122,8 +142,36 @@ class PromotorEmpleadoORM:
         cuenta = self._cuenta(s, empleado, reingreso, tenia_cuenta, condicion_previa, repo_personal)
         return ResultadoPromocion(
             employee_id=empleado.pk, cedula=s.cedula, es_reingreso=reingreso, puesto_codigo=puesto.codigo,
-            familiares_copiados=copiados, ficha_copiada=ficha, cuenta=cuenta,
+            familiares_copiados=copiados, ficha_copiada=ficha, cuenta=cuenta, pasivo_cerrado=pasivo_cerrado,
         )
+
+    # ------------------------------------------------------------------------------------------------ pasivo (C-9)
+    @staticmethod
+    def _cerrar_pasivo(s: SolicitudPromocion) -> bool:
+        """
+        Cierra la condición de pasivo con `pasivos.egresar_pasivo` (el mismo caso de uso del egreso de un pasivo). Devuelve
+        False si no hay una asignación PASIVO vigente que cerrar (pasivo solo por datos legados: al recibir el puesto
+        activo deja de contar como pasivo por sí solo).
+        """
+        vigente = AsigTrabajoModel.objects.filter(
+            employee_id=s.cedula, Tipo_personal__tipo_personal__iexact=TIPO_PERSONAL_PASIVO,
+        ).exclude(estatusid__estatus__iexact=ESTATUS_EGRESADO).exists()
+        if not vigente:
+            return False
+        categoria = obtener_o_crear_categoria(CategoriaMotivo.EGRESO_PASIVO)
+        motivo = TipoMovimientoModel.objects.filter(
+            movimiento__iexact=MOTIVO_CIERRE_PASIVO_REINGRESO, categoria=categoria,
+        ).first() or TipoMovimientoModel.objects.create(movimiento=MOTIVO_CIERRE_PASIVO_REINGRESO, categoria=categoria)
+        try:
+            egresar_pasivo(
+                RepoPasivosORM(),
+                EgresarPasivoDTO(cedula=s.cedula, motivo_id=motivo.pk, usuario_id=s.usuario_id, fecha_egreso=s.hoy),
+            )
+        except DomainError as e:
+            raise ConflictoConCodigo(
+                f"No se pudo cerrar la condición de pasivo del trabajador: {e}", codigo='CIERRE_PASIVO_FALLIDO',
+            ) from e
+        return True
 
     # ------------------------------------------------------------------------------------------------ Employee
     def _datos_empleado(self, s: SolicitudPromocion, previo: EmployeeModel | None, repo_personal: RepoPersonalORM) -> dict:

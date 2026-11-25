@@ -23,6 +23,7 @@ from core.domain.configuracion import (
     CLAVE_AVISAR_CUENTA_CREADA_POR_CORREO,
     CLAVE_CAPTACION_ESPERA_DIFERIDO_DIAS,
     CLAVE_CAPTACION_PSICOFISICO_OBLIGATORIO,
+    CLAVE_CAPTACION_REINGRESO_PASIVO,
     CLAVE_CAPTACION_REQUIERE_DIRECCION_GENERAL,
     CLAVE_CAPTACION_REQUIERE_PRESUPUESTO,
     CLAVE_CAPTACION_RETENCION_RECHAZADOS_MESES,
@@ -118,6 +119,13 @@ OPCIONES_RETENCION: tuple[tuple[int, str], ...] = (
     (RETENCION_NUNCA, 'Nunca'),
 )
 
+# C-9: reingreso de un jubilado o pensionado por Captación.
+OPCIONES_REINGRESO_PASIVO: tuple[tuple[str, str], ...] = (
+    ('permitir', 'Permitir el reingreso y dejar su registro de pasivo como está'),
+    ('cerrar_al_contratar', 'Permitir el reingreso y cerrar su condición de pasivo al contratarlo'),
+    ('no_permitir', 'No permitir que un pasivo se postule'),
+)
+
 MAX_DIAS_RECORDATORIO = 365
 MAX_RECORDATORIOS = 10
 
@@ -133,7 +141,7 @@ class ParametroDefinicion:
     minimo: int | None = None
     maximo: int | None = None
     # (valor, etiqueta); si no está vacío, solo se aceptan esos valores.
-    opciones: tuple[tuple[int, str], ...] = ()
+    opciones: tuple[tuple[int | str, str], ...] = ()
     depende_de: tuple[str, str] | None = None
     # Sección dentro del grupo (la pantalla agrupa los parámetros relacionados bajo un mismo título); vacío = sin sección.
     seccion: str = ''
@@ -611,6 +619,22 @@ DEFINICIONES = (
         grupo=GRUPO_CAPTACION,
         tipo=TIPO_BOOLEANO,
         defecto='true',
+        seccion=SECCION_PROCESO_INGRESO,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_CAPTACION_REINGRESO_PASIVO,
+        etiqueta='Reingreso de jubilados y pensionados',
+        descripcion=(
+            'Qué ocurre cuando un jubilado o pensionado (trabajador pasivo) se postula por Captación. «Permitir»: '
+            'puede postularse y, al contratarlo, su registro de pasivo queda como está. «Cerrar al contratar»: puede '
+            'postularse y, al contratarlo, el sistema cierra su condición de pasivo (egreso del pasivo) en la misma '
+            'operación. «No permitir»: el alta del postulante se rechaza. Aplica a los expedientes que se abran '
+            'desde ahora; los que ya están en curso conservan la opción con que se abrieron.'
+        ),
+        grupo=GRUPO_CAPTACION,
+        tipo=TIPO_TEXTO,
+        defecto='permitir',
+        opciones=OPCIONES_REINGRESO_PASIVO,
         seccion=SECCION_PROCESO_INGRESO,
     ),
     ParametroDefinicion(

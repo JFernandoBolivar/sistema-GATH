@@ -31,6 +31,7 @@ class ConfigFalsa:
             'captacion.vigencia_reserva_puesto_dias': 30,
             'captacion.espera_diferido_dias': 90, 'captacion.horas_escalamiento_contacto': 48, 'captacion.psicofisico_obligatorio': psicofisico,
             'captacion.requiere_presupuesto': True, 'captacion.requiere_direccion_general': True,
+            'captacion.reingreso_pasivo': 'permitir',
         }
 
     def obtener_texto(self, clave):

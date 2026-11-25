@@ -27,6 +27,8 @@ class SolicitudPromocion:
     usuario_id: int | None = None      # cuenta de quien asigna (queda en el movimiento INGRESO)
     ahora: datetime | None = None
     hoy: date | None = None
+    # C-9: si es True y la persona era PASIVO, se cierra su condición de pasivo antes de asignarle el puesto.
+    cerrar_pasivo: bool = False
 
 
 @dataclass(frozen=True)
@@ -51,3 +53,4 @@ class ResultadoPromocion:
     # F-8: lo que se sumó a la ficha además de los familiares (`estudios`, `cursos`, `antecedentes`, `idiomas`, `rif`).
     ficha_copiada: dict = field(default_factory=dict)
     cuenta: CuentaPromocion = field(default_factory=CuentaPromocion)
+    pasivo_cerrado: bool = False       # C-9: se cerró su condición de pasivo en esta contratación

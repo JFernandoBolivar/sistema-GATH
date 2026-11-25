@@ -194,7 +194,7 @@ def test_el_listado_expone_las_opciones_de_retencion():
     assert all(
         p['opciones'] == []
         for p in parametros
-        if p['grupo'] not in ('retencion', 'carnetizacion', 'autogestion')
+        if p['grupo'] not in ('retencion', 'carnetizacion', 'autogestion') and p['clave'] != 'captacion.reingreso_pasivo'
     )
 
     # O44 (E1): opciones de alcance de carnetizacion

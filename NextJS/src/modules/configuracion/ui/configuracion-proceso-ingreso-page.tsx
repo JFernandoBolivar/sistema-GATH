@@ -35,6 +35,7 @@ import type { ParametroDTO } from "../application/dtos/parametro-dto";
 import {
   AVISO_EXPEDIENTES_EN_CURSO,
   CASILLAS_PROCESO,
+  OPCIONES_REINGRESO_PASIVO,
   cambiosPendientes,
   parametrosDelProceso,
   rutaDelProceso,
@@ -64,6 +65,8 @@ export function ConfiguracionProcesoIngresoPage() {
   const valorDe = (clave: string) => borrador[clave] ?? porClave.get(clave)?.valor ?? "";
   const cambios = useMemo(() => cambiosPendientes(parametros, borrador), [parametros, borrador]);
   const vigencia = porClave.get(CLAVES_PROCESO_INGRESO.vigenciaReserva);
+  const reingreso = porClave.get(CLAVES_PROCESO_INGRESO.reingresoPasivo);
+  const valorReingreso = valorDe(CLAVES_PROCESO_INGRESO.reingresoPasivo) || "permitir";
 
   const sinPresupuesto = valorDe(CLAVES_PROCESO_INGRESO.requierePresupuesto) === "false";
   const sinDireccion = valorDe(CLAVES_PROCESO_INGRESO.requiereDireccionGeneral) === "false";
@@ -211,6 +214,51 @@ export function ConfiguracionProcesoIngresoPage() {
                 })}
               </CardContent>
             </Card>
+
+            {reingreso ? (
+              <Card data-parametro={reingreso.clave}>
+                <CardHeader>
+                  <CardTitle className="text-base">Reingreso de jubilados y pensionados</CardTitle>
+                  <CardDescription>Qué ocurre cuando un trabajador pasivo se postula por Captación.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <fieldset className="flex flex-col gap-2" disabled={!puedeEditar || guardando}>
+                    <legend className="sr-only">Reingreso de jubilados y pensionados</legend>
+                    {OPCIONES_REINGRESO_PASIVO.map((opcion) => {
+                      const id = `reingreso-pasivo-${opcion.valor}`;
+                      return (
+                        <div
+                          key={opcion.valor}
+                          className="relative flex items-start gap-3 rounded-md border p-3 has-[:checked]:border-primary has-[:checked]:bg-primary/10"
+                        >
+                          <input
+                            id={id}
+                            type="radio"
+                            name="reingreso-pasivo"
+                            value={opcion.valor}
+                            checked={valorReingreso === opcion.valor}
+                            onChange={() => cambiar(reingreso.clave, opcion.valor)}
+                            aria-describedby={`${id}-desc`}
+                            className="relative z-10 mt-1 size-4 shrink-0"
+                          />
+                          <div className="min-w-0 max-w-2xl">
+                            <Label htmlFor={id} className="cursor-pointer text-base font-medium">
+                              {opcion.titulo}
+                              {opcion.valor === "permitir" ? <span className="ml-2 text-xs font-normal text-muted-foreground">(por defecto)</span> : null}
+                            </Label>
+                            <p id={`${id}-desc`} className="mt-1 text-sm text-muted-foreground">{opcion.explicacion}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </fieldset>
+                  {borrador[reingreso.clave] !== undefined && borrador[reingreso.clave] !== reingreso.valor ? (
+                    <span className="mt-2 inline-block rounded-full bg-warning-soft px-2 py-0.5 text-xs font-semibold text-warning">Sin guardar</span>
+                  ) : null}
+                  {errores[reingreso.clave] ? <p role="alert" className="mt-2 text-sm text-destructive">{errores[reingreso.clave]}</p> : null}
+                </CardContent>
+              </Card>
+            ) : null}
 
             {vigencia ? (
               <Card>

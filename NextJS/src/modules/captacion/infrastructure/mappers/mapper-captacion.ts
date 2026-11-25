@@ -175,11 +175,13 @@ export function detalleDesdeApi(d: Crudo): DetalleExpediente {
       correo: texto(p.correo),
       telefonoMovil: texto(p.telefono_movil),
       esReingreso: p.es_reingreso === true,
+      esPasivo: p.es_pasivo === true,
     },
     flujo: {
       // Sin el dato (backend anterior a M-1) rige el flujo de siempre: con Presupuesto y con Dirección General.
       requierePresupuesto: flujo.requiere_presupuesto !== false,
       requiereDireccionGeneral: flujo.requiere_direccion_general !== false,
+      reingresoPasivo: textoONulo(flujo.reingreso_pasivo) ?? "permitir",
     },
     reserva: reservaDesdeApi(d.reserva),
     puntoCuenta: puntoCuentaCaptacionDesdeApi(d.punto_cuenta),

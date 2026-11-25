@@ -28,6 +28,7 @@ from apps.postulacion.domain.errores import ConflictoConCodigo
 from apps.postulacion.domain.ports.repos import DocumentosDelExpediente, PromotorEmpleado, PuestosVacantes, RepoPostulacion
 from apps.postulacion.domain.services.maquina_estados import Actor
 from apps.postulacion.domain.value_objects.estados import EstadoExpediente
+from core.domain.configuracion import REINGRESO_PASIVO_CERRAR_AL_CONTRATAR
 from core.domain.exceptions import NotFoundError
 from core.domain.ports import LectorConfiguracion, Notificador
 
@@ -102,6 +103,7 @@ def promover_postulante(
                 puesto_id=capturado['reserva'].puesto_id, datos_ventana1=actual.datos_ventana1,
                 datos_ventana2=actual.datos_ventana2, foto_clave=actual.foto_clave, usuario_id=usuario_id,
                 ahora=ahora, hoy=ahora.date(),
+                cerrar_pasivo=actual.reingreso_pasivo == REINGRESO_PASIVO_CERRAR_AL_CONTRATAR,
             ))
             capturado['promocion'] = resultado
             if documentos is not None:
@@ -119,7 +121,7 @@ def promover_postulante(
                 repo.vincular_empleado(postulante.id, postulante.cedula)
             return {
                 'puesto_id': capturado['reserva'].puesto_id, 'puesto_codigo': resultado.puesto_codigo,
-                'employee_id': resultado.employee_id, 'reingreso': resultado.es_reingreso,
+                'employee_id': resultado.employee_id, 'reingreso': resultado.es_reingreso, 'pasivo_cerrado': resultado.pasivo_cerrado,
                 'cuenta_creada': resultado.cuenta.creada, 'cuenta_motivo': resultado.cuenta.motivo,
                 'contratado_el': ahora.date().isoformat(), 'familiares': resultado.familiares_copiados,
                 'ficha': resultado.ficha_copiada, **({'documentos': capturado['documentos']} if 'documentos' in capturado else {}),

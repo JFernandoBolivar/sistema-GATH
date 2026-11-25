@@ -40,6 +40,35 @@ export const CASILLAS_PROCESO: readonly CasillaProceso[] = [
   },
 ];
 
+/** Qué ocurre cuando un jubilado o pensionado (trabajador pasivo) reingresa por Captación (C-9). */
+export type ReingresoPasivo = "permitir" | "cerrar_al_contratar" | "no_permitir";
+
+export interface OpcionReingresoPasivo {
+  valor: ReingresoPasivo;
+  titulo: string;
+  /** Qué hace el sistema con esa opción, en lenguaje claro. */
+  explicacion: string;
+}
+
+export const OPCIONES_REINGRESO_PASIVO: readonly OpcionReingresoPasivo[] = [
+  {
+    valor: "permitir",
+    titulo: "Permitir el reingreso y dejar su registro de pasivo como está",
+    explicacion: "El jubilado o pensionado puede postularse. Al contratarlo, su registro de pasivo no se toca.",
+  },
+  {
+    valor: "cerrar_al_contratar",
+    titulo: "Permitir el reingreso y cerrar su condición de pasivo al contratarlo",
+    explicacion:
+      "El jubilado o pensionado puede postularse. Al contratarlo, el sistema da por terminada su condición de pasivo (egreso del pasivo) en la misma operación; si algo falla, no se contrata.",
+  },
+  {
+    valor: "no_permitir",
+    titulo: "No permitir que un pasivo se postule",
+    explicacion: "Si la cédula es de un jubilado o pensionado, el alta del postulante se rechaza con un aviso.",
+  },
+];
+
 /** Parámetros de la sección «Proceso de ingreso», tal como los entrega el backend. */
 export function parametrosDelProceso(parametros: readonly ParametroDTO[]): ParametroDTO[] {
   return parametros.filter((p) => p.seccion === SECCION_PROCESO_INGRESO);

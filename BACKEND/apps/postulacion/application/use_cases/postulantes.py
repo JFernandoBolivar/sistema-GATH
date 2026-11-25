@@ -9,14 +9,16 @@ Notificaciones: la emisión de `CREDENCIAL_GENERADA` y demás avisos de §5.6 pe
 """
 from datetime import datetime
 
-from apps.postulacion.application.use_cases._comun import ahora_utc, flujo_vigente, leer_vigencias
+from apps.postulacion.application.use_cases._comun import ahora_utc, flujo_vigente, leer_reingreso_pasivo, leer_vigencias
 from apps.postulacion.application.use_cases._comun import texto_normalizado as _texto
+from apps.postulacion.domain.errores import ConflictoConCodigo
 from apps.postulacion.domain.entities.expediente import ExpedientePostulacion
 from apps.postulacion.domain.entities.postulante import Postulante, TransicionRegistrada
 from apps.postulacion.domain.ports.repos import BuscadorEmpleados, RepoPostulacion
 from apps.postulacion.domain.services.efectos import vencimiento_ventana1
 from apps.postulacion.domain.value_objects.estados import ACTOR_USUARIO, EstadoExpediente
-from core.domain.catalogos import CONDICION_ACTIVO
+from core.domain.catalogos import CONDICION_ACTIVO, CONDICION_PASIVO
+from core.domain.configuracion import REINGRESO_PASIVO_NO_PERMITIR
 from core.domain.exceptions import ConflictError, ValidationError
 from core.domain.ports import LectorConfiguracion
 from core.domain.validacion_personas import validar_cedula
@@ -50,6 +52,14 @@ def crear_postulante_con_expediente(
                 'La cédula pertenece a un trabajador activo de CONATEL: no puede postularse mientras '
                 'tenga una asignación vigente.'
             )
+        # C-9: según el parámetro, un jubilado o pensionado puede no ser admitido como postulante.
+        es_pasivo = bool(empleado and empleado.condicion == CONDICION_PASIVO)
+        if es_pasivo and leer_reingreso_pasivo(config) == REINGRESO_PASIVO_NO_PERMITIR:
+            raise ConflictoConCodigo(
+                'La cédula pertenece a un jubilado o pensionado (trabajador pasivo) y, según la configuración del '
+                'proceso de ingreso, un pasivo no puede postularse.',
+                codigo='REINGRESO_PASIVO_NO_PERMITIDO', campo='cedula',
+            )
         postulante = repo.obtener_postulante_por_cedula(cedula, bloquear=True)
         if postulante is None:
             postulante = repo.crear_postulante(Postulante(
@@ -69,6 +79,6 @@ def crear_postulante_con_expediente(
         repo.registrar_transicion(TransicionRegistrada(
             id='', expediente_id=expediente.id, estado_origen='', estado_destino=expediente.estado.value,
             actor_cedula=creado_por, actor_tipo=ACTOR_USUARIO, fecha=ahora,
-            motivo='Alta del postulante', datos_extra={'reingreso': bool(postulante.employee_cedula)},
+            motivo='Alta del postulante', datos_extra={'reingreso': bool(postulante.employee_cedula), 'pasivo': es_pasivo},
         ))
     return postulante, expediente, bool(postulante.employee_cedula)

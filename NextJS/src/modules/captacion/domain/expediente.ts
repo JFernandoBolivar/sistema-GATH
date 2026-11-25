@@ -201,7 +201,12 @@ export interface DetalleExpediente {
     propuesta: PropuestaCargo;
   };
   /** Etapas del ingreso que este expediente recorre dentro del sistema (copia hecha al crearse). */
-  flujo: { requierePresupuesto: boolean; requiereDireccionGeneral: boolean };
+  flujo: {
+    requierePresupuesto: boolean;
+    requiereDireccionGeneral: boolean;
+    /** Opción de reingreso de pasivos con que se abrió el expediente: permitir / cerrar_al_contratar / no_permitir. */
+    reingresoPasivo: string;
+  };
   /** Reserva del puesto (hecha por Presupuesto o, sin Presupuesto, por Captación). */
   reserva: Reserva | null;
   /** Punto de Cuenta de ingreso emitido, con la aprobación fuera del sistema si la hubo. */
@@ -214,6 +219,8 @@ export interface DetalleExpediente {
     correo: string;
     telefonoMovil: string;
     esReingreso: boolean;
+    /** Era jubilado o pensionado (trabajador pasivo) al darlo de alta. */
+    esPasivo: boolean;
   };
   datosVentana1: Record<string, unknown>;
   datosVentana2: Record<string, unknown>;

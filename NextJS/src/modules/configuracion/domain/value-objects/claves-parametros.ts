@@ -23,4 +23,5 @@ export const CLAVES_PROCESO_INGRESO = {
   requiereDireccionGeneral: "captacion.requiere_direccion_general",
   psicofisicoObligatorio: "captacion.psicofisico_obligatorio",
   vigenciaReserva: "captacion.vigencia_reserva_puesto_dias",
+  reingresoPasivo: "captacion.reingreso_pasivo",
 } as const;

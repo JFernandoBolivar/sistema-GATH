@@ -8,11 +8,14 @@ from core.domain.configuracion import (
     CLAVE_CAPTACION_ESPERA_DIFERIDO_DIAS,
     CLAVE_CAPTACION_HORAS_ESCALAMIENTO_CONTACTO,
     CLAVE_CAPTACION_PSICOFISICO_OBLIGATORIO,
+    CLAVE_CAPTACION_REINGRESO_PASIVO,
     CLAVE_CAPTACION_REQUIERE_DIRECCION_GENERAL,
     CLAVE_CAPTACION_REQUIERE_PRESUPUESTO,
     CLAVE_CAPTACION_VIGENCIA_RESERVA_PUESTO_DIAS,
     CLAVE_CAPTACION_VIGENCIA_VENTANA1_DIAS,
     CLAVE_CAPTACION_VIGENCIA_VENTANA2_DIAS,
+    REINGRESO_PASIVO_MODOS,
+    REINGRESO_PASIVO_PERMITIR,
 )
 from core.domain.exceptions import NotFoundError, ValidationError
 from core.domain.ports import LectorConfiguracion
@@ -41,10 +44,18 @@ def leer_psicofisico_obligatorio(config: LectorConfiguracion) -> bool:
     return config.obtener_booleano(CLAVE_CAPTACION_PSICOFISICO_OBLIGATORIO)
 
 
-def flujo_vigente(config: LectorConfiguracion) -> dict[str, bool]:
+def leer_reingreso_pasivo(config: LectorConfiguracion) -> str:
+    """Opción vigente de `captacion.reingreso_pasivo` (C-9); un valor desconocido cuenta como «permitir»."""
+    valor = (config.obtener_texto(CLAVE_CAPTACION_REINGRESO_PASIVO) or '').strip()
+    return valor if valor in REINGRESO_PASIVO_MODOS else REINGRESO_PASIVO_PERMITIR
+
+
+def flujo_vigente(config: LectorConfiguracion) -> dict[str, bool | str]:
     """Copia (snapshot) del proceso de ingreso vigente, para guardarla en el expediente al abrirse (M-1): campos
-    `requiere_presupuesto` y `requiere_direccion_general`. Después, cambiar los parámetros no altera ese expediente."""
+    `requiere_presupuesto` y `requiere_direccion_general`; y (C-9) `reingreso_pasivo`. Después, cambiar los parámetros
+    no altera ese expediente."""
     return {
+        'reingreso_pasivo': leer_reingreso_pasivo(config),
         'requiere_presupuesto': config.obtener_booleano(CLAVE_CAPTACION_REQUIERE_PRESUPUESTO),
         'requiere_direccion_general': config.obtener_booleano(CLAVE_CAPTACION_REQUIERE_DIRECCION_GENERAL),
     }

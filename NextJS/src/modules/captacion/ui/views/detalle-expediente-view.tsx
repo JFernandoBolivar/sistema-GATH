@@ -28,6 +28,7 @@ import type { FiltrosVacantes } from "@/modules/presupuesto/domain/solicitud";
 import { VistaCargando, VistaError, VistaVacia } from "@/shared/ui/components/vista-estados";
 import { bloqueosVisibles, type PestanaDetalle } from "../../domain/bloqueos";
 import { sinJerga } from "../../domain/jerga";
+import { AvisoReingresoPasivo, InsigniaReingresoPasivo } from "../components/reingreso-pasivo";
 import type { ItemBarraAcciones } from "../../domain/barra-acciones";
 import { describirEstado, type CredencialEmitida, type DatosPropuesta, type DetalleExpediente, type ResultadoAccion } from "../../domain/expediente";
 import type { ResultadoContratacion } from "../../domain/contratacion";
@@ -306,8 +307,11 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
                   {detalle.expediente.esReingreso ? (
                     <span className="rounded-full border border-info/40 bg-info-soft px-3 py-0.5 text-xs font-semibold text-info">Reingreso</span>
                   ) : null}
+                  {detalle.postulante.esPasivo ? <InsigniaReingresoPasivo /> : null}
                 </div>
               </div>
+
+              {detalle.postulante.esPasivo ? <AvisoReingresoPasivo opcion={detalle.flujo.reingresoPasivo} /> : null}
 
               <div className="flex flex-col gap-3 border-t pt-4">
                 <h3 className="text-sm font-semibold text-muted-foreground">¿Qué desea hacer?</h3>

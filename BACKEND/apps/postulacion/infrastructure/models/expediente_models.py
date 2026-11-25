@@ -62,6 +62,8 @@ class ExpedientePostulacionModel(BaseModel):
     # M-1: copia de `captacion.requiere_presupuesto` / `requiere_direccion_general` vigentes al abrirse el expediente.
     requiere_presupuesto = models.BooleanField(default=True)
     requiere_direccion_general = models.BooleanField(default=True)
+    # C-9: copia de `captacion.reingreso_pasivo` vigente al abrirse el expediente.
+    reingreso_pasivo = models.CharField(max_length=30, default='permitir')
     fecha_apertura = models.DateTimeField(default=timezone.now)
     fecha_cierre = models.DateTimeField(null=True, blank=True)
 

@@ -15,6 +15,7 @@ CAMPOS_EXPEDIENTE = (
     'ventana', 'ventana_vence_el', 'reserva_vence_el', 'diferido_vence_el', 'observaciones', 'datos_ventana1', 'fecha_cierre',
     'creado_por', 'datos_ventana2', 'foto_clave', 'foto_sha256', 'foto_tamano', 'foto_subida_el',
     'contacto_pendiente_desde', 'requiere_presupuesto', 'requiere_direccion_general',
+    'reingreso_pasivo',
 )
 
 

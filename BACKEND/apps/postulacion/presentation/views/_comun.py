@@ -318,10 +318,12 @@ def a_dict_detalle_captacion(d: DetalleCaptacion) -> dict:
         'flujo': {
             'requiere_presupuesto': exp.requiere_presupuesto,
             'requiere_direccion_general': exp.requiere_direccion_general,
+            'reingreso_pasivo': exp.reingreso_pasivo,
         },
         'postulante': {
             'id': p.id, 'cedula': p.cedula, 'nombres': p.nombres, 'apellidos': p.apellidos, 'correo': p.correo,
             'telefono_movil': p.telefono_movil, 'es_reingreso': p.es_reingreso,
+            'es_pasivo': any(bool((t.datos_extra or {}).get('pasivo')) for t in d.base.transiciones),
         },
         'datos_ventana1': exp.datos_ventana1,
         'datos_ventana2': exp.datos_ventana2,
