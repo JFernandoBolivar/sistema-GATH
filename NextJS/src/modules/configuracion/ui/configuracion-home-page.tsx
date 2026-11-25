@@ -4,7 +4,7 @@
  * Portada de «Administración del sistema → Configuración» (D9).
  */
 import Link from "next/link";
-import { Settings, Image as ImageIcon, FileText, SlidersHorizontal, Mail, UserCog, FileStack } from "lucide-react";
+import { Settings, Image as ImageIcon, FileText, SlidersHorizontal, Mail, UserCog, FileStack, Workflow } from "lucide-react";
 
 import PageLayout from "@/components/layout/page-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,7 @@ import {
   RUTA_REGLAS_CATALOGOS,
   RUTA_CORREO_ACCESO,
   RUTA_DOCUMENTOS,
+  RUTA_PROCESO_INGRESO,
 } from "@/shared/lib/administracion-sistema";
 import { RUTA_AUTOGESTION_CONDICION } from "../domain/value-objects/claves-parametros";
 
@@ -22,7 +23,7 @@ export function ConfiguracionHomePage() {
   return (
     <PageLayout
       title="Configuración"
-      description="Parámetros del sistema, identidad visual, reglas de catálogos, puntos de cuenta, documentos digitales y correo de acceso."
+      description="Parámetros del sistema, proceso de ingreso, identidad visual, reglas de catálogos, puntos de cuenta, documentos digitales y correo de acceso."
     >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <Link href={RUTA_PARAMETROS} className="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -34,6 +35,19 @@ export function ConfiguracionHomePage() {
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground">
               Notificaciones por correo, plazos de contraseña y autogestión, y recordatorios de fe de vida.
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href={RUTA_PROCESO_INGRESO} className="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <Card className="h-full transition-colors hover:bg-accent/40">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Workflow aria-hidden /> Proceso de ingreso
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground">
+              Qué etapas del ingreso de personal se hacen en el sistema (Presupuesto, Dirección General), test psicofísico y vigencia de la reserva del puesto.
             </CardContent>
           </Card>
         </Link>

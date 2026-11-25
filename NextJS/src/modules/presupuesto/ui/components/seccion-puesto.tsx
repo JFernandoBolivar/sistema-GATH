@@ -26,10 +26,12 @@ interface Props {
   /** Devuelve el error en español o `null`. */
   onReservar: (puestoId: number) => Promise<string | null>;
   onLiberar: () => Promise<string | null>;
+  /** Caché del panel de vacantes (por expediente). */
+  claveCache?: string;
 }
 
 /** Sección «Puesto»: elegir, cambiar o liberar la reserva. */
-export function SeccionPuesto({ reserva, puedeEditar, cargarVacantes, onReservar, onLiberar }: Props) {
+export function SeccionPuesto({ reserva, puedeEditar, cargarVacantes, onReservar, onLiberar, claveCache }: Props) {
   const [eligiendo, setEligiendo] = useState(false);
   const [confirmaLiberar, setConfirmaLiberar] = useState(false);
   const [liberando, setLiberando] = useState(false);
@@ -84,6 +86,7 @@ export function SeccionPuesto({ reserva, puedeEditar, cargarVacantes, onReservar
 
       {eligiendo ? (
         <DialogoVacantes
+          claveCache={claveCache}
           titulo={vigente ? "Cambiar el puesto reservado" : "Elegir el puesto"}
           cargar={cargarVacantes}
           onReservar={async (id) => {

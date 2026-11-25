@@ -46,7 +46,7 @@ export interface Preparado {
   admin: Record<string, string>;
 }
 
-async function postulanteEnviaVentana1(request: APIRequestContext, cedula: string, claveTemporal: string) {
+export async function postulanteEnviaVentana1(request: APIRequestContext, cedula: string, claveTemporal: string) {
   const acceso = await request.post(`${API}/acceso/`, { data: { cedula, password: claveTemporal } });
   expect(acceso.ok(), `acceso del postulante: HTTP ${acceso.status()}`).toBeTruthy();
   const tokenInicial = ((await acceso.json()) as Sobre<{ token: string }>).data.token;

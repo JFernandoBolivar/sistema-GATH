@@ -8,6 +8,8 @@ import { unstable_rethrow } from "next/navigation";
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { ApiHttpError, errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
+import type { FiltrosVacantes, PaginaVacantes } from "@/modules/presupuesto/domain/solicitud";
+import { validarAprobacion, validarPdfFirmado } from "../../domain/ingreso-corto";
 import type { DocumentoExpedienteDTO } from "@/modules/documentos/domain/lib/documentos-expediente";
 import { mensajeErrorContratacion, type ResultadoContratacion } from "../../domain/contratacion";
 import type {
@@ -164,4 +166,63 @@ export async function contratarPostulanteAction(id: string): Promise<ResultadoAc
   const r = await ejecutar("contratarPostulanteAction", "No fue posible contratar al postulante.", () => captacionApi.asignar(id));
   if (r.ok) return r;
   return { ...r, error: mensajeErrorContratacion(r.codigo, r.error) };
+}
+
+// --- Ingreso sin Presupuesto y/o sin Dirección General (M-5) ---
+type Descarga = { base64: string; nombre: string };
+
+export async function listarVacantesCaptacionAction(id: string, filtros: FiltrosVacantes): Promise<ResultadoAccion<PaginaVacantes>> {
+  return ejecutar("listarVacantesCaptacionAction", "No fue posible cargar los puestos vacantes.", () => captacionApi.vacantes(id, filtros));
+}
+
+export async function reservarPuestoCaptacionAction(id: string, puestoId: number): Promise<ResultadoAccion<DetalleExpediente>> {
+  return ejecutar("reservarPuestoCaptacionAction", "No fue posible reservar el puesto.", () => captacionApi.reservar(id, puestoId));
+}
+
+export async function liberarReservaCaptacionAction(id: string): Promise<ResultadoAccion<DetalleExpediente>> {
+  return ejecutar("liberarReservaCaptacionAction", "No fue posible liberar la reserva.", () => captacionApi.liberarReserva(id));
+}
+
+export async function generarPuntoCuentaCaptacionAction(id: string): Promise<ResultadoAccion<DetalleExpediente>> {
+  return ejecutar("generarPuntoCuentaCaptacionAction", "No fue posible generar el Punto de Cuenta.", () => captacionApi.generarPuntoCuenta(id));
+}
+
+/** `fecha_firma` (AAAA-MM-DD) obligatoria y no futura; `pdf_firmado` opcional. */
+export async function registrarAprobacionCaptacionAction(id: string, formData: FormData): Promise<ResultadoAccion<DetalleExpediente>> {
+  const fecha = formData.get("fecha_firma");
+  const archivo = formData.get("pdf_firmado");
+  const pdf = archivo instanceof File && archivo.size > 0 ? archivo : null;
+  const errores = validarAprobacion({ fechaFirma: typeof fecha === "string" ? fecha : "", pdfFirmado: pdf });
+  if (Object.keys(errores).length > 0) {
+    return { ok: false, error: Object.values(errores)[0], errores: Object.fromEntries(Object.entries(errores).map(([k, v]) => [k, [v]])) };
+  }
+  return ejecutar(
+    "registrarAprobacionCaptacionAction",
+    "No fue posible registrar la aprobación.",
+    () => captacionApi.registrarAprobacion(id, fecha as string, pdf),
+    () => "Aprobación del ingreso registrada.",
+  );
+}
+
+export async function adjuntarPdfFirmadoCaptacionAction(id: string, formData: FormData): Promise<ResultadoAccion<DetalleExpediente>> {
+  const archivo = formData.get("pdf_firmado");
+  const pdf = archivo instanceof File && archivo.size > 0 ? archivo : null;
+  const error = pdf ? validarPdfFirmado(pdf) : "Seleccione el archivo PDF firmado.";
+  if (error || !pdf) return { ok: false, error: error ?? "Seleccione el archivo PDF firmado." };
+  return ejecutar("adjuntarPdfFirmadoCaptacionAction", "No fue posible adjuntar el PDF firmado.", () => captacionApi.adjuntarPdfFirmado(id, pdf), () => "PDF firmado adjuntado.");
+}
+
+/** Los PDF viajan como base64 (las acciones no devuelven binarios); la consulta queda en la bitácora del servidor. */
+export async function descargarPuntoCuentaCaptacionAction(id: string, numero: string): Promise<ResultadoAccion<Descarga>> {
+  return ejecutar("descargarPuntoCuentaCaptacionAction", "No fue posible descargar el Punto de Cuenta.", async () => ({
+    base64: Buffer.from(await (await captacionApi.puntoCuentaPdf(id)).arrayBuffer()).toString("base64"),
+    nombre: `punto-cuenta-${numero || id.slice(0, 8)}.pdf`,
+  }));
+}
+
+export async function descargarPuntoCuentaFirmadoCaptacionAction(id: string, numero: string): Promise<ResultadoAccion<Descarga>> {
+  return ejecutar("descargarPuntoCuentaFirmadoCaptacionAction", "No fue posible descargar el Punto de Cuenta firmado.", async () => ({
+    base64: Buffer.from(await (await captacionApi.puntoCuentaFirmadoPdf(id)).arrayBuffer()).toString("base64"),
+    nombre: `punto-cuenta-firmado-${numero || id.slice(0, 8)}.pdf`,
+  }));
 }

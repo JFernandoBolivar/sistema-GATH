@@ -25,6 +25,10 @@ interface Props {
   /** Reserva el puesto elegido; devuelve el error en español o `null` si salió bien. */
   onReservar: (puestoId: number) => Promise<string | null>;
   onCerrar: () => void;
+  /** Distingue la caché de cada expediente y de cada módulo que usa este panel. */
+  claveCache?: string;
+  /** El expediente no trae cargo ni oficina propuestos (Captación sin Presupuesto): se busca entre todas las vacantes. */
+  sinPropuesta?: boolean;
 }
 
 const TAMANO = 6;
@@ -63,7 +67,7 @@ function useRetraso<T>(valor: T, ms: number): T {
  * Panel con los puestos vacantes compatibles con la propuesta. Sin filtros rige la propuesta; al elegir un
  * filtro la búsqueda pasa a ser la que usted indica (el servidor lo avisa en `deLaPropuesta`).
  */
-export function DialogoVacantes({ titulo, cargar, onReservar, onCerrar }: Props) {
+export function DialogoVacantes({ titulo, cargar, onReservar, onCerrar, claveCache = "presupuesto", sinPropuesta = false }: Props) {
   const [busqueda, setBusqueda] = useState("");
   const [seleccion, setSeleccion] = useState<Partial<Record<ClaveFiltro, number>>>({});
   const [pagina, setPagina] = useState(1);
@@ -76,7 +80,7 @@ export function DialogoVacantes({ titulo, cargar, onReservar, onCerrar }: Props)
   const q = useRetraso(busqueda.trim(), 350);
 
   const { data, error, isLoading, isValidating, mutate } = useSWR(
-    ["presupuesto-vacantes", q, seleccion, pagina],
+    ["vacantes", claveCache, q, seleccion, pagina],
     async () => {
       const r = await cargar({ ...seleccion, q, pagina, tamano: TAMANO });
       if (!r.ok) throw new Error(r.error);
@@ -116,9 +120,11 @@ export function DialogoVacantes({ titulo, cargar, onReservar, onCerrar }: Props)
         <DialogHeader>
           <DialogTitle>{titulo}</DialogTitle>
           <DialogDescription>
-            {data?.deLaPropuesta === false
-              ? "Búsqueda personalizada: se muestran los puestos vacantes que coinciden con sus filtros."
-              : "Puestos vacantes compatibles con el cargo y la oficina que propuso Captación."}
+            {sinPropuesta
+              ? "Puestos vacantes libres. Busque por código o filtre por cargo y unidad para encontrar el adecuado."
+              : data?.deLaPropuesta === false
+                ? "Búsqueda personalizada: se muestran los puestos vacantes que coinciden con sus filtros."
+                : "Puestos vacantes compatibles con el cargo y la oficina que propuso Captación."}
           </DialogDescription>
         </DialogHeader>
 
@@ -148,7 +154,7 @@ export function DialogoVacantes({ titulo, cargar, onReservar, onCerrar }: Props)
                     setPagina(1);
                   }}
                 >
-                  <option value="">{s.todos}</option>
+                  <option value="">{sinPropuesta && s.clave === "cargo" ? "Cualquier cargo" : s.todos}</option>
                   {opciones[s.clave].map((o) => (
                     <option key={o.id} value={o.id}>{o.nombre}</option>
                   ))}
@@ -158,7 +164,7 @@ export function DialogoVacantes({ titulo, cargar, onReservar, onCerrar }: Props)
           </div>
           {hayFiltros ? (
             <Button type="button" variant="ghost" size="sm" onClick={limpiar} className="w-fit">
-              <RotateCcw aria-hidden /> Volver a la propuesta
+              <RotateCcw aria-hidden /> {sinPropuesta ? "Quitar los filtros" : "Volver a la propuesta"}
             </Button>
           ) : null}
         </div>
@@ -174,7 +180,15 @@ export function DialogoVacantes({ titulo, cargar, onReservar, onCerrar }: Props)
         ) : filas.length === 0 ? (
           <VistaVacia
             titulo="No hay puestos vacantes con estos criterios"
-            descripcion={hayFiltros ? "Pruebe con otro filtro o vuelva a la propuesta." : "No hay puestos vacantes libres para esta propuesta. Pruebe ampliar la búsqueda con los filtros."}
+            descripcion={
+              sinPropuesta
+                ? hayFiltros
+                  ? "Pruebe con otro filtro o quite los filtros."
+                  : "No hay puestos vacantes libres: todos pueden estar reservados para otros expedientes."
+                : hayFiltros
+                  ? "Pruebe con otro filtro o vuelva a la propuesta."
+                  : "No hay puestos vacantes libres para esta propuesta. Pruebe ampliar la búsqueda con los filtros."
+            }
           />
         ) : (
           <div className="flex flex-col gap-3">

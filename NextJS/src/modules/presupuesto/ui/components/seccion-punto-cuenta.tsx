@@ -14,10 +14,12 @@ interface Props {
   onAviso: (tipo: "exito" | "error", mensaje: string) => void;
   /** Muestra además «Abrir PDF» (otra pestaña), útil para quien decide. */
   conAbrir?: boolean;
+  /** Texto del botón que abre el PDF en otra pestaña (para imprimirlo). */
+  etiquetaAbrir?: string;
 }
 
 /** Punto de Cuenta emitido: número, estado con insignia y descarga del PDF. */
-export function PuntoCuentaEmitido({ puntoCuenta, onDescargar, onAviso, conAbrir = false }: Props) {
+export function PuntoCuentaEmitido({ puntoCuenta, onDescargar, onAviso, conAbrir = false, etiquetaAbrir = "Abrir PDF" }: Props) {
   const [descargando, setDescargando] = useState(false);
   const estado = describirPuntoCuenta(puntoCuenta.estado);
 
@@ -55,7 +57,7 @@ export function PuntoCuentaEmitido({ puntoCuenta, onDescargar, onAviso, conAbrir
           </Button>
           {conAbrir ? (
             <Button type="button" variant="outline" className="w-full sm:w-fit" onClick={() => void obtener(true)} disabled={descargando}>
-              <ExternalLink aria-hidden /> Abrir PDF
+              <ExternalLink aria-hidden /> {etiquetaAbrir}
             </Button>
           ) : null}
         </div>

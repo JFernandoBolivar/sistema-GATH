@@ -39,6 +39,7 @@ import {
   MoveDownRight,
   NotebookTabs,
   SignpostBig,
+  SlidersHorizontal,
   User,
   UserPlus,
 } from "lucide-react";
@@ -313,6 +314,13 @@ const items: MenuItem[] = [
         url: "/personal/ingreso/plantillas",
         icon: FileStack,
         permiso: "documentos.ver_plantillas",
+        activoEnSubrutas: true,
+      },
+      {
+        title: "Proceso de ingreso",
+        url: "/personal/ingreso/proceso",
+        icon: SlidersHorizontal,
+        permiso: "configuracion.editar",
         activoEnSubrutas: true,
       },
     ],

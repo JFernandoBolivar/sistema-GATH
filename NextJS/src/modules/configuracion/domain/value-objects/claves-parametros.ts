@@ -15,3 +15,12 @@ export const CLAVES_AUTOGESTION = {
 /** Ruta de la pantalla de configuración de solicitudes por condición. */
 export const RUTA_AUTOGESTION_CONDICION = "/configuracion/autogestion";
 
+
+/** Parámetros del proceso de ingreso (M-1/M-2): pantalla propia en Configuración. */
+export const SECCION_PROCESO_INGRESO = "proceso_ingreso";
+export const CLAVES_PROCESO_INGRESO = {
+  requierePresupuesto: "captacion.requiere_presupuesto",
+  requiereDireccionGeneral: "captacion.requiere_direccion_general",
+  psicofisicoObligatorio: "captacion.psicofisico_obligatorio",
+  vigenciaReserva: "captacion.vigencia_reserva_puesto_dias",
+} as const;

@@ -17,6 +17,9 @@ export const RUTA_REGLAS_CATALOGOS = "/configuracion/reglas-catalogos";
 export const RUTA_AUTOGESTION_CONFIG = "/configuracion/autogestion";
 export const RUTA_CORREO_ACCESO = "/configuracion/correo-acceso";
 export const RUTA_DOCUMENTOS = "/configuracion/documentos";
+export const RUTA_PROCESO_INGRESO = "/configuracion/proceso-ingreso";
+/** La misma pantalla dentro de «Gestión de Trabajadores → Ingreso de personal». */
+export const RUTA_PROCESO_INGRESO_PERSONAL = "/personal/ingreso/proceso";
 export const RUTA_AUDITORIA = "/auditoria";
 
 export const SECCION_POR_RUTA: Record<string, string> = {

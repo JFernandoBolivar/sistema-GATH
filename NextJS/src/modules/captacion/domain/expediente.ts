@@ -6,6 +6,7 @@
  */
 
 import type { TipoEntrega } from "./entrega";
+import type { PuntoCuentaCaptacion, Reserva } from "./ingreso-corto";
 
 export type TonoEstado = "success" | "warning" | "danger" | "info" | "neutral";
 
@@ -112,6 +113,13 @@ export interface AccionExpediente {
   bloqueada: boolean;
   motivoBloqueo: string;
   sugerida: boolean;
+  /**
+   * Código estable de las acciones que NO son una transición simple (M-1): `reservar_puesto`, `liberar_reserva`,
+   * `generar_punto_cuenta`, `registrar_aprobacion`, `adjuntar_punto_cuenta_firmado`. Vacío en las demás.
+   */
+  codigo?: string;
+  /** La acción pide la fecha de la firma (aprobación fuera del sistema). */
+  requiereFecha?: boolean;
 }
 
 export interface HitoHistorial {
@@ -192,6 +200,12 @@ export interface DetalleExpediente {
     esReingreso: boolean;
     propuesta: PropuestaCargo;
   };
+  /** Etapas del ingreso que este expediente recorre dentro del sistema (copia hecha al crearse). */
+  flujo: { requierePresupuesto: boolean; requiereDireccionGeneral: boolean };
+  /** Reserva del puesto (hecha por Presupuesto o, sin Presupuesto, por Captación). */
+  reserva: Reserva | null;
+  /** Punto de Cuenta de ingreso emitido, con la aprobación fuera del sistema si la hubo. */
+  puntoCuenta: PuntoCuentaCaptacion | null;
   postulante: {
     id: string;
     cedula: string;

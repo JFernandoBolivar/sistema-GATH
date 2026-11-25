@@ -5,7 +5,7 @@ import Link from "next/link";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { ArrowLeft, Camera, ClipboardCheck, FileText, History, Undo2, KeyRound, Loader2, Mail, Stethoscope, UserRound } from "lucide-react";
+import { ArrowLeft, Camera, ClipboardCheck, FileText, History, Undo2, KeyRound, Loader2, Mail, MapPinned, Stethoscope, UserRound } from "lucide-react";
 import PageLayout from "@/components/layout/page-layout";
 import {
   AlertDialog,
@@ -22,25 +22,37 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import { LineaTiempo } from "@/shared/ui/components/linea-tiempo";
+import { DialogoVacantes } from "@/modules/presupuesto/ui/components/dialogo-vacantes";
+import { GuiaPasos } from "@/modules/presupuesto/ui/components/guia-pasos";
+import type { FiltrosVacantes } from "@/modules/presupuesto/domain/solicitud";
 import { VistaCargando, VistaError, VistaVacia } from "@/shared/ui/components/vista-estados";
 import { bloqueosVisibles, type PestanaDetalle } from "../../domain/bloqueos";
 import { sinJerga } from "../../domain/jerga";
 import type { ItemBarraAcciones } from "../../domain/barra-acciones";
-import { describirEstado, type CredencialEmitida, type DatosPropuesta, type DetalleExpediente } from "../../domain/expediente";
+import { describirEstado, type CredencialEmitida, type DatosPropuesta, type DetalleExpediente, type ResultadoAccion } from "../../domain/expediente";
 import type { ResultadoContratacion } from "../../domain/contratacion";
 import { ENTREGA_CORREO, ENTREGA_PERSONA, entregaEfectiva, type TipoEntrega } from "../../domain/entrega";
 import { formatearFechaHora, nombreCompleto } from "../../domain/formato";
 import { motivoDeEntrada } from "../../domain/motivo-entrada";
+import { esFlujoCorto, muestraPasoAPaso, pasosIngresoCorto } from "../../domain/ingreso-corto";
 import { hitosDeHistorial } from "../historial-hitos";
 import { ESTADOS_PSICOFISICO_EDITABLE } from "../../domain/psicofisico";
 import {
+  adjuntarPdfFirmadoCaptacionAction,
   contratarPostulanteAction,
   descargarInformePsicofisicoAction,
+  descargarPuntoCuentaCaptacionAction,
+  descargarPuntoCuentaFirmadoCaptacionAction,
   enviarEnlaceActivacionAction,
+  generarPuntoCuentaCaptacionAction,
+  liberarReservaCaptacionAction,
+  listarVacantesCaptacionAction,
   obtenerExpedienteAction,
   registrarContactoAction,
   registrarPsicofisicoAction,
+  registrarAprobacionCaptacionAction,
   reponerCredencialAction,
+  reservarPuestoCaptacionAction,
   transicionarExpedienteAction,
 } from "../../infrastructure/actions/captacion-actions";
 import { AvisoBloqueos } from "../components/aviso-bloqueos";
@@ -50,7 +62,10 @@ import { DialogoContratar, PanelExitoContratacion } from "../components/panel-co
 import { SeccionDocumentosExpediente } from "../components/seccion-documentos";
 import { SeccionFotoExpediente } from "../components/seccion-foto-expediente";
 import { SeccionVentana2 } from "../components/seccion-ventana2";
+import { DialogoAdjuntarFirmado } from "../components/dialogo-adjuntar-firmado";
+import { DialogoAprobacion } from "../components/dialogo-aprobacion";
 import { DialogoMotivo } from "../components/dialogo-motivo";
+import { SeccionIngresoCorto } from "../components/seccion-ingreso-corto";
 import { DialogoPropuesta } from "../components/dialogo-propuesta";
 import { InsigniaEstado } from "../components/insignia-estado";
 import { PanelCredencial } from "../components/panel-credencial";
@@ -103,6 +118,13 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
   const [contratando, setContratando] = useState(false);
   const [errorContratar, setErrorContratar] = useState<string | null>(null);
   const [contratacion, setContratacion] = useState<ResultadoContratacion | null>(null);
+  // Flujo sin Presupuesto y/o sin Dirección General (M-5): cada acción abre su panel.
+  const [eligiendoPuesto, setEligiendoPuesto] = useState(false);
+  const [confirmaLiberar, setConfirmaLiberar] = useState(false);
+  const [confirmaGenerar, setConfirmaGenerar] = useState(false);
+  const [aprobando, setAprobando] = useState(false);
+  const [adjuntando, setAdjuntando] = useState(false);
+  const [errorFlujo, setErrorFlujo] = useState<string | null>(null);
   const ahora = new Date();
 
   useEffect(() => {
@@ -150,6 +172,61 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
         });
       }
     });
+  }
+
+  /** Aplica el detalle que devuelve el servidor tras una acción del flujo corto y lleva a la pestaña del resultado. */
+  async function aplicarFlujo(r: ResultadoAccion<DetalleExpediente>, exito: string): Promise<string | null> {
+    if (!r.ok) return r.error;
+    await mutate(r.data, { revalidate: false });
+    toast.success(exito);
+    setPestana("ingreso");
+    return null;
+  }
+
+  function cerrarFlujo() {
+    setConfirmaLiberar(false);
+    setConfirmaGenerar(false);
+    setAprobando(false);
+    setAdjuntando(false);
+    setErrorFlujo(null);
+  }
+
+  /** Ejecuta una acción del flujo corto; si falla deja el diálogo abierto con el motivo. */
+  function ejecutarFlujo(accion: () => Promise<ResultadoAccion<DetalleExpediente>>, exito: string) {
+    setErrorFlujo(null);
+    iniciar(async () => {
+      const e = await aplicarFlujo(await accion(), exito);
+      if (e) setErrorFlujo(e);
+      else cerrarFlujo();
+    });
+  }
+
+  function elegirAccion(item: ItemBarraAcciones) {
+    setErrorAccion(null);
+    setErrorFlujo(null);
+    switch (item.modo) {
+      case "contratacion":
+        setErrorContratar(null);
+        setContratando(true);
+        return;
+      case "reservar":
+        setEligiendoPuesto(true);
+        return;
+      case "liberar":
+        setConfirmaLiberar(true);
+        return;
+      case "generar_punto_cuenta":
+        setConfirmaGenerar(true);
+        return;
+      case "aprobacion":
+        setAprobando(true);
+        return;
+      case "adjuntar_firmado":
+        setAdjuntando(true);
+        return;
+      default:
+        setActiva(item);
+    }
   }
 
   function reponer() {
@@ -200,6 +277,8 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
   const tieneVentana2 = !!detalle && (detalle.datosVentana2Legible !== null || detalle.foto.tiene || detalle.expediente.ventana === 2);
   const bloqueos = detalle ? bloqueosVisibles(detalle.acciones) : [];
   const pestanasPendientes = new Set(bloqueos.map((b) => b.pestana).filter((p): p is PestanaDetalle => p !== null));
+  const conPestanaIngreso =
+    !!detalle && esFlujoCorto(detalle.flujo) && (muestraPasoAPaso(detalle.flujo, detalle.expediente.estado) || detalle.reserva !== null || detalle.puntoCuenta !== null);
   const titulo = detalle ? `Expediente ${detalle.expediente.numero}` : "Expediente";
 
   return (
@@ -232,15 +311,7 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
 
               <div className="flex flex-col gap-3 border-t pt-4">
                 <h3 className="text-sm font-semibold text-muted-foreground">¿Qué desea hacer?</h3>
-                <BarraAcciones acciones={detalle.acciones} ocupado={pendiente} ocultarBloqueoEnMovil onElegir={(item) => {
-                    setErrorAccion(null);
-                    if (item.modo === "contratacion") {
-                      setErrorContratar(null);
-                      setContratando(true);
-                      return;
-                    }
-                    setActiva(item);
-                  }} />
+                <BarraAcciones acciones={detalle.acciones} ocupado={pendiente} causaEnAviso onElegir={elegirAccion} />
                 {errorAccion && activa?.modo === "directa" ? (
                   <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft p-3 text-sm text-danger">{errorAccion}</p>
                 ) : null}
@@ -299,6 +370,12 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
               </div>
             ) : null}
 
+            {muestraPasoAPaso(detalle.flujo, detalle.expediente.estado) ? (
+              <section aria-label="Paso a paso del ingreso" className="flex flex-col gap-2" data-testid="paso-a-paso-ingreso">
+                <GuiaPasos etiqueta="Pasos del ingreso" pasos={pasosIngresoCorto({ ...detalle, estado: detalle.expediente.estado })} />
+              </section>
+            ) : null}
+
             <Tabs value={pestana} onValueChange={(v) => setPestana(v as PestanaDetalle)} className="gap-4">
               <div className="relative">
               <div ref={refPestanas} className="-mx-1 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -307,6 +384,7 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
                 {tieneVentana2 ? <TabsTrigger value="ventana2" className="min-h-10 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-3"><ClipboardCheck aria-hidden /> Datos complementarios{pestanasPendientes.has("ventana2") ? <PuntoPendiente /> : null}</TabsTrigger> : null}
                 {tieneVentana2 ? <TabsTrigger value="foto" className="min-h-10 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-3"><Camera aria-hidden /> Foto{pestanasPendientes.has("foto") ? <PuntoPendiente /> : null}</TabsTrigger> : null}
                 {tieneVentana2 ? <TabsTrigger value="documentos" className="min-h-10 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-3"><FileText aria-hidden /> Documentos{pestanasPendientes.has("documentos") ? <PuntoPendiente /> : null}</TabsTrigger> : null}
+                {conPestanaIngreso ? <TabsTrigger value="ingreso" className="min-h-10 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-3"><MapPinned aria-hidden /> Puesto y Punto de Cuenta{pestanasPendientes.has("ingreso") ? <PuntoPendiente /> : null}</TabsTrigger> : null}
                 <TabsTrigger value="psicofisico" className="min-h-10 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-3"><Stethoscope aria-hidden /> Psicofísico{pestanasPendientes.has("psicofisico") ? <PuntoPendiente /> : null}</TabsTrigger>
                 <TabsTrigger value="historial" className="min-h-10 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-3"><History aria-hidden /> Historial</TabsTrigger>
               </TabsList>
@@ -317,6 +395,16 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
               <TabsContent value="ventana2"><SeccionVentana2 detalle={detalle} /></TabsContent>
               <TabsContent value="foto"><SeccionFotoExpediente foto={detalle.foto} /></TabsContent>
               <TabsContent value="documentos"><SeccionDocumentosExpediente expedienteId={expedienteId} /></TabsContent>
+              {conPestanaIngreso ? (
+                <TabsContent value="ingreso">
+                  <SeccionIngresoCorto
+                    detalle={detalle}
+                    onDescargarPuntoCuenta={() => descargarPuntoCuentaCaptacionAction(expedienteId, detalle.puntoCuenta?.numero ?? "")}
+                    onDescargarFirmado={() => descargarPuntoCuentaFirmadoCaptacionAction(expedienteId, detalle.puntoCuenta?.numero ?? "")}
+                    onAviso={(tipo, mensaje) => (tipo === "exito" ? toast.success(mensaje) : toast.error(mensaje))}
+                  />
+                </TabsContent>
+              ) : null}
               <TabsContent value="psicofisico">
                 <SeccionPsicofisico
                   psicofisico={detalle.psicofisico}
@@ -371,6 +459,88 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
                 onCancelar={cerrarAccion}
               />
             ) : null}
+            {eligiendoPuesto ? (
+              <DialogoVacantes
+                claveCache={`captacion-${expedienteId}`}
+                sinPropuesta={detalle.expediente.propuesta.cargoId === null && detalle.expediente.propuesta.dependenciaId === null && detalle.expediente.propuesta.direccionGeneralId === null}
+                titulo={detalle.reserva?.vigente ? "Cambiar el puesto reservado" : "Reservar el puesto"}
+                cargar={(f: FiltrosVacantes) => listarVacantesCaptacionAction(expedienteId, f)}
+                onReservar={async (puestoId) => {
+                  const e = await aplicarFlujo(await reservarPuestoCaptacionAction(expedienteId, puestoId), "Puesto reservado.");
+                  if (!e) setEligiendoPuesto(false);
+                  return e;
+                }}
+                onCerrar={() => setEligiendoPuesto(false)}
+              />
+            ) : null}
+            {aprobando ? (
+              <DialogoAprobacion
+                numeroPuntoCuenta={detalle.puntoCuenta?.numero}
+                pendiente={pendiente}
+                error={errorFlujo}
+                onConfirmar={(form) => ejecutarFlujo(() => registrarAprobacionCaptacionAction(expedienteId, form), "Aprobación registrada: el expediente quedó aprobado.")}
+                onCancelar={cerrarFlujo}
+              />
+            ) : null}
+            {adjuntando ? (
+              <DialogoAdjuntarFirmado
+                pendiente={pendiente}
+                error={errorFlujo}
+                onConfirmar={(form) => ejecutarFlujo(() => adjuntarPdfFirmadoCaptacionAction(expedienteId, form), "PDF firmado adjuntado.")}
+                onCancelar={cerrarFlujo}
+              />
+            ) : null}
+            <AlertDialog open={confirmaLiberar} onOpenChange={(a) => (!a && !pendiente ? cerrarFlujo() : undefined)}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Liberar la reserva</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    El puesto {detalle.reserva?.puesto?.codigo ?? ""} volverá a estar disponible y deberá reservar otro antes de generar el Punto de Cuenta.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                {errorFlujo ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft p-3 text-sm text-danger">{errorFlujo}</p> : null}
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={pendiente}>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    disabled={pendiente}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      ejecutarFlujo(() => liberarReservaCaptacionAction(expedienteId), "Reserva liberada.");
+                    }}
+                  >
+                    {pendiente ? <Loader2 className="animate-spin" aria-hidden /> : null}
+                    Liberar puesto
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <AlertDialog open={confirmaGenerar} onOpenChange={(a) => (!a && !pendiente ? cerrarFlujo() : undefined)}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Generar el Punto de Cuenta</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {detalle.flujo.requiereDireccionGeneral
+                      ? `Se generará el Punto de Cuenta para el puesto ${detalle.reserva?.puesto?.codigo ?? "reservado"} y el expediente ${detalle.expediente.numero} pasará a la Dirección General para su decisión.`
+                      : `Se generará el Punto de Cuenta para el puesto ${detalle.reserva?.puesto?.codigo ?? "reservado"}: podrá descargarlo, imprimirlo y firmarlo.`}{" "}
+                    Después no se podrá cambiar ni liberar el puesto reservado.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                {errorFlujo ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft p-3 text-sm text-danger">{errorFlujo}</p> : null}
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={pendiente}>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    disabled={pendiente}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      ejecutarFlujo(() => generarPuntoCuentaCaptacionAction(expedienteId), "Punto de Cuenta generado.");
+                    }}
+                  >
+                    {pendiente ? <Loader2 className="animate-spin" aria-hidden /> : null}
+                    Generar Punto de Cuenta
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             <DialogoContratar
               abierto={contratando}
               pendiente={pendiente}

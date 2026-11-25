@@ -46,12 +46,13 @@ import {
 } from "@/shared/ui/components/select";
 import { Switch } from "@/components/ui/switch";
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
-import { RUTA_PUNTO_CUENTA } from "@/shared/lib/administracion-sistema";
+import { RUTA_PROCESO_INGRESO, RUTA_PUNTO_CUENTA } from "@/shared/lib/administracion-sistema";
 import {
   CLAVE_CARNETIZACION_MI_CARNET_ALCANCE,
   CLAVE_CARNETIZACION_MI_CARNET_USUARIOS,
   CLAVE_GENERAR_PUNTOS_CUENTA,
   RUTA_AUTOGESTION_CONDICION,
+  SECCION_PROCESO_INGRESO,
 } from "../domain/value-objects/claves-parametros";
 import Link from "next/link";
 import { SelectorTrabajadoresParametro } from "./components/selector-trabajadores-parametro";
@@ -87,7 +88,8 @@ export function ParametrosPage() {
   const { data, isLoading, mutate } = useSWR("parametros-sistema", listarParametrosAction);
 
   const parametros = useMemo<ParametroDTO[]>(
-    () => (Array.isArray(data) ? data : []),
+    // Los del proceso de ingreso tienen su propia pantalla (M-2): aquí no se repiten.
+    () => (Array.isArray(data) ? data.filter((p) => p.seccion !== SECCION_PROCESO_INGRESO) : []),
     [data],
   );
   const parametrosPorClave = useMemo(
@@ -164,14 +166,19 @@ export function ParametrosPage() {
         </p>
       )}
 
+      <p className="mt-2 text-sm text-muted-foreground">
+        Las etapas del ingreso de personal (Presupuesto, Dirección General, test psicofísico) se configuran en{" "}
+        <Link href={RUTA_PROCESO_INGRESO} className="font-medium text-primary underline underline-offset-2">Proceso de ingreso</Link>.
+      </p>
+
       {isLoading ? (
-        <div className="flex flex-col gap-3">
+        <div className="mt-4 flex flex-col gap-3">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-24 w-full" />
           ))}
         </div>
       ) : (
-        <div className="flex flex-col gap-6">
+        <div className="mt-4 flex flex-col gap-6">
           {GRUPOS_PARAMETROS.map((grupo) => {
             const delGrupo = parametros.filter((p) => p.grupo === grupo.clave);
             if (delGrupo.length === 0) return null;

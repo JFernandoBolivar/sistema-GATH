@@ -106,7 +106,7 @@ function constanciaDesdeApi(raw: unknown): Constancia | null {
   };
 }
 
-function puntoCuentaDesdeApi(raw: unknown): PuntoCuenta | null {
+export function puntoCuentaDesdeApi(raw: unknown): PuntoCuenta | null {
   if (!raw || typeof raw !== "object") return null;
   const p = objeto(raw);
   return {

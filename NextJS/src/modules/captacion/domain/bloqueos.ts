@@ -1,7 +1,7 @@
 import type { AccionExpediente } from "./expediente";
 import { sinJerga } from "./jerga";
 
-export type PestanaDetalle = "datos" | "ventana2" | "foto" | "documentos" | "psicofisico" | "historial";
+export type PestanaDetalle = "datos" | "ventana2" | "foto" | "documentos" | "psicofisico" | "ingreso" | "historial";
 
 export interface BloqueoVisible {
   accion: string;
@@ -17,6 +17,7 @@ const ETIQUETA_PESTANA: Record<PestanaDetalle, string> = {
   foto: "Foto",
   documentos: "Documentos",
   psicofisico: "Psicofísico",
+  ingreso: "Puesto y Punto de Cuenta",
   historial: "Historial",
 };
 
@@ -25,6 +26,8 @@ export function pestanaDeBloqueo(causa: string): PestanaDetalle | null {
   const t = causa.toLowerCase();
   if (/psicof/.test(t)) return "psicofisico";
   if (/foto/.test(t)) return "foto";
+  // Antes que «documentos»: «…imprimirlo y firmarlo» también contiene «firma».
+  if (/reserv|punto de cuenta/.test(t)) return "ingreso";
   if (/documento|firma/.test(t)) return "documentos";
   if (/complementari|ventana\s*2|faltant/.test(t)) return "ventana2";
   return null;

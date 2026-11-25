@@ -2,6 +2,7 @@ import { apiClient } from "@/shared/infrastructure/http/fetcher-api";
 import type { DocumentoExpedienteDTO } from "@/modules/documentos/domain/lib/documentos-expediente";
 import { mapearDocumentosExpediente } from "@/modules/documentos/infrastructure/mappers/mapper-documentos-expediente";
 import type { ApiResponse } from "@/shared/types/api-response";
+import type { FiltrosVacantes, PaginaVacantes } from "@/modules/presupuesto/domain/solicitud";
 import type { ResultadoContratacion } from "../../domain/contratacion";
 import type {
   AltaPostulanteResultado,
@@ -22,6 +23,7 @@ import {
   envioEnlaceDesdeApi,
   detalleDesdeApi,
   paginaDesdeApi,
+  paginaVacantesDeCaptacionDesdeApi,
   psicofisicoDesdeApi,
   transicionDesdeApi,
 } from "../mappers/mapper-captacion";
@@ -103,6 +105,56 @@ export const captacionApi = {
     const sobre = await apiClient.postForm<ApiResponse<Crudo>>(`${BASE}/expedientes/${id}/psicofisico/`, form);
     return psicofisicoDesdeApi(sobre.data);
   },
+
+  // --- Ingreso sin Presupuesto y/o sin Dirección General (M-5): permiso `postulacion.abrir_expediente` ---
+  vacantes: async (id: string, f: FiltrosVacantes): Promise<PaginaVacantes> => {
+    const sobre = await apiClient.get<ApiResponse<Crudo>>(`${BASE}/expedientes/${id}/vacantes/`, {
+      params: {
+        cargo: f.cargo,
+        oficina: f.oficina,
+        dependencia: f.dependencia,
+        direccion_linea: f.direccionLinea,
+        coordinacion: f.coordinacion,
+        q: f.q?.trim(),
+        pagina: f.pagina,
+        page_size: f.tamano,
+      },
+    });
+    return paginaVacantesDeCaptacionDesdeApi(sobre.data);
+  },
+
+  reservar: async (id: string, puestoId: number): Promise<DetalleExpediente> => {
+    const sobre = await apiClient.post<ApiResponse<Crudo>>(`${BASE}/expedientes/${id}/reserva/`, { puesto_id: puestoId });
+    return detalleDesdeApi(sobre.data);
+  },
+
+  liberarReserva: async (id: string): Promise<DetalleExpediente> => {
+    const sobre = await apiClient.delete<ApiResponse<Crudo>>(`${BASE}/expedientes/${id}/reserva/`);
+    return detalleDesdeApi(sobre.data);
+  },
+
+  generarPuntoCuenta: async (id: string): Promise<DetalleExpediente> => {
+    const sobre = await apiClient.post<ApiResponse<Crudo>>(`${BASE}/expedientes/${id}/punto-cuenta/`, {});
+    return detalleDesdeApi(sobre.data);
+  },
+
+  registrarAprobacion: async (id: string, fechaFirma: string, pdf: File | null): Promise<DetalleExpediente> => {
+    const form = new FormData();
+    form.set("fecha_firma", fechaFirma);
+    if (pdf) form.set("pdf_firmado", pdf);
+    const sobre = await apiClient.postForm<ApiResponse<Crudo>>(`${BASE}/expedientes/${id}/aprobacion/`, form);
+    return detalleDesdeApi(sobre.data);
+  },
+
+  adjuntarPdfFirmado: async (id: string, pdf: File): Promise<DetalleExpediente> => {
+    const form = new FormData();
+    form.set("pdf_firmado", pdf);
+    const sobre = await apiClient.postForm<ApiResponse<Crudo>>(`${BASE}/expedientes/${id}/punto-cuenta-firmado/`, form);
+    return detalleDesdeApi(sobre.data);
+  },
+
+  puntoCuentaPdf: (id: string) => apiClient.getBlob(`${BASE}/expedientes/${id}/punto-cuenta/`),
+  puntoCuentaFirmadoPdf: (id: string) => apiClient.getBlob(`${BASE}/expedientes/${id}/punto-cuenta-firmado/`),
 
   informe: (id: string) => apiClient.getBlob(`${BASE}/expedientes/${id}/psicofisico/informe/`),
 

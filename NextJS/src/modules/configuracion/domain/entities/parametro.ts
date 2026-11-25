@@ -40,6 +40,8 @@ export interface ParametroDTO {
   /** Si no está vacío, el valor se elige de esta lista (p. ej. retención). */
   opciones: OpcionParametroDTO[];
   depende_de?: DependeDeDTO | null;
+  /** Sección con pantalla propia (p. ej. `proceso_ingreso`); vacía si no tiene. */
+  seccion?: string;
 }
 
 export interface CambioParametroDTO {

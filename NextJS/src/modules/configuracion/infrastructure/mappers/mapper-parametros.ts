@@ -25,6 +25,7 @@ export function parametroApiADTO(item: ParametroApiItem): ParametroDTO {
     actualizadoEn: item.actualizado_en,
     opciones: (item.opciones ?? []).map((o) => ({ valor: String(o.valor), etiqueta: o.etiqueta })),
     depende_de: item.depende_de ? { clave: item.depende_de.clave, valor: item.depende_de.valor } : null,
+    seccion: item.seccion ?? "",
   };
 }
 

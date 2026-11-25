@@ -110,7 +110,7 @@ export function DetalleSolicitudView({ expedienteId }: { expedienteId: string })
             <EncabezadoSolicitud detalle={detalle}>
               <div className="flex flex-col gap-3 border-t pt-4">
                 <h3 className="text-sm font-semibold text-muted-foreground">¿Qué desea hacer?</h3>
-                <BarraAcciones acciones={detalle.acciones} ocupado={pendiente} ocultarBloqueoEnMovil onElegir={(item) => { setErrorAccion(null); setActiva(item); }} />
+                <BarraAcciones acciones={detalle.acciones} ocupado={pendiente} causaEnAviso onElegir={(item) => { setErrorAccion(null); setActiva(item); }} />
                 {errorAccion && activa?.modo === "directa" ? (
                   <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft p-3 text-sm text-danger">{errorAccion}</p>
                 ) : null}
@@ -128,6 +128,7 @@ export function DetalleSolicitudView({ expedienteId }: { expedienteId: string })
               <TabsContent value="tramite" className="flex flex-col gap-5">
                 <GuiaPasos pasos={pasosGuia(detalle)} />
                 <SeccionPuesto
+                  claveCache={`presupuesto-${expedienteId}`}
                   reserva={detalle.reserva}
                   puedeEditar={editable && detalle.capacidades.puedeReservar}
                   cargarVacantes={(f: FiltrosVacantes) => listarVacantesAction(expedienteId, f)}

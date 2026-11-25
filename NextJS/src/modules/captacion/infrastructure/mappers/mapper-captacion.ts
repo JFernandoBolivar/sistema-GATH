@@ -13,6 +13,9 @@ import type {
   ResultadoTransicion,
 } from "../../domain/expediente";
 import type { ResultadoContratacion } from "../../domain/contratacion";
+import type { PuntoCuentaCaptacion } from "../../domain/ingreso-corto";
+import type { FilaVacante, PaginaVacantes, Puesto } from "@/modules/presupuesto/domain/solicitud";
+import { puestoDesdeApi, puntoCuentaDesdeApi, reservaDesdeApi } from "@/modules/presupuesto/infrastructure/mappers/mapper-presupuesto";
 
 type Crudo = Record<string, unknown>;
 
@@ -59,6 +62,8 @@ export function accionDesdeApi(a: Crudo): AccionExpediente {
     bloqueada: a.bloqueada === true,
     motivoBloqueo: texto(a.motivo_bloqueo),
     sugerida: a.sugerida === true,
+    codigo: texto(a.codigo),
+    requiereFecha: a.requiere_fecha === true,
   };
 }
 
@@ -107,8 +112,43 @@ function propuestaDesdeApi(raw: unknown): PropuestaCargo {
   };
 }
 
+/** Punto de Cuenta de ingreso del detalle (con la aprobación fuera del sistema, si la hubo). */
+function puntoCuentaCaptacionDesdeApi(raw: unknown): PuntoCuentaCaptacion | null {
+  const base = puntoCuentaDesdeApi(raw);
+  if (!base) return null;
+  const p = objeto(raw);
+  return {
+    ...base,
+    puestoId: numeroONulo(p.puesto_id),
+    aprobadoFueraSistema: p.aprobado_fuera_sistema === true,
+    fechaFirma: textoONulo(p.fecha_firma),
+    registradoPorNombre: texto(p.registrado_por_nombre),
+    tienePdfFirmado: p.tiene_pdf_firmado === true,
+    pdfFirmadoTamano: numeroONulo(p.pdf_firmado_tamano),
+  };
+}
+
+/** Vacantes del expediente (sin Presupuesto): cada puesto trae `disponible`; el reservado para este expediente se marca. */
+export function paginaVacantesDeCaptacionDesdeApi(d: Crudo): PaginaVacantes {
+  const filtros = objeto(d.filtros);
+  const reserva = reservaDesdeApi(d.reserva);
+  return {
+    resultados: lista(d.resultados).map((f): FilaVacante => {
+      const puesto = puestoDesdeApi(f) as Puesto;
+      return { ...puesto, reservaPropia: f.reserva_propia === true || (reserva?.vigente === true && reserva.puestoId === puesto.id) };
+    }),
+    total: numeroONulo(d.total) ?? 0,
+    pagina: numeroONulo(d.pagina) ?? 1,
+    tamano: numeroONulo(d.tamano) ?? 10,
+    totalPaginas: numeroONulo(d.total_paginas) ?? 1,
+    deLaPropuesta: filtros.de_propuesta === true,
+    reserva,
+  };
+}
+
 export function detalleDesdeApi(d: Crudo): DetalleExpediente {
   const e = objeto(d.expediente);
+  const flujo = objeto(d.flujo);
   const p = objeto(d.postulante);
   const foto = objeto(d.foto);
   return {
@@ -136,6 +176,13 @@ export function detalleDesdeApi(d: Crudo): DetalleExpediente {
       telefonoMovil: texto(p.telefono_movil),
       esReingreso: p.es_reingreso === true,
     },
+    flujo: {
+      // Sin el dato (backend anterior a M-1) rige el flujo de siempre: con Presupuesto y con Dirección General.
+      requierePresupuesto: flujo.requiere_presupuesto !== false,
+      requiereDireccionGeneral: flujo.requiere_direccion_general !== false,
+    },
+    reserva: reservaDesdeApi(d.reserva),
+    puntoCuenta: puntoCuentaCaptacionDesdeApi(d.punto_cuenta),
     datosVentana1: objeto(d.datos_ventana1),
     datosVentana2: objeto(d.datos_ventana2),
     datosVentana2Legible: d.datos_ventana2_legible && typeof d.datos_ventana2_legible === "object" ? objeto(d.datos_ventana2_legible) : null,

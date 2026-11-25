@@ -10,8 +10,11 @@ interface BarraAccionesProps {
   acciones: readonly AccionExpediente[];
   ocupado?: boolean;
   onElegir: (item: ItemBarraAcciones) => void;
-  /** Oculta bajo cada botón la causa del bloqueo en teléfono (la vista ya la explica en un aviso). */
-  ocultarBloqueoEnMovil?: boolean;
+  /**
+   * La vista ya muestra la causa del bloqueo en un aviso ámbar: bajo cada botón el texto queda solo para lectores de
+   * pantalla (`aria-describedby`), en escritorio y en teléfono, para no repetirla dos veces.
+   */
+  causaEnAviso?: boolean;
 }
 
 /**
@@ -31,7 +34,7 @@ function jerarquizar(items: ItemBarraAcciones[]) {
 }
 
 /** Barra de acciones generada SOLO desde `acciones[]` del backend (sin reglas de la máquina de estados). */
-export function BarraAcciones({ acciones, ocupado = false, onElegir, ocultarBloqueoEnMovil = false }: BarraAccionesProps) {
+export function BarraAcciones({ acciones, ocupado = false, onElegir, causaEnAviso = false }: BarraAccionesProps) {
   const items = jerarquizar(construirBarraAcciones(acciones));
   if (items.length === 0) {
     return (
@@ -52,7 +55,7 @@ export function BarraAcciones({ acciones, ocupado = false, onElegir, ocultarBloq
     >
       {items.map(({ item, nivel }) => (
         <li
-          key={item.destino}
+          key={item.clave}
           className={cn(
             "flex min-w-0 max-w-full flex-col gap-1",
             nivel === "principal" ? "max-sm:basis-full" : "max-sm:flex-1",
@@ -63,7 +66,7 @@ export function BarraAcciones({ acciones, ocupado = false, onElegir, ocultarBloq
             type="button"
             variant={nivel === "principal" ? "default" : nivel === "peligro" ? "destructive" : "outline"}
             disabled={item.deshabilitada || ocupado}
-            aria-describedby={item.deshabilitada ? `bloqueo-${item.destino}` : undefined}
+            aria-describedby={item.deshabilitada ? `bloqueo-${item.clave}` : undefined}
             title={item.deshabilitada ? item.motivoBloqueo : undefined}
             data-destacada={item.destacada ? "true" : undefined}
             onClick={() => onElegir(item)}
@@ -74,7 +77,7 @@ export function BarraAcciones({ acciones, ocupado = false, onElegir, ocultarBloq
           </Button>
           {item.destacada ? <span className="text-xs font-medium text-warning max-sm:hidden">Acción sugerida</span> : null}
           {item.deshabilitada ? (
-            <span id={`bloqueo-${item.destino}`} className={cn("max-w-xs text-xs text-muted-foreground", ocultarBloqueoEnMovil && "max-sm:sr-only")}>
+            <span id={`bloqueo-${item.clave}`} className={cn("max-w-xs text-xs text-muted-foreground", causaEnAviso && "sr-only")}>
               {item.motivoBloqueo}
             </span>
           ) : null}

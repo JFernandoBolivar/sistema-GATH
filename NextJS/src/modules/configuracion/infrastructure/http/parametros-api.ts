@@ -19,6 +19,8 @@ export interface ParametroApiItem {
   actualizado_en: string | null;
   opciones?: { valor: number; etiqueta: string }[];
   depende_de?: { clave: string; valor: string } | null;
+  /** Sección de pantalla propia (p. ej. `proceso_ingreso`); vacía = sin pantalla dedicada. */
+  seccion?: string;
 }
 
 export interface CambioParametroApiItem {
