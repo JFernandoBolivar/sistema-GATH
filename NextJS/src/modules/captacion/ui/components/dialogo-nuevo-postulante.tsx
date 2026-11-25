@@ -123,6 +123,7 @@ export function DialogoNuevoPostulante({ abierto, onCerrar, onCreado, crear }: P
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(enviar)} className="flex flex-col gap-4" noValidate>
+                <div className="flex flex-col gap-4">
                 <FormField
                   control={form.control}
                   name="cedula"
@@ -208,7 +209,8 @@ export function DialogoNuevoPostulante({ abierto, onCerrar, onCreado, crear }: P
                     {errorGeneral}
                   </p>
                 ) : null}
-                <DialogFooter className="gap-2 sm:gap-2">
+                </div>
+                <DialogFooter className="sticky bottom-0 z-10 -mb-1 gap-2 border-t bg-background pb-1 pt-3 max-sm:flex-row max-sm:[&>button]:flex-1 sm:gap-2">
                   <Button type="button" variant="outline" onClick={cerrar} disabled={pendiente}>
                     Cancelar
                   </Button>

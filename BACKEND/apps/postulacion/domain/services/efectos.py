@@ -34,7 +34,10 @@ def aplicar_transicion(
         cambios.update(ventana=2, ventana_vence_el=ahora + timedelta(days=vig.ventana2_dias))
     elif t.destino == E.EN_DIRECCION_GENERAL:
         cambios.update(reserva_vence_el=ahora + timedelta(days=vig.reserva_puesto_dias))
-    elif t.destino in (E.RECHAZADO_DIRECCION, E.EN_PRESUPUESTO, E.CONTRATADO):
+    elif t.destino == E.APROBADO and t.origen == E.ENVIADO_CAPTACION:
+        # M-1: sin Presupuesto ni Dirección General en el sistema, la reserva (hecha en Captación) cuenta desde la aprobación.
+        cambios.update(reserva_vence_el=ahora + timedelta(days=vig.reserva_puesto_dias))
+    elif t.destino in (E.RECHAZADO_DIRECCION, E.EN_PRESUPUESTO, E.CONTRATADO, E.ENVIADO_CAPTACION):
         cambios.update(reserva_vence_el=None)
     if t.destino == E.DIFERIDO_PRESUPUESTO:
         cambios.update(diferido_vence_el=ahora + timedelta(days=vig.espera_diferido_dias))

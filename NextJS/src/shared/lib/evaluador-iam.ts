@@ -163,6 +163,7 @@ export interface ReglaRuta {
 
 export const REGLAS_RUTA: ReglaRuta[] = [
   { prefijo: 'configuracion/documentos', permisos: ['documentos.ver_plantillas'] },
+  { prefijo: 'personal/ingreso/plantillas', permisos: ['documentos.ver_plantillas'] },
   { prefijo: 'personal/censo', permisos: ['autogestion.censo_ver_todos'] },
   { prefijo: 'pasivos/consultar', permisos: ['pasivos.ver'] },
   { prefijo: 'pasivos/carga-masiva', permisos: ['pasivos.carga_masiva'] },

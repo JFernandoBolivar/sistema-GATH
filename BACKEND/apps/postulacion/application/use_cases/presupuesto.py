@@ -18,16 +18,15 @@ from datetime import date, datetime
 from apps.postulacion.application.use_cases._comun import ahora_utc, obtener_expediente
 from apps.postulacion.application.use_cases.bandeja import construir_filtros
 from apps.postulacion.application.use_cases.consultas import ExpedienteConHistorial, consultar_expediente
+from apps.postulacion.application.use_cases.punto_cuenta_ingreso import QuienActua, emitir_punto_cuenta_de_reserva
 from apps.postulacion.application.use_cases.reservas import liberar_reserva_activa
 from apps.postulacion.application.use_cases.transiciones import aplicar_transicion_expediente
 from apps.postulacion.domain.entities.bandeja import FilaBandeja, FiltrosBandeja, PropuestaCatalogo
 from apps.postulacion.domain.entities.constancia import ConstanciaPresupuestaria
 from apps.postulacion.domain.entities.postulante import TransicionRegistrada
 from apps.postulacion.domain.entities.punto_cuenta_ingreso import (
-    EMITIDO,
     PuntoCuentaEmitido,
     PuntoCuentaIngreso,
-    SolicitudPuntoCuentaIngreso,
 )
 from apps.postulacion.domain.entities.expediente import ExpedientePostulacion
 from apps.postulacion.domain.entities.reserva import (
@@ -96,7 +95,8 @@ def filtros_presupuesto(
     base = construir_filtros(estados, texto, desde, hasta)
     _validar_estados_visibles(base, ESTADOS_VISIBLES_PRESUPUESTO, 'Presupuesto')
     elegidos = base.estados or (ESTADOS_PENDIENTES_PRESUPUESTO if vista == 'pendientes' else ESTADOS_VISIBLES_PRESUPUESTO)
-    return replace(base, estados=tuple(elegidos), prioritarios=(E.EN_PRESUPUESTO,))
+    # M-1: los expedientes sin Presupuesto en el sistema nunca pasan por esta bandeja.
+    return replace(base, estados=tuple(elegidos), prioritarios=(E.EN_PRESUPUESTO,), requiere_presupuesto=True)
 
 
 def enriquecer_filas(repo: RepoPostulacion, filas: list[FilaBandeja]) -> list[FilaEnriquecida]:
@@ -142,9 +142,9 @@ def _propuesta_catalogo(exp: ExpedientePostulacion) -> PropuestaCatalogo:
 def exigir_visible(exp: ExpedientePostulacion, punto: PuntoCuentaIngreso | None, area: str) -> None:
     """404 si el expediente no es de esa área: Presupuesto no ve los de Captación; Dirección General solo los que le llegaron."""
     if area == 'presupuesto':
-        if exp.estado not in ESTADOS_VISIBLES_PRESUPUESTO:
+        if exp.estado not in ESTADOS_VISIBLES_PRESUPUESTO or not exp.requiere_presupuesto:
             raise NotFoundError("El expediente no está en la etapa de Presupuesto.")
-    elif exp.estado != E.EN_DIRECCION_GENERAL and punto is None:
+    elif not exp.requiere_direccion_general or (exp.estado != E.EN_DIRECCION_GENERAL and punto is None):
         raise NotFoundError("El expediente no está en la etapa de Dirección General.")
 
 
@@ -167,6 +167,7 @@ def detalle_area(
         diferido_vence_el=exp.diferido_vence_el, cargo_definido=exp.cargo_definido, oficina_definida=exp.oficina_definida,
         disponibilidad_declarada=constancia is not None,
         puesto_reservado=reserva is not None and reserva.vigente(ahora),
+        requiere_presupuesto=exp.requiere_presupuesto, requiere_direccion_general=exp.requiere_direccion_general,
     )
     en_presupuesto = exp.estado == E.EN_PRESUPUESTO and area == 'presupuesto'
     return DetalleArea(
@@ -198,15 +199,6 @@ def adjunto_constancia(repo: RepoPostulacion, *, expediente_id: str, area: str) 
     if c is None or not c.tiene_adjunto:
         raise NotFoundError("La constancia presupuestaria no tiene adjunto.")
     return c, exp.numero
-
-
-@dataclass(frozen=True)
-class QuienActua:
-    """El usuario que actúa, para la constancia y el Punto de Cuenta (cédula, nombre y id de cuenta)."""
-
-    cedula: str
-    nombre: str
-    usuario_id: int | None = None
 
 
 @dataclass(frozen=True)
@@ -251,33 +243,10 @@ def transicionar_presupuesto(
                 "Para emitir el Punto de Cuenta se requiere el puesto reservado y la disponibilidad declarada.",
                 codigo='PUESTO_Y_DISPONIBILIDAD_REQUERIDOS',
             )
-        puesto = puestos.obtener_puesto(reserva.puesto_id)
-        postulante = repo.obtener_postulante(previo.postulante_id)
-        if puesto is None or postulante is None:
-            raise ConflictoConCodigo("El puesto reservado o el postulante ya no existen.", codigo='PUESTO_NO_ENCONTRADO')
-        emitido = emisor.emitir_ingreso(SolicitudPuntoCuentaIngreso(
-            expediente_numero=previo.numero, postulante_cedula=postulante.cedula,
-            postulante_nombre=f'{postulante.nombres} {postulante.apellidos}'.strip(), puesto_id=puesto.id,
-            puesto_codigo=puesto.codigo, cargo_nombre=puesto.cargo_nombre, dependencia_id=puesto.dependencia_id,
-            dependencia_nombre=puesto.dependencia_nombre, direccion_general_id=puesto.direccion_general_id,
-            direccion_general_nombre=puesto.direccion_general_nombre, direccion_linea_id=puesto.direccion_linea_id,
-            direccion_linea_nombre=puesto.direccion_linea_nombre, referencia_constancia=constancia.referencia,
-            emitido_por_cedula=quien.cedula, emitido_por_nombre=quien.nombre, emitido_por_usuario_id=quien.usuario_id,
-            ahora=ahora,
-        ))
-        emitidos.append(emitido)
-        repo.guardar_punto_cuenta_ingreso(PuntoCuentaIngreso(
-            expediente_id=previo.id, punto_cuenta_id=emitido.punto_cuenta_id, numero=emitido.numero,
-            pdf_clave=emitido.pdf_clave, estado=EMITIDO, puesto_id=puesto.id,
-            referencia_constancia=constancia.referencia, emitido_por=quien.cedula, emitido_el=ahora,
-        ))
-        # La reserva vence igual que el expediente (lo fija el efecto de entrar a Dirección General): Dirección General
-        # recibe el plazo completo, y la tarea programada y la guarda de asignación leen la misma fecha.
-        repo.guardar_reserva(replace(reserva, vence_el=nuevo.reserva_vence_el or reserva.vence_el))
-        return {
-            'punto_cuenta': {'id': emitido.punto_cuenta_id, 'numero': emitido.numero},
-            'puesto_id': puesto.id, 'referencia_constancia': constancia.referencia,
-        }
+        return emitir_punto_cuenta_de_reserva(
+            repo, puestos, emisor, previo=previo, reserva=reserva, referencia_constancia=constancia.referencia,
+            quien=quien, ahora=ahora, vence_reserva=nuevo.reserva_vence_el or reserva.vence_el, emitidos=emitidos,
+        )
 
     try:
         with repo.transaccion():

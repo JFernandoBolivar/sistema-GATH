@@ -17,11 +17,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RUTA_DOCUMENTOS } from "@/shared/lib/administracion-sistema";
+import { useRutaDocumentos } from "../hooks/use-ruta-documentos";
 import type { PlantillaResumen } from "../../domain/entities/plantilla";
 import { activarPlantillaAction, duplicarPlantillaAction } from "../../infrastructure/actions/documentos-actions";
 import { CrearPlantillaDialog } from "../components/crear-plantilla-dialog";
@@ -30,12 +30,29 @@ import { usePermisosDocumentos } from "../hooks/use-permisos-documentos";
 import { usePlantillas } from "../hooks/use-documentos-datos";
 import { ETIQUETA_FIRMANTE, ETIQUETA_MODO, ETIQUETA_MOMENTO, estaPublicada, formatearFecha } from "../lib/etiquetas";
 
+type FiltroEstado = "todas" | "activas" | "inactivas" | "borrador";
+const FILTROS_ESTADO: { id: FiltroEstado; etiqueta: string }[] = [
+  { id: "todas", etiqueta: "Todas" },
+  { id: "activas", etiqueta: "Activas" },
+  { id: "inactivas", etiqueta: "Inactivas" },
+  { id: "borrador", etiqueta: "Borradores" },
+];
+
+function coincideEstado(p: PlantillaResumen, f: FiltroEstado): boolean {
+  if (f === "todas") return true;
+  if (f === "borrador") return !estaPublicada(p);
+  return estaPublicada(p) && (f === "activas" ? p.activa : !p.activa);
+}
+
 export function ListaPlantillasView() {
+  const RUTA_DOCUMENTOS = useRutaDocumentos();
   const router = useRouter();
   const { plantillas, cargando, error, recargar } = usePlantillas();
   const { puedeGestionar } = usePermisosDocumentos();
   const [creando, setCreando] = useState(false);
   const [aActivar, setAActivar] = useState<PlantillaResumen | null>(null);
+  const [busqueda, setBusqueda] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState<FiltroEstado>("todas");
   const [trabajando, setTrabajando] = useState<string | null>(null);
 
   const duplicar = async (p: PlantillaResumen) => {
@@ -60,14 +77,21 @@ export function ListaPlantillasView() {
     await recargar();
   };
 
+  const texto = busqueda.trim().toLowerCase();
+  const visibles = plantillas.filter(
+    (p) =>
+      coincideEstado(p, filtroEstado) &&
+      (!texto || `${p.nombre} ${p.codigo} ${p.descripcion ?? ""}`.toLowerCase().includes(texto)),
+  );
+
   return (
     <PageLayout
-      title="Documentos digitales"
+      title="Plantillas de documentos"
       description="Plantillas de los documentos que se generan en el sistema: formularios propios y formatos de terceros."
     >
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
-          {cargando ? "Cargando…" : `${plantillas.length} plantilla${plantillas.length === 1 ? "" : "s"}`}
+          {cargando ? "Cargando…" : `${visibles.length} de ${plantillas.length} plantilla${plantillas.length === 1 ? "" : "s"}`}
         </p>
         {puedeGestionar && (
           <Button onClick={() => setCreando(true)}>
@@ -75,6 +99,30 @@ export function ListaPlantillasView() {
           </Button>
         )}
       </div>
+
+      {plantillas.length > 0 && (
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <Input
+            type="search"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar por nombre o código…"
+            aria-label="Buscar plantillas por nombre o código"
+            className="sm:max-w-sm"
+          />
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtrar por estado">
+            {FILTROS_ESTADO.map((f) => (
+              <Button key={f.id} type="button" size="sm" variant={filtroEstado === f.id ? "default" : "outline"} aria-pressed={filtroEstado === f.id} onClick={() => setFiltroEstado(f.id)}>
+                {f.etiqueta}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!cargando && plantillas.length > 0 && visibles.length === 0 && (
+        <p className="mt-6 rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">Ninguna plantilla coincide con la búsqueda o el filtro.</p>
+      )}
 
       {error && (
         <p role="alert" className="mt-4 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
@@ -107,7 +155,7 @@ export function ListaPlantillasView() {
       )}
 
       <ul className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {plantillas.map((p) => (
+        {visibles.map((p) => (
           <li key={p.id}>
             <Card className="h-full">
               <CardHeader className="gap-2">
@@ -124,12 +172,10 @@ export function ListaPlantillasView() {
               </CardHeader>
               <CardContent className="grid gap-2 text-sm">
                 {p.descripcion && <p className="line-clamp-2 text-muted-foreground">{p.descripcion}</p>}
-                <div className="flex flex-wrap gap-1.5">
-                  <Badge variant="secondary">{ETIQUETA_MODO[p.modo]}</Badge>
-                  <Badge variant="outline">{ETIQUETA_MOMENTO[p.momento]}</Badge>
-                  <Badge variant="outline">Firma: {ETIQUETA_FIRMANTE[p.firmante]}</Badge>
-                  {p.requiere_firma_clic && <Badge variant="outline">Firma por clic</Badge>}
-                </div>
+                <p className="text-xs text-muted-foreground">
+                  {ETIQUETA_MODO[p.modo]} · {ETIQUETA_MOMENTO[p.momento]} · Firma: {ETIQUETA_FIRMANTE[p.firmante]}
+                  {p.requiere_firma_clic ? " (por clic)" : ""}
+                </p>
                 <p className="text-xs text-muted-foreground">Actualizada: {formatearFecha(p.actualizada_en)}</p>
               </CardContent>
               <CardFooter className="mt-auto flex flex-wrap gap-2">

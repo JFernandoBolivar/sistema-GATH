@@ -1,26 +1,11 @@
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { HeaderLayout } from "@/components/layout/header";
-import { AppSidebarCaptacion } from "@/modules/captacion/ui/components/app-sidebar-captacion";
+import type { ReactNode } from "react";
+import PersonalLayout from "../personal/layout";
 
-export default function CaptacionLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  return (
-    <SidebarProvider>
-      <AppSidebarCaptacion />
-      <SidebarInset className="min-w-0 bg-transparent">
-        <HeaderLayout
-          title="Captación de Personal"
-          subtitle="Postulantes y expedientes de ingreso - CONATEL"
-          moduloNotificaciones="postulacion"
-          rutaNotificaciones="/captacion/notificaciones"
-        >
-          <SidebarTrigger className="text-white scale-110" />
-        </HeaderLayout>
-        <main id="contenido-principal" tabIndex={-1} className="w-full h-full overflow-hidden">{children}</main>
-      </SidebarInset>
-    </SidebarProvider>
-  );
+/**
+ * M-3: Captación vive dentro de «Gestión de Trabajadores» (grupo «Ingreso de
+ * personal»); reutiliza su encabezado y su menú lateral. La ruta no cambia
+ * porque los avisos y correos del backend enlazan a ella.
+ */
+export default function Layout({ children }: Readonly<{ children: ReactNode }>) {
+  return <PersonalLayout>{children}</PersonalLayout>;
 }

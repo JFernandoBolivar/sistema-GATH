@@ -36,6 +36,10 @@ def _hechos_para(t: Transicion, **cambios) -> Hechos:
         ahora=AHORA, ventana_vence_el=AHORA + timedelta(days=1), reserva_vence_el=AHORA + timedelta(days=1),
         cargo_definido=True, oficina_definida=True, psicofisico_obligatorio=True, psicofisico_registrado=True,
         disponibilidad_declarada=True, puesto_reservado=True, puesto_revalidado=True,
+        # M-1: el proceso de ingreso para el que existe la transición (None = indiferente; se prueba con ambos activos).
+        requiere_presupuesto=True if t.con_presupuesto is None else t.con_presupuesto,
+        requiere_direccion_general=True if t.con_direccion is None else t.con_direccion,
+        punto_cuenta_generado=True,
     )
     if Guarda.VENTANA_VENCIDA in t.guardas:
         base['ventana_vence_el'] = AHORA - timedelta(days=1)
@@ -63,6 +67,17 @@ def test_hay_diecisiete_estados_y_cinco_terminales():
     assert len(E) == 17
     assert ESTADOS_TERMINALES == {E.CONTRATADO, E.RECHAZADO_CAPTACION, E.RECHAZADO_DIRECCION, E.EXPIRADO, E.DESISTIDO}
     assert len(ESTADOS_ABIERTOS) == 12
+
+
+def test_con_ambos_flags_activos_siguen_las_24_transiciones_originales():
+    activas = [t for t in TRANSICIONES if t.aplica(True, True)]
+    assert len(activas) == 24
+    assert all(t.con_presupuesto is not False and t.con_direccion is not False for t in activas)
+    # Las cuatro de M-1 solo existen sin Presupuesto o sin Dirección General.
+    assert {_id(t) for t in TRANSICIONES if not t.aplica(True, True)} == {
+        'ENVIADO_CAPTACION->EN_DIRECCION_GENERAL', 'ENVIADO_CAPTACION->APROBADO', 'EN_DIRECCION_GENERAL->APROBADO',
+        'LISTO_PARA_ASIGNAR->ENVIADO_CAPTACION',
+    }
 
 
 def test_toda_transicion_tiene_alguien_autorizado():

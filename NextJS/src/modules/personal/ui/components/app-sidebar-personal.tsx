@@ -12,6 +12,11 @@ import {
   BookKey,
   BookUser,
   Boxes,
+  ClipboardCheck,
+  FileStack,
+  UserRoundSearch,
+  Wallet,
+  Handshake,
   Briefcase,
   BriefcaseBusiness,
   BriefcaseConveyorBelt,
@@ -67,6 +72,8 @@ type SubMenuItem = {
   permiso?: string;
   /** Subtítulo o separador visual previo a este ítem. */
   subtituloPrevio?: string;
+  /** Activo también en sus subrutas (detalle de un expediente, solicitud, etc.). */
+  activoEnSubrutas?: boolean;
 };
 
 type MenuItem = {
@@ -276,6 +283,41 @@ const items: MenuItem[] = [
     url: "/retroalimentacion",
   },
   {
+    icon: Handshake,
+    title: "Ingreso de personal",
+    url: "#",
+    subMenu: [
+      {
+        title: "Postulantes",
+        url: "/captacion/expedientes",
+        icon: UserRoundSearch,
+        permiso: "postulacion.ver_bandeja",
+        activoEnSubrutas: true,
+      },
+      {
+        title: "Solicitudes de Presupuesto",
+        url: "/presupuesto/solicitudes",
+        icon: Wallet,
+        permiso: "postulacion.ver_solicitudes",
+        activoEnSubrutas: true,
+      },
+      {
+        title: "Aprobación de ingresos",
+        url: "/direccion/ingresos",
+        icon: ClipboardCheck,
+        permiso: "postulacion.ver_ingresos",
+        activoEnSubrutas: true,
+      },
+      {
+        title: "Plantillas de documentos",
+        url: "/personal/ingreso/plantillas",
+        icon: FileStack,
+        permiso: "documentos.ver_plantillas",
+        activoEnSubrutas: true,
+      },
+    ],
+  },
+  {
     permiso: "bienestar.ver_solicitudes",
     icon: ListCheck,
     title: "Actualización de Datos",
@@ -361,6 +403,13 @@ export function AppSidebarPersonal() {
     if (pathname?.startsWith("/cargos")) return "Gestión De Codigos";
     if (pathname?.startsWith("/organizacion")) return "Ub. Administrativas";
     if (pathname?.startsWith("/reportes")) return "Reportes";
+    if (
+      pathname?.startsWith("/captacion") ||
+      pathname?.startsWith("/presupuesto") ||
+      pathname?.startsWith("/direccion") ||
+      pathname?.startsWith("/personal/ingreso")
+    )
+      return "Ingreso de personal";
     if (pathname?.startsWith("/personal/bienestar")) return "Actualización de Datos";
     if (pathname?.startsWith("/personal/fe-de-vida")) return "Fe de vida";
     if (pathname?.startsWith("/personal/censo")) return "Censo de Vivienda";
@@ -443,6 +492,7 @@ export function AppSidebarPersonal() {
                                   asChild
                                   isActive={
                                     pathname === subItem.url ||
+                                    (subItem.activoEnSubrutas && !!pathname?.startsWith(`${subItem.url}/`)) ||
                                     (subItem.url === "/organizacion/listado-ubicacion-administrativa" &&
                                       pathname === "/organizacion")
                                   }

@@ -17,7 +17,7 @@ from core.domain.configuracion import (
     CLAVE_CARNETIZACION_MI_CARNET_ALCANCE,
     CLAVE_CARNETIZACION_MI_CARNET_USUARIOS,
 )
-from core.domain.exceptions import NotFoundError, ValidationError
+from core.domain.exceptions import ValidationError
 
 
 def listar_parametros(repo: RepoParametros) -> list[ParametroSistema]:
@@ -48,6 +48,7 @@ def listar_parametros(repo: RepoParametros) -> list[ParametroSistema]:
             maximo=definicion.maximo,
             opciones=definicion.opciones,
             depende_de=definicion.depende_de,
+            seccion=definicion.seccion,
         ))
     return resultado
 
@@ -99,12 +100,14 @@ def actualizar_parametro(
         actualizado_por_id=actor_id,
         opciones=definicion.opciones,
         depende_de=definicion.depende_de,
+        seccion=definicion.seccion,
     )
     guardado = repo.guardar(parametro, actor_id)
     return anterior, replace(
         guardado,
         opciones=definicion.opciones,
         depende_de=definicion.depende_de,
+        seccion=definicion.seccion,
     )
 
 

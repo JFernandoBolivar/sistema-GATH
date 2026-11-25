@@ -14,7 +14,7 @@ CAMPOS_EXPEDIENTE = (
     'direccion_linea_id', 'coordinacion_id', 'dependencia_id', 'cargo_propuesto_texto', 'oficina_propuesta_texto',
     'ventana', 'ventana_vence_el', 'reserva_vence_el', 'diferido_vence_el', 'observaciones', 'datos_ventana1', 'fecha_cierre',
     'creado_por', 'datos_ventana2', 'foto_clave', 'foto_sha256', 'foto_tamano', 'foto_subida_el',
-    'contacto_pendiente_desde',
+    'contacto_pendiente_desde', 'requiere_presupuesto', 'requiere_direccion_general',
 )
 
 
@@ -99,7 +99,8 @@ def constancia_a_entidad(m) -> ConstanciaPresupuestaria:
 
 CAMPOS_PUNTO_CUENTA_INGRESO = (
     'numero', 'pdf_clave', 'estado', 'puesto_id', 'referencia_constancia', 'emitido_por', 'emitido_el', 'decidido_por',
-    'decidido_el',
+    'decidido_el', 'aprobado_fuera_sistema', 'fecha_firma', 'registrado_por_nombre', 'pdf_firmado_clave',
+    'pdf_firmado_sha256', 'pdf_firmado_tamano',
 )
 
 

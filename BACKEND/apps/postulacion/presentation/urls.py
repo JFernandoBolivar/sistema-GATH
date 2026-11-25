@@ -3,18 +3,23 @@ from django.urls import path
 
 from apps.postulacion.presentation.views.captacion_views import (
     AltaPostulanteView,
+    AprobacionCaptacionView,
     AsignarView,
     BandejaView,
-    EnviarEnlaceView,
     ContactadoView,
     DocumentoExpedienteArchivoView,
     DocumentosExpedienteView,
+    EnviarEnlaceView,
     ExpedienteDetalleView,
     FotoExpedienteView,
     InformePsicofisicoView,
     PsicofisicoView,
+    PuntoCuentaCaptacionView,
+    PuntoCuentaFirmadoCaptacionView,
     ReponerCredencialView,
+    ReservaCaptacionView,
     TransicionView,
+    VacantesCaptacionView,
 )
 from apps.postulacion.presentation.views.direccion_views import (
     IngresoConstanciaAdjuntoView,
@@ -111,6 +116,26 @@ urlpatterns = [
     path(
         'expedientes/<uuid:expediente_id>/psicofisico/informe/', InformePsicofisicoView.as_view(),
         name='postulacion_psicofisico_informe',
+    ),
+    path(
+        'expedientes/<uuid:expediente_id>/vacantes/', VacantesCaptacionView.as_view(),
+        name='postulacion_expediente_vacantes',
+    ),
+    path(
+        'expedientes/<uuid:expediente_id>/reserva/', ReservaCaptacionView.as_view(),
+        name='postulacion_expediente_reserva',
+    ),
+    path(
+        'expedientes/<uuid:expediente_id>/punto-cuenta/', PuntoCuentaCaptacionView.as_view(),
+        name='postulacion_expediente_punto_cuenta',
+    ),
+    path(
+        'expedientes/<uuid:expediente_id>/aprobacion/', AprobacionCaptacionView.as_view(),
+        name='postulacion_expediente_aprobacion',
+    ),
+    path(
+        'expedientes/<uuid:expediente_id>/punto-cuenta-firmado/', PuntoCuentaFirmadoCaptacionView.as_view(),
+        name='postulacion_expediente_punto_cuenta_firmado',
     ),
     # Presupuesto (`ver_solicitudes`, `reservar_puesto`, `declarar_disponibilidad`, `devolver_solicitud`, `emitir_punto_cuenta`)
     path('solicitudes/', SolicitudesView.as_view(), name='postulacion_solicitudes'),

@@ -73,6 +73,15 @@ DEFECTOS_POR_PROCESO: dict[str, dict[str, str]] = {
     },
 }
 
+# M-1: ingreso sin Presupuesto en el sistema: no hay constancia presupuestaria que citar.
+EXPOSICION_INGRESO_SIN_CONSTANCIA = (
+    "Por medio del presente punto de cuenta, se somete a su digna consideración el ingreso del ciudadano(a) "
+    "{nombre}, titular de la cédula de identidad N.º {cedula}, para desempeñar el cargo de {cargo}, "
+    "código {codigo_cargo}, adscrito a {destino}.\n\n"
+    "El puesto fue reservado para este ingreso. El presente punto de cuenta es emitido por {emitido_por} "
+    "con fecha {fecha_larga}."
+)
+
 
 def _formatear_lugar(oficina: str | None, nivel: str | None, mostrar_nivel: bool) -> str:
     if not oficina and not nivel:
@@ -338,6 +347,11 @@ def construir_pdf_punto_cuenta(dto: PuntoCuentaDTO, configuracion: dict | None =
 
     # Resolver secciones de la plantilla
     secciones = resolver_secciones_plantilla(configuracion, proceso)
+    if (
+        proceso == 'ingreso_postulacion' and not getattr(dto, 'referencia_constancia', None)
+        and secciones.get('exposicion') == DEFECTOS_POR_PROCESO['ingreso_postulacion']['exposicion']
+    ):
+        secciones = {**secciones, 'exposicion': EXPOSICION_INGRESO_SIN_CONSTANCIA}
 
     presentado_a_txt = getattr(dto, 'presentado_a', None) or secciones.get('presentado_a') or PRESENTADO_A_DEFECTO
     cargo_presentado_a_txt = getattr(dto, 'cargo_presentado_a', None) or secciones.get('cargo_presentado_a') or CARGO_PRESENTADO_A_DEFECTO

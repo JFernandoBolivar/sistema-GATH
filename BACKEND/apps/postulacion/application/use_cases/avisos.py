@@ -133,6 +133,8 @@ def solicitudes_de_transicion(
             titulo='Ventana 2 recibida', mensaje=f'{quien} envió su Ventana 2: pasa a revisión final.', **comunes,
         )]
     if destino == E.EN_PRESUPUESTO and origen != E.DIFERIDO_PRESUPUESTO:  # retomar un diferido lo hace Presupuesto mismo
+        if not exp.requiere_presupuesto:
+            return []
         if actor.tipo == ACTOR_USUARIO:
             mensaje = f'Captación abrió el expediente de {quien} hacia Presupuesto: revise la solicitud de personal.'
         else:
@@ -142,10 +144,13 @@ def solicitudes_de_transicion(
             titulo='Expediente en Presupuesto', mensaje=mensaje, **comunes,
         )]
     if destino == E.EN_DIRECCION_GENERAL:
+        if not exp.requiere_direccion_general:
+            return []
+        emisor = 'Captación generó' if not exp.requiere_presupuesto else 'Presupuesto emitió'
         return [SolicitudNotificacion(
             tipo=TIPO_EN_DIRECCION, permiso_destino=PERMISO_INGRESOS, enlace=ENLACE_INGRESO.format(id=exp.id),
             titulo='Punto de Cuenta para decisión',
-            mensaje=f'Presupuesto emitió el Punto de Cuenta del ingreso de {quien}: pendiente de su decisión.',
+            mensaje=f'{emisor} el Punto de Cuenta del ingreso de {quien}: pendiente de su decisión.',
             **comunes,
         )]
     if destino == E.EN_CORRECCION_CARGO:
@@ -187,6 +192,8 @@ def solicitudes_de_transicion(
             avisos.append(_aviso_correo_institucional(postulante, exp, extra, asiento_id))
         return avisos
     if destino == E.APROBADO:
+        if not exp.requiere_direccion_general:
+            return []
         return [SolicitudNotificacion(
             tipo=TIPO_INGRESO_APROBADO, permiso_destino=PERMISO_BANDEJA, enlace=ENLACE_BANDEJA.format(id=exp.id),
             titulo='Ingreso aprobado',

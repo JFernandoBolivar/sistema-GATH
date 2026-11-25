@@ -25,6 +25,7 @@ class ParametroSerializer(serializers.Serializer):
     actualizado_en = serializers.CharField(allow_null=True)
     opciones = OpcionParametroSerializer(many=True)
     depende_de = serializers.SerializerMethodField()
+    seccion = serializers.CharField(required=False, allow_blank=True, default='')
 
     @extend_schema_field(serializers.DictField(allow_null=True))
     def get_depende_de(self, obj):

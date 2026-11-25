@@ -1,26 +1,11 @@
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { HeaderLayout } from "@/components/layout/header";
-import { SidebarPresupuesto } from "@/modules/presupuesto/ui/components/sidebar-presupuesto";
+import type { ReactNode } from "react";
+import PersonalLayout from "../personal/layout";
 
-export default function PresupuestoLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  return (
-    <SidebarProvider>
-      <SidebarPresupuesto />
-      <SidebarInset className="min-w-0 bg-transparent">
-        <HeaderLayout
-          title="Presupuesto"
-          subtitle="Reserva de puesto y disponibilidad presupuestaria - CONATEL"
-          moduloNotificaciones="postulacion"
-          rutaNotificaciones="/presupuesto/notificaciones"
-        >
-          <SidebarTrigger className="text-white scale-110" />
-        </HeaderLayout>
-        <main id="contenido-principal" tabIndex={-1} className="w-full h-full overflow-hidden">{children}</main>
-      </SidebarInset>
-    </SidebarProvider>
-  );
+/**
+ * M-3: Presupuesto vive dentro de «Gestión de Trabajadores» (grupo «Ingreso de
+ * personal»); reutiliza su encabezado y su menú lateral. La ruta no cambia
+ * porque los avisos y correos del backend enlazan a ella.
+ */
+export default function Layout({ children }: Readonly<{ children: ReactNode }>) {
+  return <PersonalLayout>{children}</PersonalLayout>;
 }

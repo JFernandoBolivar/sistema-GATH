@@ -196,6 +196,10 @@ class RepoPostulacionORM:
         )
         if filtros.solo_por_contactar:
             qs = qs.filter(contacto_pendiente_desde__isnull=False)
+        if filtros.requiere_presupuesto is not None:
+            qs = qs.filter(requiere_presupuesto=filtros.requiere_presupuesto)
+        if filtros.requiere_direccion_general is not None:
+            qs = qs.filter(requiere_direccion_general=filtros.requiere_direccion_general)
         criterio = Q()
         if filtros.estados:
             criterio |= Q(estado__in=[e.value for e in filtros.estados])

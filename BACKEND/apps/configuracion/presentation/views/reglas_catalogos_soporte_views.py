@@ -1,5 +1,38 @@
-"""Vistas de reglas de tipos de soporte y checklist."""
-from .reglas_catalogos_comun import *  # noqa: F403
+from .reglas_catalogos_comun import (
+    ACCION_CHECKLIST_SOPORTE_ACTUALIZADO,
+    ACCION_TIPO_SOPORTE_ACTUALIZADO,
+    ACCION_TIPO_SOPORTE_CREADO,
+    ACCION_TIPO_SOPORTE_ELIMINADO,
+    APIView,
+    ActualizarChecklistSoporteSerializer,
+    ActualizarTipoSoporteSerializer,
+    CrearTipoSoporteSerializer,
+    HasAnyPermission,
+    IsAuthenticated,
+    ItemChecklistSoporte,
+    MODULO_AUDITORIA_CONFIGURACION,
+    MensajeRespuestaSerializer,
+    PERMISO_CATALOGOS_CREAR,
+    PERMISO_CATALOGOS_EDITAR,
+    PERMISO_EDITAR,
+    RECURSO_REGLAS_TIPO_SOPORTE,
+    ReglaChecklistSoporteSerializer,
+    ReglaTipoSoporteSerializer,
+    ReordenarTiposSoporteSerializer,
+    RepoReglasCatalogosORM,
+    _actor,
+    _trace,
+    actualizar_checklist_soporte,
+    crear_tipo_soporte,
+    editar_tipo_soporte,
+    eliminar_tipo_soporte,
+    extend_schema,
+    ok,
+    origen_de_peticion,
+    registrar_auditoria,
+    reordenar_tipos_soporte,
+    transaction,
+)
 
 
 class ReglaTipoSoporteCrearView(APIView):

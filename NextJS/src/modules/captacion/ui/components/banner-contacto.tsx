@@ -36,7 +36,7 @@ export function BannerContacto({ contacto, ahora, pendiente = false, error, onRe
           {e.atrasado ? <AlertTriangle className="mt-0.5 size-5 shrink-0 text-danger" aria-hidden /> : <PhoneCall className="mt-0.5 size-5 shrink-0 text-warning" aria-hidden />}
           <div className="min-w-0">
             <p className="font-semibold">Hay que contactar al postulante</p>
-            <p className="text-sm text-pretty">{e.texto} Avísele que ya puede completar su Ventana 2 y entréguele su contraseña temporal.</p>
+            <p className="text-sm text-pretty">{e.texto} Avísele que ya puede completar sus datos complementarios y entréguele su contraseña temporal.</p>
           </div>
         </div>
         <Button type="button" onClick={() => setAbierto(true)} className="w-full shrink-0 sm:w-auto">

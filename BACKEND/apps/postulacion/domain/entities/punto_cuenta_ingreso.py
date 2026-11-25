@@ -1,6 +1,6 @@
 """Punto de Cuenta de ingreso ligado al expediente (E-5). Sin Django."""
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 
 EMITIDO = 'EMITIDO'
 FIRMADO = 'FIRMADO'      # Dirección General aprobó el ingreso
@@ -24,6 +24,18 @@ class PuntoCuentaIngreso:
     pdf_clave: str = ''              # clave del PDF en el almacén
     decidido_por: str = ''
     decidido_el: datetime | None = None
+    # M-1: aprobación firmada FUERA del sistema (Dirección General no está en el sistema). `decidido_por`/`decidido_el`
+    # son quien la registró y cuándo; `fecha_firma` es la de la firma en papel; el PDF firmado escaneado es opcional.
+    aprobado_fuera_sistema: bool = False
+    fecha_firma: date | None = None
+    registrado_por_nombre: str = ''
+    pdf_firmado_clave: str = ''
+    pdf_firmado_sha256: str = ''
+    pdf_firmado_tamano: int = 0
+
+    @property
+    def tiene_pdf_firmado(self) -> bool:
+        return bool(self.pdf_firmado_clave)
 
 
 @dataclass(frozen=True)
@@ -54,3 +66,11 @@ class PuntoCuentaEmitido:
     punto_cuenta_id: str
     numero: str
     pdf_clave: str
+
+
+def punto_cuenta_listo(punto: 'PuntoCuentaIngreso | None', reserva) -> bool:
+    """M-1: el Punto de Cuenta está generado (aún sin decidir) PARA el puesto que hoy está reservado. Uno viejo, de un puesto
+    que se perdió, no cuenta: hay que generarlo de nuevo."""
+    return bool(
+        punto is not None and punto.estado == EMITIDO and reserva is not None and punto.puesto_id == reserva.puesto_id
+    )

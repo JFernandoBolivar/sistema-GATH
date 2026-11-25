@@ -9,7 +9,7 @@ Notificaciones: la emisión de `CREDENCIAL_GENERADA` y demás avisos de §5.6 pe
 """
 from datetime import datetime
 
-from apps.postulacion.application.use_cases._comun import ahora_utc, leer_vigencias
+from apps.postulacion.application.use_cases._comun import ahora_utc, flujo_vigente, leer_vigencias
 from apps.postulacion.application.use_cases._comun import texto_normalizado as _texto
 from apps.postulacion.domain.entities.expediente import ExpedientePostulacion
 from apps.postulacion.domain.entities.postulante import Postulante, TransicionRegistrada
@@ -64,7 +64,7 @@ def crear_postulante_con_expediente(
         expediente = repo.crear_expediente(ExpedientePostulacion(
             id='', numero='', postulante_id=postulante.id, estado=EstadoExpediente.PRE_REGISTRADO,
             creado_por=creado_por, ventana=1, ventana_vence_el=vencimiento_ventana1(ahora, vigencias),
-            fecha_apertura=ahora,
+            fecha_apertura=ahora, **flujo_vigente(config),
         ))
         repo.registrar_transicion(TransicionRegistrada(
             id='', expediente_id=expediente.id, estado_origen='', estado_destino=expediente.estado.value,

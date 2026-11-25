@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ItemBarraAcciones } from "@/modules/captacion/domain/barra-acciones";
+import { bloqueosVisibles } from "@/modules/captacion/domain/bloqueos";
+import { AvisoBloqueos } from "@/modules/captacion/ui/components/aviso-bloqueos";
 import { BarraAcciones } from "@/modules/captacion/ui/components/barra-acciones";
 import { DialogoMotivo } from "@/modules/captacion/ui/components/dialogo-motivo";
 import { VistaCargando, VistaError } from "@/shared/ui/components/vista-estados";
@@ -94,7 +96,7 @@ export function DetalleSolicitudView({ expedienteId }: { expedienteId: string })
 
   return (
     <PageLayout title={detalle ? `Solicitud ${detalle.expediente.numero}` : "Solicitud"} description="Siga los tres pasos: reserve el puesto, declare la disponibilidad y emita el Punto de Cuenta.">
-      <div className="mt-4 flex flex-col gap-5">
+      <div className="mt-4 flex flex-col gap-5 pb-32 sm:pb-0">
         <Link href="/presupuesto/solicitudes" className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-primary hover:underline">
           <ArrowLeft className="size-4" aria-hidden /> Volver a la bandeja
         </Link>
@@ -108,13 +110,14 @@ export function DetalleSolicitudView({ expedienteId }: { expedienteId: string })
             <EncabezadoSolicitud detalle={detalle}>
               <div className="flex flex-col gap-3 border-t pt-4">
                 <h3 className="text-sm font-semibold text-muted-foreground">¿Qué desea hacer?</h3>
-                <BarraAcciones acciones={detalle.acciones} ocupado={pendiente} onElegir={(item) => { setErrorAccion(null); setActiva(item); }} />
+                <BarraAcciones acciones={detalle.acciones} ocupado={pendiente} ocultarBloqueoEnMovil onElegir={(item) => { setErrorAccion(null); setActiva(item); }} />
                 {errorAccion && activa?.modo === "directa" ? (
                   <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft p-3 text-sm text-danger">{errorAccion}</p>
                 ) : null}
               </div>
             </EncabezadoSolicitud>
 
+            <AvisoBloqueos bloqueos={bloqueosVisibles(detalle.acciones)} />
             <AvisoDeEstado detalle={detalle} />
 
             <Tabs defaultValue="tramite" className="gap-4">

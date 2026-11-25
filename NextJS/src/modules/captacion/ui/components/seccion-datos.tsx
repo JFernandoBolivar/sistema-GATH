@@ -21,7 +21,7 @@ function Bloque({ titulo, children }: { titulo: string; children: React.ReactNod
   );
 }
 
-/** Datos de la Ventana 1 y del expediente, en lenguaje legible. */
+/** Datos iniciales y del expediente, en lenguaje legible. */
 export function SeccionDatos({ detalle }: { detalle: DetalleExpediente }) {
   const { postulante, expediente } = detalle;
   const propuesta = expediente.propuesta;
@@ -34,7 +34,7 @@ export function SeccionDatos({ detalle }: { detalle: DetalleExpediente }) {
         <Fila etiqueta="Correo" valor={postulante.correo || "No informado"} />
         <Fila etiqueta="Teléfono móvil" valor={postulante.telefonoMovil || "No informado"} />
       </Bloque>
-      <Bloque titulo="Datos de la Ventana 1">
+      <Bloque titulo="Datos iniciales">
         {camposDeVentana1(detalle.datosVentana1).map((c) => (
           <Fila key={c.etiqueta} etiqueta={c.etiqueta} valor={c.valor} />
         ))}

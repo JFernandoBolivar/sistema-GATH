@@ -1,5 +1,6 @@
 import type { HitoLineaTiempo } from "@/shared/ui/components/linea-tiempo";
 import { describirEstado, type HitoHistorial } from "../domain/expediente";
+import { sinJerga } from "../domain/jerga";
 import { describirActor, formatearFechaHora } from "../domain/formato";
 
 /** Historial de transiciones → línea de tiempo (el último es el paso actual; los rechazos se marcan como no aprobados). */
@@ -22,12 +23,12 @@ export function hitosDeHistorial(historial: readonly HitoHistorial[]): HitoLinea
   const actual = historial.reduce((idx, h, i) => (h.tipo ? idx : i), historial.length - 1);
   return historial.map((h, i) => {
     const { etiqueta, tono } = describirEstado(h.estadoDestino);
-    const actor = describirActor(h.actorTipo, h.actorCedula);
+    const actor = describirActor(h.actorTipo, h.actorCedula, h.actorNombre);
     return {
       id: `${h.fecha}-${i}`,
       titulo: tituloDeAsiento(h) ?? etiqueta,
       fecha: formatearFechaHora(h.fecha),
-      detalle: h.motivo ? `${actor}. Motivo: ${h.motivo}` : actor,
+      detalle: h.motivo ? `${actor}. Motivo: ${sinJerga(h.motivo)}` : actor,
       estado: tono === "danger" ? "fallido" : i === actual ? "actual" : "hecho",
     };
   });

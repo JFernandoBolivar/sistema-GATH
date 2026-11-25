@@ -365,7 +365,7 @@ for (const { nombre, viewport, completoPorUI } of VISTAS) {
       await page.goto(`/captacion/expedientes/${expedienteId}`);
       await esperarHidratacion(page);
       await expect(page.getByText(`C.I. ${cedula}`)).toBeVisible();
-      await page.getByRole("button", { name: /reabrir (la )?ventana 2/i }).click();
+      await page.getByRole("button", { name: /reabrir datos complementarios/i }).click();
       await page.getByRole("alertdialog").getByRole("button", { name: /confirmar/i }).click();
       const credencial = await capturaCredencial(page);
       expect(credencial.usuario).toBe(cedula);
@@ -399,7 +399,7 @@ for (const { nombre, viewport, completoPorUI } of VISTAS) {
       contextoPostulante = sesion.contexto;
       const post = sesion.page;
       await expect(post.getByRole("heading", { name: /tu ingreso fue aprobado/i })).toBeVisible();
-      await expect(post.getByRole("navigation", { name: /avance de la ventana 2/i })).toBeVisible();
+      await expect(post.getByRole("navigation", { name: /avance de los datos complementarios/i })).toBeVisible();
       if (viewport.width < 768) await sinDesbordeHorizontal(post);
 
       if (completoPorUI) {
@@ -433,9 +433,9 @@ for (const { nombre, viewport, completoPorUI } of VISTAS) {
       await page.goto(`/captacion/expedientes/${expedienteId}`);
       await esperarHidratacion(page);
       await expect(page.getByText("Revisión final").first()).toBeVisible();
-      await page.getByRole("tab", { name: /datos de ventana 2/i }).click();
+      await page.getByRole("tab", { name: /datos complementarios/i }).click();
       await expect(page.getByText(/no tiene carga familiar/i)).toBeVisible();
-      await expect(page.getByText(/la ventana 2 está completa/i)).toBeVisible();
+      await expect(page.getByText(/los datos complementarios están completos/i)).toBeVisible();
       await page.getByRole("tab", { name: /^foto$/i }).click();
       const foto = page.getByTestId("foto-postulante");
       await expect(foto).toBeVisible();

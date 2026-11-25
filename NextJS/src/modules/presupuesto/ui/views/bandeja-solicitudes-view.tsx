@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import { ChevronRight, Inbox } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import PageLayout from "@/components/layout/page-layout";
 import { Button } from "@/components/ui/button";
+import { AccionesListadoMenu } from "@/shared/ui/components/acciones-listado-menu";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,11 +50,18 @@ function textoCargo(f: FilaArea): string {
 }
 
 function FilaTabla({ fila }: { fila: FilaArea }) {
+  const router = useRouter();
+  const abrir = () => router.push(`/presupuesto/solicitudes/${fila.id}`);
   return (
-    <tr className={`border-b transition-colors hover:bg-muted/40 ${fila.pendiente ? "bg-warning-soft/40" : ""}`}>
-      <td className="p-3 font-mono text-sm">{fila.numero}</td>
+    <tr
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest("a,button,[role=menuitem]")) return;
+        abrir();
+      }}
+      className={`cursor-pointer border-b transition-colors hover:bg-muted/40 ${fila.pendiente ? "bg-warning-soft/40" : ""}`}>
+      <td className="whitespace-nowrap p-3 font-mono text-sm">{fila.numero}</td>
       <td className="p-3">
-        <p className="font-semibold">{nombreCompleto(fila.postulante)}</p>
+        <Link href={`/presupuesto/solicitudes/${fila.id}`} className="font-semibold hover:underline" aria-label={`Abrir solicitud ${fila.numero} de ${nombreCompleto(fila.postulante)}`}>{nombreCompleto(fila.postulante)}</Link>
         <p className="font-mono text-xs text-muted-foreground">C.I. {fila.postulante.cedula}</p>
       </td>
       <td className="p-3 text-sm">
@@ -60,14 +69,9 @@ function FilaTabla({ fila }: { fila: FilaArea }) {
         <p className="break-words text-xs text-muted-foreground">{fila.oficinaTexto}</p>
       </td>
       <td className="p-3"><InsigniaEstado estado={fila.estado} /></td>
-      <td className="p-3 text-sm text-muted-foreground">{formatearFechaHora(fila.ultimoCambio)}</td>
+      <td className="whitespace-nowrap p-3 text-sm text-muted-foreground">{formatearFechaHora(fila.ultimoCambio)}</td>
       <td className="p-3 text-right">
-        <Button asChild size="sm" variant={fila.pendiente ? "default" : "outline"}>
-          <Link href={`/presupuesto/solicitudes/${fila.id}`} aria-label={`${fila.pendiente ? "Atender" : "Abrir"} solicitud ${fila.numero}`}>
-            {fila.pendiente ? "Atender" : "Abrir"}
-            <ChevronRight aria-hidden />
-          </Link>
-        </Button>
+        <AccionesListadoMenu etiquetaMenu={`Acciones del solicitud ${fila.numero}`} acciones={[]} accionPrincipal={{ etiqueta: "Abrir solicitud", onSelect: abrir }} />
       </td>
     </tr>
   );
@@ -175,6 +179,7 @@ export function BandejaSolicitudesView() {
           hayFiltrosActivos={hayFiltros}
           onLimpiarFiltros={limpiar}
           chipsActivos={chips}
+          conteoFiltrosActivos={(desde ? 1 : 0) + (hasta ? 1 : 0)}
           tituloFiltrosMovil="Filtrar por fecha"
         >
           <div className="flex min-w-0 flex-col gap-1.5">
@@ -195,7 +200,7 @@ export function BandejaSolicitudesView() {
           <VistaVacia
             titulo={hayFiltros ? "Ninguna solicitud coincide" : pestana === "por_atender" ? "No hay solicitudes por atender" : "No hay solicitudes en esta vista"}
             descripcion={hayFiltros ? "Pruebe con otra búsqueda o limpie los filtros." : "Cuando Captación abra un expediente hacia Presupuesto aparecerá aquí."}
-            accion={hayFiltros ? <Button type="button" variant="outline" onClick={limpiar}>Limpiar filtros</Button> : <Inbox className="size-6 text-muted-foreground" aria-hidden />}
+            accion={hayFiltros ? <Button type="button" variant="outline" onClick={limpiar}>Limpiar filtros</Button> : undefined}
           />
         ) : (
           <Card className="gap-0 overflow-hidden p-0">

@@ -23,6 +23,8 @@ from core.domain.configuracion import (
     CLAVE_AVISAR_CUENTA_CREADA_POR_CORREO,
     CLAVE_CAPTACION_ESPERA_DIFERIDO_DIAS,
     CLAVE_CAPTACION_PSICOFISICO_OBLIGATORIO,
+    CLAVE_CAPTACION_REQUIERE_DIRECCION_GENERAL,
+    CLAVE_CAPTACION_REQUIERE_PRESUPUESTO,
     CLAVE_CAPTACION_RETENCION_RECHAZADOS_MESES,
     CLAVE_CAPTACION_VIGENCIA_RESERVA_PUESTO_DIAS,
     CLAVE_CAPTACION_VIGENCIA_VENTANA1_DIAS,
@@ -65,6 +67,11 @@ GRUPO_PUNTOS_CUENTA = 'puntocuenta'
 GRUPO_AUTOGESTION = 'autogestion'
 GRUPO_CARNETIZACION = 'carnetizacion'
 GRUPO_CAPTACION = 'captacion'
+
+SECCION_PROCESO_INGRESO = 'proceso_ingreso'
+SECCIONES = (
+    (SECCION_PROCESO_INGRESO, 'Proceso de ingreso'),
+)
 
 GRUPOS = (
     (GRUPO_NOTIFICACIONES, 'Notificaciones'),
@@ -128,6 +135,8 @@ class ParametroDefinicion:
     # (valor, etiqueta); si no está vacío, solo se aceptan esos valores.
     opciones: tuple[tuple[int, str], ...] = ()
     depende_de: tuple[str, str] | None = None
+    # Sección dentro del grupo (la pantalla agrupa los parámetros relacionados bajo un mismo título); vacío = sin sección.
+    seccion: str = ''
 
 
 DEFINICIONES = (
@@ -553,13 +562,15 @@ DEFINICIONES = (
         etiqueta='Vigencia de la reserva de puesto (días)',
         descripcion=(
             'Días que dura la reserva de un puesto para un postulante, contados desde que '
-            'Presupuesto la hace. Al vencer sin asignarse, el puesto vuelve a estar vacante.'
+            'Presupuesto (o Captación, si Presupuesto está fuera del sistema) la hace. Al vencer sin '
+            'asignarse, el puesto vuelve a estar vacante.'
         ),
         grupo=GRUPO_CAPTACION,
         tipo=TIPO_ENTERO,
         defecto='30',
         minimo=1,
         maximo=180,
+        seccion=SECCION_PROCESO_INGRESO,
     ),
     ParametroDefinicion(
         clave=CLAVE_CAPTACION_PSICOFISICO_OBLIGATORIO,
@@ -572,6 +583,35 @@ DEFINICIONES = (
         grupo=GRUPO_CAPTACION,
         tipo=TIPO_BOOLEANO,
         defecto='true',
+        seccion=SECCION_PROCESO_INGRESO,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_CAPTACION_REQUIERE_PRESUPUESTO,
+        etiqueta='El ingreso pasa por Presupuesto en el sistema',
+        descripcion=(
+            'Si está activo, el expediente pasa por la etapa de Presupuesto (reserva del puesto y constancia '
+            'presupuestaria) dentro del sistema. Si se desactiva, Presupuesto se gestiona fuera del sistema: Captación '
+            'reserva el puesto vacante y genera el Punto de Cuenta de ingreso. Aplica a los expedientes que se abran '
+            'desde ahora; los que ya están en curso conservan la configuración con que se abrieron.'
+        ),
+        grupo=GRUPO_CAPTACION,
+        tipo=TIPO_BOOLEANO,
+        defecto='true',
+        seccion=SECCION_PROCESO_INGRESO,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_CAPTACION_REQUIERE_DIRECCION_GENERAL,
+        etiqueta='El ingreso lo aprueba la Dirección General en el sistema',
+        descripcion=(
+            'Si está activo, la Dirección General aprueba o rechaza el ingreso dentro del sistema. Si se desactiva, la '
+            'aprobación se firma fuera del sistema (Punto de Cuenta impreso) y Captación registra la aprobación con la '
+            'fecha de la firma y, si lo desea, el Punto de Cuenta firmado escaneado. Aplica a los expedientes que se '
+            'abran desde ahora; los que ya están en curso conservan la configuración con que se abrieron.'
+        ),
+        grupo=GRUPO_CAPTACION,
+        tipo=TIPO_BOOLEANO,
+        defecto='true',
+        seccion=SECCION_PROCESO_INGRESO,
     ),
     ParametroDefinicion(
         clave=CLAVE_CAPTACION_RETENCION_RECHAZADOS_MESES,

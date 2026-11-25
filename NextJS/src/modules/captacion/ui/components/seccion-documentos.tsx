@@ -145,7 +145,7 @@ export function SeccionDocumentosExpediente({ expedienteId }: { expedienteId: st
   if (isLoading) return <VistaCargando mensaje="Cargando los documentos…" />;
   if (error || !data) return <VistaError mensaje={error instanceof Error ? error.message : "No fue posible cargar los documentos."} onReintentar={() => void mutate()} />;
   if (data.length === 0) {
-    return <VistaVacia titulo="Sin documentos" descripcion="No hay plantillas de documentos activas para la Ventana 2 de este expediente." />;
+    return <VistaVacia titulo="Sin documentos" descripcion="No hay plantillas de documentos activas para los datos complementarios de este expediente." />;
   }
   const firmados = data.filter((d) => d.estado === "firmado").length;
   return (

@@ -16,6 +16,8 @@ interface Props {
   psicofisico: ResultadoPsicofisico;
   /** Permiso `postulacion.registrar_psicofisico` y estado que aún lo admite. */
   puedeRegistrar: boolean;
+  /** Causa real por la que no se puede registrar (estado o permiso). */
+  motivoSinEdicion?: string;
   onRegistrar: (formData: FormData) => Promise<ResultadoAccion<ResultadoPsicofisico>>;
   onDescargarInforme: () => Promise<ResultadoAccion<{ base64: string; nombre: string }>>;
   /** Tras registrar: la vista recarga el detalle (las acciones disponibles cambian). */
@@ -26,7 +28,7 @@ interface Props {
 
 const VACIO: ValoresPsicofisico = { resultado: "", fechaAplicacion: "", observaciones: "", informe: null };
 
-export function SeccionPsicofisico({ psicofisico, puedeRegistrar, onRegistrar, onDescargarInforme, onRegistrado, onAviso }: Props) {
+export function SeccionPsicofisico({ psicofisico, puedeRegistrar, motivoSinEdicion, onRegistrar, onDescargarInforme, onRegistrado, onAviso }: Props) {
   const [v, setV] = useState<ValoresPsicofisico>(VACIO);
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [errorServidor, setErrorServidor] = useState<string | null>(null);
@@ -212,7 +214,7 @@ export function SeccionPsicofisico({ psicofisico, puedeRegistrar, onRegistrar, o
         </form>
       ) : (
         <p className="text-sm text-muted-foreground">
-          El resultado ya no se puede modificar en el estado actual del expediente, o su perfil no tiene permiso para registrarlo.
+          {motivoSinEdicion ?? "No se puede registrar el resultado."}
         </p>
       )}
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
@@ -23,8 +23,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import { LineaTiempo } from "@/shared/ui/components/linea-tiempo";
 import { VistaCargando, VistaError, VistaVacia } from "@/shared/ui/components/vista-estados";
+import { bloqueosVisibles, type PestanaDetalle } from "../../domain/bloqueos";
+import { sinJerga } from "../../domain/jerga";
 import type { ItemBarraAcciones } from "../../domain/barra-acciones";
-import type { CredencialEmitida, DatosPropuesta, DetalleExpediente } from "../../domain/expediente";
+import { describirEstado, type CredencialEmitida, type DatosPropuesta, type DetalleExpediente } from "../../domain/expediente";
 import type { ResultadoContratacion } from "../../domain/contratacion";
 import { ENTREGA_CORREO, ENTREGA_PERSONA, entregaEfectiva, type TipoEntrega } from "../../domain/entrega";
 import { formatearFechaHora, nombreCompleto } from "../../domain/formato";
@@ -41,6 +43,7 @@ import {
   reponerCredencialAction,
   transicionarExpedienteAction,
 } from "../../infrastructure/actions/captacion-actions";
+import { AvisoBloqueos } from "../components/aviso-bloqueos";
 import { BannerContacto } from "../components/banner-contacto";
 import { BarraAcciones } from "../components/barra-acciones";
 import { DialogoContratar, PanelExitoContratacion } from "../components/panel-contratacion";
@@ -76,6 +79,10 @@ async function cargar(id: string): Promise<DetalleExpediente> {
 
 /** Solo con una ventana abierta para el postulante hay credencial que reponer (el backend lo exige igual). */
 const ESTADOS_CON_VENTANA_ABIERTA: ReadonlySet<string> = new Set(["PRE_REGISTRADO", "EN_CAPTURA", "EN_CORRECCION_DATOS", "CONSOLIDANDO"]);
+function PuntoPendiente() {
+  return <span className="ml-1 size-2 rounded-full bg-warning" role="img" aria-label="Pendiente" />;
+}
+
 export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }) {
   const { data: session } = useSession();
   const permisos = session?.user?.permisos;
@@ -83,6 +90,8 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
     revalidateOnFocus: false,
   });
 
+  const [pestana, setPestana] = useState<PestanaDetalle>("datos");
+  const refPestanas = useRef<HTMLDivElement>(null);
   const [activa, setActiva] = useState<ItemBarraAcciones | null>(null);
   const [errorAccion, setErrorAccion] = useState<string | null>(null);
   const [pendiente, iniciar] = useTransition();
@@ -95,6 +104,11 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
   const [errorContratar, setErrorContratar] = useState<string | null>(null);
   const [contratacion, setContratacion] = useState<ResultadoContratacion | null>(null);
   const ahora = new Date();
+
+  useEffect(() => {
+    // En teléfono la pestaña activa debe quedar a la vista aunque se cambie desde un enlace.
+    refPestanas.current?.querySelector('[data-state="active"]')?.scrollIntoView({ inline: "center", block: "nearest" });
+  }, [pestana]);
 
   function cerrarAccion() {
     setActiva(null);
@@ -122,14 +136,14 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
         return;
       }
       await mutate(r.data.detalle, { revalidate: false });
-      toast.success(`Listo: «${item.etiqueta}» aplicada.`);
+      toast.success(`Listo: «${sinJerga(item.etiqueta)}» aplicada.`);
       cerrarAccion();
       // Reabrir la Ventana 2 u observar faltantes emite una contraseña temporal nueva: se muestra UNA vez.
       if (r.data.credencial) {
         const porCorreo = r.data.credencial.enlace !== null;
         setCredencial({
           datos: r.data.credencial,
-          titulo: porCorreo ? "Enlace de acceso enviado" : "Credencial de la Ventana 2",
+          titulo: porCorreo ? "Enlace de acceso enviado" : "Credencial de los datos complementarios",
           descripcion: porCorreo
             ? "La contraseña temporal anterior dejó de servir: la persona creará la suya con el enlace."
             : "Entregue esta contraseña temporal al postulante: es la nueva y la anterior dejó de servir.",
@@ -184,11 +198,13 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
   }
 
   const tieneVentana2 = !!detalle && (detalle.datosVentana2Legible !== null || detalle.foto.tiene || detalle.expediente.ventana === 2);
+  const bloqueos = detalle ? bloqueosVisibles(detalle.acciones) : [];
+  const pestanasPendientes = new Set(bloqueos.map((b) => b.pestana).filter((p): p is PestanaDetalle => p !== null));
   const titulo = detalle ? `Expediente ${detalle.expediente.numero}` : "Expediente";
 
   return (
     <PageLayout title={titulo} description="Revise los datos del postulante y decida el siguiente paso.">
-      <div className="mt-4 flex flex-col gap-5">
+      <div className="mt-4 flex flex-col gap-5 pb-32 sm:pb-0">
         <Link href="/captacion/expedientes" className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-primary hover:underline">
           <ArrowLeft className="size-4" aria-hidden /> Volver a la bandeja
         </Link>
@@ -216,7 +232,7 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
 
               <div className="flex flex-col gap-3 border-t pt-4">
                 <h3 className="text-sm font-semibold text-muted-foreground">¿Qué desea hacer?</h3>
-                <BarraAcciones acciones={detalle.acciones} ocupado={pendiente} onElegir={(item) => {
+                <BarraAcciones acciones={detalle.acciones} ocupado={pendiente} ocultarBloqueoEnMovil onElegir={(item) => {
                     setErrorAccion(null);
                     if (item.modo === "contratacion") {
                       setErrorContratar(null);
@@ -259,6 +275,8 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
               <PanelExitoContratacion resultado={contratacion} nombre={nombreCompleto(detalle.postulante)} onCerrar={() => setContratacion(null)} />
             ) : null}
 
+            <AvisoBloqueos bloqueos={bloqueos} onIrAPestana={setPestana} />
+
             <BannerContacto
               contacto={detalle.expediente}
               ahora={ahora}
@@ -281,16 +299,19 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
               </div>
             ) : null}
 
-            <Tabs defaultValue="datos" className="gap-4">
-              <div className="-mx-1 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <Tabs value={pestana} onValueChange={(v) => setPestana(v as PestanaDetalle)} className="gap-4">
+              <div className="relative">
+              <div ref={refPestanas} className="-mx-1 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <TabsList className="w-max min-w-full justify-start group-data-[orientation=horizontal]/tabs:h-auto sm:min-w-0">
                 <TabsTrigger value="datos" className="min-h-10 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-3"><UserRound aria-hidden /> Datos</TabsTrigger>
-                {tieneVentana2 ? <TabsTrigger value="ventana2" className="min-h-10 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-3"><ClipboardCheck aria-hidden /> Datos de Ventana 2</TabsTrigger> : null}
-                {tieneVentana2 ? <TabsTrigger value="foto" className="min-h-10 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-3"><Camera aria-hidden /> Foto</TabsTrigger> : null}
-                {tieneVentana2 ? <TabsTrigger value="documentos" className="min-h-10 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-3"><FileText aria-hidden /> Documentos</TabsTrigger> : null}
-                <TabsTrigger value="psicofisico" className="min-h-10 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-3"><Stethoscope aria-hidden /> Psicofísico</TabsTrigger>
+                {tieneVentana2 ? <TabsTrigger value="ventana2" className="min-h-10 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-3"><ClipboardCheck aria-hidden /> Datos complementarios{pestanasPendientes.has("ventana2") ? <PuntoPendiente /> : null}</TabsTrigger> : null}
+                {tieneVentana2 ? <TabsTrigger value="foto" className="min-h-10 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-3"><Camera aria-hidden /> Foto{pestanasPendientes.has("foto") ? <PuntoPendiente /> : null}</TabsTrigger> : null}
+                {tieneVentana2 ? <TabsTrigger value="documentos" className="min-h-10 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-3"><FileText aria-hidden /> Documentos{pestanasPendientes.has("documentos") ? <PuntoPendiente /> : null}</TabsTrigger> : null}
+                <TabsTrigger value="psicofisico" className="min-h-10 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-3"><Stethoscope aria-hidden /> Psicofísico{pestanasPendientes.has("psicofisico") ? <PuntoPendiente /> : null}</TabsTrigger>
                 <TabsTrigger value="historial" className="min-h-10 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-3"><History aria-hidden /> Historial</TabsTrigger>
               </TabsList>
+              </div>
+              <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent sm:hidden" aria-hidden />
               </div>
               <TabsContent value="datos"><SeccionDatos detalle={detalle} /></TabsContent>
               <TabsContent value="ventana2"><SeccionVentana2 detalle={detalle} /></TabsContent>
@@ -300,6 +321,11 @@ export function DetalleExpedienteView({ expedienteId }: { expedienteId: string }
                 <SeccionPsicofisico
                   psicofisico={detalle.psicofisico}
                   puedeRegistrar={tienePermiso(permisos, PERMISO_PSICOFISICO) && ESTADOS_PSICOFISICO_EDITABLE.has(detalle.expediente.estado)}
+                  motivoSinEdicion={
+                    !tienePermiso(permisos, PERMISO_PSICOFISICO)
+                      ? "Su perfil no tiene permiso para registrar el resultado psicofísico."
+                      : `El resultado ya no se puede modificar: el expediente está «${describirEstado(detalle.expediente.estado).etiqueta}».`
+                  }
                   onRegistrar={(form) => registrarPsicofisicoAction(expedienteId, form)}
                   onDescargarInforme={() => descargarInformePsicofisicoAction(expedienteId)}
                   onRegistrado={() => void mutate()}

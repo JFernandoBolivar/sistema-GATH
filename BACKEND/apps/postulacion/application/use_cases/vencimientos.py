@@ -37,6 +37,7 @@ logger = logging.getLogger('gath.postulacion')
 E = EstadoExpediente
 
 MOTIVO_PUESTO_PERDIDO = 'La reserva del puesto venció: el expediente vuelve a Presupuesto para reservar otro.'
+MOTIVO_PUESTO_PERDIDO_CAPTACION = 'La reserva del puesto venció: el expediente vuelve a Captación para reservar otro.'
 MOTIVO_ESPERA_VENCIDA = 'Venció la espera del expediente diferido por falta de disponibilidad presupuestaria.'
 MOTIVO_VENTANA_VENCIDA = 'Venció el plazo de acceso del postulante.'
 
@@ -93,9 +94,12 @@ def procesar_vencimientos(
                 repo.guardar_reserva(replace(reserva, estado=VENCIDA, cerrada_el=ahora, motivo_liberacion=MOTIVO_VENCIMIENTO))
                 vencida = True
                 if exp.estado == E.LISTO_PARA_ASIGNAR:
+                    # M-1: sin Presupuesto en el sistema, el puesto lo vuelve a reservar Captación.
                     aplicar_transicion_expediente(
-                        repo, config, expediente_id=exp.id, destino=E.EN_PRESUPUESTO, actor=Actor.sistema(),
-                        motivo=MOTIVO_PUESTO_PERDIDO, ahora=ahora, notificador=notificador,
+                        repo, config, expediente_id=exp.id,
+                        destino=E.EN_PRESUPUESTO if exp.requiere_presupuesto else E.ENVIADO_CAPTACION,
+                        actor=Actor.sistema(),
+                        motivo=MOTIVO_PUESTO_PERDIDO if exp.requiere_presupuesto else MOTIVO_PUESTO_PERDIDO_CAPTACION, ahora=ahora, notificador=notificador,
                         datos_extra={'origen': 'vencimiento', 'puesto_id': reserva.puesto_id},
                     )
                     vuelta = True

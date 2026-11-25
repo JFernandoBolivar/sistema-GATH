@@ -63,6 +63,7 @@ class Config:
             'captacion.vigencia_ventana1_dias': 15, 'captacion.vigencia_ventana2_dias': 10,
             'captacion.vigencia_reserva_puesto_dias': 30, 'captacion.espera_diferido_dias': 90, 'captacion.horas_escalamiento_contacto': 48,
             'captacion.psicofisico_obligatorio': psicofisico,
+            'captacion.requiere_presupuesto': True, 'captacion.requiere_direccion_general': True,
         }
 
     def obtener_texto(self, clave):

@@ -273,8 +273,35 @@ def a_dict_psicofisico(r: ResultadoPsicofisico | None) -> dict | None:
     }
 
 
+def resolver_nombres_historial(transiciones, postulante=None) -> dict[str, str]:
+    """Resuelve el nombre del actor para cada transición del historial (B-b): registrado_por, postulante o empleado."""
+    nombres: dict[str, str] = {}
+    cedulas_pendientes: set[str] = set()
+    for t in transiciones:
+        cedula = (t.actor_cedula or '').strip()
+        if not cedula:
+            continue
+        extra = t.datos_extra or {}
+        if extra.get('registrado_por'):
+            nombres[cedula] = str(extra['registrado_por'])
+        elif postulante and cedula == postulante.cedula:
+            nombres[cedula] = f'{postulante.nombres} {postulante.apellidos}'.strip()
+        else:
+            cedulas_pendientes.add(cedula)
+    if cedulas_pendientes:
+        from apps.postulacion.infrastructure.repositories.repo_postulacion_orm import BuscadorEmpleadosORM
+        buscador = BuscadorEmpleadosORM()
+        for c in cedulas_pendientes:
+            emp = buscador.por_cedula(c)
+            if emp is not None:
+                nombres[c] = f'{emp.nombres} {emp.apellidos}'.strip()
+    return nombres
+
+
 def a_dict_detalle_captacion(d: DetalleCaptacion) -> dict:
     exp, p = d.base.expediente, d.base.postulante
+    nombres_actores = resolver_nombres_historial(d.base.transiciones, p)
+    ruta = f'{RUTA_BASE}/expedientes/{exp.id}'
     return {
         'expediente': {
             **a_dict_expediente_resumen(exp), 'fecha_apertura': exp.fecha_apertura, 'fecha_cierre': exp.fecha_cierre,
@@ -287,6 +314,10 @@ def a_dict_detalle_captacion(d: DetalleCaptacion) -> dict:
                 'dependencia_id': exp.dependencia_id, 'cargo_texto': exp.cargo_propuesto_texto,
                 'oficina_texto': exp.oficina_propuesta_texto,
             },
+        },
+        'flujo': {
+            'requiere_presupuesto': exp.requiere_presupuesto,
+            'requiere_direccion_general': exp.requiere_direccion_general,
         },
         'postulante': {
             'id': p.id, 'cedula': p.cedula, 'nombres': p.nombres, 'apellidos': p.apellidos, 'correo': p.correo,
@@ -301,9 +332,18 @@ def a_dict_detalle_captacion(d: DetalleCaptacion) -> dict:
             'tiene': exp.tiene_foto, 'subida_el': exp.foto_subida_el, 'tamano': exp.foto_tamano,
             'url': f'{RUTA_BASE}/expedientes/{exp.id}/foto/' if exp.tiene_foto else None,
         },
+        'reserva': a_dict_reserva(d.reserva, d.puesto, d.ahora),
+        'puesto': a_dict_puesto(d.puesto),
+        'punto_cuenta': a_dict_punto_cuenta(d.punto_cuenta),
+        'documentos': {
+            'punto_cuenta': f'{ruta}/punto-cuenta/' if d.punto_cuenta and d.punto_cuenta.pdf_clave else None,
+            'punto_cuenta_firmado': f'{ruta}/punto-cuenta-firmado/' if d.punto_cuenta and d.punto_cuenta.tiene_pdf_firmado else None,
+        },
         'historial': [
             {'estado_origen': t.estado_origen, 'estado_destino': t.estado_destino, 'fecha': t.fecha,
-             'actor_cedula': t.actor_cedula, 'actor_tipo': t.actor_tipo, 'motivo': t.motivo,
+             'actor_cedula': t.actor_cedula,
+             'actor_nombre': nombres_actores.get(t.actor_cedula, '') or (t.datos_extra or {}).get('registrado_por') or '',
+             'actor_tipo': t.actor_tipo, 'motivo': t.motivo,
              'tipo': (t.datos_extra or {}).get('tipo'), 'correo_enmascarado': (t.datos_extra or {}).get('correo_enmascarado')}
             for t in d.base.transiciones
         ],
@@ -312,7 +352,8 @@ def a_dict_detalle_captacion(d: DetalleCaptacion) -> dict:
         'acciones': [
             {'destino': a.destino, 'etiqueta': a.etiqueta, 'requiere_motivo': a.requiere_motivo,
              'requiere_propuesta': a.requiere_propuesta, 'bloqueada': a.bloqueada,
-             'motivo_bloqueo': a.motivo_bloqueo, 'sugerida': a.sugerida}
+             'motivo_bloqueo': a.motivo_bloqueo, 'sugerida': a.sugerida,
+             'codigo': a.codigo, 'requiere_fecha': a.requiere_fecha}
             for a in d.acciones
         ],
     }
@@ -402,18 +443,69 @@ def a_dict_punto_cuenta(pc: PuntoCuentaIngreso | None) -> dict | None:
         'id': pc.punto_cuenta_id, 'numero': pc.numero, 'estado': pc.estado, 'puesto_id': pc.puesto_id,
         'referencia_constancia': pc.referencia_constancia, 'emitido_por': pc.emitido_por, 'emitido_el': pc.emitido_el,
         'decidido_por': pc.decidido_por, 'decidido_el': pc.decidido_el, 'tiene_documento': bool(pc.pdf_clave),
+        'aprobado_fuera_sistema': pc.aprobado_fuera_sistema,
+        'fecha_firma': pc.fecha_firma,
+        'registrado_por_nombre': pc.registrado_por_nombre,
+        'tiene_pdf_firmado': pc.tiene_pdf_firmado,
+        'pdf_firmado_tamano': pc.pdf_firmado_tamano or None,
     }
+
+
+def resolver_cargo_oficina_fila(exp: ExpedientePostulacion, puesto_id: int | None = None) -> tuple[str, str]:
+    """Resuelve cargo y oficina si no están en texto (M-4 / B-a, B-c): del catálogo de propuesta o del puesto reservado."""
+    cargo = (exp.cargo_propuesto_texto or '').strip()
+    oficina = (exp.oficina_propuesta_texto or '').strip()
+    if cargo == 'Cargo sin texto':
+        cargo = ''
+    if cargo and oficina:
+        return cargo, oficina
+
+    tiene_ids = any((
+        exp.cargo_propuesto_id, exp.cargo_especifico_propuesto_id, exp.tipo_nomina_propuesto_id,
+        exp.dependencia_id, exp.direccion_general_id, exp.direccion_linea_id, exp.coordinacion_id,
+    ))
+    if tiene_ids:
+        from apps.postulacion.domain.entities.bandeja import PropuestaCatalogo
+        from apps.postulacion.infrastructure.repositories.repo_postulacion_orm import CatalogoPropuestaORM
+        nombres = CatalogoPropuestaORM().nombres_de_propuesta(PropuestaCatalogo(
+            cargo_propuesto_id=exp.cargo_propuesto_id,
+            cargo_especifico_propuesto_id=exp.cargo_especifico_propuesto_id,
+            tipo_nomina_propuesto_id=exp.tipo_nomina_propuesto_id,
+            dependencia_id=exp.dependencia_id,
+            direccion_general_id=exp.direccion_general_id,
+            direccion_linea_id=exp.direccion_linea_id,
+            coordinacion_id=exp.coordinacion_id,
+        ))
+        if not cargo:
+            cargo = nombres.get('cargo_especifico') or nombres.get('cargo') or ''
+        if not oficina:
+            partes = [nombres.get(k, '') for k in ('direccion_general', 'direccion_linea', 'coordinacion')]
+            oficina = ' › '.join(p for p in partes if p) or nombres.get('dependencia', '')
+
+    if (not cargo or not oficina) and puesto_id:
+        from apps.postulacion.infrastructure.repositories.puestos_vacantes_orm import PuestosVacantesORM
+        puesto = PuestosVacantesORM().obtener_puesto(puesto_id)
+        if puesto:
+            if not cargo:
+                cargo = puesto.cargo_especifico_nombre or puesto.cargo_nombre or ''
+            if not oficina:
+                partes = [puesto.direccion_general_nombre, puesto.direccion_linea_nombre, puesto.coordinacion_nombre]
+                oficina = ' › '.join(p for p in partes if p) or puesto.dependencia_nombre or ''
+
+    return cargo, oficina
 
 
 def a_dict_fila_area(f: FilaEnriquecida, prioritarios: tuple) -> dict:
     exp, p = f.fila.expediente, f.fila.postulante
+    puesto_id = f.reserva.puesto_id if f.reserva else (f.punto_cuenta.puesto_id if f.punto_cuenta else None)
+    cargo_texto, oficina_texto = resolver_cargo_oficina_fila(exp, puesto_id)
     return {
         'id': exp.id, 'numero': exp.numero, 'estado': exp.estado.value, 'ultimo_cambio': f.fila.ultimo_cambio,
         'es_reingreso': p.es_reingreso, 'pendiente': exp.estado in prioritarios,
         'postulante': {'cedula': p.cedula, 'nombres': p.nombres, 'apellidos': p.apellidos},
         'propuesta': {
-            'cargo_id': exp.cargo_propuesto_id, 'cargo_texto': exp.cargo_propuesto_texto,
-            'oficina_texto': exp.oficina_propuesta_texto, 'direccion_general_id': exp.direccion_general_id,
+            'cargo_id': exp.cargo_propuesto_id, 'cargo_texto': cargo_texto,
+            'oficina_texto': oficina_texto, 'direccion_general_id': exp.direccion_general_id,
         },
         'diferido_vence_el': exp.diferido_vence_el,
         'reserva': {'puesto_id': f.reserva.puesto_id, 'vence_el': f.reserva.vence_el} if f.reserva else None,
@@ -424,6 +516,7 @@ def a_dict_fila_area(f: FilaEnriquecida, prioritarios: tuple) -> dict:
 
 def a_dict_detalle_area(d: DetalleArea, area: str) -> dict:
     exp, p = d.base.expediente, d.base.postulante
+    nombres_actores = resolver_nombres_historial(d.base.transiciones, p)
     ruta = f'{RUTA_BASE}/{"solicitudes" if area == "presupuesto" else "ingresos"}/{exp.id}'
     return {
         'expediente': {
@@ -452,7 +545,9 @@ def a_dict_detalle_area(d: DetalleArea, area: str) -> dict:
         },
         'historial': [
             {'estado_origen': t.estado_origen, 'estado_destino': t.estado_destino, 'fecha': t.fecha,
-             'actor_cedula': t.actor_cedula, 'actor_tipo': t.actor_tipo, 'motivo': t.motivo}
+             'actor_cedula': t.actor_cedula,
+             'actor_nombre': nombres_actores.get(t.actor_cedula, '') or (t.datos_extra or {}).get('registrado_por') or '',
+             'actor_tipo': t.actor_tipo, 'motivo': t.motivo}
             for t in d.base.transiciones
         ],
         'acciones': [

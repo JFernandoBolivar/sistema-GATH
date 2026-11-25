@@ -231,7 +231,14 @@ export default function BandejaNotificacionesPage({ modulo }: Props) {
                 )}
               >
                 <Bell className="size-3.5" aria-hidden />
-                {totalNoLeidas > 0 ? `${totalNoLeidas} nuevas` : "Al día"}
+                {totalNoLeidas > 0 ? (
+                  <>
+                    <span className="font-semibold tabular-nums">{totalNoLeidas}</span>
+                    <span>{totalNoLeidas === 1 ? "nueva" : "nuevas"}</span>
+                  </>
+                ) : (
+                  "Al día"
+                )}
               </span>
             </span>
           }

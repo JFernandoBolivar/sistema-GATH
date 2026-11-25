@@ -1,5 +1,34 @@
-"""Vistas de reglas de motivos por categorÃ­a."""
-from .reglas_catalogos_comun import *  # noqa: F403
+from .reglas_catalogos_comun import (
+    ACCION_MOTIVO_ACTUALIZADO,
+    ACCION_MOTIVO_CATEGORIA_CAMBIADA,
+    ACCION_MOTIVO_CREADO,
+    ACCION_MOTIVO_ELIMINADO,
+    APIView,
+    ActualizarMotivoSerializer,
+    CambiarCategoriaMotivoSerializer,
+    CrearMotivoSerializer,
+    HasAnyPermission,
+    IsAuthenticated,
+    MODULO_AUDITORIA_CONFIGURACION,
+    MensajeRespuestaSerializer,
+    PERMISO_CATALOGOS_CREAR,
+    PERMISO_CATALOGOS_EDITAR,
+    PERMISO_EDITAR,
+    RECURSO_REGLAS_MOTIVO,
+    ReglaMotivoSerializer,
+    RepoReglasCatalogosORM,
+    _actor,
+    _trace,
+    actualizar_motivo,
+    cambiar_categoria_motivo,
+    crear_nuevo_motivo,
+    eliminar_motivo,
+    extend_schema,
+    ok,
+    origen_de_peticion,
+    registrar_auditoria,
+    transaction,
+)
 
 
 class ReglaMotivoCategoriaView(APIView):

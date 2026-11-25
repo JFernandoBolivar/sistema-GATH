@@ -120,6 +120,8 @@ export interface HitoHistorial {
   fecha: string;
   actorCedula: string;
   actorTipo: string;
+  /** Nombre de quien actuó, si el backend lo envía (si no, se muestra la cédula). */
+  actorNombre?: string | null;
   motivo: string;
   /** Asiento sin cambio de estado (p. ej. `ENLACE_ACTIVACION_ENVIADO`); `null` en un cambio de estado normal. */
   tipo?: string | null;

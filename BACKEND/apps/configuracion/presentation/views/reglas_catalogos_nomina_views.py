@@ -1,5 +1,31 @@
-"""Vistas de reglas de nÃ³mina."""
-from .reglas_catalogos_comun import *  # noqa: F403
+from .reglas_catalogos_comun import (
+    ACCION_NOMINA_ACTUALIZADA,
+    ACCION_NOMINA_CREADA,
+    ACCION_NOMINA_ELIMINADA,
+    APIView,
+    ActualizarNominaSerializer,
+    CrearNominaSerializer,
+    HasAnyPermission,
+    IsAuthenticated,
+    MODULO_AUDITORIA_CONFIGURACION,
+    MensajeRespuestaSerializer,
+    PERMISO_CATALOGOS_CREAR,
+    PERMISO_CATALOGOS_EDITAR,
+    PERMISO_EDITAR,
+    RECURSO_REGLAS_NOMINA,
+    ReglaNominaSerializer,
+    RepoReglasCatalogosORM,
+    _actor,
+    _trace,
+    crear_nomina,
+    editar_nomina,
+    eliminar_nomina,
+    extend_schema,
+    ok,
+    origen_de_peticion,
+    registrar_auditoria,
+    transaction,
+)
 
 
 class ReglaNominaUpdateView(APIView):

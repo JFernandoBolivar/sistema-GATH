@@ -59,6 +59,9 @@ class ExpedientePostulacionModel(BaseModel):
     foto_subida_el = models.DateTimeField(null=True, blank=True)
     # Tarea «contactar al postulante» (G-1): desde cuándo está pendiente; NULL = nada pendiente.
     contacto_pendiente_desde = models.DateTimeField(null=True, blank=True, db_index=True)
+    # M-1: copia de `captacion.requiere_presupuesto` / `requiere_direccion_general` vigentes al abrirse el expediente.
+    requiere_presupuesto = models.BooleanField(default=True)
+    requiere_direccion_general = models.BooleanField(default=True)
     fecha_apertura = models.DateTimeField(default=timezone.now)
     fecha_cierre = models.DateTimeField(null=True, blank=True)
 

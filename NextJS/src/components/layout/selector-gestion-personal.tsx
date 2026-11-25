@@ -35,6 +35,10 @@ const RUTAS_ACTIVO = [
   "movimientos",
   "reportes",
   "retroalimentacion",
+  // Ingreso de personal (Captación, Presupuesto, Dirección General).
+  "captacion",
+  "presupuesto",
+  "direccion",
 ];
 
 export function SelectorGestionPersonal({

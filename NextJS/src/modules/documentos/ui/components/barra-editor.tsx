@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { RUTA_DOCUMENTOS } from "@/shared/lib/administracion-sistema";
+import { useRutaDocumentos } from "../hooks/use-ruta-documentos";
 import type { PlantillaCompleta } from "../../domain/entities/plantilla";
 import { ETIQUETA_MODO, estaPublicada } from "../lib/etiquetas";
 import { EstadoPlantilla } from "./estado-plantilla";
@@ -45,6 +45,7 @@ export function BarraEditor({
   onHistorial,
   onMetadatos,
 }: Props) {
+  const RUTA_DOCUMENTOS = useRutaDocumentos();
   const publicada = estaPublicada(servidor);
   return (
     <header className="sticky top-0 z-30 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 gap-y-2 border-b bg-background/95 px-3 py-2 backdrop-blur sm:flex sm:flex-wrap sm:gap-x-3 sm:px-4">

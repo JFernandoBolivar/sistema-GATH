@@ -44,12 +44,12 @@ def filtros_direccion(
     base = construir_filtros(estados, texto, desde, hasta)
     _validar_estados_visibles(base, ESTADOS_DIRECCION, 'Dirección General')
     if base.estados:
-        return replace(base, prioritarios=(E.EN_DIRECCION_GENERAL,))
+        return replace(base, prioritarios=(E.EN_DIRECCION_GENERAL,), requiere_direccion_general=True)
     return replace(
         base,
         estados=(E.EN_DIRECCION_GENERAL,) if vista in ('pendientes', 'todos') else (),
         o_punto_cuenta_estados=tuple(ESTADOS_DECIDIDOS) if vista in ('historico', 'todos') else (),
-        prioritarios=(E.EN_DIRECCION_GENERAL,),
+        prioritarios=(E.EN_DIRECCION_GENERAL,), requiere_direccion_general=True,   # M-1: sin Dirección General no hay bandeja
     )
 
 

@@ -1,8 +1,10 @@
 """Vistas de Captación (personal con permiso, token normal de empleado): alta del postulante y reposición de clave."""
+import hashlib
+
 from django.http import HttpResponse
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
-from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
@@ -11,6 +13,14 @@ from apps.postulacion.application.use_cases.bandeja import (
     detalle_para_captacion,
     listar_bandeja,
 )
+from apps.postulacion.application.use_cases.captacion_ingreso import (
+    PREFIJO_CLAVE_PDF_FIRMADO,
+    PdfSubido,
+    adjuntar_pdf_firmado,
+    generar_punto_cuenta_captacion,
+    obtener_pdf_firmado,
+    registrar_aprobacion_captacion,
+)
 from apps.postulacion.application.use_cases.documentos_expediente import (
     documento_para_captacion,
     documentos_para_captacion,
@@ -18,6 +28,12 @@ from apps.postulacion.application.use_cases.documentos_expediente import (
 from apps.postulacion.application.use_cases.enlace_activacion import enviar_enlace_activacion
 from apps.postulacion.application.use_cases.captacion import registrar_contacto, transicionar_captacion
 from apps.postulacion.application.use_cases.promocion import promover_postulante
+from apps.postulacion.application.use_cases.reservas import (
+    FiltrosVacantesEntrada,
+    liberar_reserva,
+    reservar_puesto,
+    vacantes_del_expediente,
+)
 from apps.postulacion.application.use_cases.ventana2 import foto_de_expediente
 from apps.postulacion.application.use_cases.credenciales import alta_postulante_con_credencial, emitir_credencial
 from apps.postulacion.application.use_cases.psicofisico import (
@@ -29,6 +45,7 @@ from apps.postulacion.application.use_cases.psicofisico import (
 )
 from apps.postulacion.infrastructure.catalogos_ventana2_orm import CatalogosVentana2ORM
 from apps.postulacion.infrastructure.documentos_expediente_orm import DocumentosExpedienteORM
+from apps.postulacion.infrastructure.emisor_punto_cuenta import EmisorPuntoCuentaORM
 from apps.postulacion.infrastructure.hasheador_django import HasheadorDjango
 from apps.postulacion.infrastructure.promotor_empleado_orm import PromotorEmpleadoORM
 from apps.postulacion.infrastructure.repositories.puestos_vacantes_orm import PuestosVacantesORM
@@ -37,7 +54,7 @@ from apps.postulacion.infrastructure.repositories.repo_postulacion_orm import (
     CatalogoPropuestaORM,
     RepoPostulacionORM,
 )
-from apps.postulacion.domain.services.maquina_estados import P_REVISION_FINAL
+from apps.postulacion.domain.services.maquina_estados import P_ABRIR_EXPEDIENTE, P_REVISION_FINAL
 from apps.postulacion.domain.value_objects.estados import EstadoExpediente
 from apps.postulacion.presentation.permissions.postulante_permissions import (
     REGISTRAR_PSICOFISICO,
@@ -45,17 +62,23 @@ from apps.postulacion.presentation.permissions.postulante_permissions import (
     permisos_captacion,
 )
 from apps.postulacion.presentation.serializers.postulacion_serializers import (
+    AdjuntarPuntoCuentaFirmadoSerializer,
     AltaPostulanteRespuestaSerializer,
     AltaPostulanteSerializer,
+    AprobacionCaptacionSerializer,
     BandejaRespuestaSerializer,
     ContactadoSerializer,
     CredencialEmitidaSerializer,
     EnlaceEnviadoSerializer,
     ExpedienteDetalleSerializer,
     FiltrosBandejaSerializer,
+    FiltrosVacantesSerializer,
+    LiberarReservaSerializer,
     PsicofisicoRespuestaSerializer,
     PsicofisicoSerializer,
+    ReservaSerializer,
     TransicionSerializer,
+    VacantesRespuestaSerializer,
 )
 from apps.postulacion.presentation.views._comun import (
     PERMISOS_DE_CAPTACION,
@@ -68,6 +91,8 @@ from apps.postulacion.presentation.views._comun import (
     a_dict_expediente_resumen,
     a_dict_fila_bandeja,
     a_dict_psicofisico,
+    a_dict_puesto,
+    a_dict_reserva,
     actor_de_captacion,
     ahora,
     auditar_captacion,
@@ -77,7 +102,7 @@ from apps.postulacion.presentation.views._comun import (
     validar_entrada,
 )
 from apps.postulacion.application.use_cases._comun import leer_horas_escalamiento_contacto
-from core.domain.exceptions import PermissionDeniedError
+from core.domain.exceptions import NotFoundError, PermissionDeniedError
 from core.domain.paginacion import Paginacion
 from core.infrastructure.providers import obtener_notificador
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
@@ -264,7 +289,7 @@ def _detalle(request, expediente_id: str) -> dict:
     actor = actor_de_captacion(request)
     return a_dict_detalle_captacion(detalle_para_captacion(
         RepoPostulacionORM(), configuracion(), expediente_id=expediente_id, permisos=actor.permisos,
-        catalogos=CatalogosVentana2ORM(),
+        catalogos=CatalogosVentana2ORM(), puestos=PuestosVacantesORM(),
     ))
 
 
@@ -514,4 +539,218 @@ class DocumentoExpedienteArchivoView(_VistaBandeja):
             request=request, recurso='documento_expediente', recurso_id=documento_id,
         )
         respuesta['X-Documento-Firmado'] = 'si'
+        return respuesta
+
+
+def _descargar_pdf(request, clave: str, nombre: str, recurso: str, expediente_id):
+    respuesta = respuesta_archivo(
+        SeaweedFSStorage(), clave, cache='private, no-store', mime='application/pdf',
+        request=request, recurso=recurso, recurso_id=expediente_id,
+    )
+    respuesta['Content-Disposition'] = f'attachment; filename="{nombre}"'
+    return respuesta
+
+
+class VacantesCaptacionView(ErroresConCodigoMixin, APIView):
+    """`postulacion.abrir_expediente`: vacantes para el expediente gestionado desde Captación (M-1)."""
+
+    permission_classes = [IsAuthenticated, HasPermission(P_ABRIR_EXPEDIENTE)]
+
+    @extend_schema(
+        tags=TAG, summary='Vacantes disponibles para el expediente (Captación)',
+        parameters=[
+            OpenApiParameter('cargo', int, description='Denominación de cargo.'),
+            OpenApiParameter('oficina', int, description='Dirección general.'),
+            OpenApiParameter('dependencia', int), OpenApiParameter('direccion_linea', int),
+            OpenApiParameter('coordinacion', int), OpenApiParameter('q', str),
+            OpenApiParameter('pagina', int), OpenApiParameter('page_size', int),
+        ],
+        responses={200: VacantesRespuestaSerializer, **ERRORES},
+    )
+    def get(self, request, expediente_id):
+        params = request.query_params
+        entrada = validar_entrada(FiltrosVacantesSerializer, {
+            k: int(params[k]) if k in ('cargo', 'oficina', 'dependencia', 'direccion_linea', 'coordinacion') else params[k]
+            for k in ('cargo', 'oficina', 'dependencia', 'direccion_linea', 'coordinacion', 'q') if k in params
+        })
+        paginacion = Paginacion.desde_parametros(params)
+        r = vacantes_del_expediente(
+            RepoPostulacionORM(), PuestosVacantesORM(), expediente_id=str(expediente_id),
+            entrada=FiltrosVacantesEntrada(
+                cargo_id=entrada.get('cargo'), dependencia_id=entrada.get('dependencia'),
+                direccion_general_id=entrada.get('oficina'), direccion_linea_id=entrada.get('direccion_linea'),
+                coordinacion_id=entrada.get('coordinacion'), texto=entrada.get('q', ''),
+            ),
+            paginacion=paginacion, desde_captacion=True,
+        )
+        cuerpo = paginacion.envolver([
+            {**a_dict_puesto(p), 'disponible': p.vacante and (r.reserva_propia is None or r.reserva_propia.puesto_id != p.id)}
+            for p in r.puestos
+        ], r.total)
+        cuerpo['filtros'] = {
+            'cargo': r.filtro.cargo_id, 'dependencia': r.filtro.dependencia_id, 'oficina': r.filtro.direccion_general_id,
+            'direccion_linea': r.filtro.direccion_linea_id, 'coordinacion': r.filtro.coordinacion_id,
+            'q': r.filtro.texto, 'de_propuesta': r.de_propuesta,
+        }
+        cuerpo['reserva'] = a_dict_reserva(r.reserva_propia)
+        return sin_cache(ok(cuerpo))
+
+
+class ReservaCaptacionView(ErroresConCodigoMixin, APIView):
+    """`postulacion.abrir_expediente`: reservar puesto o liberarlo desde Captación (M-1)."""
+
+    permission_classes = [IsAuthenticated, HasPermission(P_ABRIR_EXPEDIENTE)]
+
+    @extend_schema(
+        tags=TAG, summary='Reservar puesto para el expediente desde Captación (M-1)',
+        request=ReservaSerializer, responses={200: ExpedienteDetalleSerializer, **ERRORES},
+    )
+    def post(self, request, expediente_id):
+        datos = validar_entrada(ReservaSerializer, request.data)
+        nueva, liberada = reservar_puesto(
+            RepoPostulacionORM(), PuestosVacantesORM(), configuracion(), expediente_id=str(expediente_id),
+            puesto_id=datos['puesto_id'], reservado_por=quien_actua(request).cedula, ahora=ahora(),
+            desde_captacion=True,
+        )
+        auditar_captacion(request, 'RESERVA_PUESTO_CAPTACION', str(expediente_id), {
+            'puesto_id': nueva.puesto_id, 'vence_el': nueva.vence_el.isoformat(),
+            'libera_puesto_id': liberada.puesto_id if liberada else None,
+        })
+        return sin_cache(ok(_detalle(request, str(expediente_id)), 'Puesto reservado.'))
+
+    @extend_schema(
+        tags=TAG, summary='Liberar la reserva del expediente desde Captación (M-1)',
+        request=LiberarReservaSerializer, responses={200: ExpedienteDetalleSerializer, **ERRORES},
+    )
+    def delete(self, request, expediente_id):
+        datos = validar_entrada(LiberarReservaSerializer, request.data or {})
+        liberada = liberar_reserva(
+            RepoPostulacionORM(), expediente_id=str(expediente_id), motivo=datos.get('motivo', ''), ahora=ahora(),
+            desde_captacion=True,
+        )
+        auditar_captacion(request, 'RESERVA_PUESTO_LIBERADA_CAPTACION', str(expediente_id), {
+            'puesto_id': liberada.puesto_id, 'motivo': liberada.motivo_liberacion,
+        })
+        return sin_cache(ok(_detalle(request, str(expediente_id)), 'Reserva liberada.'))
+
+
+class PuntoCuentaCaptacionView(ErroresConCodigoMixin, APIView):
+    """
+    POST con `postulacion.abrir_expediente`: genera el Punto de Cuenta de ingreso desde Captación (M-1).
+    GET con `postulacion.abrir_expediente` o `postulacion.ver_bandeja`: descarga el PDF del Punto de Cuenta emitido.
+    """
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [IsAuthenticated(), HasPermission(P_ABRIR_EXPEDIENTE)()]
+        return [IsAuthenticated(), HasAnyPermission(P_ABRIR_EXPEDIENTE, VER_BANDEJA)()]
+
+    @extend_schema(
+        tags=TAG, summary='Generar el Punto de Cuenta de ingreso desde Captación (M-1)',
+        request=None, responses={200: ExpedienteDetalleSerializer, **ERRORES},
+    )
+    def post(self, request, expediente_id):
+        r = generar_punto_cuenta_captacion(
+            RepoPostulacionORM(), PuestosVacantesORM(), EmisorPuntoCuentaORM(), configuracion(),
+            expediente_id=str(expediente_id), quien=quien_actua(request), ahora=ahora(),
+            notificador=obtener_notificador(),
+        )
+        auditar_captacion(request, 'PUNTO_CUENTA_INGRESO_EMITIDO', str(expediente_id), {
+            'punto_cuenta_id': r['punto_cuenta']['id'], 'numero': r['punto_cuenta']['numero'],
+        })
+        return sin_cache(ok(_detalle(request, str(expediente_id)), 'Punto de Cuenta de ingreso generado.'))
+
+    @extend_schema(
+        tags=TAG, summary='Descargar el PDF del Punto de Cuenta de ingreso emitido',
+        responses={200: OpenApiTypes.BINARY, **ERRORES},
+    )
+    def get(self, request, expediente_id):
+        repo = RepoPostulacionORM()
+        exp = repo.obtener_expediente(str(expediente_id))
+        if exp is None:
+            raise NotFoundError("El expediente no existe.")
+        punto = repo.obtener_punto_cuenta_ingreso(exp.id)
+        if punto is None or not punto.pdf_clave:
+            raise NotFoundError("El expediente no tiene Punto de Cuenta de ingreso emitido.")
+        respuesta = _descargar_pdf(
+            request, punto.pdf_clave, f'punto-cuenta-{punto.numero or exp.numero}.pdf', 'punto_cuenta', exp.id,
+        )
+        auditar_captacion(request, 'PUNTO_CUENTA_INGRESO_CONSULTADO', str(exp.id), {'numero': punto.numero})
+        return respuesta
+
+
+class AprobacionCaptacionView(ErroresConCodigoMixin, APIView):
+    """`postulacion.abrir_expediente`: registrar aprobación firmada fuera del sistema (M-1)."""
+
+    permission_classes = [IsAuthenticated, HasPermission(P_ABRIR_EXPEDIENTE)]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    @extend_schema(
+        tags=TAG, summary='Registrar la aprobación firmada fuera del sistema (M-1)',
+        request={'multipart/form-data': AprobacionCaptacionSerializer},
+        responses={200: ExpedienteDetalleSerializer, **ERRORES},
+    )
+    def post(self, request, expediente_id):
+        datos = validar_entrada(AprobacionCaptacionSerializer, request.data)
+        pdf = None
+        archivo = datos.get('pdf_firmado')
+        if archivo is not None:
+            contenido, tipo, extension = validar_archivo(archivo, (PDF,), MAX_BYTES_DOCUMENTO)
+            sha = hashlib.sha256(contenido).hexdigest()
+            pdf = PdfSubido(contenido, tipo.mime, clave_segura(PREFIJO_CLAVE_PDF_FIRMADO, extension), sha)
+        exp, punto = registrar_aprobacion_captacion(
+            RepoPostulacionORM(), configuracion(), SeaweedFSStorage(), expediente_id=str(expediente_id),
+            fecha_firma=datos['fecha_firma'], quien=quien_actua(request), pdf=pdf, ahora=ahora(),
+            notificador=obtener_notificador(),
+        )
+        auditar_captacion(request, 'APROBACION_CAPTACION_REGISTRADA', exp.id, {
+            'numero': exp.numero, 'fecha_firma': datos['fecha_firma'].isoformat(), 'con_pdf': bool(pdf),
+        })
+        return sin_cache(ok(_detalle(request, exp.id), 'Aprobación del ingreso registrada.'))
+
+
+class PuntoCuentaFirmadoCaptacionView(ErroresConCodigoMixin, APIView):
+    """
+    POST con `postulacion.abrir_expediente`: adjuntar PDF firmado escaneado a posteriori (M-1).
+    GET con `postulacion.abrir_expediente` o `postulacion.ver_bandeja`: descargar el PDF firmado escaneado.
+    """
+
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [IsAuthenticated(), HasPermission(P_ABRIR_EXPEDIENTE)()]
+        return [IsAuthenticated(), HasAnyPermission(P_ABRIR_EXPEDIENTE, VER_BANDEJA)()]
+
+    @extend_schema(
+        tags=TAG, summary='Adjuntar el PDF firmado escaneado del Punto de Cuenta (M-1)',
+        request={'multipart/form-data': AdjuntarPuntoCuentaFirmadoSerializer},
+        responses={200: ExpedienteDetalleSerializer, **ERRORES},
+    )
+    def post(self, request, expediente_id):
+        datos = validar_entrada(AdjuntarPuntoCuentaFirmadoSerializer, request.data)
+        archivo = datos['pdf_firmado']
+        contenido, tipo, extension = validar_archivo(archivo, (PDF,), MAX_BYTES_DOCUMENTO)
+        sha = hashlib.sha256(contenido).hexdigest()
+        pdf = PdfSubido(contenido, tipo.mime, clave_segura(PREFIJO_CLAVE_PDF_FIRMADO, extension), sha)
+        punto = adjuntar_pdf_firmado(
+            RepoPostulacionORM(), SeaweedFSStorage(), expediente_id=str(expediente_id),
+            pdf=pdf, ahora=ahora(),
+        )
+        auditar_captacion(request, 'PDF_FIRMADO_ADJUNTADO', str(expediente_id), {
+            'numero': punto.numero, 'tamano': punto.pdf_firmado_tamano,
+        })
+        return sin_cache(ok(_detalle(request, str(expediente_id)), 'PDF firmado adjuntado con éxito.'))
+
+    @extend_schema(
+        tags=TAG, summary='Descargar el PDF firmado escaneado del Punto de Cuenta (M-1)',
+        responses={200: OpenApiTypes.BINARY, **ERRORES},
+    )
+    def get(self, request, expediente_id):
+        punto, numero = obtener_pdf_firmado(RepoPostulacionORM(), expediente_id=str(expediente_id))
+        respuesta = _descargar_pdf(
+            request, punto.pdf_firmado_clave, f'punto-cuenta-firmado-{numero}.pdf',
+            'punto_cuenta_firmado', expediente_id,
+        )
+        auditar_captacion(request, 'PDF_FIRMADO_CONSULTADO', str(expediente_id), {'numero': punto.numero})
         return respuesta

@@ -6,7 +6,8 @@
  * imágenes por módulo.
  *
  * Solo se muestran los módulos de primer nivel: Administración del sistema,
- * Gestión de Trabajadores, Carnetización, Captación de Personal y Autogestión. El personal pasivo se
+ * Gestión de Trabajadores (incluye el ingreso de personal: Captación,
+ * Presupuesto, Dirección General y plantillas), Carnetización y Autogestión. El personal pasivo se
  * gestiona dentro de Gestión de Trabajadores con el selector
  * «Gestión Personal Activo/Pasivo» de la cabecera (no es una tarjeta aparte).
  * Cargos, Familiares, Organización, Movimientos, Reportes y Catálogos viven
@@ -35,7 +36,39 @@ type Modulo = {
   alt: string;
   /** Permiso requerido para ver el módulo (R16: por código, no por rol). */
   permiso: string;
+  /** Otros permisos que también bastan para ver la tarjeta. */
+  permisosAlternos?: string[];
+  /** Descripción breve bajo el título. */
+  descripcion: string;
 };
+
+/** Permisos del flujo de ingreso: también abren «Gestión de Trabajadores» (grupo «Ingreso de personal»). */
+const PERMISOS_INGRESO = [
+  "postulacion.ver_bandeja",
+  "postulacion.ver_solicitudes",
+  "postulacion.ver_ingresos",
+  "documentos.ver_plantillas",
+];
+
+/** Primera pantalla de ingreso que la sesión puede abrir (para quien no tiene `personal.ver`). */
+const RUTAS_INGRESO: [string, string][] = [
+  ["postulacion.ver_bandeja", "/captacion/expedientes"],
+  ["postulacion.ver_solicitudes", "/presupuesto/solicitudes"],
+  ["postulacion.ver_ingresos", "/direccion/ingresos"],
+  ["documentos.ver_plantillas", "/personal/ingreso/plantillas"],
+];
+
+function rutaDelModulo(modulo: Modulo, permisos: string[] | undefined): string {
+  if (modulo.permisosAlternos && !tienePermiso(permisos, modulo.permiso)) {
+    const alterna = RUTAS_INGRESO.find(([permiso]) => tienePermiso(permisos, permiso));
+    if (alterna) return alterna[1];
+  }
+  return modulo.href;
+}
+
+function moduloVisible(modulo: Modulo, permisos: string[] | undefined): boolean {
+  return [modulo.permiso, ...(modulo.permisosAlternos ?? [])].some((p) => tienePermiso(permisos, p));
+}
 
 const MODULOS: Modulo[] = [
   {
@@ -45,6 +78,7 @@ const MODULOS: Modulo[] = [
     href: "/usuarios",
     alt: "Administración del sistema",
     permiso: "identidad.ver_usuarios",
+    descripcion: "Usuarios, roles, permisos y configuración del sistema.",
   },
   {
     id: "RAC",
@@ -53,6 +87,8 @@ const MODULOS: Modulo[] = [
     href: "/personal",
     alt: "Gestión de trabajadores",
     permiso: "personal.ver",
+    permisosAlternos: PERMISOS_INGRESO,
+    descripcion: "Trabajadores, cargos, movimientos, reportes e ingreso de personal.",
   },
   {
     id: "Carnetizacion",
@@ -61,30 +97,7 @@ const MODULOS: Modulo[] = [
     href: "/carnetizacion",
     alt: "Sistema de carnetización",
     permiso: "carnetizacion.ver",
-  },
-  {
-    id: "Captacion",
-    name: "Captación de Personal",
-    imageSrc: "/images/departments/beneficios.png",
-    href: "/captacion",
-    alt: "Captación de personal: expedientes de postulantes",
-    permiso: "postulacion.ver_bandeja",
-  },
-  {
-    id: "Presupuesto",
-    name: "Presupuesto",
-    imageSrc: "/images/departments/beneficios.png",
-    href: "/presupuesto",
-    alt: "Presupuesto: reserva de puesto y disponibilidad presupuestaria de postulantes",
-    permiso: "postulacion.ver_solicitudes",
-  },
-  {
-    id: "DireccionGeneral",
-    name: "Dirección General",
-    imageSrc: "/images/departments/beneficios.png",
-    href: "/direccion",
-    alt: "Dirección General: decisión sobre los ingresos de personal",
-    permiso: "postulacion.ver_ingresos",
+    descripcion: "Emisión, plantillas y gestión de los carnets del personal.",
   },
   {
     id: "AUTOGESTION",
@@ -93,6 +106,7 @@ const MODULOS: Modulo[] = [
     href: "/autogestion",
     alt: "Autogestión de personal",
     permiso: "autogestion.ver_propio",
+    descripcion: "Tus datos, solicitudes de actualización, carnet y constancias.",
   },
 ];
 
@@ -128,11 +142,11 @@ export default function Dashboard() {
         data-testid="dashboard-modulos"
         className="mx-4 sm:mx-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4"
       >
-        {MODULOS.filter((modulo) => tienePermiso(session?.user?.permisos, modulo.permiso)).map(
+        {MODULOS.filter((modulo) => moduloVisible(modulo, session?.user?.permisos)).map(
           (modulo) => (
             <Card
               key={modulo.id}
-              onClick={() => router.push(modulo.href)}
+              onClick={() => router.push(rutaDelModulo(modulo, session?.user?.permisos))}
               className="block cursor-pointer p-0 transition-all duration-200 hover:scale-105"
             >
               <div
@@ -154,7 +168,7 @@ export default function Dashboard() {
                   <CardTitle className="text-xl">{modulo.name}</CardTitle>
                 </CardHeader>
                 <CardContent className="h-full text-center">
-                  <p className="text-sm text-muted-foreground">Tienes acceso a este módulo.</p>
+                  <p className="text-sm text-muted-foreground">{modulo.descripcion}</p>
                 </CardContent>
               </Card>
             </Card>

@@ -32,7 +32,16 @@ Decisiones donde §4.2, §7.2 y el catálogo de permisos sembrado no coinciden o
    (revision_final) y solo si la reserva venció o el puesto ya no se revalida.
 9. Autotransiciones (EN_CAPTURA y CONSOLIDANDO guardan borrador): son legales con el postulante y la ventana
    vigente, pero NO generan asiento en el historial (serían ruido por cada guardado).
-10. Un postulante tiene como mucho un expediente abierto; un terminal es inmutable (ver constraint del ORM).
+10. Proceso de ingreso configurable (M-1): cada expediente guarda `requiere_presupuesto` y `requiere_direccion_general`
+   (copia de los parámetros al abrirse). Algunas transiciones solo existen para cierta combinación (`con_presupuesto`,
+   `con_direccion`; None = indiferente) y pueden compartir el par (origen, destino) con otra (p. ej. EN_DIRECCION_GENERAL ->
+   APROBADO lo hace Dirección General si está en el sistema o Captación si no). Sin Presupuesto, Captación (permiso
+   `abrir_expediente`) reserva el puesto y genera el Punto de Cuenta: ENVIADO_CAPTACION -> EN_DIRECCION_GENERAL (con
+   Dirección General) o ENVIADO_CAPTACION -> APROBADO (sin ella, con la aprobación firmada fuera del sistema). Con
+   Presupuesto pero sin Dirección General, el Punto de Cuenta que emite Presupuesto queda EN_DIRECCION_GENERAL («pendiente
+   de firma») y Captación registra la aprobación (EN_DIRECCION_GENERAL -> APROBADO). Si el puesto reservado se pierde
+   estando LISTO_PARA_ASIGNAR y no hay Presupuesto, el expediente vuelve a ENVIADO_CAPTACION para reservar otro.
+11. Un postulante tiene como mucho un expediente abierto; un terminal es inmutable (ver constraint del ORM).
 """
 from dataclasses import dataclass
 from datetime import datetime
@@ -75,6 +84,8 @@ class Guarda(str, Enum):
     RESERVA_VIGENTE_Y_REVALIDADA = 'RESERVA_VIGENTE_Y_REVALIDADA'
     PUESTO_PERDIDO = 'PUESTO_PERDIDO'
     ESPERA_DIFERIDO_VENCIDA = 'ESPERA_DIFERIDO_VENCIDA'
+    PUESTO_RESERVADO_VIGENTE = 'PUESTO_RESERVADO_VIGENTE'    # M-1: sin Presupuesto basta la reserva (sin constancia)
+    PUNTO_CUENTA_GENERADO = 'PUNTO_CUENTA_GENERADO'          # M-1: el Punto de Cuenta ya se generó para firmarlo
 
 
 @dataclass(frozen=True)
@@ -110,6 +121,10 @@ class Hechos:
     disponibilidad_declarada: bool = False
     puesto_reservado: bool = False
     puesto_revalidado: bool = False
+    # M-1: proceso de ingreso del expediente y si ya tiene el Punto de Cuenta del puesto reservado.
+    requiere_presupuesto: bool = True
+    requiere_direccion_general: bool = True
+    punto_cuenta_generado: bool = False
 
 
 @dataclass(frozen=True)
@@ -121,14 +136,27 @@ class Transicion:
     sistema: bool = False                # una tarea programada puede ejecutarla
     guardas: tuple[Guarda, ...] = ()
     registra_historial: bool = True
+    # M-1: solo aplica si el expediente requiere (True) o no requiere (False) esa etapa; None = indiferente.
+    con_presupuesto: bool | None = None
+    con_direccion: bool | None = None
+
+    def aplica(self, requiere_presupuesto: bool = True, requiere_direccion_general: bool = True) -> bool:
+        return (
+            (self.con_presupuesto is None or self.con_presupuesto == requiere_presupuesto)
+            and (self.con_direccion is None or self.con_direccion == requiere_direccion_general)
+        )
 
     @property
     def es_autotransicion(self) -> bool:
         return self.origen == self.destino
 
 
-def _t(origen, destino, *, permisos=(), postulante=False, sistema=False, guardas=(), registra_historial=True):
-    return Transicion(origen, destino, tuple(permisos), postulante, sistema, tuple(guardas), registra_historial)
+def _t(origen, destino, *, permisos=(), postulante=False, sistema=False, guardas=(), registra_historial=True,
+       con_presupuesto=None, con_direccion=None):
+    return Transicion(
+        origen, destino, tuple(permisos), postulante, sistema, tuple(guardas), registra_historial, con_presupuesto,
+        con_direccion,
+    )
 
 
 G = Guarda
@@ -145,7 +173,7 @@ TRANSICIONES: tuple[Transicion, ...] = (
     _t(E.EN_CORRECCION_DATOS, E.ENVIADO_CAPTACION, postulante=True, guardas=[G.VENTANA_VIGENTE]),
     _t(E.ENVIADO_CAPTACION, E.RECHAZADO_CAPTACION, permisos=[P_RECHAZAR], guardas=[G.MOTIVO_OBLIGATORIO]),
     _t(E.ENVIADO_CAPTACION, E.EN_PRESUPUESTO, permisos=[P_ABRIR_EXPEDIENTE],
-       guardas=[G.CARGO_Y_OFICINA, G.PSICOFISICO]),
+       guardas=[G.CARGO_Y_OFICINA, G.PSICOFISICO], con_presupuesto=True),
     # Presupuesto
     _t(E.EN_PRESUPUESTO, E.EN_CORRECCION_CARGO, permisos=[P_DEVOLVER_SOLICITUD], guardas=[G.MOTIVO_OBLIGATORIO]),
     _t(E.EN_CORRECCION_CARGO, E.EN_PRESUPUESTO, permisos=[P_ABRIR_EXPEDIENTE], guardas=[G.CARGO_Y_OFICINA]),
@@ -155,8 +183,9 @@ TRANSICIONES: tuple[Transicion, ...] = (
     _t(E.EN_PRESUPUESTO, E.EN_DIRECCION_GENERAL, permisos=[P_EMITIR_PUNTO_CUENTA],
        guardas=[G.PUESTO_RESERVADO_Y_DISPONIBLE]),
     # Dirección General
-    _t(E.EN_DIRECCION_GENERAL, E.RECHAZADO_DIRECCION, permisos=[P_APROBAR_INGRESO], guardas=[G.MOTIVO_OBLIGATORIO]),
-    _t(E.EN_DIRECCION_GENERAL, E.APROBADO, permisos=[P_APROBAR_INGRESO]),
+    _t(E.EN_DIRECCION_GENERAL, E.RECHAZADO_DIRECCION, permisos=[P_APROBAR_INGRESO], guardas=[G.MOTIVO_OBLIGATORIO],
+       con_direccion=True),
+    _t(E.EN_DIRECCION_GENERAL, E.APROBADO, permisos=[P_APROBAR_INGRESO], con_direccion=True),
     # Ventana 2
     _t(E.APROBADO, E.CONSOLIDANDO, permisos=[P_REVISION_FINAL]),
     _t(E.CONSOLIDANDO, E.CONSOLIDANDO, postulante=True, guardas=[G.VENTANA_VIGENTE], registra_historial=False),
@@ -166,18 +195,40 @@ TRANSICIONES: tuple[Transicion, ...] = (
     # Asignación
     _t(E.LISTO_PARA_ASIGNAR, E.CONTRATADO, permisos=[P_REVISION_FINAL], guardas=[G.RESERVA_VIGENTE_Y_REVALIDADA]),
     _t(E.LISTO_PARA_ASIGNAR, E.EN_PRESUPUESTO, permisos=[P_REVISION_FINAL], sistema=True,
-       guardas=[G.PUESTO_PERDIDO]),
+       guardas=[G.PUESTO_PERDIDO], con_presupuesto=True),
+    # M-1: proceso de ingreso sin alguna de las etapas en el sistema (ver punto 10 de la cabecera).
+    _t(E.ENVIADO_CAPTACION, E.EN_DIRECCION_GENERAL, permisos=[P_ABRIR_EXPEDIENTE],
+       guardas=[G.PSICOFISICO, G.PUESTO_RESERVADO_VIGENTE], con_presupuesto=False, con_direccion=True),
+    _t(E.ENVIADO_CAPTACION, E.APROBADO, permisos=[P_ABRIR_EXPEDIENTE],
+       guardas=[G.PSICOFISICO, G.PUESTO_RESERVADO_VIGENTE, G.PUNTO_CUENTA_GENERADO],
+       con_presupuesto=False, con_direccion=False),
+    _t(E.EN_DIRECCION_GENERAL, E.APROBADO, permisos=[P_ABRIR_EXPEDIENTE], con_direccion=False),
+    _t(E.LISTO_PARA_ASIGNAR, E.ENVIADO_CAPTACION, permisos=[P_REVISION_FINAL], sistema=True,
+       guardas=[G.PUESTO_PERDIDO], con_presupuesto=False),
 )
 
-_POR_PAR: dict[tuple[EstadoExpediente, EstadoExpediente], Transicion] = {(t.origen, t.destino): t for t in TRANSICIONES}
+_POR_PAR: dict[tuple[EstadoExpediente, EstadoExpediente], list[Transicion]] = {}
+for _t_ in TRANSICIONES:
+    _POR_PAR.setdefault((_t_.origen, _t_.destino), []).append(_t_)
 
 
-def transiciones_desde(origen: EstadoExpediente) -> tuple[Transicion, ...]:
-    return tuple(t for t in TRANSICIONES if t.origen == origen)
+def transiciones_desde(
+    origen: EstadoExpediente, requiere_presupuesto: bool = True, requiere_direccion_general: bool = True,
+) -> tuple[Transicion, ...]:
+    """Las transiciones legales desde `origen` para un expediente con ese proceso de ingreso."""
+    return tuple(
+        t for t in TRANSICIONES if t.origen == origen and t.aplica(requiere_presupuesto, requiere_direccion_general)
+    )
 
 
-def buscar_transicion(origen: EstadoExpediente, destino: EstadoExpediente) -> Transicion | None:
-    return _POR_PAR.get((origen, destino))
+def buscar_transicion(
+    origen: EstadoExpediente, destino: EstadoExpediente, requiere_presupuesto: bool = True,
+    requiere_direccion_general: bool = True,
+) -> Transicion | None:
+    for t in _POR_PAR.get((origen, destino), ()):
+        if t.aplica(requiere_presupuesto, requiere_direccion_general):
+            return t
+    return None
 
 
 def _exigir_autorizado(t: Transicion, actor: Actor) -> None:
@@ -230,6 +281,16 @@ def _evaluar_guarda(g: Guarda, h: Hechos, motivo: str) -> None:
             f"Para emitir el Punto de Cuenta se requiere {' y '.join(faltan)}.",
             codigo="PUESTO_Y_DISPONIBILIDAD_REQUERIDOS",
         )
+    if g is Guarda.PUESTO_RESERVADO_VIGENTE and not h.puesto_reservado:
+        raise ConflictoConCodigo(
+            "Reserve primero el puesto vacante: no hay una reserva vigente para este expediente.",
+            codigo="PUESTO_RESERVADO_REQUERIDO",
+        )
+    if g is Guarda.PUNTO_CUENTA_GENERADO and not h.punto_cuenta_generado:
+        raise ConflictoConCodigo(
+            "Genere primero el Punto de Cuenta de ingreso del puesto reservado, para imprimirlo y firmarlo.",
+            codigo="PUNTO_CUENTA_REQUERIDO",
+        )
     if g is Guarda.RESERVA_VIGENTE_Y_REVALIDADA and not (_reserva_vigente(h) and h.puesto_revalidado):
         raise ConflictoConCodigo("No se puede asignar el cargo: la reserva del puesto venció o el puesto no fue revalidado.", codigo="RESERVA_NO_VIGENTE")
     if g is Guarda.PUESTO_PERDIDO and _reserva_vigente(h) and h.puesto_revalidado:
@@ -245,10 +306,13 @@ def validar_transicion(
             f"El expediente está en un estado final ({origen.value}) y no admite cambios; "
             "para corregirlo abra uno nuevo.", codigo="EXPEDIENTE_FINAL",
         )
-    t = buscar_transicion(origen, destino)
+    t = buscar_transicion(origen, destino, hechos.requiere_presupuesto, hechos.requiere_direccion_general)
     if t is None:
+        configurada = (hechos.requiere_presupuesto, hechos.requiere_direccion_general) != (True, True)
         raise ConflictoConCodigo(
-            f"Transición no permitida: de {origen.value} a {destino.value}.", codigo="TRANSICION_NO_PERMITIDA",
+            f"Transición no permitida: de {origen.value} a {destino.value}"
+            f"{' con el proceso de ingreso de este expediente' if configurada else ''}.",
+            codigo="TRANSICION_NO_PERMITIDA",
         )
     _exigir_autorizado(t, actor)
     for guarda in t.guardas:

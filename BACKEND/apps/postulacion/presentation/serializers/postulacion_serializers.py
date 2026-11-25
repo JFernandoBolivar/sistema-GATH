@@ -206,15 +206,34 @@ class PsicofisicoSerializer(serializers.Serializer):
 
 class ExpedienteDetalleSerializer(serializers.Serializer):
     expediente = serializers.JSONField()
+    flujo = serializers.JSONField(required=False)
     postulante = serializers.JSONField()
     datos_ventana1 = serializers.JSONField()
     datos_ventana2 = serializers.JSONField()
     datos_ventana2_legible = serializers.JSONField(allow_null=True)
+    enlace_activacion = serializers.JSONField(allow_null=True, required=False)
     ventana2_faltantes = serializers.JSONField(allow_null=True)
     foto = serializers.JSONField()
+    reserva = serializers.JSONField(allow_null=True, required=False)
+    puesto = serializers.JSONField(allow_null=True, required=False)
+    punto_cuenta = serializers.JSONField(allow_null=True, required=False)
+    documentos = serializers.JSONField(required=False)
     historial = serializers.ListField(child=serializers.JSONField())
     psicofisico = serializers.JSONField(allow_null=True)
     acciones = serializers.ListField(child=serializers.JSONField())
+
+
+class AprobacionCaptacionSerializer(serializers.Serializer):
+    """Multipart o JSON: fecha de la firma en papel (no futura) y PDF firmado escaneado opcional."""
+
+    fecha_firma = serializers.DateField()
+    pdf_firmado = serializers.FileField(required=False, allow_empty_file=False)
+
+
+class AdjuntarPuntoCuentaFirmadoSerializer(serializers.Serializer):
+    """Multipart: PDF firmado escaneado (≤ 10 MB, PDF)."""
+
+    pdf_firmado = serializers.FileField(allow_empty_file=False)
 
 
 class BandejaRespuestaSerializer(serializers.Serializer):

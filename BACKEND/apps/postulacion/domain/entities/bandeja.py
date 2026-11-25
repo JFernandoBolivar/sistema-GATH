@@ -26,6 +26,9 @@ class FiltrosBandeja:
     atraso_antes_de: datetime | None = None
     # Estados que van primero en la bandeja (los que esperan al área que consulta); por defecto, los de Captación.
     prioritarios: tuple[EstadoExpediente, ...] = tuple(ESTADOS_PENDIENTES_CAPTACION)
+    # M-1: solo los expedientes cuyo proceso de ingreso incluye (True) esa etapa en el sistema; None = todos.
+    requiere_presupuesto: bool | None = None
+    requiere_direccion_general: bool | None = None
 
 
 @dataclass(frozen=True)

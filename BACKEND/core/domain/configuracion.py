@@ -66,6 +66,11 @@ CLAVE_CAPTACION_HORAS_ESCALAMIENTO_CONTACTO = 'captacion.horas_escalamiento_cont
 # D-10: horas de vigencia del enlace de activación enviado por correo (nunca más allá de la ventana del expediente).
 CLAVE_CAPTACION_HORAS_VIGENCIA_ENLACE_ACTIVACION = 'captacion.horas_vigencia_enlace_activacion'
 
+# M-1: proceso de ingreso configurable. Iguales para todos los ingresos; cada expediente guarda una copia de lo vigente al
+# crearse (cambiarlos no altera los expedientes en curso). Con la casilla desactivada, esa etapa ocurre fuera del sistema.
+CLAVE_CAPTACION_REQUIERE_PRESUPUESTO = 'captacion.requiere_presupuesto'
+CLAVE_CAPTACION_REQUIERE_DIRECCION_GENERAL = 'captacion.requiere_direccion_general'
+
 ALCANCE_CARNET_NADIE = 'nadie'
 ALCANCE_CARNET_TODOS = 'todos'
 ALCANCE_CARNET_ACTIVOS = 'activos'

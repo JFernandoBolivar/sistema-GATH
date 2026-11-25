@@ -51,6 +51,10 @@ class ExpedientePostulacion:
     contacto_pendiente_desde: datetime | None = None
     fecha_apertura: datetime | None = None
     fecha_cierre: datetime | None = None
+    # M-1: configuración del proceso de ingreso vigente al abrirse el expediente (copia de los parámetros
+    # `captacion.requiere_*`). Cambiar los parámetros no altera los expedientes ya abiertos.
+    requiere_presupuesto: bool = True
+    requiere_direccion_general: bool = True
 
     @property
     def es_terminal(self) -> bool:

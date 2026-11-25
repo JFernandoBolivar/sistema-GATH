@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 
 from apps.postulacion.application.use_cases._comun import ahora_utc, leer_vigencias, obtener_expediente
 from apps.postulacion.domain.entities.expediente import ExpedientePostulacion
+from apps.postulacion.domain.entities.punto_cuenta_ingreso import punto_cuenta_listo
 from apps.postulacion.domain.entities.reserva import (
     ACTIVA,
     LIBERADA,
@@ -73,9 +74,11 @@ def filtro_de_vacantes(exp: ExpedientePostulacion, entrada: FiltrosVacantesEntra
 
 def vacantes_del_expediente(
     repo: RepoPostulacion, puestos: PuestosVacantes, *, expediente_id: str, entrada: FiltrosVacantesEntrada,
-    paginacion: Paginacion,
+    paginacion: Paginacion, desde_captacion: bool = False,
 ) -> ResultadoVacantes:
     exp = obtener_expediente(repo, expediente_id)
+    if desde_captacion:
+        _exigir_en_captacion(exp, 'consultar las vacantes')
     filtro, de_propuesta = filtro_de_vacantes(exp, entrada)
     lista, total = puestos.listar_vacantes(filtro, paginacion)
     return ResultadoVacantes(lista, total, filtro, repo.obtener_reserva_activa_de_expediente(exp.id), de_propuesta)
@@ -89,9 +92,31 @@ def _exigir_en_presupuesto(exp: ExpedientePostulacion, accion: str) -> None:
         )
 
 
+def _exigir_en_captacion(exp: ExpedientePostulacion, accion: str) -> None:
+    """M-1: sin Presupuesto en el sistema, Captación hace la reserva mientras el expediente espera su revisión."""
+    if exp.requiere_presupuesto:
+        raise ConflictoConCodigo(
+            f"Este expediente pasa por Presupuesto en el sistema: {accion} lo hace Presupuesto, no Captación.",
+            codigo='EXPEDIENTE_CON_PRESUPUESTO',
+        )
+    if exp.estado != E.ENVIADO_CAPTACION:
+        raise ConflictoConCodigo(
+            f"El expediente está en {exp.estado.value}: {accion} solo se hace mientras espera la revisión de Captación "
+            "(ENVIADO_CAPTACION).", codigo='EXPEDIENTE_NO_EN_CAPTACION',
+        )
+
+
+def _exigir_sin_punto_cuenta(repo: RepoPostulacion, exp: ExpedientePostulacion, reserva: ReservaPuesto | None) -> None:
+    if punto_cuenta_listo(repo.obtener_punto_cuenta_ingreso(exp.id, bloquear=True), reserva):
+        raise ConflictoConCodigo(
+            "El Punto de Cuenta ya se generó para el puesto reservado: no se puede cambiar ni liberar la reserva.",
+            codigo='PUNTO_CUENTA_YA_GENERADO',
+        )
+
+
 def reservar_puesto(
     repo: RepoPostulacion, puestos: PuestosVacantes, config: LectorConfiguracion, *, expediente_id: str,
-    puesto_id: int, reservado_por: str, ahora: datetime | None = None,
+    puesto_id: int, reservado_por: str, ahora: datetime | None = None, desde_captacion: bool = False,
 ) -> tuple[ReservaPuesto, ReservaPuesto | None]:
     """Reserva (o cambia la reserva) del expediente. Devuelve `(reserva_nueva, reserva_anterior_liberada | None)`.
 
@@ -103,13 +128,18 @@ def reservar_puesto(
     dias = leer_vigencias(config).reserva_puesto_dias
     with repo.transaccion():
         exp = obtener_expediente(repo, expediente_id, bloquear=True)
-        _exigir_en_presupuesto(exp, 'reservar el puesto')
+        if desde_captacion:
+            _exigir_en_captacion(exp, 'reservar el puesto')
+        else:
+            _exigir_en_presupuesto(exp, 'reservar el puesto')
         puesto = puestos.obtener_puesto(puesto_id, bloquear=True)   # serializa a quienes reservan el mismo puesto
         if puesto is None:
             raise NoEncontradoConCodigo("El puesto indicado no existe.", codigo='PUESTO_NO_ENCONTRADO')
         propia = repo.obtener_reserva_activa_de_expediente(exp.id, bloquear=True)
         if propia is not None and propia.puesto_id == puesto_id:
             return propia, None
+        if desde_captacion:
+            _exigir_sin_punto_cuenta(repo, exp, propia)
         if not puesto.vacante:
             raise ConflictoConCodigo(
                 f"El puesto {puesto.codigo} ya no está vacante.", campo='puesto_id', codigo='PUESTO_NO_VACANTE',
@@ -133,15 +163,21 @@ def reservar_puesto(
 
 def liberar_reserva(
     repo: RepoPostulacion, *, expediente_id: str, motivo: str = '', ahora: datetime | None = None,
+    desde_captacion: bool = False,
 ) -> ReservaPuesto:
-    """Libera a mano la reserva activa (solo mientras el expediente sigue en Presupuesto)."""
+    """Libera a mano la reserva activa (solo mientras el expediente sigue en Presupuesto o, sin Presupuesto, en Captación)."""
     ahora = ahora or ahora_utc()
     with repo.transaccion():
         exp = obtener_expediente(repo, expediente_id, bloquear=True)
-        _exigir_en_presupuesto(exp, 'liberar la reserva')
+        if desde_captacion:
+            _exigir_en_captacion(exp, 'liberar la reserva')
+        else:
+            _exigir_en_presupuesto(exp, 'liberar la reserva')
         reserva = repo.obtener_reserva_activa_de_expediente(exp.id, bloquear=True)
         if reserva is None:
             raise NoEncontradoConCodigo("El expediente no tiene una reserva activa.", codigo='RESERVA_NO_ENCONTRADA')
+        if desde_captacion:
+            _exigir_sin_punto_cuenta(repo, exp, reserva)
         motivo = ' '.join((motivo or '').split())[:200]
         return repo.guardar_reserva(replace(
             reserva, estado=LIBERADA, cerrada_el=ahora, motivo_liberacion=motivo or MOTIVO_LIBERADA_POR_USUARIO,

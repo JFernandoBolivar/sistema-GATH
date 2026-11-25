@@ -31,7 +31,7 @@ test("el dashboard muestra solo los cuatro módulos de primer nivel", async ({ p
     ).toBeVisible();
   }
   // Los módulos que viven dentro de Gestión de Trabajadores no son tarjetas.
-  for (const submodulo of ["Cargos", "Cargas familiares", "Movimientos", "Reportes"]) {
+  for (const submodulo of ["Cargos", "Cargas familiares", "Movimientos", "Reportes", "Captación de Personal", "Presupuesto", "Dirección General"]) {
     await expect(
       page.locator("#dashboard-modulos").getByText(submodulo, { exact: true }),
     ).toHaveCount(0);

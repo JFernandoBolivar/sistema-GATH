@@ -69,6 +69,7 @@ function hitoDesdeApi(h: Crudo): HitoHistorial {
     fecha: texto(h.fecha),
     actorCedula: texto(h.actor_cedula),
     actorTipo: texto(h.actor_tipo),
+    actorNombre: textoONulo(h.actor_nombre),
     motivo: texto(h.motivo),
     tipo: textoONulo(h.tipo),
     correoEnmascarado: textoONulo(h.correo_enmascarado),

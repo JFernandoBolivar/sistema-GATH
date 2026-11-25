@@ -8,7 +8,7 @@ import { SECCIONES_VENTANA2, type AvanceVentana2, type SeccionVentana2 } from ".
 export function IndicadorAvance({ avance, actual, onIr }: { avance: AvanceVentana2; actual: SeccionVentana2; onIr: (s: SeccionVentana2) => void }) {
   const indiceActual = SECCIONES_VENTANA2.findIndex((s) => s.id === actual);
   return (
-    <nav aria-label="Avance de la Ventana 2" className="flex flex-col gap-3">
+    <nav aria-label="Avance de los datos complementarios" className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3 text-sm">
         <p className="font-medium">
           Paso {indiceActual + 1} de {SECCIONES_VENTANA2.length} · <span className="text-primary">{SECCIONES_VENTANA2[indiceActual].etiqueta}</span>

@@ -1,5 +1,6 @@
 import { DESTINO_CONTRATADO } from "./contratacion";
 import type { AccionExpediente } from "./expediente";
+import { sinJerga } from "./jerga";
 
 /** Qué hace la interfaz al pulsar la acción (lo decide `requiere_*` del backend, no una regla propia). */
 export type ModoAccion = "directa" | "motivo" | "propuesta" | "contratacion";
@@ -38,11 +39,11 @@ export function construirBarraAcciones(acciones: readonly AccionExpediente[]): I
     const contratar = a.destino === DESTINO_CONTRATADO;
     return {
       destino: a.destino,
-      etiqueta: contratar ? "Contratar y asignar puesto" : a.etiqueta,
+      etiqueta: contratar ? "Contratar y asignar puesto" : sinJerga(a.etiqueta),
       modo: modoDe(a),
       variante: peligro ? "peligro" : a.requiereMotivo && !contratar ? "secundaria" : "primaria",
       deshabilitada: a.bloqueada,
-      motivoBloqueo: a.bloqueada ? a.motivoBloqueo : "",
+      motivoBloqueo: a.bloqueada ? sinJerga(a.motivoBloqueo) : "",
       destacada: a.sugerida,
     };
   });

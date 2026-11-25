@@ -34,6 +34,9 @@ export interface BarraFiltrosProps {
   /** Callback para restablecer todos los filtros a su estado inicial */
   onLimpiarFiltros?: () => void;
 
+  /** Filtros de los campos (sin contar la búsqueda). Si no se pasa, se cuentan los chips. */
+  conteoFiltrosActivos?: number;
+
   /** Lista de chips de filtros activos para mostrar y permitir deseleccionar individualmente */
   chipsActivos?: FiltroActivoChip[];
 
@@ -68,13 +71,14 @@ export function BarraFiltros({
   hayFiltrosActivos = false,
   onLimpiarFiltros,
   chipsActivos = [],
+  conteoFiltrosActivos,
   children,
   accionesSuperiores,
   tituloFiltrosMovil = "Filtros de consulta",
   className,
 }: BarraFiltrosProps) {
   const tieneBusqueda = onBusquedaChange !== undefined;
-  const conteoChips = chipsActivos.length;
+  const conteoChips = conteoFiltrosActivos ?? chipsActivos.length;
 
   return (
     <div className={cn("space-y-3", className)}>

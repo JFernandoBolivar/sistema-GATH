@@ -87,6 +87,13 @@ class PuntoCuentaIngresoModel(BaseModel):
     emitido_el = models.DateTimeField(default=timezone.now)
     decidido_por = models.CharField(max_length=15, blank=True, default='')
     decidido_el = models.DateTimeField(null=True, blank=True)
+    # M-1: aprobación firmada fuera del sistema (fecha de la firma y PDF escaneado opcional, clave opaca).
+    aprobado_fuera_sistema = models.BooleanField(default=False)
+    fecha_firma = models.DateField(null=True, blank=True)
+    registrado_por_nombre = models.CharField(max_length=200, blank=True, default='')
+    pdf_firmado_clave = models.CharField(max_length=255, blank=True, default='')
+    pdf_firmado_sha256 = models.CharField(max_length=64, blank=True, default='')
+    pdf_firmado_tamano = models.PositiveIntegerField(default=0)
 
     class Meta:
         db_table = 'postulacion_punto_cuenta_ingreso'

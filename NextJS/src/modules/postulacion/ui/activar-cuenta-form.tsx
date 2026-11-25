@@ -106,7 +106,7 @@ export function ActivarCuentaForm({ token, numero, venceEl }: { token: string; n
         )}
 
         <form onSubmit={handleSubmit(enviar)} className="flex flex-col gap-5" noValidate>
-          <Campo id="activar-cedula" etiqueta="Cédula de identidad" ayuda="La usamos para confirmar que eres tú." error={e.cedula?.message}>
+          <Campo id="activar-cedula" etiqueta="Cédula de identidad" ayuda="Solo números, sin puntos ni letras." error={e.cedula?.message}>
             <Input
               id="activar-cedula"
               inputMode="numeric"

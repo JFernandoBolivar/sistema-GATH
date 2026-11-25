@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RUTA_DOCUMENTOS } from "@/shared/lib/administracion-sistema";
+import { useRutaDocumentos } from "../hooks/use-ruta-documentos";
 import { erroresPorRuta } from "../../domain/lib/errores";
 import { BarraEditor } from "../components/barra-editor";
 import { EditorFormulario } from "../components/editor-formulario";
@@ -33,6 +33,7 @@ import { crearEntorno } from "../lib/entorno";
 type Confirmacion = "publicar" | "activar" | "duplicar" | null;
 
 export function EditorPlantillaView({ id }: { id: string }) {
+  const RUTA_DOCUMENTOS = useRutaDocumentos();
   const router = useRouter();
   const { plantilla, cargando, error, status } = usePlantilla(id);
   const { catalogo, error: errorCatalogo } = useVariables();

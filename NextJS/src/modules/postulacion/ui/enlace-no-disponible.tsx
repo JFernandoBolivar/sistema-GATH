@@ -24,7 +24,7 @@ export function EnlaceNoDisponible({ codigo }: { codigo: CodigoEnlace }) {
         </div>
         <h1 className="text-2xl font-bold text-balance">{titulo}</h1>
         <p className="mt-2 text-base text-muted-foreground text-pretty">{detalle}</p>
-        <p className="mt-4 rounded-lg bg-muted/60 p-3 text-base font-medium text-pretty">{PEDIR_ENLACE_NUEVO}</p>
+        <p className="mt-4 text-sm text-muted-foreground text-pretty">{PEDIR_ENLACE_NUEVO}</p>
         <Link
           href={RUTA_ACCESO_POSTULANTE}
           className={cn(buttonVariants({ size: "lg", variant: "outline" }), "mt-6 w-full")}

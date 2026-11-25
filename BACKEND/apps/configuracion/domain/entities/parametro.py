@@ -17,6 +17,7 @@ class ParametroSistema:
     actualizado_en: str | None = None
     opciones: tuple[tuple[int, str], ...] = ()
     depende_de: tuple[str, str] | None = None
+    seccion: str = ''
 
 
 @dataclass(frozen=True)

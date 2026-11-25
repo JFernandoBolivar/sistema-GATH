@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import { ChevronRight, Inbox } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import PageLayout from "@/components/layout/page-layout";
 import { Button } from "@/components/ui/button";
+import { AccionesListadoMenu } from "@/shared/ui/components/acciones-listado-menu";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,11 +42,18 @@ function useRetraso<T>(valor: T, ms: number): T {
 }
 
 function FilaTabla({ fila }: { fila: FilaArea }) {
+  const router = useRouter();
+  const abrir = () => router.push(`/direccion/ingresos/${fila.id}`);
   return (
-    <tr className={`border-b transition-colors hover:bg-muted/40 ${fila.pendiente ? "bg-warning-soft/40" : ""}`}>
-      <td className="p-3 font-mono text-sm">{fila.numero}</td>
+    <tr
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest("a,button,[role=menuitem]")) return;
+        abrir();
+      }}
+      className={`cursor-pointer border-b transition-colors hover:bg-muted/40 ${fila.pendiente ? "bg-warning-soft/40" : ""}`}>
+      <td className="whitespace-nowrap p-3 font-mono text-sm">{fila.numero}</td>
       <td className="p-3">
-        <p className="font-semibold">{nombreCompleto(fila.postulante)}</p>
+        <Link href={`/direccion/ingresos/${fila.id}`} className="font-semibold hover:underline" aria-label={`Abrir ingreso ${fila.numero} de ${nombreCompleto(fila.postulante)}`}>{nombreCompleto(fila.postulante)}</Link>
         <p className="font-mono text-xs text-muted-foreground">C.I. {fila.postulante.cedula}</p>
       </td>
       <td className="p-3 text-sm">
@@ -53,14 +62,9 @@ function FilaTabla({ fila }: { fila: FilaArea }) {
       </td>
       <td className="p-3 font-mono text-sm">{fila.puntoCuentaNumero ?? "—"}</td>
       <td className="p-3"><InsigniaEstado estado={fila.estado} /></td>
-      <td className="p-3 text-sm text-muted-foreground">{formatearFechaHora(fila.ultimoCambio)}</td>
+      <td className="whitespace-nowrap p-3 text-sm text-muted-foreground">{formatearFechaHora(fila.ultimoCambio)}</td>
       <td className="p-3 text-right">
-        <Button asChild size="sm" variant={fila.pendiente ? "default" : "outline"}>
-          <Link href={`/direccion/ingresos/${fila.id}`} aria-label={`${fila.pendiente ? "Decidir" : "Ver"} ingreso ${fila.numero}`}>
-            {fila.pendiente ? "Decidir" : "Ver"}
-            <ChevronRight aria-hidden />
-          </Link>
-        </Button>
+        <AccionesListadoMenu etiquetaMenu={`Acciones del ingreso ${fila.numero}`} acciones={[]} accionPrincipal={{ etiqueta: "Abrir ingreso", onSelect: abrir }} />
       </td>
     </tr>
   );
@@ -100,6 +104,7 @@ export function BandejaIngresosView() {
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
   const [pagina, setPagina] = useState(1);
+  const eligioPestana = useRef(false);
   const q = useRetraso(busqueda.trim(), 350);
   const def = PESTANAS_DIRECCION.find((p) => p.id === pestana) ?? PESTANAS_DIRECCION[0];
 
@@ -113,6 +118,16 @@ export function BandejaIngresosView() {
     { keepPreviousData: true, revalidateOnFocus: true },
   );
   const { data: conteos } = useSWR("direccion-conteos", cargarConteos, { refreshInterval: 60_000, revalidateOnFocus: true });
+
+  // Sin pendientes, lo útil es el histórico: se abre ahí (una sola vez, si la persona no eligió pestaña).
+  useEffect(() => {
+    if (eligioPestana.current || !conteos) return;
+    if (conteos.pendientes === 0 && (conteos.historico ?? 0) > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- ajuste inicial según los conteos (asíncronos)
+      setPestana("historico");
+    }
+    if (conteos.pendientes !== null) eligioPestana.current = true;
+  }, [conteos]);
 
   const chips = useMemo<FiltroActivoChip[]>(() => {
     const c: FiltroActivoChip[] = [];
@@ -133,11 +148,15 @@ export function BandejaIngresosView() {
   const hayFiltros = chips.length > 0;
 
   return (
-    <PageLayout title="Ingresos por decidir" description="Revise el Punto de Cuenta de cada postulante y apruebe o rechace su ingreso.">
+    <PageLayout
+      title={pestana === "historico" ? "Histórico de decisiones" : "Ingresos por decidir"}
+      description={pestana === "historico" ? "Ingresos que la Dirección General ya aprobó o rechazó." : "Revise el Punto de Cuenta de cada postulante y apruebe o rechace su ingreso."}
+    >
       <div className="mt-4 flex flex-col gap-5">
         <Tabs
           value={pestana}
           onValueChange={(v) => {
+            eligioPestana.current = true;
             setPestana(v as PestanaDireccion);
             setPagina(1);
           }}
@@ -169,6 +188,7 @@ export function BandejaIngresosView() {
           hayFiltrosActivos={hayFiltros}
           onLimpiarFiltros={limpiar}
           chipsActivos={chips}
+          conteoFiltrosActivos={(desde ? 1 : 0) + (hasta ? 1 : 0)}
           tituloFiltrosMovil="Filtrar por fecha"
         >
           <div className="flex min-w-0 flex-col gap-1.5">
@@ -189,7 +209,7 @@ export function BandejaIngresosView() {
           <VistaVacia
             titulo={hayFiltros ? "Ningún ingreso coincide" : pestana === "pendientes" ? "No hay ingresos por decidir" : "Aún no hay decisiones registradas"}
             descripcion={hayFiltros ? "Pruebe con otra búsqueda o limpie los filtros." : "Cuando Presupuesto emita un Punto de Cuenta aparecerá aquí."}
-            accion={hayFiltros ? <Button type="button" variant="outline" onClick={limpiar}>Limpiar filtros</Button> : <Inbox className="size-6 text-muted-foreground" aria-hidden />}
+            accion={hayFiltros ? <Button type="button" variant="outline" onClick={limpiar}>Limpiar filtros</Button> : undefined}
           />
         ) : (
           <Card className="gap-0 overflow-hidden p-0">

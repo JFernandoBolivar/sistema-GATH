@@ -45,10 +45,7 @@ from apps.configuracion.infrastructure.serializers.version_imagen_cintillo_seria
     VersionImagenCintilloSerializer,
 )
 from apps.configuracion.application.use_cases.actualizar_configuracion_visual import actualizar_configuracion_visual
-from apps.configuracion.application.use_cases.guardar_logo_configuracion import (
-    CAMPOS_LOGO,
-    guardar_logo_configuracion,
-)
+from apps.configuracion.application.use_cases.guardar_logo_configuracion import CAMPOS_LOGO
 from apps.configuracion.application.use_cases.obtener_configuracion_visual import obtener_configuracion_visual
 from apps.configuracion.infrastructure.repositories.repo_configuracion_visual_orm import RepoConfiguracionVisualORM
 from apps.configuracion.infrastructure.serializers.configuracion_visual_escritura_serializers import (

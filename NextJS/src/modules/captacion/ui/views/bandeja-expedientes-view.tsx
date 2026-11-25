@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import useSWR, { useSWRConfig } from "swr";
 import { useSession } from "next-auth/react";
-import { ChevronRight, Inbox, UserPlus } from "lucide-react";
+import { ChevronRight, UserPlus } from "lucide-react";
 import PageLayout from "@/components/layout/page-layout";
 import { Button } from "@/components/ui/button";
+import { AccionesListadoMenu } from "@/shared/ui/components/acciones-listado-menu";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -74,11 +76,18 @@ function EtiquetaReingreso() {
 }
 
 function FilaTabla({ fila, ahora }: { fila: FilaBandeja; ahora: Date }) {
+  const router = useRouter();
+  const abrir = () => router.push(`/captacion/expedientes/${fila.id}`);
   return (
-    <tr className={`border-b transition-colors hover:bg-muted/40 ${fila.contactoAtrasado ? "bg-danger-soft/40" : fila.pendienteDeCaptacion || fila.contactoPendiente ? "bg-warning-soft/40" : ""}`}>
-      <td className="p-3 font-mono text-sm">{fila.numero}</td>
+    <tr
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest("a,button,[role=menuitem]")) return;
+        abrir();
+      }}
+      className={`cursor-pointer border-b transition-colors hover:bg-muted/40 ${fila.contactoAtrasado ? "bg-danger-soft/40" : fila.pendienteDeCaptacion || fila.contactoPendiente ? "bg-warning-soft/40" : ""}`}>
+      <td className="whitespace-nowrap p-3 font-mono text-sm">{fila.numero}</td>
       <td className="p-3">
-        <p className="font-semibold">{nombreCompleto(fila.postulante)}</p>
+        <Link href={`/captacion/expedientes/${fila.id}`} className="font-semibold hover:underline" aria-label={`Abrir expediente ${fila.numero} de ${nombreCompleto(fila.postulante)}`}>{nombreCompleto(fila.postulante)}</Link>
         <p className="font-mono text-xs text-muted-foreground">C.I. {fila.postulante.cedula}</p>
       </td>
       <td className="p-3">
@@ -88,14 +97,9 @@ function FilaTabla({ fila, ahora }: { fila: FilaBandeja; ahora: Date }) {
         </div>
         <InsigniaContacto contacto={fila} ahora={ahora} className="mt-1.5" />
       </td>
-      <td className="p-3 text-sm text-muted-foreground">{formatearFechaHora(fila.ultimoCambio)}</td>
+      <td className="whitespace-nowrap p-3 text-sm text-muted-foreground">{formatearFechaHora(fila.ultimoCambio)}</td>
       <td className="p-3 text-right">
-        <Button asChild size="sm" variant={fila.pendienteDeCaptacion ? "default" : "outline"}>
-          <Link href={`/captacion/expedientes/${fila.id}`} aria-label={`${fila.pendienteDeCaptacion ? "Revisar" : "Abrir"} expediente ${fila.numero}`}>
-            {fila.pendienteDeCaptacion ? "Revisar" : "Abrir"}
-            <ChevronRight aria-hidden />
-          </Link>
-        </Button>
+        <AccionesListadoMenu etiquetaMenu={`Acciones del expediente ${fila.numero}`} acciones={[]} accionPrincipal={{ etiqueta: "Abrir expediente", onSelect: abrir }} />
       </td>
     </tr>
   );
@@ -220,6 +224,7 @@ export function BandejaExpedientesView() {
           hayFiltrosActivos={hayFiltros}
           onLimpiarFiltros={limpiar}
           chipsActivos={chips}
+          conteoFiltrosActivos={(desde ? 1 : 0) + (hasta ? 1 : 0)}
           tituloFiltrosMovil="Filtrar por fecha"
         >
           <div className="flex min-w-0 flex-col gap-1.5">
@@ -240,7 +245,7 @@ export function BandejaExpedientesView() {
           <VistaVacia
             titulo={hayFiltros ? "Ningún expediente coincide" : pestana === "por_revisar" ? "No hay expedientes por revisar" : pestana === "por_contactar" ? "No hay postulantes por contactar" : "No hay expedientes en esta vista"}
             descripcion={hayFiltros ? "Pruebe con otra búsqueda o limpie los filtros." : "Cuando llegue uno que requiera su atención aparecerá aquí."}
-            accion={hayFiltros ? <Button type="button" variant="outline" onClick={limpiar}>Limpiar filtros</Button> : <Inbox className="size-6 text-muted-foreground" aria-hidden />}
+            accion={hayFiltros ? <Button type="button" variant="outline" onClick={limpiar}>Limpiar filtros</Button> : undefined}
           />
         ) : (
           <Card className="gap-0 overflow-hidden p-0">

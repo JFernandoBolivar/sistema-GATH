@@ -14,7 +14,7 @@ export const ETIQUETA_MODO: Record<ModoPlantilla, string> = {
 };
 
 export const ETIQUETA_MOMENTO: Record<MomentoDocumento, string> = {
-  ventana2: "Ventana 2 (datos y documentos)",
+  ventana2: "Datos complementarios (datos y documentos)",
   contratacion: "Contratación",
   otro: "Otro momento",
 };

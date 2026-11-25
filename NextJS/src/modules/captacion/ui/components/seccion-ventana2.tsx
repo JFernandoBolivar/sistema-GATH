@@ -46,7 +46,7 @@ export function SeccionVentana2({ detalle }: { detalle: DetalleExpediente }) {
   if (v.vacia) {
     return (
       <section className="rounded-xl border border-dashed bg-card p-6 text-center text-muted-foreground">
-        El postulante todavía no ha llenado la Ventana 2.
+        El postulante todavía no ha llenado los datos complementarios.
       </section>
     );
   }
@@ -58,7 +58,7 @@ export function SeccionVentana2({ detalle }: { detalle: DetalleExpediente }) {
           <ul className="mt-2 list-disc pl-5 text-sm">{faltantes.map((f) => <li key={`${f.campo}-${f.mensaje}`}>{f.mensaje}</li>)}</ul>
         </section>
       ) : (
-        <p className="flex items-center gap-2 rounded-xl border border-success/40 bg-success-soft p-3 text-sm font-medium text-success"><CheckCircle2 className="size-5" aria-hidden /> La Ventana 2 está completa.</p>
+        <p className="flex items-center gap-2 rounded-xl border border-success/40 bg-success-soft p-3 text-sm font-medium text-success"><CheckCircle2 className="size-5" aria-hidden /> Los datos complementarios están completos.</p>
       )}
       <Bloque titulo="Familiares">
         {v.sinFamiliares ? (

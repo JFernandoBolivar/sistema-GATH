@@ -27,6 +27,7 @@ from apps.postulacion.application.use_cases.avisos import programar_avisos
 from apps.postulacion.domain.entities.expediente import CAMPOS_PROPUESTA, ExpedientePostulacion
 from apps.postulacion.domain.entities.postulante import TransicionRegistrada
 from apps.postulacion.domain.ports.repos import RepoPostulacion
+from apps.postulacion.domain.entities.punto_cuenta_ingreso import punto_cuenta_listo
 from apps.postulacion.domain.services.credencial import credencial_tras_transicion
 from apps.postulacion.domain.services.efectos import aplicar_transicion
 from apps.postulacion.domain.services.maquina_estados import (
@@ -89,16 +90,23 @@ def aplicar_transicion_expediente(
             if desconocidos:
                 raise ValidationError(f"Campos de propuesta no válidos: {sorted(desconocidos)}.")
             exp = replace(exp, **propuesta)
-        previa = buscar_transicion(origen, destino)
+        previa = buscar_transicion(origen, destino, exp.requiere_presupuesto, exp.requiere_direccion_general)
         guardas = set(previa.guardas) if previa is not None else set()
-        # Solo se consultan la reserva y la constancia cuando la transición las exige (guarda de Presupuesto).
+        # Solo se consultan la reserva, la constancia y el Punto de Cuenta cuando la transición los exige.
         exige_presupuesto = Guarda.PUESTO_RESERVADO_Y_DISPONIBLE in guardas
+        exige_reserva = exige_presupuesto or Guarda.PUESTO_RESERVADO_VIGENTE in guardas
         reservado = externos.puesto_reservado
-        if not reservado and exige_presupuesto:
+        reserva = None
+        if exige_reserva or Guarda.PUNTO_CUENTA_GENERADO in guardas:
             reserva = repo.obtener_reserva_activa_de_expediente(exp.id)
+        if not reservado and exige_reserva:
             reservado = reserva is not None and reserva.vigente(ahora)
         declarada = externos.disponibilidad_declarada or (
             exige_presupuesto and repo.obtener_constancia(exp.id) is not None
+        )
+        punto_generado = (
+            Guarda.PUNTO_CUENTA_GENERADO in guardas
+            and punto_cuenta_listo(repo.obtener_punto_cuenta_ingreso(exp.id), reserva)
         )
         hechos = Hechos(
             ahora=ahora, ventana_vence_el=exp.ventana_vence_el,
@@ -109,6 +117,8 @@ def aplicar_transicion_expediente(
             psicofisico_registrado=externos.psicofisico_registrado or repo.obtener_psicofisico(exp.id) is not None,
             disponibilidad_declarada=declarada,
             puesto_reservado=reservado, puesto_revalidado=externos.puesto_revalidado,
+            requiere_presupuesto=exp.requiere_presupuesto, requiere_direccion_general=exp.requiere_direccion_general,
+            punto_cuenta_generado=punto_generado,
         )
         transicion = validar_transicion(origen, destino, actor, hechos, motivo)
         nuevo = aplicar_transicion(exp, transicion, ahora, vigencias)

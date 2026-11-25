@@ -39,8 +39,9 @@ export function formatearTamano(bytes: number | null): string {
 }
 
 /** Quién hizo el cambio, en lenguaje claro. */
-export function describirActor(tipo: string, cedula: string): string {
+export function describirActor(tipo: string, cedula: string, nombre?: string | null): string {
   if (tipo === "SISTEMA") return "Sistema";
   if (tipo === "POSTULANTE") return "El postulante";
+  if (nombre) return cedula ? `${nombre} (C.I. ${cedula})` : nombre;
   return cedula ? `Captación (C.I. ${cedula})` : "Personal";
 }
